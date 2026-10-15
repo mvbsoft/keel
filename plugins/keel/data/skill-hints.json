@@ -1,0 +1,11 @@
+{
+  "about": "When the session is about to touch something an advisory skill covers, hooks/skill-hints.js reminds it once per session to load that skill. Shell commands count too: reading and writing commands are read as Read, Write or Edit of their files, a leading cd is followed. In test runs, on 12 matching prompts the model loaded the skill on its own once. Globs match paths relative to the project; commands match the start of a part of a shell command.",
+  "rules": [
+    { "skill": "migration-safety", "tools": ["Read", "Edit", "Write"], "migrations": true, "why": "this is a database migration" },
+    { "skill": "python-conventions", "tools": ["Edit", "Write"], "paths": ["**/*.py"], "why": "this is Python code" },
+    { "skill": "documentation-philosophy", "tools": ["Edit", "Write"], "paths": ["**/*.md", "docs/**", "**/*.rst", "**/*.adoc"], "not": [".keel/**", ".claude/**", "CHANGELOG*"], "why": "this changes documentation" },
+    { "skill": "adr-required", "tools": ["Edit", "Write"], "paths": ["**/package.json", "**/requirements*.txt", "**/pyproject.toml", "**/composer.json", "**/go.mod", "**/Cargo.toml", "**/Gemfile", "**/pom.xml", "**/build.gradle*"], "why": "this may add or change a dependency" },
+    { "skill": "architecture", "tools": ["Write"], "new_file": true, "paths": ["**/*.js", "**/*.mjs", "**/*.cjs", "**/*.ts", "**/*.tsx", "**/*.jsx", "**/*.py", "**/*.php", "**/*.go", "**/*.rs", "**/*.java", "**/*.kt", "**/*.cs", "**/*.rb", "**/*.swift"], "not": ["**/test/**", "**/tests/**", "**/__tests__/**", "**/*.test.*", "**/*.spec.*", ".keel/**"], "why": "this creates a new source file" },
+    { "skill": "git", "tools": ["Bash", "PowerShell"], "commands": ["git commit", "git merge", "git rebase", "git push", "git tag", "gh pr create"], "why": "this commits, merges or publishes" }
+  ]
+}

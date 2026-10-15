@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keel/profile.schema.json",
+  "title": "keel project profile (.keel/profile.json)",
+  "description": "Written by the project scan and confirmed by the user. No machine-specific paths; secrets appear as paths only.",
+  "type": "object",
+  "required": ["schema_version", "manifest_fingerprint", "languages", "parts", "triggers", "secret_paths"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "manifest_fingerprint": {
+      "description": "sha256 over package/build manifests; a change suggests a re-scan.",
+      "type": "string", "pattern": "^[0-9a-f]{64}$"
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "files"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "files": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "monorepo_tool": {
+      "description": "Workspace tool when the project is a monorepo, e.g. pnpm, nx, turbo, go.work, cargo.",
+      "type": ["string", "null"]
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/part" }
+    },
+    "triggers": {
+      "description": "Path globs that start each specialist group.",
+      "type": "object",
+      "required": ["security", "data", "docs", "env"],
+      "additionalProperties": false,
+      "properties": {
+        "security": { "$ref": "#/$defs/globs" },
+        "data": { "$ref": "#/$defs/globs" },
+        "docs": { "$ref": "#/$defs/globs" },
+        "env": { "$ref": "#/$defs/globs" }
+      }
+    },
+    "secret_paths": {
+      "description": "Relative paths of secret files. Their contents are never read.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/relpath" },
+      "uniqueItems": true
+    },
+    "ai_rules": {
+      "description": "Existing AI instruction files found by the scan (AGENTS.md, CLAUDE.md, ...).",
+      "type": "array",
+      "items": { "$ref": "#/$defs/relpath" },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "relpath": {
+      "description": "Project-relative path with forward slashes; absolute paths and '..' are not allowed.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(^|/)\\.\\.(/|$))[^\\\\]+$"
+    },
+    "globs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "commands": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "part": {
+      "type": "object",
+      "required": ["path", "ecosystems", "commands"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "description": "'.' for the project root.", "$ref": "#/$defs/relpath" },
+        "name": { "type": "string" },
+        "ecosystems": {
+          "description": "e.g. npm, composer, pip, cargo, go, maven, gradle, nuget. Package cache paths are resolved at run time, never stored.",
+          "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true
+        },
+        "commands": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "test": { "$ref": "#/$defs/commands" },
+            "lint": { "$ref": "#/$defs/commands" },
+            "types": { "$ref": "#/$defs/commands" },
+            "build": { "$ref": "#/$defs/commands" },
+            "format": { "$ref": "#/$defs/commands" }
+          }
+        },
+        "run_command": {
+          "description": "Command that starts the app for QA; null when there is none.",
+          "type": ["string", "null"]
+        }
+      }
+    }
+  }
+}

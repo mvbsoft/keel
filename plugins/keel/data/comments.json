@@ -1,0 +1,42 @@
+{
+  "about": "Limits for scripts/comments.js per comment level: the share of comment lines among the lines a change added (checked from min_lines_for_share added lines) and the longest comment block (the file header is not limited). project_hint: the level configure suggests from the share of comment lines in the code as it is. Calibrated on live runs. refs_exempt: files where ticket, decision-record and commit ids are their own subject, so comments.js does not report them (the project adds its own in comments.refs_exempt).",
+  "min_lines_for_share": 30,
+  "levels": {
+    "short": {
+      "share": 0.2,
+      "block_lines": 4
+    },
+    "functions": {
+      "share": 0.3,
+      "block_lines": 5
+    },
+    "detailed": {
+      "share": 0.4,
+      "block_lines": 8
+    }
+  },
+  "project_hint": [
+    {
+      "up_to": 0.15,
+      "level": "short"
+    },
+    {
+      "up_to": 0.28,
+      "level": "functions"
+    },
+    {
+      "up_to": 1,
+      "level": "detailed"
+    }
+  ],
+  "refs_exempt": [
+    "**/decisions/**",
+    "**/adr/**",
+    "**/adrs/**",
+    "**/tasks/**/*.md",
+    "**/tickets/**/*.md",
+    "CHANGELOG*",
+    "HISTORY*",
+    ".keel/**"
+  ]
+}

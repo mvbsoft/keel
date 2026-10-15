@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keel/verdicts.schema.json",
+  "title": "Report of one keel verifier",
+  "description": "A verifier handles one critical issue, or up to 3 important findings from the same file or module, with a separate verdict for each finding; one issue reported by several agents at the same place counts as one group of up to 4 findings.",
+  "type": "object",
+  "required": ["verifier", "verdicts"],
+  "additionalProperties": false,
+  "properties": {
+    "verifier": { "type": "string", "minLength": 1 },
+    "verdicts": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/verdict" } }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["file", "line", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "required": ["finding_id", "lens", "restatement", "verdict", "evidence", "reasoning"],
+      "additionalProperties": false,
+      "properties": {
+        "finding_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*-[0-9]+$" },
+        "lens": {
+          "description": "Angle of a vote; 'general' for single-verifier findings. Maximum uses three lenses for a critical finding.",
+          "enum": ["general", "reachability", "impact", "defenses"]
+        },
+        "restatement": { "description": "The finding in the verifier's own words.", "type": "string", "minLength": 1 },
+        "verdict": { "enum": ["CONFIRMED", "REFUTED", "UNCLEAR"] },
+        "evidence": {
+          "description": "file:line the verdict rests on. Required for every verdict.",
+          "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" }
+        },
+        "reasoning": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

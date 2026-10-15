@@ -1,0 +1,51 @@
+name: release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: git config --global user.name ci && git config --global user.email ci@example.com
+      - run: npm test
+      - name: Tag must match the plugin version
+        run: |
+          version=$(node -p "require('./plugins/keel/.claude-plugin/plugin.json').version")
+          if [ "$TAG" != "v$version" ]; then
+            echo "Tag $TAG does not match plugin.json version $version" >&2
+            exit 1
+          fi
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          version="${TAG#v}"
+          awk -v h="## [$version]" '
+            index($0, h) == 1 { on = 1; next }
+            on && index($0, "## [") == 1 { exit }
+            on && /^\[[^]]+\]: / { next }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "CHANGELOG.md has no notes for $version" >&2
+            exit 1
+          fi
+      - name: Create or update the GitHub Release
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --title "keel $TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" --title "keel $TAG" --notes-file notes.md --verify-tag
+          fi

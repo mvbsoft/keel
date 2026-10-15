@@ -1,0 +1,32 @@
+[
+  {
+    "file": "src/tasks.js",
+    "find": "// Tasks of a project, newest first. filters: { status, assignee, limit, offset }.\n",
+    "replace": "// true when a task was deleted, false when there was none with this id.\nfunction deleteTask(db, id) {\n  return db.prepare('DELETE FROM tasks WHERE id = ?').run(id).changes > 0;\n}\n\n// Tasks of a project, newest first. filters: { status, assignee, limit, offset }.\n"
+  },
+  {
+    "file": "src/tasks.js",
+    "find": "  updateTask,\n  listTasks,",
+    "replace": "  updateTask,\n  deleteTask,\n  listTasks,"
+  },
+  {
+    "file": "src/routes/tasks.js",
+    "find": "const tasks = require('../tasks.js');\n",
+    "replace": "const tasks = require('../tasks.js');\nconst { canDeleteTask } = require('../access.js');\n"
+  },
+  {
+    "file": "src/routes/tasks.js",
+    "find": "    return [200, tasks.updateTask(db, params.taskId, body)];\n  });\n",
+    "replace": "    return [200, tasks.updateTask(db, params.taskId, body)];\n  });\n\n  route('DELETE', '/tasks/:taskId', ({ db, params, userId }) => {\n    const task = tasks.getTask(db, params.taskId);\n    if (!task) throw new HttpError(404, `task ${params.taskId} not found`);\n    if (!canDeleteTask(db, userId, task)) throw new HttpError(403, 'only project admins can delete tasks');\n    tasks.deleteTask(db, task.id);\n    return [204];\n  });\n"
+  },
+  {
+    "file": "package.json",
+    "find": "  \"license\": \"MIT\",\n",
+    "replace": "  \"license\": \"MIT\",\n  \"engines\": {\n    \"node\": \">=22.13\"\n  },\n"
+  },
+  {
+    "file": "README.md",
+    "find": "| `PATCH /tasks/:id` | change `title`, `priority`, `assignee_id` or `due_date`; same rules as on create |\n",
+    "replace": "| `PATCH /tasks/:id` | change `title`, `priority`, `assignee_id` or `due_date`; same rules as on create |\n| `DELETE /tasks/:id` | delete a task; only admins of the task's project; `204`, `403` for anyone else, `404` if it does not exist |\n\n## Roles\nEach project has members with the role `admin` or `member` (table `project_members`). The project owner\nbecomes its first admin. Deleting tasks needs the `admin` role in the task's project.\n"
+  }
+]

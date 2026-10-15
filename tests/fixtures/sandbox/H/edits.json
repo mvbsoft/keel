@@ -1,0 +1,62 @@
+[
+  {
+    "file": "test/helpers.js",
+    "find": "  return { call, close: () => new Promise((resolve) => server.close(resolve)) };\n",
+    "replace": "  return { base, call, close: () => new Promise((resolve) => server.close(resolve)) };\n"
+  },
+  {
+    "file": "src/server.js",
+    "find": "require('./routes/tasks.js')(route);\n",
+    "replace": "require('./routes/tasks.js')(route);\nrequire('./routes/workload.js')(route);\n"
+  },
+  {
+    "file": "src/server.js",
+    "find": "      const [status, body] = await match.handler({ db, req, url, params, userId });\n      sendJson(res, status, body);\n",
+    "replace": "      // A handler returns [status, body] for JSON, or [status, text, contentType] for anything else.\n      const [status, body, contentType] = await match.handler({ db, req, url, params, userId });\n      if (contentType) {\n        res.writeHead(status, { 'content-type': contentType });\n        res.end(body);\n      } else sendJson(res, status, body);\n"
+  },
+  {
+    "file": "src/tasks.js",
+    "find": "const EDITABLE = ['title', 'priority', 'assignee_id', 'due_date'];\n",
+    "replace": "const EDITABLE = ['title', 'priority', 'assignee_id', 'due_date', 'estimate_hours'];\nconst SORTS = ['created_at', 'due_date', 'priority', 'title'];\n"
+  },
+  {
+    "file": "src/tasks.js",
+    "find": "function validateNew(db, input) {\n",
+    "replace": "function checkEstimate(value, problems) {\n  if (value === undefined || value === null) return;\n  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) problems.push('estimate_hours must be a number of hours, 0 or more');\n}\n\nfunction validateNew(db, input) {\n"
+  },
+  {
+    "file": "src/tasks.js",
+    "find": "  if ('due_date' in changes) checkDueDate(changes.due_date, problems);\n",
+    "replace": "  if ('due_date' in changes) checkDueDate(changes.due_date, problems);\n  if ('estimate_hours' in changes) checkEstimate(changes.estimate_hours, problems);\n"
+  },
+  {
+    "file": "src/tasks.js",
+    "find": "    due_date: row.due_date,\n    created_at: row.created_at,\n",
+    "replace": "    due_date: row.due_date,\n    estimate_hours: row.estimate_hours,\n    created_at: row.created_at,\n"
+  },
+  {
+    "file": "src/tasks.js",
+    "find": "// Tasks of a project, newest first. filters: { status, assignee, limit, offset }.\n",
+    "replace": "// ORDER BY clause for a sort parameter such as 'due_date' or '-priority' (minus = descending).\nfunction orderBy(sort) {\n  if (!sort) return 'created_at DESC, id DESC';\n  const desc = sort.startsWith('-');\n  const column = desc ? sort.slice(1) : sort;\n  if (!SORTS.some((s) => column.startsWith(s))) throw new HttpError(400, `sort must be one of ${SORTS.join(', ')}, optionally with a leading -`);\n  return `${column} ${desc ? 'DESC' : 'ASC'}, id`;\n}\n\n// Tasks of a project, newest first unless filters.sort says otherwise.\n// filters: { status, assignee, sort, limit, offset }.\n"
+  },
+  {
+    "file": "src/tasks.js",
+    "find": "    `SELECT * FROM tasks WHERE ${where.join(' AND ')} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,\n",
+    "replace": "    `SELECT * FROM tasks WHERE ${where.join(' AND ')} ORDER BY ${orderBy(filters.sort)} LIMIT ? OFFSET ?`,\n"
+  },
+  {
+    "file": "src/routes/projects.js",
+    "find": "      assignee,\n      limit:",
+    "replace": "      assignee,\n      sort: url.searchParams.get('sort') || undefined,\n      limit:"
+  },
+  {
+    "file": "README.md",
+    "find": "| `GET /projects/:id/tasks` | tasks of a project, newest first; filters `status`, `assignee`; paging `limit` (1-100, default 50) and `offset` |\n",
+    "replace": "| `GET /projects/:id/tasks` | tasks of a project, newest first; filters `status`, `assignee`; `sort` by `created_at`, `due_date`, `priority` or `title` (a leading `-` sorts descending); paging `limit` (1-100, default 50) and `offset` |\n| `POST /projects/:id/assign` | `{ \"task_ids\": [...], \"assignee_id\": n }`: assign all the tasks, or none; a person has at most 5 open tasks (`409`) |\n| `GET /projects/:id/week?date=YYYY-MM-DD` | tasks due Monday-Sunday of that date's week (default: this week) |\n| `GET /projects/:id/export.csv` | all tasks as CSV with the assignee's name |\n"
+  },
+  {
+    "file": "README.md",
+    "find": "| `PATCH /tasks/:id` | change `title`, `priority`, `assignee_id` or `due_date`; same rules as on create |\n",
+    "replace": "| `PATCH /tasks/:id` | change `title`, `priority`, `assignee_id`, `due_date` or `estimate_hours` (hours, 0 or more); same rules as on create |\n"
+  }
+]

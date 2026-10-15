@@ -1,0 +1,18 @@
+name: lint-workflows
+
+on:
+  pull_request:
+    paths: ['.github/workflows/**']
+  push:
+    branches: [main]
+    paths: ['.github/workflows/**']
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color

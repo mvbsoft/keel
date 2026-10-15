@@ -1,0 +1,11 @@
+{
+  "name": "tasker",
+  "version": "1.4.0",
+  "private": true,
+  "description": "Task tracker API for small teams",
+  "license": "MIT",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test \"test/*.spec.js\""
+  }
+}

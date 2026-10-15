@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keel/usage-day.schema.json",
+  "title": "One day document of the keel usage dashboard (collection `days`)",
+  "description": "Everything one machine spent on one UTC day, written by `scripts/usage.js prepare`. Hours cover all local requests of the day; a session is stored in the document of the day it started. A day that does not fit in one document (about 240 KB) continues in `<id>_p2`, `<id>_p3`, ... (same header, empty hours and snapshots, `part` k of `parts`).",
+  "type": "object",
+  "required": ["schema", "date", "pc", "user", "part", "parts", "synced_until", "hours", "snapshots", "sessions"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": 1 },
+    "date": { "description": "UTC date of the day.", "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "pc": { "description": "Machine name, only [A-Za-z0-9_-].", "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+    "user": { "description": "User email set in configure (default: git user.email); null when unknown.", "type": ["string", "null"] },
+    "part": { "type": "integer", "minimum": 1 },
+    "parts": { "type": "integer", "minimum": 1 },
+    "synced_until": { "description": "ISO time up to which this machine's data was complete when the document was built.", "type": "string" },
+    "hours": { "type": "array", "items": { "$ref": "#/$defs/hour" } },
+    "snapshots": { "description": "Plan-limit snapshots (limits.jsonl lines) taken on this day.", "type": "array", "items": { "type": "object" } },
+    "sessions": { "type": "array", "items": { "$ref": "#/$defs/session" } }
+  },
+  "$defs": {
+    "wallet": { "enum": ["subscription", "api", "credit", "unknown"] },
+    "tok": {
+      "description": "Token counts: input, cache write 5 minute, cache write 1 hour, cache read, output.",
+      "type": "object",
+      "required": ["in", "cw5", "cw1h", "cr", "out"],
+      "additionalProperties": false,
+      "properties": {
+        "in": { "type": "integer", "minimum": 0 },
+        "cw5": { "type": "integer", "minimum": 0 },
+        "cw1h": { "type": "integer", "minimum": 0 },
+        "cr": { "type": "integer", "minimum": 0 },
+        "out": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "hour": {
+      "type": "object",
+      "required": ["h", "wallet", "usd", "req", "tok", "by_model"],
+      "additionalProperties": false,
+      "properties": {
+        "h": { "description": "ISO start of the UTC hour.", "type": "string" },
+        "wallet": { "$ref": "#/$defs/wallet" },
+        "usd": { "type": "number", "minimum": 0 },
+        "req": { "type": "integer", "minimum": 0 },
+        "tok": { "$ref": "#/$defs/tok" },
+        "by_model": { "description": "List-price dollars per model id.", "type": "object", "additionalProperties": { "type": "number" } }
+      }
+    },
+    "participant": {
+      "type": "object",
+      "required": ["kind", "type", "model", "by_model", "start", "end", "active_min", "requests", "tools", "agents_launched", "tok", "usd", "output_estimated", "resumed"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["main", "agent"] },
+        "agent_id": { "type": "string" },
+        "type": { "type": "string" },
+        "model": { "description": "The model with most requests.", "type": ["string", "null"] },
+        "by_model": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["requests", "tok", "usd"],
+            "additionalProperties": false,
+            "properties": {
+              "requests": { "type": "integer", "minimum": 0 },
+              "tok": { "$ref": "#/$defs/tok" },
+              "usd": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "start": { "type": ["string", "null"] },
+        "end": { "type": ["string", "null"] },
+        "active_min": { "type": "number", "minimum": 0 },
+        "requests": { "type": "integer", "minimum": 0 },
+        "tools": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "agents_launched": { "type": "integer", "minimum": 0 },
+        "tok": { "$ref": "#/$defs/tok" },
+        "usd": { "type": "number", "minimum": 0 },
+        "output_estimated": { "type": "boolean" },
+        "resumed": { "description": "How many times an agent was resumed with a follow-up message.", "type": "integer", "minimum": 0 }
+      }
+    },
+    "turn": {
+      "type": "object",
+      "required": ["t", "usd", "requests", "agents"],
+      "additionalProperties": false,
+      "properties": {
+        "t": { "description": "ISO time of the user prompt; null for the lead turn (activity before the first prompt).", "type": ["string", "null"] },
+        "text": { "description": "Redacted start of the prompt (length set in transcripts.js); absent when prompt previews are off.", "type": "string" },
+        "usd": { "type": "number", "minimum": 0 },
+        "requests": { "type": "integer", "minimum": 0 },
+        "agents": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "keel": {
+      "description": "keel task data when the session ran a keel task; null otherwise.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "task": { "type": ["string", "null"] },
+        "level": { "type": ["string", "null"] },
+        "findings": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "must": { "type": "integer", "minimum": 0 },
+            "should": { "type": "integer", "minimum": 0 },
+            "nice": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "gates": { "enum": ["pass", "fail", "none", null] },
+        "lines": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "add": { "type": "integer", "minimum": 0 },
+            "del": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "files": { "type": ["integer", "null"], "minimum": 0 },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "model"],
+            "additionalProperties": false,
+            "properties": { "title": { "type": "string" }, "model": { "type": ["string", "null"] } }
+          }
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "required": ["id", "project", "cwd", "branch", "wallet", "entrypoint", "start", "end", "active_min", "usd", "cost_cc", "unpriced", "keel", "participants", "turns"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "project": { "type": "string" },
+        "cwd": { "type": "string" },
+        "branch": { "type": "string" },
+        "wallet": { "$ref": "#/$defs/wallet" },
+        "entrypoint": { "type": "string" },
+        "start": { "type": ["string", "null"] },
+        "end": { "type": ["string", "null"] },
+        "active_min": { "type": "number", "minimum": 0 },
+        "usd": { "description": "List-price dollars of all participants (models without a price count 0).", "type": "number", "minimum": 0 },
+        "cost_cc": { "description": "Claude Code's own total_cost_usd for the session (last status-line snapshot), else null.", "type": ["number", "null"] },
+        "unpriced": { "description": "Model ids that had no price.", "type": "array", "items": { "type": "string" } },
+        "keel": { "$ref": "#/$defs/keel" },
+        "participants": { "type": "array", "items": { "$ref": "#/$defs/participant" } },
+        "turns": { "type": "array", "items": { "$ref": "#/$defs/turn" } },
+        "truncated": { "description": "true when the session was too big for one document and turn texts, turns or participants were dropped.", "type": "boolean" }
+      }
+    }
+  }
+}

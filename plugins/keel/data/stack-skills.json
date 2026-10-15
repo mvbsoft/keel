@@ -1,0 +1,369 @@
+{
+  "about": "keel's checked list of stack plugins for configure section 7. Every entry was checked by hand on the date below: author, what it does, what it runs or needs. 'when' matches the project profile (languages by Linguist name, ecosystems by catalog id) or package names in the manifests. 'frameworks' are detected by package name and searched for in the user's marketplaces; with no match keel says so and offers a project skill. Entries are advice only; the user installs what they choose.",
+  "checked": "2026-10-11",
+  "excluded_marketplaces": [
+    "anthropic-plugin-directory"
+  ],
+  "plugins": [
+    {
+      "plugin": "php-lsp@claude-plugins-official",
+      "kind": "lsp",
+      "author": "Anthropic",
+      "when": {
+        "languages": [
+          "PHP"
+        ]
+      },
+      "what": "Code intelligence for PHP through the Intelephense language server.",
+      "why": "After each edit Claude sees type errors and unknown methods at once, and finds definitions and callers exactly instead of by text search.",
+      "needs": {
+        "command": "intelephense",
+        "install": "npm install -g intelephense",
+        "note": "free; some features need a paid Intelephense licence"
+      }
+    },
+    {
+      "plugin": "pyright-lsp@claude-plugins-official",
+      "kind": "lsp",
+      "author": "Anthropic",
+      "when": {
+        "languages": [
+          "Python"
+        ]
+      },
+      "what": "Code intelligence and type checking for Python through Pyright.",
+      "why": "After each edit Claude sees type errors at once, and finds definitions and callers exactly instead of by text search.",
+      "needs": {
+        "command": "pyright-langserver",
+        "install": "npm install -g pyright",
+        "note": "or pip install pyright"
+      }
+    },
+    {
+      "plugin": "typescript-lsp@claude-plugins-official",
+      "kind": "lsp",
+      "author": "Anthropic",
+      "when": {
+        "languages": [
+          "TypeScript",
+          "JavaScript",
+          "TSX"
+        ]
+      },
+      "what": "Code intelligence for TypeScript and JavaScript through typescript-language-server.",
+      "why": "After each edit Claude sees type errors at once, and finds definitions and callers exactly instead of by text search.",
+      "needs": {
+        "command": "typescript-language-server",
+        "install": "npm install -g typescript-language-server typescript"
+      }
+    },
+    {
+      "plugin": "gopls-lsp@claude-plugins-official",
+      "kind": "lsp",
+      "author": "Anthropic",
+      "when": {
+        "languages": [
+          "Go"
+        ]
+      },
+      "what": "Code intelligence for Go through gopls.",
+      "why": "After each edit Claude sees compile errors at once, and finds definitions and callers exactly.",
+      "needs": {
+        "command": "gopls",
+        "install": "go install golang.org/x/tools/gopls@latest"
+      }
+    },
+    {
+      "plugin": "rust-analyzer-lsp@claude-plugins-official",
+      "kind": "lsp",
+      "author": "Anthropic",
+      "when": {
+        "languages": [
+          "Rust"
+        ]
+      },
+      "what": "Code intelligence for Rust through rust-analyzer.",
+      "why": "After each edit Claude sees compile errors at once, and finds definitions and callers exactly.",
+      "needs": {
+        "command": "rust-analyzer",
+        "install": "rustup component add rust-analyzer"
+      }
+    },
+    {
+      "plugin": "ruby-lsp@claude-plugins-official",
+      "kind": "lsp",
+      "author": "Anthropic",
+      "when": {
+        "languages": [
+          "Ruby"
+        ]
+      },
+      "what": "Code intelligence for Ruby through ruby-lsp.",
+      "why": "Claude finds definitions and callers exactly and sees errors after each edit.",
+      "needs": {
+        "command": "ruby-lsp",
+        "install": "gem install ruby-lsp"
+      }
+    },
+    {
+      "plugin": "csharp-lsp@claude-plugins-official",
+      "kind": "lsp",
+      "author": "Anthropic",
+      "when": {
+        "languages": [
+          "C#"
+        ]
+      },
+      "what": "Code intelligence for C# through csharp-ls.",
+      "why": "Claude sees compile errors after each edit and finds definitions and callers exactly.",
+      "needs": {
+        "command": "csharp-ls",
+        "install": "dotnet tool install --global csharp-ls"
+      }
+    },
+    {
+      "plugin": "clangd-lsp@claude-plugins-official",
+      "kind": "lsp",
+      "author": "Anthropic",
+      "when": {
+        "languages": [
+          "C",
+          "C++"
+        ]
+      },
+      "what": "Code intelligence for C and C++ through clangd.",
+      "why": "Claude sees compile errors after each edit and finds definitions and callers exactly.",
+      "needs": {
+        "command": "clangd",
+        "install": "install clangd from LLVM (apt install clangd, brew install llvm, or the LLVM installer on Windows)"
+      }
+    },
+    {
+      "plugin": "laravel-boost@claude-plugins-official",
+      "kind": "framework",
+      "author": "Laravel (official Boost package)",
+      "when": {
+        "packages": [
+          "laravel/framework"
+        ]
+      },
+      "what": "An MCP server from Laravel Boost: tools for Artisan, Eloquent queries, routes, migrations and the app state.",
+      "why": "Claude works from the installed Laravel version and the app as it is, instead of general knowledge.",
+      "needs": {
+        "note": "the project needs the laravel/boost package (composer require laravel/boost --dev); the server runs php artisan boost:mcp"
+      }
+    },
+    {
+      "plugin": "playwright@claude-plugins-official",
+      "kind": "testing",
+      "author": "Microsoft",
+      "when": {
+        "packages": [
+          "@playwright/test",
+          "playwright"
+        ]
+      },
+      "what": "Microsoft Playwright MCP server: opens pages in a real browser, clicks, fills forms, takes screenshots.",
+      "why": "QA can check the running app in a browser instead of guessing from the code.",
+      "needs": {
+        "note": "runs npx @playwright/mcp@latest; downloads browsers on first use"
+      }
+    },
+    {
+      "plugin": "prisma@claude-plugins-official",
+      "kind": "database",
+      "author": "Prisma",
+      "when": {
+        "packages": [
+          "prisma",
+          "@prisma/client"
+        ]
+      },
+      "what": "Prisma MCP: Postgres management, schema migrations, SQL queries; can create Prisma Postgres databases.",
+      "why": "Migrations and queries go through Prisma with its own guidance.",
+      "needs": {
+        "note": "may connect to your Prisma account"
+      }
+    },
+    {
+      "plugin": "supabase@claude-plugins-official",
+      "kind": "database",
+      "author": "Supabase community",
+      "when": {
+        "packages": [
+          "@supabase/supabase-js",
+          "supabase"
+        ]
+      },
+      "what": "Supabase MCP: database, auth, storage and real-time of a Supabase project.",
+      "why": "Claude reads the real Supabase schema and settings.",
+      "needs": {
+        "note": "connects to your Supabase account"
+      }
+    },
+    {
+      "plugin": "context7@claude-plugins-official",
+      "kind": "docs",
+      "author": "Upstash",
+      "when": {
+        "always": true
+      },
+      "what": "Up-to-date documentation of libraries and frameworks, looked up on demand.",
+      "why": "keel's 'docs before code' rule: when the installed code is not enough, Claude reads current docs instead of guessing.",
+      "needs": {
+        "note": "remote MCP server at mcp.context7.com (Upstash); library names you look up go to it; works without an account"
+      }
+    }
+  ],
+  "marketplaces": [
+    {
+      "name": "trailofbits",
+      "add": "claude plugin marketplace add trailofbits/skills",
+      "author": "Trail of Bits (security firm)",
+      "what": "About 40 security and code-quality plugins.",
+      "suggest": [
+        {
+          "plugin": "modern-python",
+          "when": {
+            "languages": [
+              "Python"
+            ]
+          },
+          "what": "Modern Python practices for new code, scripts and migrations."
+        },
+        {
+          "plugin": "supply-chain-risk-auditor",
+          "when": {
+            "ecosystems": [
+              "npm",
+              "python",
+              "go"
+            ]
+          },
+          "what": "Audits npm, PyPI and Go dependencies for supply-chain risk."
+        },
+        {
+          "plugin": "rust-review",
+          "when": {
+            "languages": [
+              "Rust"
+            ]
+          },
+          "what": "Security review of Rust: unsafe code, concurrency, FFI."
+        },
+        {
+          "plugin": "c-review",
+          "when": {
+            "languages": [
+              "C",
+              "C++"
+            ]
+          },
+          "what": "Security review of C and C++."
+        },
+        {
+          "plugin": "modern-cpp",
+          "when": {
+            "languages": [
+              "C++"
+            ]
+          },
+          "what": "Modern C++ (C++20/23/26) practices."
+        },
+        {
+          "plugin": "property-based-testing",
+          "when": {
+            "always": true
+          },
+          "what": "Writes and reviews property-based tests."
+        }
+      ]
+    }
+  ],
+  "frameworks": [
+    {
+      "name": "Laravel",
+      "packages": [
+        "laravel/framework"
+      ]
+    },
+    {
+      "name": "Yii2",
+      "packages": [
+        "yiisoft/yii2"
+      ]
+    },
+    {
+      "name": "Symfony",
+      "packages": [
+        "symfony/framework-bundle"
+      ]
+    },
+    {
+      "name": "Django",
+      "packages": [
+        "django"
+      ]
+    },
+    {
+      "name": "FastAPI",
+      "packages": [
+        "fastapi"
+      ]
+    },
+    {
+      "name": "Flask",
+      "packages": [
+        "flask"
+      ]
+    },
+    {
+      "name": "Express",
+      "packages": [
+        "express"
+      ]
+    },
+    {
+      "name": "NestJS",
+      "packages": [
+        "@nestjs/core"
+      ]
+    },
+    {
+      "name": "React",
+      "packages": [
+        "react"
+      ]
+    },
+    {
+      "name": "Vue",
+      "packages": [
+        "vue"
+      ]
+    },
+    {
+      "name": "Next.js",
+      "packages": [
+        "next"
+      ]
+    },
+    {
+      "name": "Angular",
+      "packages": [
+        "@angular/core"
+      ]
+    },
+    {
+      "name": "Rails",
+      "packages": [
+        "rails"
+      ]
+    },
+    {
+      "name": "Spring Boot",
+      "packages": [
+        "org.springframework.boot"
+      ]
+    }
+  ]
+}

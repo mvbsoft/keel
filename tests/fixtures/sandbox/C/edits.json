@@ -1,0 +1,27 @@
+[
+  {
+    "file": "src/lib/text.js",
+    "find": "module.exports = { truncate, csvField };\n",
+    "replace": "// Escapes the LIKE wildcards % and _ and the escape character itself, for `LIKE ? ESCAPE '\\'`.\nfunction escapeLike(text) {\n  return text.replace(/[\\\\%_]/g, (c) => `\\\\${c}`);\n}\n\nmodule.exports = { truncate, csvField, escapeLike };\n"
+  },
+  {
+    "file": "src/routes/projects.js",
+    "find": "const tasks = require('../tasks.js');\n",
+    "replace": "const tasks = require('../tasks.js');\nconst { searchTasks } = require('../search.js');\n"
+  },
+  {
+    "file": "src/routes/projects.js",
+    "find": "  route('POST', '/projects/:projectId/tasks',",
+    "replace": "  route('GET', '/projects/:projectId/search', ({ db, params, url }) => {\n    const limit = intParam(url, 'limit', { min: 1, max: 100, fallback: 20 });\n    return [200, searchTasks(db, params.projectId, url.searchParams.get('q'), limit)];\n  });\n\n  route('POST', '/projects/:projectId/tasks',"
+  },
+  {
+    "file": "README.md",
+    "find": "| `POST /projects/:id/tasks` |",
+    "replace": "| `GET /projects/:id/search` | tasks whose title contains `q` (1-100 characters), newest first; `limit` 1-100, default 20; `400` without `q`, `404` if the project does not exist |\n| `POST /projects/:id/tasks` |"
+  },
+  {
+    "file": "README.md",
+    "find": "## Working days\n",
+    "replace": "## Search\n`q` is matched as plain text anywhere in the title: `%` and `_` have no special meaning. Case is\nignored for Latin letters only (SQLite's `LIKE`), so `Invoice` finds `invoice` but `Задача` does not\nfind `задача`.\n\n## Working days\n"
+  }
+]

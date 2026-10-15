@@ -1,0 +1,359 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keel/config.schema.json",
+  "title": "keel project configuration (.keel/config.json)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "repo_language",
+    "gates",
+    "git",
+    "verification",
+    "architecture",
+    "docs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "repo_language": {
+      "description": "Language of what keel writes into the repository: the note, project memory, session logs, commit messages and new documents. Existing documents keep their own language.",
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$",
+      "default": "en"
+    },
+    "gates": {
+      "type": "object",
+      "required": [
+        "checks",
+        "security_scanners"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "description": "Test, lint and type-check commands per monorepo part ('.' for a single project).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/check"
+          }
+        },
+        "security_scanners": {
+          "description": "A scanner that is not installed is a loud warning in the report, not a red gate.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scanner"
+          }
+        }
+      }
+    },
+    "git": {
+      "type": "object",
+      "required": [
+        "mode",
+        "main_branch",
+        "ask_before_merge",
+        "state_in_git"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "manual",
+            "autonomous"
+          ]
+        },
+        "main_branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ask_before_merge": {
+          "type": "boolean",
+          "default": true
+        },
+        "state_in_git": {
+          "description": "Keep next-session.md, memory/ and sessions/ in git.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": [
+        "tier_rules",
+        "verifier_caps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tier_rules": {
+          "description": "Thresholds the level-proposal script uses. The user always chooses.",
+          "type": "object",
+          "required": [
+            "gates_only_max_files",
+            "basic_max_modules",
+            "large_change_lines",
+            "very_large_change_lines"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "gates_only_max_files": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 1
+            },
+            "basic_max_modules": {
+              "description": "Modules a change may touch and still suggest Basic; more suggest Standard.",
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "large_change_lines": {
+              "description": "Changed lines from which a change counts as large and suggests Standard. A rule of thumb from human code review: reviewers find fewer defects in changes beyond 200-400 lines.",
+              "type": "integer",
+              "minimum": 1,
+              "default": 400
+            },
+            "very_large_change_lines": {
+              "description": "Changed lines from which a change counts as very large and suggests Maximum.",
+              "type": "integer",
+              "minimum": 1,
+              "default": 1000
+            },
+            "core_fan_in": {
+              "description": "A behavior change in a file that this many non-test project files import suggests Maximum (core code). Configs without it use 5.",
+              "type": "integer",
+              "minimum": 1,
+              "default": 5
+            }
+          }
+        },
+        "verifier_caps": {
+          "type": "object",
+          "required": [
+            "basic",
+            "standard",
+            "maximum"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "basic": {
+              "description": "Verifier launches at Basic.",
+              "type": "integer",
+              "minimum": 0,
+              "default": 2
+            },
+            "standard": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 5
+            },
+            "maximum": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 8
+            }
+          }
+        }
+      },
+      "description": "Turn caps are not configured here: each agent's maxTurns in its own file decides (review agents 60, implementer 350; measured p90 about 52 and 342)."
+    },
+    "architecture": {
+      "type": "object",
+      "required": [
+        "file_lines_warn",
+        "file_lines_max"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "file_lines_warn": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 700
+        },
+        "file_lines_max": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1000
+        }
+      }
+    },
+    "comments": {
+      "description": "Code comments. Tricky code (formulas, hidden behaviour, legacy, code that looks wrong) and unclear values or names always get a comment; the level decides plain code. Rules: hooks/comments.md; limits: data/comments.json.",
+      "type": "object",
+      "required": [
+        "level"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "enum": [
+            "short",
+            "functions",
+            "detailed"
+          ],
+          "default": "short",
+          "description": "short: tricky code and unclear values only, plus one line of why for a questionable decision; functions: plus a 1-3 line doc comment on each public function, class and method; detailed: a short doc comment on every function plus headings for the blocks of a long one."
+        },
+        "ticket_prefixes": {
+          "description": "Prefixes of the project's ticket and record ids (ABC for ABC-123 and ABC-A-12). comments.js reports such ids in new comment and doc lines. Empty or unset: ticket ids are not checked.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*$" }
+        },
+        "adr_refs": {
+          "enum": ["allowed", "forbidden"],
+          "default": "allowed",
+          "description": "Mentions of decision records (ADR-12) in new comments and docs. forbidden: reported in comments, and in docs unless they are a link."
+        },
+        "refs_exempt": {
+          "description": "Globs of files where ids are their own subject and are not reported, besides the built-in ones (decision records, task and ticket folders, changelogs).",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "docs": {
+      "type": "object",
+      "required": [
+        "profile",
+        "pattern"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "profile": {
+          "description": "1 maintenance only (no new docs; existing docs kept true), 2 standard (+ ADR for significant decisions), 3 spec per feature, 4 heavy. The most a task may write; the task size decides. Details: skills/_shared/docs-profiles.md.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4,
+          "default": 1
+        },
+        "pattern": {
+          "description": "Where new docs go; only meaningful for profiles 3-4.",
+          "enum": [
+            "none",
+            "diataxis",
+            "arc42",
+            "arc42-c4"
+          ],
+          "default": "none"
+        }
+      }
+    },
+    "delegation": {
+      "description": "Above either threshold keel asks: here or delegate to implementers? Starting estimate, to be replaced by measurements.",
+      "type": "object",
+      "required": [
+        "min_plan_steps",
+        "min_plan_files"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "min_plan_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 8
+        },
+        "min_plan_files": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 15
+        }
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "required": [
+        "trash_max_age_days"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "trash_max_age_days": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "description": "Same window as common cloud trash bins (30 days)."
+        }
+      }
+    },
+    "tasks": {
+      "description": "Optional. Where task files (/keel:start-task) live.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "in_git": {
+          "description": "true: .keel/tasks/ (goes into git, the team sees every task). false: .keel/local/tasks/ (this machine only). Configs without it use true.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "stack_skills": {
+      "description": "Stack skills the user chose during configure (informational).",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "usage": {
+      "type": "object",
+      "description": "Optional. Usage dashboard shared by a team: the URL of the \"keel usage\" artifact every member syncs to (otherwise each machine finds its own).",
+      "additionalProperties": false,
+      "properties": {
+        "artifact_url": {
+          "type": "string",
+          "pattern": "^https://claude\\.ai/"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": [
+        "part",
+        "kind",
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "part": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path of the monorepo part relative to the project root."
+        },
+        "kind": {
+          "enum": [
+            "test",
+            "lint",
+            "types"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "scanner": {
+      "type": "object",
+      "required": [
+        "name",
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

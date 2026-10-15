@@ -1,0 +1,25 @@
+name: Bug report
+description: Something in keel does not work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command you ran, what you expected and what you got (paste the keel output).
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `node --version`, `claude --version` and the keel version from `claude plugin list`.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and shell
+      placeholder: Windows 11 / PowerShell, macOS 15 / zsh, Ubuntu 24.04 / bash
+    validations:
+      required: true

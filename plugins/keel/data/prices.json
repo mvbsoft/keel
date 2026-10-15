@@ -1,0 +1,17 @@
+{
+  "about": "List prices in USD per million tokens, used only to show an estimated cost in reports. On a subscription the same tokens count against plan limits instead of money.",
+  "source": "Claude prompt-caching pricing table (docs snapshot 2026-10-08, pc-platform.md)",
+  "models": [
+    { "match": "claude-opus-5-5", "input": 4, "cache_write_5m": 5, "cache_write_1h": 8, "cache_read": 0.2, "output": 20 },
+    { "match": "claude-opus-5", "input": 5, "cache_write_5m": 6.25, "cache_write_1h": 10, "cache_read": 0.5, "output": 25 },
+    { "match": "claude-opus-4", "input": 5, "cache_write_5m": 6.25, "cache_write_1h": 10, "cache_read": 0.5, "output": 25, "note": "Opus 4.5 and later; Opus 4 and 4.1 have their own rows" },
+    { "match": "claude-opus-4-0", "input": 15, "cache_write_5m": 18.75, "cache_write_1h": 30, "cache_read": 1.5, "output": 75 },
+    { "match": "claude-opus-4-1", "input": 15, "cache_write_5m": 18.75, "cache_write_1h": 30, "cache_read": 1.5, "output": 75 },
+    { "match": "claude-opus-4-2025", "input": 15, "cache_write_5m": 18.75, "cache_write_1h": 30, "cache_read": 1.5, "output": 75 },
+    { "match": "claude-sonnet-5-5", "input": 2, "cache_write_5m": 2.5, "cache_write_1h": 4, "cache_read": 0.1, "output": 10 },
+    { "match": "claude-sonnet-5", "input": 2, "cache_write_5m": 2.5, "cache_write_1h": 4, "cache_read": 0.2, "output": 10 },
+    { "match": "claude-sonnet-4", "input": 3, "cache_write_5m": 3.75, "cache_write_1h": 6, "cache_read": 0.3, "output": 15 },
+    { "match": "claude-haiku-5-5", "input": 0.1, "cache_write_5m": 0.125, "cache_write_1h": 0.2, "cache_read": 0.01, "output": 0.5, "long_context": { "over": 100000, "mult": 5 }, "note": "prompts up to 100,000 tokens; larger prompts cost 5x" },
+    { "match": "claude-haiku-4", "input": 1, "cache_write_5m": 1.25, "cache_write_1h": 2, "cache_read": 0.1, "output": 5 }
+  ]
+}

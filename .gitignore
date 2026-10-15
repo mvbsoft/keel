@@ -1,0 +1,10 @@
+node_modules/
+.claude/settings.local.json
+.keel/local/
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+plugins/keel/evals/results/
+.design/

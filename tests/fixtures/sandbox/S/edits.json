@@ -1,0 +1,32 @@
+[
+  {
+    "file": "src/tasks.js",
+    "find": "// ---------------------------------------------------------------------------------------------\n// Summaries\n",
+    "replace": "// Tasks of a project whose due date is before `today`, most overdue first.\nfunction listOverdue(db, projectId, today) {\n  const rows = db.prepare(\n    'SELECT * FROM tasks WHERE project_id = ? AND due_date IS NOT NULL AND due_date < ? ORDER BY due_date, id',\n  ).all(projectId, today);\n  return rows.map(toTask);\n}\n\n// ---------------------------------------------------------------------------------------------\n// Summaries\n"
+  },
+  {
+    "file": "src/tasks.js",
+    "find": "  dueSoon,\n  assigneeLoad,",
+    "replace": "  dueSoon,\n  listOverdue,\n  assigneeLoad,"
+  },
+  {
+    "file": "src/routes/projects.js",
+    "find": "const tasks = require('../tasks.js');\nconst { HttpError, readJson, intParam } = require('../lib/http.js');\n",
+    "replace": "const tasks = require('../tasks.js');\nconst { buildReport } = require('../report.js');\nconst { toDay } = require('../lib/dates.js');\nconst { HttpError, readJson, intParam } = require('../lib/http.js');\n"
+  },
+  {
+    "file": "src/routes/projects.js",
+    "find": "  route('POST', '/projects/:projectId/tasks',",
+    "replace": "  route('GET', '/projects/:projectId/report', ({ db, params }) => [200, buildReport(db, params.projectId, toDay(new Date()))]);\n\n  route('POST', '/projects/:projectId/tasks',"
+  },
+  {
+    "file": "README.md",
+    "find": "| `GET /tasks/:id` | one task; `404` if it does not exist |\n",
+    "replace": "| `GET /projects/:id/report` | task counts by status and the overdue tasks; `404` if the project does not exist |\n| `GET /tasks/:id` | one task; `404` if it does not exist |\n"
+  },
+  {
+    "file": "README.md",
+    "find": "## Working days\n",
+    "replace": "## Project report\n`GET /projects/:id/report` returns `{ \"project_id\", \"counts\": { \"todo\", \"doing\", \"done\" }, \"overdue\": [...] }`.\n`overdue` lists the open tasks whose due date has passed, most overdue first, each with `id`, `title`,\n`due_date` and `days_overdue`. `days_overdue` counts working days since the due date: weekends and\npublic holidays are not counted.\n\n## Working days\n"
+  }
+]

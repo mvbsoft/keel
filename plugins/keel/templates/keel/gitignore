@@ -1,0 +1,2 @@
+# keel: local state, never committed (.keel/tasks/ stays tracked: a task folder travels with its branch)
+local/

@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "about": "keel's own catalog of project files. Patterns: a name without '/' matches a file name anywhere; with '/' it matches the path relative to the project root; '*' matches within one path segment, '**/' any number of folders.",
+  "ecosystems": [
+    {
+      "id": "npm", "name": "JavaScript / TypeScript (Node.js)",
+      "manifests": ["package.json"],
+      "locks": { "pnpm-lock.yaml": "pnpm", "yarn.lock": "yarn", "bun.lock": "bun", "bun.lockb": "bun", "package-lock.json": "npm", "npm-shrinkwrap.json": "npm" },
+      "audit": { "npm": "npm audit", "pnpm": "pnpm audit", "yarn": "yarn npm audit", "bun": "bun audit" }
+    },
+    {
+      "id": "deno", "name": "Deno",
+      "manifests": ["deno.json", "deno.jsonc"],
+      "locks": { "deno.lock": "deno" },
+      "commands": { "test": ["deno test"], "lint": ["deno lint"], "types": ["deno check ."] }
+    },
+    {
+      "id": "python", "name": "Python",
+      "manifests": ["pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "Pipfile", "environment.yml", "pixi.toml"],
+      "locks": { "uv.lock": "uv", "poetry.lock": "poetry", "Pipfile.lock": "pipenv", "pdm.lock": "pdm", "pixi.lock": "pixi" },
+      "runner": { "uv": "uv run ", "poetry": "poetry run ", "pipenv": "pipenv run ", "pdm": "pdm run ", "pixi": "pixi run " },
+      "tools": {
+        "pytest": { "kind": "test", "command": "pytest", "markers": ["pytest.ini", "conftest.py", "pyproject.toml#[tool.pytest", "setup.cfg#[tool:pytest]", "tox.ini#[pytest]"] },
+        "ruff": { "kind": "lint", "command": "ruff check .", "markers": ["ruff.toml", ".ruff.toml", "pyproject.toml#[tool.ruff"] },
+        "flake8": { "kind": "lint", "command": "flake8", "markers": [".flake8", "setup.cfg#[flake8]", "tox.ini#[flake8]"] },
+        "mypy": { "kind": "types", "command": "mypy .", "markers": ["mypy.ini", ".mypy.ini", "pyproject.toml#[tool.mypy", "setup.cfg#[mypy]"] },
+        "pyright": { "kind": "types", "command": "pyright", "markers": ["pyrightconfig.json", "pyproject.toml#[tool.pyright"] },
+        "tox": { "kind": "test", "command": "tox", "runner": false, "markers": ["tox.ini"] },
+        "nox": { "kind": "test", "command": "nox", "runner": false, "markers": ["noxfile.py"] }
+      },
+      "audit": { "*": "pip-audit" }
+    },
+    {
+      "id": "composer", "name": "PHP (Composer)",
+      "manifests": ["composer.json"],
+      "locks": { "composer.lock": "composer" },
+      "tools": {
+        "phpunit": { "kind": "test", "command": "vendor/bin/phpunit", "markers": ["phpunit.xml", "phpunit.xml.dist"] },
+        "pest": { "kind": "test", "command": "vendor/bin/pest", "markers": ["tests/Pest.php"] },
+        "codeception": { "kind": "test", "command": "vendor/bin/codecept run", "markers": ["codeception.yml", "codeception.dist.yml"] },
+        "phpstan": { "kind": "types", "command": "vendor/bin/phpstan analyse", "markers": ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"] },
+        "psalm": { "kind": "types", "command": "vendor/bin/psalm", "markers": ["psalm.xml", "psalm.xml.dist"] },
+        "php-cs-fixer": { "kind": "lint", "command": "vendor/bin/php-cs-fixer fix --dry-run --diff", "markers": [".php-cs-fixer.php", ".php-cs-fixer.dist.php"] },
+        "phpcs": { "kind": "lint", "command": "vendor/bin/phpcs", "markers": ["phpcs.xml", "phpcs.xml.dist", ".phpcs.xml"] }
+      },
+      "audit": { "*": "composer audit" }
+    },
+    {
+      "id": "ruby", "name": "Ruby",
+      "manifests": ["Gemfile", "*.gemspec"],
+      "locks": { "Gemfile.lock": "bundler" },
+      "tools": {
+        "rspec": { "kind": "test", "command": "bundle exec rspec", "markers": [".rspec", "spec/spec_helper.rb"] },
+        "minitest": { "kind": "test", "command": "bundle exec rake test", "markers": ["test/test_helper.rb"] },
+        "rubocop": { "kind": "lint", "command": "bundle exec rubocop", "markers": [".rubocop.yml"] },
+        "sorbet": { "kind": "types", "command": "bundle exec srb tc", "markers": ["sorbet/config"] }
+      },
+      "audit": { "*": "bundle audit" }
+    },
+    {
+      "id": "maven", "name": "Java / Kotlin (Maven)",
+      "manifests": ["pom.xml"],
+      "wrapper": { "mvnw": "./mvnw" },
+      "commands": { "test": ["mvn test"] }
+    },
+    {
+      "id": "gradle", "name": "Java / Kotlin / Android (Gradle)",
+      "manifests": ["build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts"],
+      "wrapper": { "gradlew": "./gradlew" },
+      "commands": { "test": ["gradle test"] }
+    },
+    {
+      "id": "sbt", "name": "Scala (sbt)",
+      "manifests": ["build.sbt"],
+      "commands": { "test": ["sbt test"] }
+    },
+    {
+      "id": "go", "name": "Go",
+      "manifests": ["go.mod"],
+      "locks": { "go.sum": "go" },
+      "commands": { "test": ["go test ./..."], "lint": ["go vet ./..."] },
+      "tools": { "golangci-lint": { "kind": "lint", "command": "golangci-lint run", "markers": [".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"] } },
+      "audit": { "*": "govulncheck ./..." }
+    },
+    {
+      "id": "cargo", "name": "Rust",
+      "manifests": ["Cargo.toml"],
+      "locks": { "Cargo.lock": "cargo" },
+      "commands": { "test": ["cargo test"], "lint": ["cargo clippy -- -D warnings"], "types": ["cargo check"] },
+      "audit": { "*": "cargo audit" }
+    },
+    {
+      "id": "dotnet", "name": "C# / F# / .NET",
+      "manifests": ["*.csproj", "*.fsproj", "*.vbproj", "*.sln", "*.slnx", "Directory.Build.props", "Directory.Packages.props", "global.json"],
+      "locks": { "packages.lock.json": "nuget" },
+      "commands": { "test": ["dotnet test"], "lint": ["dotnet format --verify-no-changes"], "types": ["dotnet build"] },
+      "audit": { "*": "dotnet list package --vulnerable" }
+    },
+    {
+      "id": "cmake", "name": "C / C++ (CMake)",
+      "manifests": ["CMakeLists.txt", "CMakePresets.json"],
+      "commands": { "test": ["cmake -S . -B build && cmake --build build && ctest --test-dir build"] }
+    },
+    {
+      "id": "meson", "name": "C / C++ (Meson)",
+      "manifests": ["meson.build"],
+      "commands": { "test": ["meson setup build && meson test -C build"] }
+    },
+    {
+      "id": "conan", "name": "C / C++ (Conan)",
+      "manifests": ["conanfile.txt", "conanfile.py"]
+    },
+    {
+      "id": "vcpkg", "name": "C / C++ (vcpkg)",
+      "manifests": ["vcpkg.json"]
+    },
+    {
+      "id": "autotools", "name": "C / C++ (Autotools)",
+      "manifests": ["configure.ac"],
+      "commands": { "test": ["make check"] }
+    },
+    {
+      "id": "swift", "name": "Swift",
+      "manifests": ["Package.swift", "Podfile", "project.yml"],
+      "locks": { "Package.resolved": "swiftpm", "Podfile.lock": "cocoapods" },
+      "commands": { "test": ["swift test"] }
+    },
+    {
+      "id": "dart", "name": "Dart / Flutter",
+      "manifests": ["pubspec.yaml"],
+      "locks": { "pubspec.lock": "pub" },
+      "commands": { "test": ["dart test"], "lint": ["dart analyze"] }
+    },
+    {
+      "id": "elixir", "name": "Elixir",
+      "manifests": ["mix.exs"],
+      "locks": { "mix.lock": "mix" },
+      "commands": { "test": ["mix test"], "lint": ["mix format --check-formatted"] }
+    },
+    {
+      "id": "gleam", "name": "Gleam",
+      "manifests": ["gleam.toml"],
+      "commands": { "test": ["gleam test"] }
+    },
+    {
+      "id": "haskell", "name": "Haskell",
+      "manifests": ["*.cabal", "stack.yaml", "cabal.project"],
+      "commands": { "test": ["cabal test"] }
+    },
+    {
+      "id": "clojure", "name": "Clojure",
+      "manifests": ["project.clj", "deps.edn"]
+    },
+    {
+      "id": "r", "name": "R",
+      "manifests": ["DESCRIPTION", "renv.lock"],
+      "commands": { "test": ["R CMD check ."] }
+    },
+    {
+      "id": "julia", "name": "Julia",
+      "manifests": ["Project.toml"],
+      "locks": { "Manifest.toml": "julia" },
+      "commands": { "test": ["julia --project -e 'using Pkg; Pkg.test()'"] }
+    },
+    {
+      "id": "unity", "name": "Unity",
+      "manifests": ["ProjectSettings/ProjectVersion.txt", "Packages/manifest.json"]
+    },
+    {
+      "id": "unreal", "name": "Unreal Engine",
+      "manifests": ["*.uproject"]
+    },
+    {
+      "id": "bazel", "name": "Bazel",
+      "manifests": ["MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel"],
+      "commands": { "test": ["bazel test //..."] }
+    },
+    {
+      "id": "pants", "name": "Pants",
+      "manifests": ["pants.toml"],
+      "commands": { "test": ["pants test ::"], "lint": ["pants lint ::"] }
+    },
+    {
+      "id": "nix", "name": "Nix",
+      "manifests": ["flake.nix", "default.nix", "shell.nix"],
+      "locks": { "flake.lock": "nix" }
+    },
+    {
+      "id": "perl", "name": "Perl",
+      "manifests": ["cpanfile", "Makefile.PL", "Build.PL"],
+      "commands": { "test": ["prove -lr t"] }
+    }
+  ],
+  "android": {
+    "markers": ["AndroidManifest.xml"],
+    "note": "An Android app is a Gradle project whose module has src/main/AndroidManifest.xml."
+  },
+  "monorepo": [
+    { "tool": "pnpm", "files": ["pnpm-workspace.yaml"] },
+    { "tool": "npm-workspaces", "files": ["package.json#workspaces"] },
+    { "tool": "nx", "files": ["nx.json"] },
+    { "tool": "turbo", "files": ["turbo.json"] },
+    { "tool": "lerna", "files": ["lerna.json"] },
+    { "tool": "rush", "files": ["rush.json"] },
+    { "tool": "go.work", "files": ["go.work"] },
+    { "tool": "cargo-workspace", "files": ["Cargo.toml#[workspace]"] },
+    { "tool": "uv-workspace", "files": ["pyproject.toml#[tool.uv.workspace]"] },
+    { "tool": "gradle-multiproject", "files": ["settings.gradle#include", "settings.gradle.kts#include"] },
+    { "tool": "bazel", "files": ["MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel"] },
+    { "tool": "pants", "files": ["pants.toml"] }
+  ],
+  "task_runners": {
+    "make": ["Makefile", "makefile", "GNUmakefile"],
+    "just": ["justfile", "Justfile", ".justfile"],
+    "task": ["Taskfile.yml", "Taskfile.yaml", "taskfile.yml", "taskfile.yaml", "Taskfile.dist.yml", "Taskfile.dist.yaml", "taskfile.dist.yml", "taskfile.dist.yaml"]
+  },
+  "git_hooks": {
+    "pre-commit": [".pre-commit-config.yaml"],
+    "husky": [".husky/pre-commit", ".husky/pre-push"],
+    "lefthook": ["lefthook.yml", "lefthook.yaml", ".lefthook.yml", ".lefthook.yaml"]
+  },
+  "ci": {
+    "github-actions": [".github/workflows/*.yml", ".github/workflows/*.yaml"],
+    "gitlab": [".gitlab-ci.yml"],
+    "circleci": [".circleci/config.yml"],
+    "azure-pipelines": ["azure-pipelines.yml"],
+    "bitbucket": ["bitbucket-pipelines.yml"],
+    "jenkins": ["Jenkinsfile"],
+    "buildkite": [".buildkite/pipeline.yml"],
+    "travis": [".travis.yml"]
+  },
+  "env_versions": [".nvmrc", ".node-version", ".python-version", ".ruby-version", ".tool-versions", "mise.toml", ".mise.toml", "global.json", "rust-toolchain", "rust-toolchain.toml", ".fvmrc", ".java-version", ".devcontainer/devcontainer.json", ".devcontainer.json"],
+  "infra": {
+    "docker": ["Dockerfile", "Dockerfile.*", "*.Dockerfile", ".dockerignore"],
+    "compose": ["compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml", "compose.*.yml", "compose.*.yaml", "docker-compose.*.yml", "docker-compose.*.yaml"],
+    "helm": ["Chart.yaml"],
+    "kustomize": ["kustomization.yaml", "kustomization.yml"],
+    "terraform": ["*.tf"],
+    "terragrunt": ["terragrunt.hcl"],
+    "pulumi": ["Pulumi.yaml"],
+    "ansible": ["ansible.cfg", "playbook.yml"],
+    "serverless": ["serverless.yml"],
+    "procfile": ["Procfile"]
+  },
+  "database": {
+    "migration_dirs": ["db/migrate", "database/migrations", "migrations", "alembic/versions", "src/main/resources/db/migration", "db/migration", "db/changelog", "prisma/migrations", "Migrations", "console/migrations", "db/migrations"],
+    "files": ["schema.prisma", "alembic.ini", "liquibase.properties", "flyway.conf", "flyway.toml", "knexfile.js", "knexfile.ts", "ormconfig.json", "*.sql"]
+  },
+  "api": ["openapi.json", "openapi.yaml", "openapi.yml", "swagger.json", "swagger.yaml", "swagger.yml", "asyncapi.yaml", "asyncapi.yml", "asyncapi.json", "*.proto", "*.graphql", "*.graphqls", "*.gql"],
+  "docs": {
+    "files": ["README", "README.*", "CHANGELOG*", "CONTRIBUTING*", "mkdocs.yml", "docusaurus.config.js", "docusaurus.config.ts", "conf.py#sphinx"],
+    "adr_dirs": ["docs/adr", "doc/adr", "adr", "docs/decisions", "docs/architecture/decisions"],
+    "spec_dirs": ["specs", "docs/specs", ".kiro/specs", "docs/rfcs", "rfcs"],
+    "diataxis": { "tutorials": ["tutorials", "tutorial"], "how-to": ["how-to", "howto", "how-to-guides", "guides"], "reference": ["reference"], "explanation": ["explanation", "explanations", "concepts", "background"] },
+    "arc42": ["**/arc42/**", "**/*arc42*", "**/01_introduction_and_goals*"],
+    "c4": ["**/*.dsl", "**/*c4*.puml", "**/*C4*.puml"],
+    "always_loaded": ["CLAUDE.md", ".claude/CLAUDE.md", "CLAUDE.local.md", ".claude/rules/*.md"]
+  },
+  "ai_rules": ["AGENTS.md", "AGENTS.override.md", "CLAUDE.md", ".claude/CLAUDE.md", "CLAUDE.local.md", ".claude/rules/*", ".claude/settings.json", ".claude/settings.local.json", ".github/copilot-instructions.md", ".github/instructions/*.instructions.md", ".cursor/rules/*", ".cursorrules", ".windsurf/rules/*", ".windsurfrules", ".clinerules", "GEMINI.md", ".junie/guidelines.md", ".devin/*", "CONVENTIONS.md", ".mcp.json"],
+  "architecture_rules": [".dependency-cruiser.js", ".dependency-cruiser.cjs", ".dependency-cruiser.json", ".importlinter", "pyproject.toml#[tool.importlinter]", "setup.cfg#[importlinter]", "deptrac.yaml", "deptrac.yml", "depfile.yaml", ".editorconfig", "eslint.config.js", "eslint.config.mjs", "eslint.config.cjs", "eslint.config.ts", ".eslintrc", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json", ".eslintrc.yml", "biome.json", "biome.jsonc", ".prettierrc", ".stylelintrc", ".rubocop.yml", ".golangci.yml", ".golangci.yaml", ".clang-tidy", ".clang-format", "phpstan.neon", "phpstan.neon.dist", "psalm.xml", "ruff.toml", ".ruff.toml", "tsconfig.json"],
+  "security": {
+    "configs": {
+      "gitleaks": [".gitleaks.toml", ".gitleaksignore"],
+      "semgrep": [".semgrep.yml", ".semgrep.yaml", ".semgrep/*", ".semgrepignore"],
+      "trivy": ["trivy.yaml", ".trivyignore"],
+      "osv-scanner": ["osv-scanner.toml"],
+      "snyk": [".snyk"],
+      "bandit": [".bandit", "bandit.yaml"],
+      "dependabot": [".github/dependabot.yml", ".github/dependabot.yaml"],
+      "renovate": ["renovate.json", "renovate.json5", ".github/renovate.json", ".renovaterc", ".renovaterc.json"]
+    },
+    "scanners": {
+      "gitleaks": [
+        { "name": "gitleaks (branch commits)", "command": "gitleaks detect --no-banner --redact --log-opts=<main>..HEAD" },
+        { "name": "gitleaks (uncommitted)", "command": "gitleaks protect --no-banner --redact" }
+      ],
+      "semgrep": [{ "name": "semgrep", "command": "semgrep scan --config auto --error" }]
+    }
+  },
+  "secrets": {
+    "patterns": [".env", ".env.*", "*.env", "*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore", "id_rsa*", "id_dsa*", "id_ecdsa*", "id_ed25519*", "credentials*", "*credentials.json", "service-account*.json", "*.tfstate", "*.tfstate.*", "*.tfvars", ".npmrc", ".pypirc", ".netrc", ".htpasswd", "secrets.*", "*.secret", "*.secrets", ".envrc", "*.tfvars.json", ".git-credentials", ".dockercfg", "*.ppk", "*.p8", "*.gpg", "client_secret*.json", "kubeconfig", "*.kdbx"],
+    "allowed": [".env.example", ".env.sample", ".env.dist", ".env.template", "*.env.example", "*.pub"]
+  },
+  "other_systems": {
+    "names": ["handoff", "handoffs", "next-session", "next_session", "nextsession", "memory", "sessions", "session-log", "session_log", "journal", "state", "notes", "decisions", "scratchpad"],
+    "files": ["NEXT-SESSION*.md", "HANDOFF*.md", "docs/plans/*"],
+    "known_tool_dirs": [".git", ".github", ".gitlab", ".vscode", ".idea", ".claude", ".cursor", ".windsurf", ".junie", ".devin", ".husky", ".circleci", ".buildkite", ".devcontainer", ".yarn", ".pnpm-store", ".venv", ".tox", ".nox", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".gradle", ".mvn", ".dart_tool", ".next", ".nuxt", ".svelte-kit", ".turbo", ".nx", ".cache", ".keel", ".semgrep", ".changeset", ".storybook", ".vs", ".terraform", ".serverless", ".expo", ".angular", ".parcel-cache"]
+  },
+  "skip_dirs": [".git", "node_modules", "vendor", "bower_components", ".venv", "venv", "__pycache__", ".tox", ".nox", ".mypy_cache", ".pytest_cache", ".ruff_cache", "target", "build", "dist", "out", ".next", ".nuxt", ".gradle", ".dart_tool", "Pods", ".terraform", ".cache", ".turbo", ".nx", "coverage", "obj", "bin", ".keel"]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "keel-dev",
+  "private": true,
+  "description": "Development tooling for the keel Claude Code plugin. The plugin itself has no npm dependencies.",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "test:docker": "node tests/docker.js",
+    "eval": "claude plugin eval plugins/keel --scaffold --trust-plugin --allow-tools Bash Write Edit --ablation none --no-publish --max-cost-usd 15"
+  }
+}

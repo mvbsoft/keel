@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keel/ledger-entry.schema.json",
+  "title": "One line of .keel/local/ledger.jsonl",
+  "description": "Token use of one finished agent, written by the SubagentStop hook from the agent's transcript (last usage row per message id). Input and cache counts are exact; output can be an estimate, see output_estimated.",
+  "type": "object",
+  "required": ["ts", "session_id", "agent_id", "agent_type", "model", "effort", "usage", "requests"],
+  "additionalProperties": false,
+  "properties": {
+    "ts": { "description": "ISO 8601 UTC time the agent stopped.", "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$" },
+    "session_id": { "type": "string", "minLength": 1 },
+    "agent_id": { "type": "string", "minLength": 1 },
+    "agent_type": { "type": "string" },
+    "model": { "description": "message.model of the transcript rows; null if unreadable.", "type": ["string", "null"] },
+    "effort": { "description": "effort.level from the SubagentStop input; null when the model takes no effort.", "enum": ["low", "medium", "high", "xhigh", "max", null] },
+    "usage": {
+      "type": "object",
+      "required": ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"],
+      "additionalProperties": false,
+      "properties": {
+        "input_tokens": { "type": "integer", "minimum": 0 },
+        "output_tokens": { "type": "integer", "minimum": 0 },
+        "cache_read_input_tokens": { "type": "integer", "minimum": 0 },
+        "cache_creation_input_tokens": { "type": "integer", "minimum": 0 },
+        "cache_creation_1h_input_tokens": { "description": "Part of cache_creation_input_tokens written with the 1-hour TTL (priced higher).", "type": "integer", "minimum": 0 }
+      }
+    },
+    "transcript": {
+      "description": "Path of the agent's transcript. The report sums it again, because at SubagentStop time the transcript can still miss the agent's last response.",
+      "type": "string"
+    },
+    "output_estimated": {
+      "description": "true when the transcript under-recorded output and output_tokens is an estimate from the visible output (about 4 characters per token, hidden reasoning not included).",
+      "type": "boolean"
+    },
+    "requests": { "description": "Number of API requests the agent made.", "type": "integer", "minimum": 0 },
+    "task": { "description": "Optional label of the keel step, e.g. 'verify:standard'.", "type": "string" }
+  }
+}

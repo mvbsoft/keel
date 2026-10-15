@@ -1,0 +1,21 @@
+{
+  "name": "keel",
+  "description": "keel: plan, build and independently verify your work with coding agents (Claude Code today).",
+  "owner": {
+    "name": "Vitalii Malinovskyi",
+    "url": "https://github.com/mvbsoft"
+  },
+  "metadata": {
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "keel",
+      "source": "./plugins/keel",
+      "description": "Task and multi-session workflows, project setup and independent multi-agent verification for Claude Code.",
+      "homepage": "https://github.com/mvbsoft/keel",
+      "category": "development",
+      "tags": ["code-review", "verification", "workflow", "multi-agent", "cost-tracking"]
+    }
+  ]
+}

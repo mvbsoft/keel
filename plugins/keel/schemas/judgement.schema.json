@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keel/judgement.schema.json",
+  "title": "Report of the keel judge",
+  "description": "One ranked, numbered list of the findings of a verification run. The judge adds no findings and changes no severities.",
+  "type": "object",
+  "required": ["items", "refuted", "contradictions"],
+  "additionalProperties": false,
+  "properties": {
+    "items": { "type": "array", "items": { "$ref": "#/$defs/item" } },
+    "refuted": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*-[0-9]+$" } },
+    "contradictions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["items", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "items": { "type": "array", "minItems": 2, "items": { "type": "integer", "minimum": 1 } },
+          "description": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "required": ["n", "group", "status", "ids", "what", "problem", "fix", "if_not_fixed", "locations", "evidence", "notes"],
+      "additionalProperties": false,
+      "properties": {
+        "n": { "type": "integer", "minimum": 1 },
+        "group": { "description": "must = critical, should = important, nice = minor.", "enum": ["must", "should", "nice"] },
+        "status": { "enum": ["confirmed", "proven", "unclear", "unverified", "minor"] },
+        "ids": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*-[0-9]+$" } },
+        "what": { "type": "string", "minLength": 1 },
+        "problem": { "type": "string", "minLength": 1 },
+        "fix": { "type": "string", "minLength": 1 },
+        "if_not_fixed": { "type": "string", "minLength": 1 },
+        "locations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["file", "line"],
+            "additionalProperties": false,
+            "properties": {
+              "file": { "type": "string", "minLength": 1 },
+              "line": { "type": "integer", "minimum": 1 },
+              "end_line": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "evidence": { "type": "string", "minLength": 1 },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

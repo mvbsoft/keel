@@ -1,0 +1,1028 @@
+<title>keel usage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an instrument console. One header strip (name, tabs, period), then readouts (tiles),
+   then charts and ledgers on a 12-column grid that folds to one column on a phone. */
+:root {
+  --bg: #F3F5F3; --surface: #FFFFFF; --sunken: #E9EDEA; --ink: #16201C; --muted: #56635E; --faint: #87928D;
+  --line: #D8DEDA; --line-strong: #B5BFBA;
+  --accent: #1B6B58; --accent-ink: #FFFFFF; --accent-soft: #DCEEE7;
+  --warn: #8F5400; --warn-soft: #FAEBD3; --bad: #A93535; --bad-soft: #F7E1DF; --good: #1D7542; --good-soft: #DDF0E3;
+  --violet: #5646B0; --violet-soft: #E8E4F8; --focus: #2F6FB3;
+  --m-opus: #6556C9; --m-opus-2: #9A8FE0; --m-sonnet: #13846A; --m-sonnet-2: #58BB9F; --m-haiku: #C2552C; --m-haiku-2: #E4916C;
+  --c1: #2F6FB3; --c2: #C2477A; --c3: #B87D0E; --c4: #2B9584; --c5: #77706A; --c6: #8A7BD3; --c7: #D16E55; --c8: #4C8A37;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1412; --surface: #161E1B; --sunken: #1C2622; --ink: #E2EAE6; --muted: #9DAAA4; --faint: #6E7B75;
+    --line: #27312D; --line-strong: #3A4641;
+    --accent: #5CC4A5; --accent-ink: #0E1412; --accent-soft: #183A31;
+    --warn: #E9B266; --warn-soft: #3A2C14; --bad: #F08A80; --bad-soft: #3D1F1C; --good: #6FD39A; --good-soft: #173726;
+    --violet: #B4A8F5; --violet-soft: #2A2545; --focus: #7FB2EE;
+    --m-opus: #9D92F0; --m-opus-2: #6D61C4; --m-sonnet: #4FC9A6; --m-sonnet-2: #2C8C72; --m-haiku: #F0956C; --m-haiku-2: #B9603F;
+    --c1: #6FA8E8; --c2: #E97FAA; --c3: #E5B44C; --c4: #5CC7B4; --c5: #ABA39C; --c6: #B1A6F2; --c7: #F09A82; --c8: #8FC97A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1412; --surface: #161E1B; --sunken: #1C2622; --ink: #E2EAE6; --muted: #9DAAA4; --faint: #6E7B75;
+  --line: #27312D; --line-strong: #3A4641;
+  --accent: #5CC4A5; --accent-ink: #0E1412; --accent-soft: #183A31;
+  --warn: #E9B266; --warn-soft: #3A2C14; --bad: #F08A80; --bad-soft: #3D1F1C; --good: #6FD39A; --good-soft: #173726;
+  --violet: #B4A8F5; --violet-soft: #2A2545; --focus: #7FB2EE;
+  --m-opus: #9D92F0; --m-opus-2: #6D61C4; --m-sonnet: #4FC9A6; --m-sonnet-2: #2C8C72; --m-haiku: #F0956C; --m-haiku-2: #B9603F;
+  --c1: #6FA8E8; --c2: #E97FAA; --c3: #E5B44C; --c4: #5CC7B4; --c5: #ABA39C; --c6: #B1A6F2; --c7: #F09A82; --c8: #8FC97A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.45; padding: 0 16px 48px; }
+.wrap { max-width: 1240px; margin: 0 auto; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+h2 { font-size: 18px; font-weight: 600; margin: 0; text-wrap: balance; }
+h3 { font-size: 13px; font-weight: 600; margin: 0 0 10px; letter-spacing: .02em; color: var(--muted); text-transform: uppercase; }
+.num, td, .tile .v { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); } .faint { color: var(--faint); }
+.small { font-size: 12px; }
+
+/* header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.brand { font-family: var(--font-num); font-weight: 500; font-size: 15px; letter-spacing: -.01em; display: flex; align-items: baseline; gap: 6px; }
+.brand b { color: var(--accent); font-weight: 500; }
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; }
+.tabs a { text-decoration: none; color: var(--muted); padding: 6px 11px; border-radius: 6px; font-weight: 500; }
+.tabs a:hover { color: var(--ink); background: var(--sunken); }
+.tabs a[aria-current="page"] { color: var(--ink); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.range { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.range[hidden] { display: none !important; }
+select, input[type="date"], input[type="search"], button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; padding: 5px 8px; min-height: 32px; max-width: 100%; }
+button { cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.link { border: 0; background: none; color: var(--accent); padding: 0; min-height: 0; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+.banner { margin-top: 12px; padding: 8px 12px; border-radius: var(--r); background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+
+/* sections */
+main { padding-block: 18px; display: grid; gap: 22px; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
+.span-12 { grid-column: span 12; } .span-8 { grid-column: span 8; } .span-6 { grid-column: span 6; } .span-4 { grid-column: span 4; }
+@media (max-width: 900px) { .span-8, .span-6, .span-4 { grid-column: span 12; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tiles.sm { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 11px 13px; min-width: 0; display: grid; gap: 2px; align-content: start; }
+.tile .l { font-size: 12px; color: var(--muted); }
+.tile .v { font-family: var(--font-num); font-size: 22px; font-weight: 500; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.tiles.sm .tile .v { font-size: 18px; }
+.tile .s { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.tile.hl { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.chart { position: relative; height: 240px; }
+.chart.tall { height: 280px; }
+details.fallback { margin-top: 8px; font-size: 12px; }
+details.fallback summary { cursor: pointer; color: var(--muted); }
+.empty { padding: 26px 18px; text-align: center; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: var(--r); background: var(--surface); }
+.empty h2 { color: var(--ink); margin-bottom: 8px; }
+.empty p { max-width: 62ch; margin: 6px auto; }
+
+/* bar lists (ledgers) */
+.bars { display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: minmax(0, 9em) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; }
+.bar .k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar .k.sub { padding-left: 12px; color: var(--muted); }
+.bar .track { height: 10px; background: var(--sunken); border-radius: 3px; overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 3px; background: var(--accent); }
+.bar .n { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.bar .n span { color: var(--muted); margin-left: 6px; display: inline-block; min-width: 3.4em; }
+
+/* chips and pills */
+.chip { display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 999px; white-space: nowrap; background: var(--sunken); color: var(--muted); vertical-align: 1px; }
+.chip.subscription { background: var(--good-soft); color: var(--good); }
+.chip.api { background: var(--warn-soft); color: var(--warn); }
+.chip.credit { background: var(--violet-soft); color: var(--violet); }
+.chip.level { background: var(--accent-soft); color: var(--accent); }
+.chip.kept { background: var(--good-soft); color: var(--good); }
+.chip.dropped { background: var(--bad-soft); color: var(--bad); }
+.chip.pending { background: var(--warn-soft); color: var(--warn); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+
+/* filters */
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 8px; }
+.filters.wide { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.f { display: grid; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+.f select, .f input { width: 100%; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.toolbar .f { flex: 1 1 140px; }
+.toolbar .f.grow { flex: 3 1 220px; }
+.drill { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 7px 10px; border-radius: var(--r); background: var(--accent-soft); color: var(--ink); font-size: 13px; }
+
+/* tables */
+.tw { overflow-x: auto; min-width: 0; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th { font-weight: 500; font-size: 12px; color: var(--muted); text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; vertical-align: bottom; }
+.tbl td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.tbl .L { text-align: left; }
+.tbl td.wrap { white-space: normal; min-width: 12em; max-width: 30em; }
+.tbl td.ell { max-width: 22em; overflow: hidden; text-overflow: ellipsis; }
+.tbl tr.total td { font-weight: 600; border-top: 1px solid var(--line-strong); }
+.tbl tr.grp td { background: var(--sunken); font-weight: 600; }
+.tbl tbody tr.click { cursor: pointer; }
+.tbl tbody tr.click:hover td { background: var(--sunken); }
+.tbl th button.sort { border: 0; background: none; color: inherit; padding: 0; min-height: 0; font: inherit; cursor: pointer; }
+.tbl th[aria-sort="ascending"] button::after { content: " \2191"; }
+.tbl th[aria-sort="descending"] button::after { content: " \2193"; }
+.tbl .mini { height: 8px; background: var(--c1); border-radius: 2px; min-width: 2px; }
+@media (max-width: 640px) {
+  .tbl thead { display: none; }
+  .tbl, .tbl tbody, .tbl tr, .tbl td { display: block; width: 100%; }
+  .tbl tr { border: 1px solid var(--line); border-radius: var(--r); padding: 8px 12px; margin-bottom: 8px; background: var(--surface); }
+  .tbl tr.grp { background: var(--sunken); }
+  .tbl td { display: flex; justify-content: space-between; gap: 14px; padding: 3px 0; border: 0; text-align: right; white-space: normal; min-width: 0; max-width: none; }
+  .tbl td::before { content: attr(data-label); color: var(--muted); text-align: left; flex: 0 0 auto; }
+  .tbl td.lead { font-weight: 600; font-size: 14px; justify-content: flex-start; text-align: left; }
+  .tbl td.lead::before, .tbl td.nolabel::before { display: none; }
+  .tbl td:empty { display: none; }
+  .tbl tr.total td { border-top: 0; }
+  .bar { grid-template-columns: minmax(0, 7em) minmax(0, 1fr) auto; }
+}
+
+/* session page */
+.sp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.sp-head h2 { font-size: 17px; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 500; }
+.lanes { display: grid; gap: 5px; }
+.lane { display: grid; grid-template-columns: minmax(0, 10em) minmax(0, 1fr); gap: 10px; align-items: center; font-size: 12px; }
+.lane .k { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lane .track { position: relative; height: 14px; background: var(--sunken); border-radius: 3px; }
+.lane .seg { position: absolute; top: 0; height: 100%; border-radius: 3px; min-width: 3px; }
+.lane .seg.resumed { background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(127,127,127,.35) 4px 6px); }
+.axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--faint); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 13px; margin: 0; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.loading { padding: 40px 0; color: var(--muted); text-align: center; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand" id="brand">keel <b>usage</b></div>
+    <nav class="tabs" id="tabs" aria-label="Sections"></nav>
+    <div class="range" id="range"></div>
+  </header>
+  <div id="banner"></div>
+  <main id="view" aria-live="polite"><div class="loading">…</div></main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="pivot.js"></script>
+<script src="i18n.js"></script>
+<script src="i18n.uk.js"></script>
+<script>
+(function () {
+  'use strict';
+  const P = window.KeelPivot;
+  const I = window.KeelI18n;
+  const $ = (id) => document.getElementById(id);
+  const VIEW = $('view');
+
+
+  let lang = /^uk/i.test(navigator.language || '') ? 'uk' : 'en';
+  const t = (key, vars) => I.t(lang, key, vars);
+
+  // ---- formatting ----------------------------------------------------------------------------------
+  const loc = () => (lang === 'uk' ? 'uk-UA' : 'en-GB');
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fin = (x) => typeof x === 'number' && Number.isFinite(x);
+  function nf(x, d) { return new Intl.NumberFormat(loc(), { minimumFractionDigits: d, maximumFractionDigits: d }).format(x); }
+  function fUsd(x) { if (!fin(x)) return '—'; return '$' + nf(x, Math.abs(x) >= 1000 ? 0 : 2); }
+  function fPct(x, d) { return fin(x) ? nf(x, d == null ? 1 : d) + ' %' : '—'; }
+  function fTok(x) {
+    x = Number(x) || 0;
+    if (x >= 1e9) return nf(x / 1e9, 2) + 'B';
+    if (x >= 1e6) return nf(x / 1e6, x >= 1e7 ? 1 : 2) + 'M';
+    if (x >= 1e3) return nf(x / 1e3, 0) + 'k';
+    return nf(x, 0);
+  }
+  function fDur(min) {
+    min = Math.round(Number(min) || 0);
+    const h = Math.floor(min / 60); const m = min % 60;
+    return h ? `${h} ${t('common.hours_short')} ${m} ${t('common.minutes_short')}` : `${m} ${t('common.minutes_short')}`;
+  }
+  const fHrs = (min) => nf((Number(min) || 0) / 60, 1) + ' ' + t('common.hours_short');
+  const fInt = (x) => nf(Number(x) || 0, 0);
+  function toMs(v) {
+    if (v == null || v === '') return NaN;
+    if (typeof v === 'number') return v < 1e12 ? v * 1000 : v;
+    const n = Date.parse(v); return Number.isFinite(n) ? n : NaN;
+  }
+  function fDay(dateStr) { // 'YYYY-MM-DD' (UTC date) -> 'dd.mm'
+    const p = String(dateStr || '').split('-').map(Number);
+    if (p.length < 3 || p.some((x) => !Number.isFinite(x))) return String(dateStr || '—');
+    return new Intl.DateTimeFormat(loc(), { day: '2-digit', month: '2-digit', timeZone: 'UTC' }).format(new Date(Date.UTC(p[0], p[1] - 1, p[2])));
+  }
+  function fDT(v) { const m = toMs(v); return Number.isFinite(m) ? new Intl.DateTimeFormat(loc(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(m)) : '—'; }
+  function fHM(v) { const m = toMs(v); return Number.isFinite(m) ? new Intl.DateTimeFormat(loc(), { hour: '2-digit', minute: '2-digit' }).format(new Date(m)) : '—'; }
+  function fDate(v) { const m = toMs(v); return Number.isFinite(m) ? new Intl.DateTimeFormat(loc(), { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(m)) : '—'; }
+  const unitOf = (id) => (P.measures.find((m) => m.id === id) || { unit: 'count' }).unit;
+  function fMeasure(v, id) {
+    const u = unitOf(id);
+    if (u === 'usd') return fUsd(v);
+    if (u === 'tokens') return fTok(v);
+    if (u === 'min') return fHrs(v);
+    return fInt(v);
+  }
+  const chartVal = (v, id) => (unitOf(id) === 'min' ? v / 60 : v);
+  const walletName = (w) => t('wallet.' + (['subscription', 'api', 'credit'].includes(w) ? w : 'unknown'));
+  const walletChip = (w) => `<span class="chip ${esc(w)}">${esc(walletName(w))}</span>`;
+  const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : '');
+  function dimLabel(dim, key) {
+    if (key == null || key === 'unknown' || key === '') return t('common.unknown');
+    switch (dim) {
+      case 'day': return fDay(key);
+      case 'week': return String(key).replace(/^\d{4}-/, '');
+      case 'hour': return key + ':00';
+      case 'participant': return key === 'main' ? t('participant.main') : key;
+      case 'wallet': return walletName(key);
+      default: return String(key);
+    }
+  }
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const addDays = (ds, n) => { const p = ds.split('-').map(Number); const d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)); return d.toISOString().slice(0, 10); };
+
+  // ---- colors (from tokens) ------------------------------------------------------------------------
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const PAL = ['--c1', '--c2', '--c3', '--c4', '--c5', '--c6', '--c7', '--c8'];
+  const order = {}; // dim -> sorted keys (stable colors across charts)
+  function colorFor(dim, key) {
+    if (dim === 'model') {
+      const base = /opus/.test(key) ? 'opus' : /sonnet/.test(key) ? 'sonnet' : /haiku/.test(key) ? 'haiku' : null;
+      if (base) {
+        const same = (order.model || []).filter((k) => k.includes(base));
+        const i = Math.max(0, same.indexOf(key));
+        if (i === 0) return css('--m-' + base);
+        if (i === 1) return css('--m-' + base + '-2');
+      }
+    }
+    const list = order[dim] || [];
+    let i = list.indexOf(key);
+    if (i < 0) i = Math.abs([...String(key)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7));
+    return css(PAL[i % PAL.length]);
+  }
+
+  // ---- state ---------------------------------------------------------------------------------------
+  const store = {
+    get(k) { try { const v = sessionStorage.getItem('keel-usage.' + k); return v ? JSON.parse(v) : null; } catch (e) { return null; } },
+    set(k, v) { try { sessionStorage.setItem('keel-usage.' + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } },
+  };
+  const S = {
+    mode: 'loading', demo: false, error: null, db: null, downloads: null,
+    range: store.get('range') || { preset: '30', from: addDays(today(), -29), to: today() },
+    docs: [], machines: [], calibs: [], calib: null,
+    flat: { sessions: [], rows: [], hours: [], snapshots: [] }, rows: [], sessions: [],
+    an: Object.assign({ pc: '', user: '', project: '', wallet: '', participant: '', model: '', by: 'day', split: 'model', measure: 'usd', touched: false }, store.get('an') || {}),
+    ss: Object.assign({ search: '', pc: '', project: '', wallet: '', group: 'none', sort: 'date', dir: 'desc', drill: null }, store.get('ss') || {}),
+    lastTab: null,
+  };
+  if (S.range.preset !== 'custom') { const n = Number(S.range.preset) || 30; S.range.from = addDays(today(), -(n - 1)); S.range.to = today(); }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // ---- data loading --------------------------------------------------------------------------------
+  async function retry(fn) {
+    try { return await fn(); } catch (e) {
+      if (e && e.code === 'unavailable') { await sleep(400 + Math.random() * 600); return fn(); }
+      throw e;
+    }
+  }
+  async function queryDays(db, from, to) {
+    const out = new Map();
+    let cursor = from;
+    for (let guard = 0; guard < 40; guard++) {
+      const snap = await retry(() => db.collection('days').where('date', '>=', cursor).where('date', '<=', to).orderBy('date').limit(1000).get());
+      let added = 0; let last = cursor;
+      for (const d of snap.docs) {
+        const body = d.data();
+        if (!body) continue;
+        if (!out.has(d.id)) { out.set(d.id, body); added++; }
+        if (body.date > last) last = body.date;
+      }
+      if (snap.size < 1000 || added === 0 || last === cursor) break;
+      cursor = last; // next page starts at the last date seen; duplicates are skipped by doc id
+    }
+    return [...out.values()];
+  }
+  async function loadFromDb() {
+    const db = S.db;
+    const from = S.range.from < addDays(today(), -8) ? S.range.from : addDays(today(), -8); // tiles need the current week
+    const [docs, mach, cal] = await Promise.all([
+      queryDays(db, from, S.range.to > today() ? S.range.to : today()),
+      retry(() => db.collection('machines').get()).catch(() => null),
+      retry(() => db.collection('calib').get()).catch(() => null),
+    ]);
+    S.docs = docs;
+    S.machines = mach ? mach.docs.map((d) => Object.assign({ name: d.id }, d.data())) : [];
+    S.calibs = cal ? cal.docs.map((d) => Object.assign({ pc: d.id }, d.data())) : [];
+  }
+  function derive() {
+    S.flat = P.flatten(S.docs);
+    S.rows = P.filter(S.flat.rows, { from: S.range.from, to: S.range.to });
+    S.sessions = S.flat.sessions.filter((s) => s.date >= S.range.from && s.date <= S.range.to);
+    S.calib = S.calibs.slice().sort((a, b) => (toMs(b.computed_at) || 0) - (toMs(a.computed_at) || 0))[0] || null;
+    // stable color order per dimension: by total $ over everything loaded
+    for (const dim of ['model', 'pc', 'project', 'participant', 'user']) order[dim] = P.group(S.flat.rows, dim).map((g) => g.key);
+  }
+  let loadSeq = 0;
+  async function reload() {
+    const seq = ++loadSeq;
+    if (S.demo) { derive(); render(); return; }
+    if (!S.db) return;
+    S.mode = 'loading'; render();
+    try {
+      await loadFromDb();
+      if (seq !== loadSeq) return;
+      derive(); S.mode = 'ready';
+    } catch (e) {
+      if (seq !== loadSeq) return;
+      S.mode = 'error'; S.error = (e && (e.message || e.code)) || String(e);
+    }
+    render();
+  }
+
+  async function boot() {
+    const qs = location.search || '';
+    const wantDemo = /[?&]demo=1(&|$)/.test(qs);
+    let claude = window.claude;
+    for (let i = 0, n = wantDemo ? 3 : 30; i < n && !(claude && typeof claude.use === 'function'); i++) { await sleep(100); claude = window.claude; }
+    let db = null;
+    if (claude && typeof claude.use === 'function') {
+      try { db = await claude.use('db'); } catch (e) { db = null; }
+      claude.use('downloads').then((d) => { S.downloads = d; if (route().tab === 'sessions') render(); }).catch(() => {});
+    }
+    if (!db) {
+      if (wantDemo) { loadDemo((/[?&]lang=(en|uk)/.exec(qs) || [])[1] || 'uk'); return; }
+      S.mode = 'nodb'; render(); return;
+    }
+    S.db = db;
+    try {
+      const st = await retry(() => db.doc('meta/settings').get());
+      const l = st.exists ? (st.data() || {}).language : null;
+      lang = l === 'uk' ? 'uk' : 'en';
+    } catch (e) { lang = 'en'; }
+    document.documentElement.lang = lang;
+    await reload();
+  }
+
+  // ---- demo fixture (local layout check only) ------------------------------------------------------
+  function loadDemo(l) {
+    lang = l === 'en' ? 'en' : 'uk';
+    document.documentElement.lang = lang;
+    S.demo = true;
+    const now = Date.now(); const H = 3600000;
+    const iso = (m) => new Date(m).toISOString();
+    const OPUS = 'claude-opus-5-5-20260101'; const SONNET = 'claude-sonnet-5-5-20260101'; const HAIKU = 'claude-haiku-4-5-20251001';
+    const PRICE = { [OPUS]: [5, 6.25, 10, 0.5, 25], [SONNET]: [3, 3.75, 6, 0.3, 15], [HAIKU]: [1, 1.25, 2, 0.1, 5] };
+    const price = (m, k) => { const p = PRICE[m]; return (k.in * p[0] + k.cw5 * p[1] + k.cw1h * p[2] + k.cr * p[3] + k.out * p[4]) / 1e6; };
+    const part = (kind, type, id, model, t0, min, act, req, scale, tools, extra) => {
+      const tok = { in: Math.round(9000 * scale), cw5: Math.round(160000 * scale), cw1h: Math.round(12000 * scale), cr: Math.round(2600000 * scale), out: Math.round(38000 * scale) };
+      const usd = Math.round(price(model, tok) * 100) / 100;
+      return { kind, type, agent_id: id, model, by_model: { [model]: { requests: req, tok, usd } }, start: iso(t0), end: iso(t0 + min * 60000), active_min: act, requests: req, tools, agents_launched: (extra && extra.launched) || 0, tok, usd, output_estimated: false, resumed: (extra && extra.resumed) || 0 };
+    };
+    const keel = (task, level, f, lines, files, steps) => ({ task, level, findings: f, gates: 'pass', lines, files, steps });
+    const T = (t0, off, text, usd, req, ag) => ({ t: iso(t0 + off * 60000), text, usd, requests: req, agents: ag });
+    const sess = [];
+    const add = (pc, id, project, wallet, t0, min, k, parts, turns, branch) => {
+      const usd = Math.round(parts.reduce((a, p) => a + p.usd, 0) * 100) / 100;
+      sess.push({ pc, s: { id, project, cwd: '/work/' + project, branch: branch || 'main', wallet, entrypoint: wallet === 'api' ? 'sdk-cli' : 'cli', start: iso(t0), end: iso(t0 + min * 60000), active_min: Math.round(min * 0.72), usd, cost_cc: usd, unpriced: [], keel: k, participants: parts, turns } });
+    };
+    let t0 = now - 50 * H;
+    add('office', 'd1', 'shop', 'subscription', t0, 112, keel('SHOP-15 order filter in admin', 'standard', { must: 1, should: 2, nice: 3 }, { add: 212, del: 28 }, 7, [{ title: 'Filter API', model: 'haiku' }, { title: 'UI', model: 'sonnet' }, { title: 'Tests', model: 'sonnet' }]), [
+      part('main', 'main', null, OPUS, t0, 112, 81, 118, 1.0, { Read: 52, Bash: 31, Edit: 22, Grep: 18, Agent: 6 }, { launched: 6 }),
+      part('agent', 'context', 'a1', SONNET, t0 + 3 * 60000, 4, 4, 11, 0.12, { Read: 14, Grep: 9 }),
+      part('agent', 'implementer', 'a2', HAIKU, t0 + 10 * 60000, 12, 11, 24, 0.3, { Edit: 9, Read: 12 }),
+      part('agent', 'implementer', 'a3', SONNET, t0 + 10 * 60000, 18, 16, 27, 0.35, { Edit: 11, Read: 10, Bash: 4 }, { resumed: 1 }),
+      part('agent', 'reviewer', 'a4', OPUS, t0 + 62 * 60000, 6, 6, 12, 0.18, { Read: 8, Grep: 5 }),
+      part('agent', 'qa', 'a5', SONNET, t0 + 62 * 60000, 9, 8, 14, 0.2, { Bash: 12, Read: 4 }),
+    ], [T(t0, 0, 'Take SHOP-15 from tasks/ and start the task', 0.41, 3, 0), T(t0, 7, 'Yes, the plan is fine', 0.18, 1, 0), T(t0, 10, 'hand out the steps', 1.62, 4, 3), T(t0, 43, 'show what changed', 0.22, 1, 0), T(t0, 61, 'run the verification', 1.37, 8, 2), T(t0, 87, 'fix the must and both should', 1.28, 5, 1), T(t0, 107, '/keel:end-task', 1.21, 3, 0)], 'keel-trial/shop-15');
+    t0 = now - 47 * H;
+    add('laptop', 'd2', 'tools', 'api', t0, 35, null, [part('main', 'main', null, SONNET, t0, 35, 24, 40, 0.4, { Read: 12, Bash: 9 })], [T(t0, 0, 'write a csv importer', 0.9, 20, 0), T(t0, 20, 'add tests', 0.7, 20, 0)]);
+    t0 = now - 30 * H;
+    add('office', 'd3', 'keel', 'subscription', t0, 95, keel('usage calculator', 'full', { must: 0, should: 3, nice: 2 }, { add: 640, del: 75 }, 14, [{ title: 'pivot', model: 'sonnet' }, { title: 'page', model: 'opus' }]), [
+      part('main', 'main', null, OPUS, t0, 95, 70, 96, 0.85, { Read: 40, Edit: 30, Bash: 22, Agent: 4 }, { launched: 4 }),
+      part('agent', 'implementer', 'b1', OPUS, t0 + 15 * 60000, 25, 22, 31, 0.45, { Edit: 18, Read: 9 }),
+      part('agent', 'verifier', 'b2', SONNET, t0 + 70 * 60000, 7, 7, 8, 0.15, { Bash: 6 }),
+    ], [T(t0, 0, 'continue with phase D40', 2.1, 30, 1), T(t0, 50, 'review the diff', 1.4, 25, 2), T(t0, 88, 'commit', 0.3, 4, 0)], 'main');
+    t0 = now - 26 * H;
+    add('office', 'd4', 'mobile-api', 'subscription', t0, 22, null, [part('main', 'main', null, OPUS, t0, 22, 15, 21, 0.25, { Read: 9, Grep: 6 })], [T(t0, 0, 'why does login fail on staging', 0.95, 21, 0)]);
+    t0 = now - 22 * H;
+    add('laptop', 'd5', 'shop', 'subscription', t0, 48, keel('SHOP-22 export', 'basic', { must: 0, should: 1, nice: 0 }, { add: 40, del: 6 }, 2, [{ title: 'Export', model: 'haiku' }]), [
+      part('main', 'main', null, SONNET, t0, 48, 33, 44, 0.5, { Read: 15, Edit: 6 }, { launched: 1 }),
+      part('agent', 'implementer', 'c1', HAIKU, t0 + 8 * 60000, 10, 9, 14, 0.2, { Edit: 5 }),
+    ], [T(t0, 0, 'start SHOP-22', 0.8, 20, 1), T(t0, 30, 'end-task', 0.5, 24, 0)]);
+    t0 = now - 5 * H;
+    add('office', 'd6', 'keel', 'subscription', t0, 70, keel('dashboard page', 'standard', { must: 1, should: 0, nice: 1 }, { add: 900, del: 10 }, 1, [{ title: 'index.html', model: 'opus' }]), [
+      part('main', 'main', null, OPUS, t0, 70, 55, 80, 0.7, { Read: 30, Write: 3, Bash: 12, Agent: 2 }, { launched: 2 }),
+      part('agent', 'implementer', 'e1', OPUS, t0 + 12 * 60000, 40, 36, 60, 0.6, { Write: 4, Edit: 20, Bash: 15 }),
+      part('agent', 'reviewer', 'e2', SONNET, t0 + 55 * 60000, 8, 8, 12, 0.15, { Read: 10 }),
+    ], [T(t0, 0, 'build the dashboard page', 3.1, 50, 1), T(t0, 52, 'review it', 1.2, 30, 1)]);
+    t0 = now - 2 * H;
+    add('laptop', 'd7', 'tools', 'api', t0, 15, null, [part('main', 'main', null, HAIKU, t0, 15, 12, 18, 0.3, { Bash: 5 })], [T(t0, 0, 'rename the build script', 0.2, 18, 0)]);
+
+    const users = { office: 'owner@example.com', laptop: 'teammate@example.com' };
+    const docs = new Map();
+    const docOf = (pc, ms) => {
+      const date = iso(ms).slice(0, 10); const id = date + '_' + pc;
+      if (!docs.has(id)) docs.set(id, { schema: 1, date, pc, user: users[pc], part: 1, parts: 1, synced_until: iso(pc === 'office' ? now - H : now - 20 * H), hours: [], snapshots: [], sessions: [] });
+      return docs.get(id);
+    };
+    for (const { pc, s } of sess) {
+      docOf(pc, toMs(s.start)).sessions.push(s);
+      for (const p of s.participants) {
+        const hm = Math.floor(toMs(p.start) / H) * H; const d = docOf(pc, hm);
+        let h = d.hours.find((x) => x.h === iso(hm) && x.wallet === s.wallet);
+        if (!h) { h = { h: iso(hm), wallet: s.wallet, usd: 0, req: 0, tok: { in: 0, cw5: 0, cw1h: 0, cr: 0, out: 0 }, by_model: {} }; d.hours.push(h); }
+        h.usd += p.usd; h.req += p.requests; for (const k in h.tok) h.tok[k] += p.tok[k]; h.by_model[p.model] = (h.by_model[p.model] || 0) + p.usd;
+      }
+    }
+    const reset7 = iso(now + 3.4 * 24 * H);
+    const snaps = [[-52, 31.0, 4, 'd1'], [-49, 32.2, 19, 'd1'], [-29.5, 33.6, 12, 'd3'], [-28.6, 35.0, 24, 'd3'], [-25.7, 35.4, 26, 'd4'], [-21, 36.1, 9, 'd5'], [-4.8, 37.0, 6, 'd6'], [-3.9, 38.4, 21, 'd6'], [-1, 38.9, 23, 'd6']];
+    for (const [h, sd, fh, sid] of snaps) {
+      const tm = now + h * H;
+      docOf('office', tm).snapshots.push({ t: iso(tm), five_hour: fh, five_hour_resets_at: iso(Math.ceil(tm / (5 * H)) * 5 * H), seven_day: sd, seven_day_resets_at: reset7, session_id: sid, cost_usd: 0, src: 'statusline' });
+    }
+    S.docs = [...docs.values()];
+    S.machines = [
+      { name: 'office', user: users.office, wallet_default: 'subscription', synced_until: iso(now - H), last_seen: iso(now - H) },
+      { name: 'laptop', user: users.laptop, wallet_default: 'subscription', synced_until: iso(now - 20 * H), last_seen: iso(now - 2 * H) },
+    ];
+    const pt = (fromH, toH, gain, usd, extra) => Object.assign({ from: iso(now + fromH * H), to: iso(now + toH * H), gain, usd, rate: usd / gain, by_model: { [OPUS]: usd * 0.8, [SONNET]: usd * 0.2 }, resets_at: reset7, pending: false, waiting: [], kept: true }, extra || {});
+    S.calibs = [
+      { pc: 'office', computed_at: iso(now - H), waiting: ['laptop'],
+        weekly: { rate: 17.4, n: 4, points: [pt(-52, -49, 1.2, 21.1), pt(-29.5, -28.6, 1.4, 24.0), pt(-28.6, -21, 1.1, 11.2, { kept: false, reason: 'other_device' }), pt(-21, -4.8, 1.0, 17.9), pt(-4.8, -3.9, 1.4, 23.8), pt(-3.9, -1, 1.0, 16.9, { pending: true, waiting: ['laptop'], kept: false, reason: 'pending' })] },
+        five_hour: { rate: 2.9, n: 2, points: [pt(-52, -49, 15, 41.5), pt(-29.5, -28.6, 12, 36.0), pt(-4.8, -3.9, 15, 0, { kept: false, reason: 'no_spend', rate: 0 })] } },
+      { pc: 'laptop', computed_at: iso(now - 20 * H), waiting: [], weekly: { rate: 16.8, n: 2, points: [] }, five_hour: { rate: null, n: 0, points: [] } },
+    ];
+    S.mode = 'ready';
+    derive(); render();
+  }
+
+  // ---- routing -------------------------------------------------------------------------------------
+  const TABS = [['dash', 'tab.dashboard'], ['analysis', 'tab.analysis'], ['sessions', 'tab.sessions'], ['calib', 'tab.calibration']];
+  function route() {
+    const h = decodeURIComponent((location.hash || '').slice(1));
+    if (h.startsWith('s.')) return { tab: 'session', key: h.slice(2) };
+    if (TABS.some(([id]) => id === h)) return { tab: h };
+    return { tab: 'dash' };
+  }
+
+  // ---- charts --------------------------------------------------------------------------------------
+  const charts = [];
+  function killCharts() { while (charts.length) { try { charts.pop().destroy(); } catch (e) { /* ignore */ } } }
+  function chartDefaults() {
+    if (!window.Chart) return;
+    Chart.defaults.color = css('--muted');
+    Chart.defaults.borderColor = css('--line');
+    Chart.defaults.font.family = css('--font-ui') || 'system-ui';
+    Chart.defaults.font.size = 12;
+    Chart.defaults.animation = matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 250 };
+    Chart.defaults.plugins.legend.labels.boxWidth = 10;
+    Chart.defaults.plugins.legend.labels.boxHeight = 10;
+    Chart.defaults.maintainAspectRatio = false;
+  }
+  function mkChart(id, cfg) {
+    const el = $(id);
+    if (!el || !window.Chart) return null;
+    const c = new Chart(el, cfg); charts.push(c); return c;
+  }
+  // A chart block: title, canvas with a text summary for screen readers, and the same data as a table.
+  function chartBox(id, title, summary, table, tall) {
+    return `<h3>${esc(title)}</h3><div class="chart${tall ? ' tall' : ''}"><canvas id="${id}" role="img" aria-label="${esc(summary)}"></canvas></div>`
+      + `<details class="fallback"${window.Chart ? '' : ' open'}><summary>${esc(t('chart.table'))}</summary><div class="tw">${table}</div></details>`;
+  }
+  function simpleTable(head, rows) {
+    return `<table class="tbl"><thead><tr>${head.map((h, i) => `<th class="${i ? '' : 'L'}">${esc(h)}</th>`).join('')}</tr></thead><tbody>`
+      + rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i ? '' : 'L lead'}" data-label="${esc(head[i])}">${esc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table>';
+  }
+  function barList(items, fmt) { // items: [{label, value, pct, color?, sub?}]
+    const max = Math.max(0, ...items.map((i) => i.value));
+    return `<div class="bars">${items.map((i) => `<div class="bar"><span class="k${i.sub ? ' sub' : ''}" title="${esc(i.label)}">${esc(i.label)}</span>`
+      + `<span class="track" aria-hidden="true"><span class="fill" style="display:block;width:${max ? Math.max(1, (i.value / max) * 100) : 0}%;background:${i.color || 'var(--accent)'}"></span></span>`
+      + `<span class="n">${esc(fmt(i.value))}${i.pct != null ? `<span>${esc(fPct(i.pct, 0))}</span>` : ''}</span></div>`).join('')}</div>`;
+  }
+
+  // ---- limits helpers ------------------------------------------------------------------------------
+  function latestSnap(field) {
+    let best = null;
+    for (const s of S.flat.snapshots) if (typeof s[field] === 'number' && (!best || toMs(s.t) > toMs(best.t))) best = s;
+    return best;
+  }
+  const weeklyRate = () => (S.calib && S.calib.weekly && fin(S.calib.weekly.rate) && S.calib.weekly.rate > 0 ? S.calib.weekly.rate : null);
+  const fiveRate = () => (S.calib && S.calib.five_hour && fin(S.calib.five_hour.rate) && S.calib.five_hour.rate > 0 ? S.calib.five_hour.rate : null);
+  function subUsdSince(ms0, ms1) {
+    let usd = 0;
+    for (const h of S.flat.hours) { const m = toMs(h.h); if (h.wallet === 'subscription' && m >= ms0 && (ms1 == null || m < ms1)) usd += Number(h.usd) || 0; }
+    return usd;
+  }
+  function limitInfo() {
+    const now = Date.now();
+    const w = latestSnap('seven_day');
+    const f = latestSnap('five_hour');
+    const wReset = w ? toMs(w.seven_day_resets_at) : NaN;
+    const fReset = f ? toMs(f.five_hour_resets_at) : NaN;
+    const weekStart = Number.isFinite(wReset) ? wReset - 7 * 864e5 : now - 7 * 864e5;
+    const rate = weeklyRate();
+    const wStale = !w || (Number.isFinite(wReset) && wReset < now);
+    let forecast = null;
+    if (w && !wStale && rate && Number.isFinite(wReset)) {
+      const usd48 = subUsdSince(now - 48 * 3600000);
+      forecast = Math.round((w.seven_day + (usd48 / 48 / rate) * ((wReset - now) / 3600000)) * 10) / 10;
+    }
+    return { w, f, wReset, fReset, weekStart, weekUsd: subUsdSince(weekStart), rate, wStale, fStale: !f || (Number.isFinite(fReset) && fReset < now), forecast };
+  }
+
+  // ---- views: shared -------------------------------------------------------------------------------
+  function emptyAll() {
+    return `<div class="empty"><h2>${esc(t('empty.state'))}</h2><p>${esc(t('empty.what'))}</p></div>`;
+  }
+  const hasAnyData = () => S.flat.sessions.length > 0 || S.flat.hours.length > 0;
+  const tile = (l, v, s, hl) => `<div class="tile${hl ? ' hl' : ''}"><span class="l">${esc(l)}</span><span class="v">${esc(v)}</span>${s ? `<span class="s">${s}</span>` : ''}</div>`;
+
+  // ---- Dashboard -----------------------------------------------------------------------------------
+  function viewDash() {
+    if (!hasAnyData()) return { html: emptyAll() };
+    const rows = S.rows;
+    const L = limitInfo();
+    const allApi = rows.length > 0 && rows.every((r) => r.wallet !== 'subscription');
+    let tiles;
+    if (allApi) {
+      const users = P.share(P.group(rows, 'user'), 'usd');
+      const tot = users.reduce((a, g) => a + g.total.usd, 0);
+      tiles = tile(t('tile.spent'), fUsd(tot), `${walletChip(rows[0].wallet)} ${esc(fDay(S.range.from))}–${esc(fDay(S.range.to))}`, true)
+        + users.slice(0, 3).map((g) => tile(dimLabel('user', g.key), fUsd(g.total.usd), esc(fPct(g.pct, 0)))).join('');
+    } else {
+      tiles = tile(t('tile.this_week'), L.wStale ? '—' : fPct(L.w.seven_day),
+        esc(fUsd(L.weekUsd)) + (L.w ? ' · ' + esc(L.wStale ? t('tile.stale') : t('tile.resets', { when: fDT(L.wReset) })) : ' · ' + esc(t('tile.no_limits'))), true)
+        + tile(t('tile.forecast'), L.forecast != null ? '≈' + fPct(L.forecast) : '—', esc(L.forecast != null ? t('tile.forecast_note') : (L.rate ? t('tile.no_limits') : t('tile.no_calibration'))))
+        + tile(t('tile.five_hour'), L.fStale ? '—' : fPct(L.f.five_hour, 0), esc(L.f ? (L.fStale ? t('tile.stale') : t('tile.resets', { when: fHM(L.fReset) })) : t('tile.no_limits')))
+        + tile(t('tile.rate_label'), L.rate ? t('tile.rate', { usd: fUsd(L.rate) }) : '—', esc(L.rate ? t('tile.rate_n', { n: S.calib.weekly.n || 0 }) : t('tile.no_calibration')));
+    }
+    if (!rows.length) return { html: `<section class="tiles">${tiles}</section><div class="empty">${esc(t('empty.filtered'))}</div>` };
+
+    // daily $ by model
+    const dm = P.dailyByModel(rows);
+    const dmTotal = dm.days.map((_, i) => dm.models.reduce((a, m) => a + dm.usd[m][i], 0));
+    const dmSummary = `${t('chart.daily_by_model')}: ${dm.days.map((d, i) => `${fDay(d)} ${fUsd(dmTotal[i])}`).join(', ')}`;
+    const dmTable = simpleTable([t('chart.day'), ...dm.models, t('common.total')], dm.days.map((d, i) => [fDay(d), ...dm.models.map((m) => fUsd(dm.usd[m][i])), fUsd(dmTotal[i])]));
+
+    // weekly % over time (gaps at resets), forecast dashed to the reset
+    const wk = P.weekly(S.flat.snapshots).filter((s) => s.seven_day != null && String(s.t).slice(0, 10) >= S.range.from && String(s.t).slice(0, 10) <= addDays(S.range.to, 1));
+    const line = []; let prev = null;
+    for (const s of wk) { const x = toMs(s.t); if (prev != null && s.seven_day < prev - 0.5) line.push({ x: x - 1, y: null }); line.push({ x, y: s.seven_day }); prev = s.seven_day; }
+    const fc = (L.forecast != null && wk.length) ? [{ x: toMs(wk[wk.length - 1].t), y: wk[wk.length - 1].seven_day }, { x: L.wReset, y: L.forecast }] : [];
+    const wkTable = simpleTable([t('cal.col_window'), t('chart.seven_day_pct')], wk.map((s) => [fDT(s.t), fPct(s.seven_day)]).concat(fc.length ? [[t('chart.forecast') + ' ' + fDT(L.wReset), fPct(L.forecast)]] : []));
+    const wkSummary = wk.length ? `${t('chart.weekly_pct')}: ${fPct(wk[0].seven_day)} → ${fPct(wk[wk.length - 1].seven_day)}` : t('empty.chart');
+
+    // where the money went
+    const mva = P.mainVsAgents(rows);
+    const mvaTot = mva.main.usd + mva.agents.usd;
+    const mvaItems = [{ label: t('participant.main'), value: mva.main.usd, pct: mvaTot ? mva.main.usd / mvaTot * 100 : 0, color: css('--c1') },
+      { label: t('chart.agents'), value: mva.agents.usd, pct: mvaTot ? mva.agents.usd / mvaTot * 100 : 0, color: css('--c2') }]
+      .concat(mva.by_type.slice(0, 6).map((g) => ({ label: g.key, value: g.total.usd, pct: mvaTot ? g.total.usd / mvaTot * 100 : 0, color: colorFor('participant', g.key), sub: true })));
+    const tk = P.tokenKinds(rows);
+    const tkItems = ['cr', 'cw5', 'cw1h', 'in', 'out'].map((k, i) => ({ label: t('tok.' + k), value: tk[k], pct: tk.total ? tk[k] / tk.total * 100 : 0, color: css(PAL[i]) }));
+    const tp = P.topProjects(rows, 5);
+    const tpTot = rows.reduce((a, r) => a + r.usd, 0);
+    const tpItems = tp.map((p) => ({ label: dimLabel('project', p.project), value: p.usd, pct: p.pct, color: colorFor('project', p.project) }));
+    const rest = tpTot - tp.reduce((a, p) => a + p.usd, 0);
+    if (rest > 0.005) tpItems.push({ label: t('chart.others'), value: rest, pct: tpTot ? rest / tpTot * 100 : 0, color: css('--c5') });
+    let usersBlock = '';
+    if (allApi || new Set(rows.map((r) => r.user)).size > 1) {
+      const us = P.share(P.group(rows, 'user'), 'usd');
+      usersBlock = `<div class="panel span-${allApi ? 12 : 6}"><h3>${esc(t('chart.by_user'))}</h3>${barList(us.slice(0, 8).map((g) => ({ label: dimLabel('user', g.key), value: g.total.usd, pct: g.pct, color: colorFor('user', g.key) })), fUsd)}</div>`;
+    }
+
+    const bSpan = usersBlock && !allApi ? 'span-6' : 'span-4';
+    const html = `<section class="tiles" aria-label="${esc(t('tab.dashboard'))}">${tiles}</section>
+      <section class="grid">
+        ${allApi ? usersBlock : ''}
+        <div class="panel span-${allApi ? 12 : 8}">${chartBox('chDaily', t('chart.daily_by_model'), dmSummary, dmTable, true)}</div>
+        ${allApi ? '' : `<div class="panel span-4">${chartBox('chWeek', t('chart.weekly_pct'), wkSummary, wkTable, true)}</div>`}
+        <div class="panel ${bSpan}"><h3>${esc(t('chart.main_vs_agents'))}</h3>${barList(mvaItems, fUsd)}</div>
+        <div class="panel ${bSpan}"><h3>${esc(t('chart.token_kinds'))}</h3>${barList(tkItems, fTok)}</div>
+        <div class="panel ${bSpan}"><h3>${esc(t('chart.top_projects'))}</h3>${barList(tpItems, fUsd)}</div>
+        ${allApi ? '' : usersBlock}
+      </section>`;
+    return {
+      html,
+      after() {
+        mkChart('chDaily', {
+          type: 'bar',
+          data: { labels: dm.days.map(fDay), datasets: dm.models.map((m) => ({ label: m, data: dm.usd[m], backgroundColor: colorFor('model', m), borderRadius: 2, maxBarThickness: 42 })) },
+          options: { plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fUsd(c.raw)}`, footer: (items) => `${t('common.total')}: ${fUsd(dmTotal[items[0].dataIndex])}` } } },
+            scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: (v) => fUsd(v) } } } },
+        });
+        if (!allApi) {
+          const xs = line.map((p) => p.x).concat(fc.map((p) => p.x));
+          mkChart('chWeek', {
+            type: 'line',
+            data: { datasets: [
+              { label: t('chart.actual'), data: line, borderColor: css('--accent'), backgroundColor: css('--accent-soft'), fill: 'origin', pointRadius: 2, tension: 0.15, spanGaps: false },
+              { label: t('chart.forecast'), data: fc, borderColor: css('--accent'), borderDash: [5, 4], pointRadius: [0, 3], fill: false },
+            ] },
+            options: { parsing: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { title: (it) => fDT(it[0].raw.x), label: (c) => `${c.dataset.label}: ${fPct(c.raw.y)}` } } },
+              scales: { x: { type: 'linear', min: xs.length ? Math.min(...xs) : undefined, max: xs.length ? Math.max(...xs) : undefined, grid: { display: false }, ticks: { maxTicksLimit: 6, callback: (v) => fDay(new Date(v).toISOString().slice(0, 10)) } },
+                y: { min: 0, suggestedMax: Math.min(100, Math.ceil((Math.max(0, ...line.map((p) => p.y || 0), ...fc.map((p) => p.y)) + 5) / 10) * 10), ticks: { callback: (v) => v + ' %' } } } },
+          });
+        }
+      },
+    };
+  }
+
+  // ---- Analysis ------------------------------------------------------------------------------------
+  const GROUPS = ['day', 'week', 'project', 'pc', 'user', 'participant', 'model', 'hour'];
+  const SPLITS = ['none', 'model', 'pc', 'project', 'participant'];
+  const TABLE_MEASURES = ['usd', 'tokens', 'tok_in', 'tok_cw5', 'tok_cw1h', 'tok_cr', 'tok_out', 'time_min', 'active_min', 'requests', 'turns', 'sessions'];
+  const keyOf = (r, by) => P.group([r], by)[0].key;
+  function anFilters() {
+    const a = S.an; const one = (v) => (v ? [v] : []);
+    return { pc: one(a.pc), user: one(a.user), project: one(a.project), wallet: one(a.wallet), participant: a.participant || null, model: one(a.model) };
+  }
+  function opts(list, cur, labelFn) {
+    return `<option value="">${esc(t('common.all'))}</option>` + list.map((v) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(labelFn ? labelFn(v) : v)}</option>`).join('');
+  }
+  const uniq = (arr) => [...new Set(arr.filter((x) => x != null && x !== ''))].sort();
+  function viewAnalysis() {
+    const a = S.an;
+    const base = S.rows;
+    if (!a.touched && base.length && base.every((r) => r.wallet !== 'subscription') && a.by === 'day') a.by = 'user';
+    const types = uniq(base.filter((r) => r.kind !== 'main').map((r) => r.participant));
+    const fam = uniq(base.map((r) => P.family(r.model)));
+    const sel = (id, label, inner) => `<label class="f" for="${id}">${esc(label)}<select id="${id}" data-an="${id.slice(3)}">${inner}</select></label>`;
+    const filtersHtml = `<div class="filters">
+      <label class="f" for="anFrom">${esc(t('filter.from'))}<input type="date" id="anFrom" data-range="from" value="${esc(S.range.from)}"></label>
+      <label class="f" for="anTo">${esc(t('filter.to'))}<input type="date" id="anTo" data-range="to" value="${esc(S.range.to)}"></label>
+      ${sel('an_pc', t('filter.pc'), opts(uniq(base.map((r) => r.pc)), a.pc))}
+      ${sel('an_user', t('filter.user'), opts(uniq(base.map((r) => r.user)), a.user))}
+      ${sel('an_project', t('filter.project'), opts(uniq(base.map((r) => r.project)), a.project))}
+      ${sel('an_wallet', t('filter.wallet'), opts(uniq(base.map((r) => r.wallet)), a.wallet, walletName))}
+      ${sel('an_participant', t('filter.participant'), `<option value="">${esc(t('common.all'))}</option><option value="main"${a.participant === 'main' ? ' selected' : ''}>${esc(t('participant.main'))}</option><option value="agents"${a.participant === 'agents' ? ' selected' : ''}>${esc(t('participant.agents'))}</option>` + types.map((v) => `<option value="${esc(v)}"${v === a.participant ? ' selected' : ''}>${esc(v)}</option>`).join(''))}
+      ${sel('an_model', t('filter.model'), opts(fam, a.model))}
+    </div>
+    <div class="filters wide">
+      ${sel('an_by', t('group.by'), GROUPS.map((g) => `<option value="${g}"${g === a.by ? ' selected' : ''}>${esc(t('group.' + g))}</option>`).join(''))}
+      ${sel('an_split', t('split.by'), SPLITS.map((g) => `<option value="${g}"${g === a.split ? ' selected' : ''}>${esc(t('split.' + g))}</option>`).join(''))}
+      ${sel('an_measure', t('measure.by'), P.measures.map((m) => `<option value="${m.id}"${m.id === a.measure ? ' selected' : ''}>${esc(t('measure.' + m.id))}</option>`).join(''))}
+    </div>`;
+    if (!hasAnyData()) return { html: filtersHtml + emptyAll() };
+    const fr = P.filter(base, anFilters());
+    if (!fr.length) return { html: filtersHtml + `<div class="empty">${esc(t('empty.filtered'))}</div>` };
+    const ms = a.measure; const by = a.by; const split = a.split === 'none' ? null : a.split;
+    const groups = P.share(P.group(fr, by, split), ms);
+    const tot = {}; for (const m of P.measures) tot[m.id] = groups.reduce((x, g) => x + g.total[m.id], 0);
+    const sessKeys = new Set(fr.map((r) => r.session));
+    const kp = [['measure_short.usd', fUsd(tot.usd), 'tile.spent'], ['measure_short.time_min', fHrs(tot.time_min)], ['measure_short.tokens', fTok(tot.tokens)], ['measure_short.sessions', fInt(sessKeys.size)], ['measure_short.requests', fInt(tot.requests)], ['measure_short.turns', fInt(tot.turns)]]
+      .map(([k, v, l]) => tile(t(l || k), v)).join('');
+    const partKeys = split ? (() => { const sums = {}; for (const g of groups) for (const [k, v] of Object.entries(g.parts)) sums[k] = (sums[k] || 0) + v[ms]; return Object.keys(sums).sort((x, y) => sums[y] - sums[x]); })() : [];
+    const head = `<tr><th class="L" scope="col">${esc(t('dim.' + by))}</th>${TABLE_MEASURES.map((m) => `<th scope="col">${esc(t('measure_short.' + m))}</th>`).join('')}<th scope="col">${esc(t('common.share'))}</th></tr>`;
+    const cell = (m, v) => `<td data-label="${esc(t('measure_short.' + m))}"${m === ms ? ' style="font-weight:600"' : ''}>${esc(fMeasure(v, m))}</td>`;
+    const body = groups.map((g, i) => `<tr class="click" data-drill="${i}"><td class="L lead"><button type="button" class="link" data-drill="${i}">${esc(dimLabel(by, g.key))}</button></td>${TABLE_MEASURES.map((m) => cell(m, g.total[m])).join('')}<td data-label="${esc(t('common.share'))}">${esc(fPct(g.pct, 0))}</td></tr>`).join('');
+    const totalRow = `<tr class="total"><td class="L lead">${esc(t('common.total'))}</td>${TABLE_MEASURES.map((m) => cell(m, tot[m])).join('')}<td data-label="${esc(t('common.share'))}">100 %</td></tr>`;
+    const st = P.stats(fr, S.flat.sessions);
+    const stHtml = [['stats.cache_share', st.cache_share != null ? fPct(st.cache_share * 100, 0) : '—'], ['stats.usd_per_hour', fUsd(st.usd_per_hour)], ['stats.usd_per_turn', fUsd(st.usd_per_turn)],
+      ['stats.avg_session_usd', fUsd(st.avg_session_usd)], ['stats.avg_session_active', st.avg_session_active_min != null ? fDur(st.avg_session_active_min) : '—'], ['stats.agents_launched', fInt(st.agents_launched)], ['stats.tool_calls', fInt(st.tool_calls)]]
+      .map(([k, v]) => tile(t(k), v)).join('');
+    const summary = `${t('measure.' + ms)} — ${groups.slice(0, 8).map((g) => `${dimLabel(by, g.key)}: ${fMeasure(g.total[ms], ms)}`).join(', ')}`;
+    const html = `<section class="panel" style="display:grid;gap:10px">${filtersHtml}</section>
+      <section class="tiles sm">${kp}</section>
+      <section class="panel"><div class="chart tall"><canvas id="chAn" role="img" aria-label="${esc(summary)}"></canvas></div>
+        <p class="small muted" style="margin:8px 0 0">${esc(t('stats.click_hint'))}</p></section>
+      <section class="tw"><table class="tbl"><thead>${head}</thead><tbody>${body}${totalRow}</tbody></table></section>
+      <section><h3>${esc(t('stats.title'))}</h3><div class="tiles sm">${stHtml}</div></section>`;
+    const drill = (i) => {
+      const g = groups[i]; if (!g) return;
+      const keys = [...new Set(fr.filter((r) => keyOf(r, by) === g.key).map((r) => r.session))];
+      S.ss.drill = { dim: t('dim.' + by), value: dimLabel(by, g.key), keys };
+      store.set('ss', S.ss);
+      location.hash = '#sessions';
+    };
+    return {
+      html,
+      drill,
+      after() {
+        const ds = split
+          ? partKeys.map((k) => ({ label: dimLabel(split, k), data: groups.map((g) => chartVal(g.parts[k] ? g.parts[k][ms] : 0, ms)), backgroundColor: colorFor(split, k), borderRadius: 2, maxBarThickness: 46 }))
+          : [{ label: t('measure.' + ms), data: groups.map((g) => chartVal(g.total[ms], ms)), backgroundColor: by === 'model' ? groups.map((g) => colorFor('model', g.key)) : css('--accent'), borderRadius: 2, maxBarThickness: 46 }];
+        const fmtAxis = (v) => (unitOf(ms) === 'min' ? nf(v, 1) + ' ' + t('common.hours_short') : fMeasure(v, ms));
+        mkChart('chAn', {
+          type: 'bar',
+          data: { labels: groups.map((g) => dimLabel(by, g.key)), datasets: ds },
+          options: {
+            onClick: (e, els) => { if (els && els.length) drill(els[0].index); },
+            onHover: (e, els) => { e.native && (e.native.target.style.cursor = els.length ? 'pointer' : 'default'); },
+            plugins: { legend: { display: !!split, position: 'bottom' }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmtAxis(c.raw)}` } } },
+            scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { callback: fmtAxis } } },
+          },
+        });
+      },
+    };
+  }
+
+  // ---- Sessions ------------------------------------------------------------------------------------
+  const SCOLS = ['date', 'pc', 'project', 'task', 'models', 'usd', 'week_pct', 'level'];
+  function sessionsData() {
+    const ss = S.ss; const one = (v) => (v ? [v] : []);
+    let list = S.sessions;
+    if (ss.drill && ss.drill.keys) { const k = new Set(ss.drill.keys); list = S.flat.sessions.filter((s) => k.has(s.key)); }
+    const sortKey = ss.sort === 'week_pct' ? 'usd' : ss.sort;
+    const res = P.sessionsTable(list, { sort: sortKey, dir: ss.dir, filters: { pc: one(ss.pc), project: one(ss.project), wallet: one(ss.wallet) }, search: ss.search, groupBy: ss.group });
+    const rate = weeklyRate();
+    const fill = (r) => { r.week_pct = r.wallet === 'subscription' && rate ? (r.usd / rate) : null; };
+    res.rows.forEach(fill);
+    if (ss.sort === 'week_pct') {
+      const fix = (rows) => { const a = rows.filter((r) => r.week_pct != null); const b = rows.filter((r) => r.week_pct == null); rows.splice(0, rows.length, ...a, ...b); };
+      fix(res.rows); if (res.groups) res.groups.forEach((g) => fix(g.rows));
+    }
+    return res;
+  }
+  function weekCell(r) {
+    if (r.week_pct != null) return esc(fPct(r.week_pct, 2));
+    if (r.wallet !== 'subscription') return walletChip(r.wallet);
+    return '—';
+  }
+  function sessionRowHtml(r) {
+    const lbl = (c) => esc(t('col.' + c));
+    return `<tr class="click" data-key="${esc(r.key)}">
+      <td class="L lead"><a href="#s.${esc(r.key)}">${esc(r.start ? fDT(r.start) : fDay(r.date))}</a></td>
+      <td class="L" data-label="${lbl('pc')}">${esc(r.pc)}</td>
+      <td class="L ell" data-label="${lbl('project')}">${esc(r.project || '—')}</td>
+      <td class="L wrap" data-label="${lbl('task')}">${r.task ? esc(r.task) : `<span class="faint">${esc(t('common.no_keel'))}</span>`}</td>
+      <td class="L" data-label="${lbl('models')}"><span>${r.models.map((m) => `<span style="white-space:nowrap"><span class="dot" style="background:${colorFor('model', m)}" aria-hidden="true"></span>${esc(m)}</span>`).join(' ')}</span></td>
+      <td data-label="${lbl('usd')}">${esc(fUsd(r.usd))}</td>
+      <td data-label="${lbl('week_pct')}">${weekCell(r)}</td>
+      <td class="L" data-label="${lbl('level')}">${r.level ? `<span class="chip level">${esc(cap(r.level))}</span>` : '—'}</td></tr>`;
+  }
+  function viewSessions() {
+    const ss = S.ss;
+    const base = ss.drill ? S.flat.sessions : S.sessions;
+    const sel = (id, label, inner) => `<label class="f" for="${id}">${esc(label)}<select id="${id}" data-ss="${id.slice(3)}">${inner}</select></label>`;
+    const tb = `<div class="toolbar">
+      <label class="f grow" for="ss_search">${esc(t('common.search'))}<input type="search" id="ss_search" data-ss="search" value="${esc(ss.search)}" placeholder="${esc(t('sessions.search_placeholder'))}"></label>
+      ${sel('ss_pc', t('filter.pc'), opts(uniq(base.map((s) => s.pc)), ss.pc))}
+      ${sel('ss_project', t('filter.project'), opts(uniq(base.map((s) => s.project)), ss.project))}
+      ${sel('ss_wallet', t('filter.wallet'), opts(uniq(base.map((s) => s.wallet)), ss.wallet, walletName))}
+      ${sel('ss_group', t('sessions.group_by'), ['none', 'day', 'project', 'pc'].map((g) => `<option value="${g}"${g === ss.group ? ' selected' : ''}>${esc(t('sgroup.' + g))}</option>`).join(''))}
+      ${(S.downloads || S.demo) ? `<button type="button" id="ssExport">${esc(t('common.export_csv'))}</button>` : ''}
+    </div>
+    ${ss.drill ? `<div class="drill">${esc(t('drill.label', { dim: ss.drill.dim, value: ss.drill.value }))}<button type="button" class="link" id="ssDrillClear">${esc(t('drill.clear'))}</button></div>` : ''}
+    <p id="ssMsg" class="small muted" role="status" style="margin:0"></p>`;
+    if (!hasAnyData()) return { html: emptyAll() };
+    const res = sessionsData();
+    const sortTh = (c) => {
+      const on = ss.sort === c; const aria = on ? (ss.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+      const left = ['date', 'pc', 'project', 'task', 'models', 'level'].includes(c);
+      return `<th scope="col" class="${left ? 'L' : ''}" aria-sort="${aria}"><button type="button" class="sort" data-sort="${c}">${esc(t('col.' + c))}</button></th>`;
+    };
+    let body = '';
+    if (res.groups) {
+      for (const g of res.groups) {
+        const gl = ss.group === 'day' ? fDay(g.key) : g.key === 'unknown' ? t('common.unknown') : g.key;
+        body += `<tr class="grp"><td class="L lead" colspan="5">${esc(gl)} · ${esc(t('sessions.count', { n: g.subtotal.count }))}</td><td data-label="${esc(t('sessions.subtotal'))}">${esc(fUsd(g.subtotal.usd))}</td><td class="nolabel"></td><td class="nolabel"></td></tr>`;
+        body += g.rows.map(sessionRowHtml).join('');
+      }
+    } else body = res.rows.map(sessionRowHtml).join('');
+    const total = `<tr class="total"><td class="L lead" colspan="5">${esc(t('common.total'))} · ${esc(t('sessions.count', { n: res.total.count }))}</td><td data-label="${esc(t('col.usd'))}">${esc(fUsd(res.total.usd))}</td><td class="nolabel"></td><td class="nolabel"></td></tr>`;
+    const table = res.rows.length
+      ? `<div class="tw"><table class="tbl"><thead><tr>${SCOLS.map(sortTh).join('')}</tr></thead><tbody>${body}${total}</tbody></table></div>`
+      : `<div class="empty">${esc(t('empty.filtered'))}</div>`;
+    return { html: `<section class="panel" style="display:grid;gap:10px">${tb}</section>${table}`, res };
+  }
+  async function exportCsv(rows) {
+    const cols = [
+      { key: 'date', label: t('col.date') }, { key: 'start', label: t('sp.started') }, { key: 'pc', label: t('col.pc') }, { key: 'user', label: t('sp.user') },
+      { key: 'project', label: t('col.project') }, { key: 'branch', label: t('sp.branch') }, { key: 'task', label: t('col.task'), format: (v) => v || t('common.no_keel') },
+      { key: 'models', label: t('col.models') }, { key: 'wallet', label: t('sp.wallet') }, { key: 'usd', label: 'USD', format: (v) => (Number(v) || 0).toFixed(2) },
+      { key: 'week_pct', label: t('col.week_pct'), format: (v) => (v == null ? '' : v.toFixed(3)) }, { key: 'active_min', label: t('col.active'), format: (v) => Math.round(v || 0) }, { key: 'level', label: t('col.level') },
+    ];
+    const csv = P.toCSV(rows, cols, { bom: true });
+    const filename = `keel-sessions_${S.range.from}_${S.range.to}.csv`;
+    const msg = $('ssMsg');
+    if (S.downloads) {
+      try { const r = await S.downloads.save({ filename, data: csv }); if (msg && r && r.status === 'saved') msg.textContent = t('common.export_done'); } catch (e) {
+        if (msg && e && e.code !== 'declined') msg.textContent = t('export.failed', { message: e.message || e.code || '' });
+      }
+      return;
+    }
+    // local demo only: a plain file download (the artifact viewer blocks this path; it uses `downloads`).
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    if (msg) msg.textContent = t('common.export_done');
+  }
+
+  // ---- Session page --------------------------------------------------------------------------------
+  function viewSession(key) {
+    const s = S.flat.sessions.find((x) => x.key === key);
+    const back = `<div><button type="button" id="spBack">← ${esc(t('common.back'))}</button></div>`;
+    if (!s) return { html: back + `<div class="empty">${esc(t('sp.not_found'))}</div>` };
+    const sp = P.sessionPage(s);
+    const title = `${s.project || t('common.unknown')} · ${s.keel && s.keel.task ? s.keel.task : t('common.no_keel')}`;
+    const startMs = toMs(sp.span.start); const endMs = toMs(sp.span.end);
+    const durMin = sp.span.minutes;
+    const wr = weeklyRate(); const fr5 = fiveRate();
+    const isSub = s.wallet === 'subscription';
+    const snaps = S.flat.snapshots.filter((x) => x.session_id === s.id).sort((a, b) => toMs(a.t) - toMs(b.t));
+    const acc = (field) => { const v = snaps.filter((x) => typeof x[field] === 'number'); return v.length > 1 ? t('sp.account', { a: nf(v[0][field], 1), b: nf(v[v.length - 1][field], 1) }) : ''; };
+    const tiles = [
+      tile(t('sp.tile_cost'), fUsd(sp.totals.usd), walletChip(s.wallet), true),
+      tile(t('sp.tile_time'), fDur(durMin), esc(fDur(s.active_min))),
+      isSub ? tile(t('sp.tile_week'), wr ? '≈' + fPct(sp.totals.usd / wr, 2) : '—', esc(acc('seven_day') || (wr ? '' : t('tile.no_calibration')))) : tile(t('sp.tile_week'), '—', esc(t('wallet.no_percent'))),
+      isSub && fr5 ? tile(t('sp.tile_five_hour'), '≈' + fPct(sp.totals.usd / fr5, 1), esc(acc('five_hour'))) : '',
+      tile(t('sp.tile_turns'), `${fInt(sp.totals.turns)} / ${fInt(sp.totals.requests)}`),
+      tile(t('sp.tile_tokens'), fTok(sp.cache.tokens), esc(sp.cache.cache_share != null ? t('sp.tile_cache', { pct: nf(sp.cache.cache_share * 100, 0) }) : '')),
+    ].join('');
+    // participant labels: number repeated types
+    const cnt = {}; const seen = {};
+    sp.participants.forEach((p) => { cnt[p.label] = (cnt[p.label] || 0) + 1; });
+    const labels = sp.participants.map((p) => { seen[p.label] = (seen[p.label] || 0) + 1; const base = p.kind === 'main' ? t('participant.main') : p.label; return cnt[p.label] > 1 && p.kind !== 'main' ? `${base} #${seen[p.label]}` : base; });
+    const lanes = sp.lanes.map((ln, i) => `<div class="lane"><span class="k" title="${esc(labels[i])}">${esc(labels[i])}</span><span class="track"><span class="seg${ln.resumed ? ' resumed' : ''}" style="left:${ln.left_pct}%;width:${Math.max(0.8, ln.width_pct)}%;background-color:${colorFor('model', ln.model)}" title="${esc(`${labels[i]} · ${ln.model} · ${fHM(ln.start)}–${fHM(ln.end)}`)}"></span></span></div>`).join('');
+    const ticks = Number.isFinite(startMs) && Number.isFinite(endMs) ? [0, 0.25, 0.5, 0.75, 1].map((f) => `<span>${esc(fHM(startMs + (endMs - startMs) * f))}</span>`).join('') : '';
+    const models = uniq(sp.participants.map((p) => p.family));
+    const legend = `<div class="legend">${models.map((m) => `<span><span class="dot" style="background:${colorFor('model', m)}"></span>${esc(m)}</span>`).join('')}</div>`;
+    const PL = { participant: t('col.participant'), model: t('col.model'), time: t('measure_short.time_min'), active: t('col.active'), req: t('col.requests') };
+    const pRows = sp.participants.map((p, i) => {
+      const min = Number.isFinite(toMs(p.end)) && Number.isFinite(toMs(p.start)) ? (toMs(p.end) - toMs(p.start)) / 60000 : 0;
+      return `<tr><td class="L lead"><span>${esc(labels[i])}${p.resumed ? ` <span class="chip pending">${esc(t('sp.resumed'))}</span>` : ''}${p.output_estimated ? ` <span class="chip">${esc(t('sp.estimated'))}</span>` : ''}</span></td>
+        <td class="L" data-label="${esc(PL.model)}"><span><span class="dot" style="background:${colorFor('model', p.family)}" aria-hidden="true"></span>${esc(p.family)}</span></td>
+        <td data-label="${esc(PL.time)}">${esc(fDur(min))}</td><td data-label="${esc(PL.active)}">${esc(fDur(p.active_min))}</td>
+        <td data-label="${esc(PL.req)}">${esc(fInt(p.requests))}</td>
+        ${['in', 'cw5', 'cw1h', 'cr', 'out'].map((k) => `<td data-label="${esc(t('tok.' + k))}">${esc(fTok(p.tok[k]))}</td>`).join('')}
+        <td data-label="$">${esc(fUsd(p.usd))}</td><td data-label="${esc(t('col.share'))}">${esc(fPct(p.share * 100, 0))}</td></tr>`;
+    }).join('');
+    const pt = sp.participants.reduce((a, p) => { for (const k in p.tok) a[k] = (a[k] || 0) + p.tok[k]; return a; }, {});
+    const pTotal = `<tr class="total"><td class="L lead">${esc(t('common.total'))}</td><td class="nolabel"></td><td class="nolabel"></td><td data-label="${esc(PL.active)}">${esc(fDur(s.active_min))}</td><td data-label="${esc(PL.req)}">${esc(fInt(sp.totals.requests))}</td>${['in', 'cw5', 'cw1h', 'cr', 'out'].map((k) => `<td data-label="${esc(t('tok.' + k))}">${esc(fTok(pt[k] || 0))}</td>`).join('')}<td data-label="$">${esc(fUsd(sp.totals.usd))}</td><td data-label="${esc(t('col.share'))}">100 %</td></tr>`;
+    const pTable = `<div class="tw"><table class="tbl"><thead><tr><th class="L" scope="col">${esc(PL.participant)}</th><th class="L" scope="col">${esc(PL.model)}</th><th scope="col">${esc(PL.time)}</th><th scope="col">${esc(PL.active)}</th><th scope="col">${esc(PL.req)}</th>${['in', 'cw5', 'cw1h', 'cr', 'out'].map((k) => `<th scope="col">${esc(t('measure_short.tok_' + k))}</th>`).join('')}<th scope="col">$</th><th scope="col">${esc(t('col.share'))}</th></tr></thead><tbody>${pRows}${pTotal}</tbody></table></div>`;
+    const maxTurn = Math.max(0, ...sp.turns.map((x) => x.usd));
+    const turns = sp.turns.length ? `<div class="tw"><table class="tbl"><thead><tr><th class="L" scope="col">${esc(t('measure_short.time_min'))}</th><th class="L" scope="col">${esc(t('sp.prompt'))}</th><th class="L" scope="col" aria-label="$"></th><th scope="col">$</th><th scope="col">${esc(t('col.requests'))}</th><th scope="col">${esc(t('chart.agents'))}</th></tr></thead><tbody>`
+      + sp.turns.map((x) => `<tr><td class="L lead">${esc(x.t ? fHM(x.t) : t('sp.lead_turn'))}</td><td class="L wrap" data-label="${esc(t('sp.prompt'))}">${x.text ? esc(x.text) : `<span class="faint">${esc(t('sp.no_preview'))}</span>`}</td>
+        <td class="L nolabel" style="width:18%"><div class="mini" style="width:${maxTurn ? Math.max(2, x.usd / maxTurn * 100) : 0}%"></div></td><td data-label="$">${esc(fUsd(x.usd))}</td><td data-label="${esc(t('col.requests'))}">${esc(fInt(x.requests))}</td><td data-label="${esc(t('chart.agents'))}">${esc(fInt(x.agents))}</td></tr>`).join('')
+      + '</tbody></table></div>' : `<p class="muted">—</p>`;
+    const tools = sp.tools.length ? barList(sp.tools.slice(0, 12).map((x) => ({ label: x.name, value: x.n, color: css('--c5') })), fInt) : '<p class="muted">—</p>';
+    let keelBlock = '';
+    if (s.keel) {
+      const k = s.keel; const f = k.findings || {};
+      const gates = k.gates == null ? '—' : typeof k.gates === 'string' ? k.gates : Object.entries(k.gates).map(([a, b]) => `${a}: ${b}`).join(', ');
+      const steps = Array.isArray(k.steps) && k.steps.length ? `${k.steps.length} (${k.steps.map((x) => x.model || '?').join(', ')})` : '—';
+      keelBlock = `<div class="panel span-6"><h3>${esc(t('sp.keel'))}</h3><dl class="kv">
+        <dt>${esc(t('keel.level'))}</dt><dd>${k.level ? `<span class="chip level">${esc(cap(k.level))}</span>` : '—'}</dd>
+        <dt>${esc(t('keel.findings'))}</dt><dd>${esc(`${f.must || 0} ${t('keel.must')} · ${f.should || 0} ${t('keel.should')} · ${f.nice || 0} ${t('keel.nice')}`)}</dd>
+        <dt>${esc(t('keel.gates'))}</dt><dd>${esc(gates)}</dd>
+        <dt>${esc(t('keel.lines'))}</dt><dd>${esc(k.lines ? `+${k.lines.add || 0} / −${k.lines.del || 0}` : '—')}</dd>
+        <dt>${esc(t('keel.files'))}</dt><dd>${esc(k.files != null ? k.files : '—')}</dd>
+        <dt>${esc(t('keel.steps'))}</dt><dd>${esc(steps)}</dd></dl></div>`;
+    }
+    const c = sp.cache;
+    const cacheBlock = `<div class="panel span-${s.keel ? 6 : 12}"><h3>${esc(t('sp.cache'))}</h3><dl class="kv">
+      <dt>${esc(t('cache.share'))}</dt><dd>${esc(c.cache_share != null ? fPct(c.cache_share * 100, 0) : '—')}</dd>
+      <dt>${esc(t('cache.read'))}</dt><dd>${esc(fTok(c.cr))}</dd>
+      <dt>${esc(t('cache.write5'))}</dt><dd>${esc(fTok(c.cw5))}</dd>
+      <dt>${esc(t('cache.write1h'))}</dt><dd>${esc(fTok(c.cw1h))}</dd>
+      <dt>${esc(t('tok.in'))} / ${esc(t('tok.out'))}</dt><dd>${esc(fTok(c.in))} / ${esc(fTok(c.out))}</dd></dl></div>`;
+    const meta = [[t('sp.date'), fDate(s.start || s.date)], [t('sp.started') + '–' + t('sp.ended').toLowerCase(), `${fHM(s.start)}–${fHM(s.end)}`], [t('sp.pc'), s.pc], [t('sp.user'), s.user || '—'], [t('sp.branch'), s.branch || '—'], [t('sp.entrypoint'), s.entrypoint || '—']]
+      .map(([k, v]) => `<span>${esc(k)}: <b>${esc(v)}</b></span>`).join('');
+    const html = `${back}
+      <section style="display:grid;gap:8px"><div class="sp-head"><h2>${esc(title)}</h2>${s.keel && s.keel.level ? `<span class="chip level">${esc(cap(s.keel.level))}</span>` : ''}${walletChip(s.wallet)}</div><div class="meta">${meta}</div></section>
+      <section class="tiles sm">${tiles}</section>
+      <section class="panel"><h3>${esc(t('sp.timeline'))}</h3><div class="lanes">${lanes}<div class="lane"><span></span><div class="axis">${ticks}</div></div></div>${legend}</section>
+      <section><h3>${esc(t('sp.participants'))}</h3>${pTable}</section>
+      <section><h3>${esc(t('sp.turns'))}</h3>${turns}</section>
+      <section class="grid"><div class="panel span-6"><h3>${esc(t('sp.tools'))}</h3>${tools}</div>${keelBlock}${cacheBlock}</section>`;
+    return { html };
+  }
+
+  // ---- Calibration ---------------------------------------------------------------------------------
+  function viewCalib() {
+    const c = S.calib;
+    const pts = c ? [].concat(((c.weekly && c.weekly.points) || []).map((p) => Object.assign({}, p, { kind: 'weekly' })), ((c.five_hour && c.five_hour.points) || []).map((p) => Object.assign({}, p, { kind: 'five_hour' }))) : [];
+    const v = P.calibrationView(pts, S.machines.map((m) => ({ pc: m.name || m.pc, synced_until: m.synced_until, last_seen: m.last_seen })), Date.now());
+    const waiting = new Set([].concat(v.waiting, (c && c.waiting) || []));
+    const wRate = c && c.weekly && fin(c.weekly.rate) ? c.weekly.rate : v.medians.weekly;
+    const fRate = c && c.five_hour && fin(c.five_hour.rate) ? c.five_hour.rate : v.medians.five_hour;
+    const dropped = v.rows.filter((r) => r.status === 'dropped').length;
+    const tiles = `<section class="tiles">
+      ${tile(t('cal.median_weekly'), wRate ? t('tile.rate', { usd: fUsd(wRate) }) : '—', esc(wRate ? t('tile.rate_n', { n: (c && c.weekly && c.weekly.n) || 0 }) : t('cal.none')), true)}
+      ${tile(t('cal.median_five_hour'), fRate ? t('tile.rate', { usd: fUsd(fRate) }) : '—', esc(fRate ? t('tile.rate_n', { n: (c && c.five_hour && c.five_hour.n) || 0 }) : t('cal.none')))}
+      ${tile(t('cal.dropped_n'), fInt(dropped), esc(t('cal.dropped_of', { n: dropped, total: v.rows.length })))}
+    </section>`;
+    const L = { kind: t('cal.kind'), win: t('cal.col_window'), gain: t('cal.col_gain'), usd: t('cal.col_usd'), rate: t('cal.col_rate'), st: t('cal.col_status') };
+    const win = (r) => { const a = toMs(r.from); const b = toMs(r.to); return new Date(a).toDateString() === new Date(b).toDateString() ? `${fDT(a)}–${fHM(b)}` : `${fDT(a)} – ${fDT(b)}`; };
+    const points = v.empty
+      ? `<div class="empty"><h2>${esc(cap(t('cal.none')))}</h2><p>${esc(t('cal.none_hint'))}</p></div>`
+      : `<div class="tw"><table class="tbl"><thead><tr><th class="L" scope="col">${esc(L.kind)}</th><th class="L" scope="col">${esc(L.win)}</th><th scope="col">${esc(L.gain)}</th><th scope="col">${esc(L.usd)}</th><th scope="col">${esc(L.rate)}</th><th class="L" scope="col">${esc(L.st)}</th></tr></thead><tbody>`
+        + v.rows.map((r) => `<tr><td class="L lead">${esc(t('cal.kind_' + r.kind))}</td><td class="L" data-label="${esc(L.win)}">${esc(win(r))}</td>
+          <td data-label="${esc(L.gain)}">+${esc(nf(Number(r.gain) || 0, 1))}</td><td data-label="${esc(L.usd)}">${esc(fUsd(r.usd))}</td>
+          <td data-label="${esc(L.rate)}">${esc(r.rate > 0 ? fUsd(r.rate) : '—')}</td>
+          <td class="L wrap" data-label="${esc(L.st)}"><span><span class="chip ${r.status}">${esc(t('cal.' + r.status))}</span>${r.reason && r.status !== 'kept' ? ` <span class="muted">${esc(t('cal.reason.' + r.reason))}</span>` : ''}</span></td></tr>`).join('')
+        + '</tbody></table></div>';
+    const ML = { pc: t('col.pc'), sync: t('cal.last_sync'), seen: t('cal.last_seen'), st: t('cal.state') };
+    const machines = v.machines.length ? `<div class="tw"><table class="tbl"><thead><tr><th class="L" scope="col">${esc(ML.pc)}</th><th scope="col">${esc(ML.sync)}</th><th scope="col">${esc(ML.seen)}</th><th class="L" scope="col">${esc(ML.st)}</th></tr></thead><tbody>`
+      + v.machines.map((m) => `<tr><td class="L lead">${esc(m.pc)}</td><td data-label="${esc(ML.sync)}">${esc(fDT(m.synced_until))}</td><td data-label="${esc(ML.seen)}">${esc(fDT(m.last_seen))}</td>
+        <td class="L" data-label="${esc(ML.st)}">${waiting.has(m.pc) ? `<span class="chip pending">${esc(t('cal.waiting_for', { pc: m.pc }))}</span>` : `<span class="chip kept">${esc(t('cal.synced'))}</span>`}</td></tr>`).join('')
+      + '</tbody></table></div>' : '<p class="muted">—</p>';
+    const head = `<div class="sec-head"><h2>${esc(t('cal.title'))}</h2>${c ? `<span class="small muted">${esc(t('cal.computed_by', { pc: c.pc, when: fDT(c.computed_at) }))}</span>` : ''}</div>`;
+    return { html: `${head}${tiles}<section><h3>${esc(t('cal.points'))}</h3>${points}</section><section><h3>${esc(t('cal.machines'))}</h3>${machines}</section>` };
+  }
+
+  // ---- shell ---------------------------------------------------------------------------------------
+  function renderHeader(r) {
+    $('tabs').setAttribute('aria-label', t('app.title'));
+    $('tabs').innerHTML = TABS.map(([id, k]) => `<a href="#${id}"${r.tab === id || (r.tab === 'session' && id === 'sessions') ? ' aria-current="page"' : ''}>${esc(t(k))}</a>`).join('');
+    const rg = $('range');
+    rg.hidden = !(S.mode === 'ready') || r.tab === 'analysis' || r.tab === 'session' || r.tab === 'calib';
+    if (!rg.hidden) {
+      rg.innerHTML = `<label class="sr" for="rgPreset">${esc(t('range.label'))}</label><select id="rgPreset" data-range="preset">${['7', '30', '90', 'custom'].map((p) => `<option value="${p}"${S.range.preset === p ? ' selected' : ''}>${esc(t('range.' + p))}</option>`).join('')}</select>
+        <label class="sr" for="rgFrom">${esc(t('filter.from'))}</label><input type="date" id="rgFrom" data-range="from" value="${esc(S.range.from)}">
+        <label class="sr" for="rgTo">${esc(t('filter.to'))}</label><input type="date" id="rgTo" data-range="to" value="${esc(S.range.to)}">`;
+    }
+    $('banner').innerHTML = S.demo ? `<div class="banner">${esc(t('demo.banner'))}</div>` : '';
+  }
+  let current = null;
+  function render() {
+    const r = route();
+    document.documentElement.lang = lang;
+    renderHeader(r);
+    killCharts();
+    chartDefaults();
+    if (S.mode === 'loading') { VIEW.innerHTML = `<div class="loading">${esc(t('app.loading'))}</div>`; return; }
+    if (S.mode === 'nodb') { VIEW.innerHTML = `<div class="empty"><h2>${esc(t('nodb.title'))}</h2><p>${esc(t('nodb.text'))}</p><p class="small">${esc(t('nodb.demo'))}</p></div>`; return; }
+    if (S.mode === 'error') { VIEW.innerHTML = `<div class="empty"><h2>${esc(t('app.error', { message: S.error }))}</h2></div>`; return; }
+    const v = r.tab === 'analysis' ? viewAnalysis() : r.tab === 'sessions' ? viewSessions() : r.tab === 'calib' ? viewCalib() : r.tab === 'session' ? viewSession(r.key) : viewDash();
+    current = v;
+    VIEW.innerHTML = v.html;
+    if (v.after) v.after();
+  }
+
+  // ---- events --------------------------------------------------------------------------------------
+  let rangeTimer = null;
+  function setRange(field, value) {
+    if (field === 'preset') {
+      S.range.preset = value;
+      if (value !== 'custom') { const n = Number(value); S.range.from = addDays(today(), -(n - 1)); S.range.to = today(); }
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) { S.range[field] = value; S.range.preset = 'custom'; } else return;
+    if (S.range.from > S.range.to) { const x = S.range.from; S.range.from = S.range.to; S.range.to = x; }
+    store.set('range', S.range);
+    clearTimeout(rangeTimer);
+    rangeTimer = setTimeout(reload, 300);
+  }
+  document.addEventListener('change', (e) => {
+    const el = e.target;
+    if (el.dataset.range) { setRange(el.dataset.range, el.value); return; }
+    if (el.dataset.an) { S.an[el.dataset.an] = el.value; S.an.touched = true; store.set('an', S.an); render(); restoreFocus(el.id); return; }
+    if (el.dataset.ss && el.dataset.ss !== 'search') { S.ss[el.dataset.ss] = el.value; store.set('ss', S.ss); render(); restoreFocus(el.id); }
+  });
+  let searchTimer = null;
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (el.dataset.ss === 'search') {
+      S.ss.search = el.value; store.set('ss', S.ss);
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => { const pos = el.selectionStart; render(); const n = $('ss_search'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (x) { /* ignore */ } } }, 250);
+    }
+  });
+  function restoreFocus(id) { const n = id && $(id); if (n) n.focus(); }
+  VIEW.addEventListener('click', (e) => {
+    const el = e.target.closest('button, a, tr');
+    if (!el) return;
+    if (el.id === 'spBack') { if (S.lastTab && history.length > 1) history.back(); else location.hash = '#sessions'; return; }
+    if (el.id === 'ssExport') { const d = sessionsData(); exportCsv(d.rows); return; }
+    if (el.id === 'ssDrillClear') { S.ss.drill = null; store.set('ss', S.ss); render(); return; }
+    if (el.dataset.sort) {
+      const c = el.dataset.sort;
+      if (S.ss.sort === c) S.ss.dir = S.ss.dir === 'asc' ? 'desc' : 'asc'; else { S.ss.sort = c; S.ss.dir = ['usd', 'week_pct', 'date'].includes(c) ? 'desc' : 'asc'; }
+      store.set('ss', S.ss); render(); restoreFocus(null);
+      const b = VIEW.querySelector(`button[data-sort="${c}"]`); if (b) b.focus();
+      return;
+    }
+    if (el.dataset.drill != null && current && current.drill) { current.drill(Number(el.dataset.drill)); return; }
+    if (el.tagName === 'TR' && el.dataset.key && !e.target.closest('a')) { location.hash = '#s.' + el.dataset.key; }
+  });
+  window.addEventListener('hashchange', () => {
+    const r = route();
+    if (r.tab !== 'session') S.lastTab = r.tab;
+    render();
+    if (r.tab === 'session') window.scrollTo(0, 0);
+  });
+  // re-color charts when the theme changes
+  const rerender = () => { if (S.mode === 'ready') render(); };
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', rerender); } catch (e) { /* old browsers */ }
+  new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  if (!P || !I) { VIEW.innerHTML = '<div class="empty"><h2>pivot.js / i18n.js did not load.</h2></div>'; return; }
+  S.lastTab = route().tab === 'session' ? null : route().tab;
+  render();
+  boot();
+})();
+</script>

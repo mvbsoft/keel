@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keel/findings.schema.json",
+  "title": "Report of one keel search agent",
+  "description": "Search agents return exactly one JSON object of this shape. Specialist groups report each topic separately in 'topics'.",
+  "type": "object",
+  "required": ["agent", "status", "topics", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "status": {
+      "description": "'incomplete' when the agent hit its turn cap.",
+      "enum": ["complete", "incomplete"]
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["topic", "checked"],
+        "additionalProperties": false,
+        "properties": {
+          "topic": { "type": "string", "minLength": 1 },
+          "checked": { "description": "What was checked for this topic.", "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } }
+  },
+  "$defs": {
+    "location": {
+      "type": "object",
+      "required": ["file", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": ["id", "topic", "severity", "what", "problem", "fix", "if_not_fixed", "locations", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Agent-local id such as 'bug-hunter-1'. The judge assigns the report-wide number.",
+          "type": "string", "pattern": "^[a-z][a-z0-9-]*-[0-9]+$"
+        },
+        "topic": { "type": "string", "minLength": 1 },
+        "severity": {
+          "description": "critical -> 'must fix', important -> 'should fix', minor -> 'nice to fix' (minor is not verified).",
+          "enum": ["critical", "important", "minor"]
+        },
+        "what": { "description": "What it is.", "type": "string", "minLength": 1 },
+        "problem": { "description": "Why it is a problem.", "type": "string", "minLength": 1 },
+        "fix": { "description": "How to fix it.", "type": "string", "minLength": 1 },
+        "if_not_fixed": { "description": "What happens if it is not fixed.", "type": "string", "minLength": 1 },
+        "locations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/location" } },
+        "evidence": { "description": "Concrete case: input, path or code that shows the problem.", "type": "string", "minLength": 1 },
+        "reproduce": {
+          "description": "Command that reproduces it. A QA finding with a reproduce command counts as proven and skips verification.",
+          "type": "string", "minLength": 1
+        },
+        "sources": {
+          "description": "Documentation or code references backing the claim.",
+          "type": "array", "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

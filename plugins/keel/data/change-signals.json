@@ -1,0 +1,65 @@
+{
+  "about": "Signals the change overview (scripts/changes.js) reads from changed paths and added lines. Path globs per specialist group come from .keel/profile.json (triggers); these add what a path cannot show. Regular expressions are case-insensitive and run on added lines only.",
+  "content": {
+    "security": {
+      "about": "Added code that touches authentication, access, secrets, crypto or a classic injection sink.",
+      "patterns": [
+        "\\b(password|passwd|secret|api[_-]?key|private[_-]?key|bearer|jwt|oauth|csrf|xsrf)\\b",
+        "\\b(authori[sz]e|authenticat\\w*|permission|is_?admin|has_?role|can_?access)\\b",
+        "(?<![.\\w$])(eval|exec|execSync|spawn|spawnSync|system|popen|shell_exec|passthru|unserialize)\\s*\\(",
+        "\\b(pickle\\.loads|yaml\\.load|os\\.(system|popen)|subprocess\\.popen|child_process\\.(exec|execSync|spawn|spawnSync)|Runtime\\.getRuntime\\(\\)\\.exec)\\s*\\(",
+        "\\b(innerHTML|dangerouslySetInnerHTML|v-html|\\|\\s*safe|raw\\s*\\()",
+        "\\b(md5|sha1|createCipher|Math\\.random)\\s*\\("
+      ]
+    },
+    "money": {
+      "about": "Added code that handles money or balances: escalates to Maximum in files the project's security globs match (business code); elsewhere it is only listed among the signals.",
+      "patterns": ["\\b(price|amount|balance|currency|payment|refund|invoice|payout|charge|discount|vat|tax_?rate)\\b"]
+    },
+    "deletion": {
+      "about": "Added code or SQL that deletes data in bulk (a DELETE without WHERE on its line, an ORM bulk delete) or drops structure: escalates to Maximum.",
+      "patterns": [
+        "\\b(drop\\s+(table|column|index|database|schema)|truncate\\s+table)\\b|\\bdelete\\s+from\\b(?!.*\\bwhere\\b)",
+        "\\b(dropColumn|dropTable|drop_table|remove_column|RemoveField|DeleteModel|deleteMany|destroyAll|delete_all|bulk_delete)\\b"
+      ]
+    },
+    "file_removal": {
+      "about": "Added code that removes folders recursively (rm -rf, rmtree, a recursive rm): calls the security group, which checks what the path can be. It deletes files, not data, so it does not escalate to Maximum.",
+      "patterns": ["\\brm\\s+-[a-z]*r[a-z]*f?\\b|\\bshutil\\.rmtree\\s*\\(|\\bfs\\.(rmSync|rm)\\s*\\([^)]*recursive\\s*:\\s*true"]
+    }
+  },
+  "text_files": ["*.md", "*.markdown", "*.rst", "*.adoc", "README*", "NOTES.txt", "TODO.txt", "HISTORY.txt", "CHANGES.txt", "INSTALL.txt", "docs/**/*.txt", "doc/**/*.txt", "LICENSE", "LICENSE.*", "COPYING", "CHANGELOG*", "AUTHORS", "NOTICE"],
+  "bulk": {
+    "about": "Files besides the lock files of data/catalog.json whose changed lines say nothing about the size of the work: generated and vendored files. They are not counted for the level and their hunks are not shown to agents (a one-line count instead).",
+    "generated": ["*.lock", "*.min.js", "*.min.css", "*.map", "*.pb.go", "*.pb.cc", "*.pb.h", "*_pb2.py", "*_pb2_grpc.py", "*.g.dart", "*.freezed.dart", "*.designer.cs", "*.generated.*", "**/generated/**", "**/__generated__/**"],
+    "vendored": ["**/node_modules/**", "**/vendor/**", "**/third_party/**", "**/bower_components/**", "**/Pods/**", "**/dist/**"]
+  },
+  "tests": ["**/test/**", "**/tests/**", "**/__tests__/**", "**/spec/**", "*.test.*", "*.spec.*", "*_test.*", "test_*.py", "*Test.java", "*Tests.cs", "*Test.php"],
+  "source_roots": ["src", "lib", "app", "source", "sources", "main", "java", "kotlin", "scala", "internal", "pkg", "cmd", "test", "tests", "spec", "__tests__"],
+  "comments": {
+    "about": "Line comment markers per file extension. A changed line that is blank or starts with one of these markers does not change behavior; a marker ending in a space also matches a line that is only the marker. Extensions not listed: every changed line counts as behavior.",
+    "families": [
+      {
+        "extensions": ["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts", "java", "kt", "kts", "scala", "groovy", "c", "h", "cc", "cpp", "cxx", "hpp", "hh", "cs", "go", "rs", "swift", "dart", "css", "scss", "less", "proto"],
+        "markers": ["//", "/*", "* ", "*/"]
+      },
+      {
+        "extensions": ["php"],
+        "markers": ["//", "/*", "* ", "*/", "# "]
+      },
+      {
+        "extensions": ["py", "rb", "sh", "bash", "zsh", "pl", "r", "ex", "exs", "ps1", "toml", "yml", "yaml", "tf", "hcl", "nix", "cmake"],
+        "markers": ["#"],
+        "not": ["#!", "#[", "#{"]
+      },
+      {
+        "extensions": ["sql", "lua", "hs", "elm"],
+        "markers": ["--"]
+      },
+      {
+        "extensions": ["html", "htm", "xml", "svg", "vue", "svelte"],
+        "markers": ["<!--", "-->"]
+      }
+    ]
+  }
+}

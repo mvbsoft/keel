@@ -1,0 +1,14 @@
+{
+  "about": "What /keel:cleanup looks for and the thresholds it uses. Numbers come from a read-only measurement of ten real projects on 2026-10-11 (names and sizes only): a clean project has 0 safe items; an old tool folder collected about 140 one-off files in 3 months (about 10 a week, 1.2 MB in total); real data folders were 125 MB to 11 GB, the largest folder that was neither data nor dependencies 32 MB.",
+  "reminder": {
+    "files": 20,
+    "mb": 100,
+    "why": "20 safe files is about two weeks of leftovers at the measured pace; a clean project never reaches it. 100 MB catches one large dump (a log, a video) that a count would miss."
+  },
+  "large_dir_mb": 100,
+  "tmp_safe_after_hours": 24,
+  "backups": ["*.bak", "*.orig", "*.rej", "*~", "*.swp", "*.swo", "*.old", "*.backup", "*.keel-backup-*", "* copy", "* copy.*", "*_copy.*", "*(1)", "*(1).*", "* (1).*", "*(2).*", "* (2).*"],
+  "os_junk": [".DS_Store", "Thumbs.db", "desktop.ini", "ehthumbs.db"],
+  "caches": [".pytest_cache", ".mypy_cache", ".ruff_cache", "__pycache__", ".hypothesis", ".import_linter_cache", ".grimp_cache", ".cache", ".parcel-cache", ".turbo", ".nx", ".eslintcache", ".stylelintcache", "*.tsbuildinfo", ".php-cs-fixer.cache", ".phpunit.result.cache", ".phpunit.cache", "playwright-report", "test-results", "coverage", ".nyc_output", ".sass-cache"],
+  "dependencies": ["node_modules", "vendor", "bower_components", ".venv", "venv", ".pnpm-store", ".yarn", "Pods", ".gradle", ".m2", ".terraform", "target", ".tox", ".nox"]
+}

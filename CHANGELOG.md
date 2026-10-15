@@ -1,0 +1,47 @@
+# Changelog
+
+All notable changes to keel are listed here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
+[Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+## [1.0.0] - 2026-10-15
+
+First public release.
+
+### Added
+- Two ways to work: tasks for point changes, several at once (`/keel:start-task`, `/keel:end-task`,
+  `/keel:tasks`), and long work along one plan across many conversations (`/keel:start-session`,
+  `/keel:end-session`); `/keel:help` lists the commands. See [docs/workflows.md](docs/workflows.md).
+- Project setup (`/keel:configure`): a quick setup that asks only what needs you (languages, test and
+  lint commands, git mode, Claude Code settings, how this machine pays) and a detailed one; any
+  section can be changed later on its own.
+- Verification at four levels: gates only, Basic, Standard and Maximum. keel proposes a level from
+  the real risk of the change (size, modules, security signals, core files) and names data, API and
+  dependency changes so you can go deeper; you choose. Serious findings are checked by separate verifiers that try to refute them, a
+  QA finding whose reproduce command no longer fails when keel runs it again becomes "unclear", and
+  unverified items are marked as such. The report shows the cost of every participant.
+- Delegation of planned steps to implementer agents on the model each step needs.
+- Git in manual mode (keel gives the commands) or autonomous mode (branches, commits, updates from
+  main, pushes); merging into the main branch only on your instruction (or on every finish, when
+  configured so).
+- Cleanup into a restorable trash (`/keel:cleanup`) and moving over from another notes system.
+- A private spending dashboard fed from every machine, and a status line with plan limits.
+- Safety for every step that is hard to undo: Claude Code itself confirms finishing a task, dropping
+  one, deleting its branch, emptying keel's trash, turning on autonomous git and each merge (unless
+  turned off in a confirmed autonomous mode); a finish needs a verification recorded for the code as
+  it is; when a git step stops before the commit, the task is put back by itself. See [docs/behavior.md](docs/behavior.md).
+- keel stays out of projects it is not set up in: no rules, agents or checks of its own there (Claude
+  Code still lists the short descriptions of its commands and agents, as for any installed plugin).
+- A behaviour eval suite (`npm run eval`) to run before each release.
+
+### Notes
+- Requires Claude Code 2.1.296 or newer (the version it was tested on; keel does not check it at run
+  time, and on an older version its hooks, confirmations included, may not work), Node.js 22 or newer
+  and git; runs in Claude Code (other coding agents are planned).
+- keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
+  "Allow Opus for agents" off, Sonnet takes Opus's place.
+
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/mvbsoft/keel/releases/tag/v1.0.0

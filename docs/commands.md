@@ -1,0 +1,140 @@
+# Commands
+
+[Українська](commands.uk.md)
+
+Every keel command, how to call it and what happens in each case. Only you start these commands; the
+model never runs them on its own.
+
+**How instructions work.** After the task and session commands you write what you want in plain
+words; there are no keyword arguments. `/keel:tasks` (`drop`), `/keel:cleanup` (`restore`,
+`empty-trash`) and `/keel:configure` (`machine`, a section name) take the words shown below. keel works out what you mean, asks when it is not sure, and says in one line what
+each action will do before it runs. A level word (`gates`, `basic`, `standard`, `maximum`,
+`none`; `quick` means `basic`) picks the verification level when it stands alone or after "level" (`level standard`); the
+levels: [verification](verification.md).
+
+| Command | In short |
+|---|---|
+| [`/keel:configure`](#keelconfigure) | set up or change keel for this project or this machine |
+| [`/keel:start-task`](#keelstart-task) | start a task, or continue one |
+| [`/keel:end-task`](#keelend-task) | finish a task, or hand it off |
+| [`/keel:tasks`](#keeltasks) | list, show or drop tasks |
+| [`/keel:start-session`](#keelstart-session) | continue or start a long line of work |
+| [`/keel:end-session`](#keelend-session) | end a session: verify, write the note, git |
+| [`/keel:cleanup`](#keelcleanup) | move leftovers to keel's trash, put them back, empty old trash |
+| [`/keel:help`](#keelhelp) | a short table of the commands |
+
+## `/keel:configure`
+
+`/keel:configure [section | machine]`
+
+Without `machine`, every run first asks: this project, or only this machine? keel needs a git
+repository: in a folder without one, `/keel:configure` and every other command offer `git init` and a
+first commit of the current state, and stop on a no.
+
+| You type | keel does |
+|---|---|
+| `/keel:configure` in a new project | Asks: quick setup (recommended, about six questions) or detailed. Scans the project (languages, package managers, monorepo parts, test, lint and type commands, CI, existing AI rules, security scanners). **Quick** asks the two languages, the gate commands with one dry run, the git mode and main branch, the recommended Claude Code settings as one yes or no, and the usage settings when this machine has none; every other value is the recommendation, and the summary names the section that changes it. **Detailed** goes through every section: languages, gates, git, verification thresholds, file sizes and comments, stack plugins, documentation, moving from another notes system, Claude Code settings, usage and costs. Each question has a plain explanation, options with pros and cons, and a recommendation. Quick keeps your existing docs as they are; detailed setup, when the docs pattern you pick differs from the one your docs follow, offers to prepare their move as a task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)). |
+| `/keel:configure` in a configured project | Asks what to change: a section, a new scan, or everything. |
+| `/keel:configure` when the config is out of date or broken | Repairs it: asks only about fields a newer keel added, or lists each problem with a proposed fix, and keeps everything else. |
+| `/keel:configure machine` | Only this machine's settings, for every project: the conversation language, the machine values of the Claude Code settings, usage and costs. Writes no `.keel/` files. |
+| `/keel:configure <section>` | Only that section again, in a configured project. Sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`. `prices` has an agent read the official pricing page and shows the differences; `migration` moves another notes system into keel. |
+
+Nothing is written without your yes. A project setup writes `.keel/config.json`, `.keel/profile.json`
+and `.keel/.gitignore`; with your yes also the Claude Code settings it recommends (each file backed up
+first), a short "Working with Claude Code" section in your README, a status line and a private usage page.
+At the end keel says how to commit the setup (on the main branch now, or with the first task:
+[the setup commit](getting-started.md#3-set-up-a-project-keelconfigure)) and to start the first task
+in a fresh conversation (`/clear`). When you agreed to move your docs, the summary names that task
+first: `/keel:start-task .keel/local/docs-migration.md`. Every other command but `/keel:help` checks this setup first and
+offers to run it. Every setting: [settings](settings.md).
+
+## `/keel:start-task`
+
+`/keel:start-task <link | key | your words>`
+
+| You give | keel does |
+|---|---|
+| a link (Jira, Linear, Asana, GitHub, Google Docs, any page) | reads it from outside (a connector, `gh` or a web fetch); cannot → asks you to paste the text |
+| a key or number (`CAN-123`, `#123`) | looks in keel's tasks, then in the repository, and asks "Is this it?"; `#123` alone is never read from GitHub: give the issue link |
+| a file path | reads the file |
+| your own words | takes them as the task and looks for similar unfinished tasks |
+| nothing | shows the unfinished tasks and asks which to continue or what the new task is |
+
+Then one combined question (the retell, "continuation of X?" or "new, right?", and a proposed name),
+questions or a brainstorm offer, a plan with the branch to work in (a new branch from the current one,
+recommended; the current branch; or your own git steps, which keel runs in both git modes), the task
+folder, and the code. Every case,
+including continuing a task: [two ways of working](workflows.md#start-a-task-keelstart-task).
+
+## `/keel:end-task`
+
+`/keel:end-task [instruction]`
+
+| You type | keel does |
+|---|---|
+| `/keel:end-task` | a menu: finish fully / hand off / your own instruction |
+| `/keel:end-task finish` | verification (you pick the level), fixes, Claude Code's own confirmation "task <id> is done?" (every time; yes moves the folder to keel's trash, no keeps the task active), git, report |
+| `/keel:end-task hand off` (any words: "park it", "prepare for the next conversation") | gates only, the task file updated, git, report. A task without its own branch and no git instruction: keel first asks where the work goes (a new branch, the current branch, no commit, or your instruction) and runs the answer |
+| `/keel:end-task finish and merge into main` | as finish, then the [merge](workflows.md#merging-into-the-main-branch) (Claude Code asks first, unless you confirmed autonomous git on this machine and set `git.ask_before_merge: false`) |
+| `/keel:end-task push` | asks: finish or hand off? |
+
+Every case: [two ways of working](workflows.md#end-a-task-keelend-task).
+
+## `/keel:tasks`
+
+`/keel:tasks [<id> | drop <id>]`
+
+| You type | keel does |
+|---|---|
+| `/keel:tasks` | Lists the unfinished tasks of this working tree and of every branch (as of the last fetch): `<id> · <title>`, then Source, State (active or handed off, how long ago, steps done of total, branch), Next and Files; a "Base moved" line when the base branch got new commits since the handoff. A task handed off 30 days ago or more: keel offers to finish it or drop it. It ends with "Continue one with `/keel:start-task <id>`". |
+| `/keel:tasks CAN-123` | Shows that task: goal, state, open questions and the next action, in 3-6 lines. It reads the task file also from another branch. |
+| `/keel:tasks drop CAN-123` | Explains everything the task left: its folder, its branch (local, pushed), the commits not in the base branch, the changed files and the docs among them. Asks what to remove: everything or which parts. Then each removal on its own, the folder first, and Claude Code itself asks you to confirm the folder and the branch. The folder goes to keel's trash (`/keel:cleanup restore` brings it back); when its branch stays, the removal is committed on that branch. The branch is deleted locally (`git branch -D`) and, if it was pushed, on the remote; after a local delete keel prints the `git branch <name> <commit>` command that brings it back, and after a remote delete the remote branch's last commit and `git push <remote> <commit>:refs/heads/<name>`, which brings it back while that commit is still in your repository. The main branch and the current one are refused (switch away first). Changes already in the base branch are only reverted (`git revert`), never rewritten. In manual git keel gives the commit, branch and revert commands instead of running them. |
+
+An example of the list: [two ways of working](workflows.md#see-and-drop-tasks-keeltasks).
+
+## `/keel:start-session`
+
+`/keel:start-session [plan file | link | description | how to continue]`
+
+| You type | keel does |
+|---|---|
+| `/keel:start-session` with a note | a summary of where things stand and the first action |
+| `/keel:start-session` with no note | looks for plans and TODOs and proposes what to take; with unfinished tasks it points to `/keel:tasks` and `/keel:start-task` |
+| `/keel:start-session docs/plan.md` (or a link, or a description) | starts a new line of work: writes the note, shows it and asks "Start?", then creates the line's branch (manual git: gives `git switch -c <name>` and waits); when a note is open and this is about a different line of work, it first asks "continue the written line or start a new one?" |
+| `/keel:start-session only write the tests today` | continues, following your instruction |
+
+Every case: [two ways of working](workflows.md#start-a-session-keelstart-session).
+
+## `/keel:end-session`
+
+`/keel:end-session [instruction]`
+
+| You type | keel does |
+|---|---|
+| `/keel:end-session` | verification (you pick the level), the note for next time, git, "Next time: ..." to agree or correct |
+| `/keel:end-session we continue tomorrow, prepare` | gates only, the note, git |
+| `/keel:end-session push and merge into main` | verification, the note, then the push and the merge |
+| `/keel:end-session the line is finished` | verification, the note marked done, then git as a finish: commit, update from the main branch, push (autonomous); a merge only when you ask for it or `git.ask_before_merge` is off |
+
+Every case: [two ways of working](workflows.md#end-a-session-keelend-session).
+
+## `/keel:cleanup`
+
+`/keel:cleanup [restore [batch] | empty-trash]`
+
+| You type | keel does |
+|---|---|
+| `/keel:cleanup` | Finds temporary files, backups, caches and what an old notes system left, and shows them in three groups: **safe** (preselected), **check** and **do not touch** (both only by number; a do-not-touch item gets a second question about what may break). Moves only what you pick to `.keel/local/trash/<batch>/`. If the project's tests are affected, it runs them; red → it puts the batch back by itself and runs them again. Reports what moved, its size, and how to undo. Nothing found → says so. |
+| `/keel:cleanup restore` | Puts the newest batch back. |
+| `/keel:cleanup restore <batch>` | Puts that batch back (also a dropped task's folder). |
+| `/keel:cleanup empty-trash` | Says what would be deleted for good (by default batches 30 days old or more, `cleanup.trash_max_age_days`; or one batch you name per run; or all); Claude Code itself asks you to confirm, naming which (the batches of that age, the one batch, or all), then it deletes. |
+
+Only `empty-trash` deletes files for good; the trash is never emptied by itself. (`/keel:tasks drop`
+also deletes a task's branch, after your confirmation.) Secret files are never moved or opened, nor is
+a folder that holds one: keel refuses it and names the secret file. After
+a task or session keel reminds you of `/keel:cleanup` only when enough leftovers have collected.
+
+## `/keel:help`
+
+`/keel:help` shows a short table of the commands (what each does, how to run it, one example) in the
+conversation language, and one line on the two lanes. It runs and reads nothing.
