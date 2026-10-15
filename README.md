@@ -63,7 +63,7 @@ one earlier run per change. The numbers are re-measured from time to time, so th
 |---|---|---|---|
 | one plain AI reviewer, no keel (earlier run) | ≈$0.22 | 15.5 | 4 in 8 runs |
 | keel Basic | ≈$0.34 | 15.3 | 0 in 24 runs |
-| keel Standard | ≈$2.4 (median $2.0) | 16.3 | 1 in 24 runs |
+| keel Standard | ≈$2.4 (median $2.0) | 16.3 | 0 in 24 runs |
 | keel Maximum | ≈$5 (median $4.7) | 17 | 0 in 8 runs |
 
 "Defects found" counts a defect named at any severity, also as an unverified nice-to-fix item;
