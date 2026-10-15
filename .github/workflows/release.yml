@@ -32,12 +32,7 @@ jobs:
       - name: Extract release notes from CHANGELOG.md
         run: |
           version="${TAG#v}"
-          awk -v h="## [$version]" '
-            index($0, h) == 1 { on = 1; next }
-            on && index($0, "## [") == 1 { exit }
-            on && /^\[[^]]+\]: / { next }
-            on { print }
-          ' CHANGELOG.md > notes.md
+          awk -v h="## [$version]" -f tools/release-notes.awk CHANGELOG.md > notes.md
           if ! grep -q '[^[:space:]]' notes.md; then
             echo "CHANGELOG.md has no notes for $version" >&2
             exit 1
