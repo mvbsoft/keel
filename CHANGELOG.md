@@ -6,6 +6,14 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-17
+
+### Fixed
+- The usage page lists only keel sessions: those in which `/keel:start-task`, `/keel:end-task`,
+  `/keel:start-session` or `/keel:end-session` ran. Other Claude Code conversations count only in the hourly
+  totals the plan-limit calibration needs. Day documents an earlier version sent with every session are
+  rebuilt once at the next sync.
+
 ## [1.1.0] - 2026-10-16
 
 ### Added
@@ -57,6 +65,7 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/mvbsoft/keel/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/mvbsoft/keel/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mvbsoft/keel/releases/tag/v1.0.0
