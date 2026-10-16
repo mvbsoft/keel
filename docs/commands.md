@@ -21,6 +21,7 @@ levels: [verification](verification.md).
 | [`/keel:start-session`](#keelstart-session) | continue or start a long line of work |
 | [`/keel:end-session`](#keelend-session) | end a session: verify, write the note, git |
 | [`/keel:cleanup`](#keelcleanup) | move leftovers to keel's trash, put them back, empty old trash |
+| [`/keel:usage`](#keelusage) | the link to your private usage page, opened |
 | [`/keel:help`](#keelhelp) | a short table of the commands |
 
 ## `/keel:configure`
@@ -33,7 +34,7 @@ first commit of the current state, and stop on a no.
 
 | You type | keel does |
 |---|---|
-| `/keel:configure` in a new project | Asks: quick setup (recommended, about six questions) or detailed. Scans the project (languages, package managers, monorepo parts, test, lint and type commands, CI, existing AI rules, security scanners). **Quick** asks the two languages, the gate commands with one dry run, the git mode and main branch, the recommended Claude Code settings as one yes or no, and the usage settings when this machine has none; every other value is the recommendation, and the summary names the section that changes it. **Detailed** goes through every section: languages, gates, git, verification thresholds, file sizes and comments, stack plugins, documentation, moving from another notes system, Claude Code settings, usage and costs. Each question has a plain explanation, options with pros and cons, and a recommendation. Quick keeps your existing docs as they are; detailed setup, when the docs pattern you pick differs from the one your docs follow, offers to prepare their move as a task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)). |
+| `/keel:configure` in a new project | Asks: quick setup (recommended, about six questions) or detailed. Scans the project (languages, package managers, monorepo parts, test, lint and type commands, CI, existing AI rules, security scanners). **Quick** asks the two languages, the gate commands with one dry run, the git mode and main branch, the recommended Claude Code settings (all, one by one, or none), and the usage settings when this machine has none; every other value is the recommendation, and the summary names the section that changes it. **Detailed** goes through every section: languages, gates, git, verification thresholds, file sizes and comments, stack plugins, documentation, moving from another notes system, Claude Code settings, usage and costs. Each group of questions starts with a plain explanation (what the setting is, what it changes, an example); each decision is its own question with every option, the recommended one first. Quick keeps your existing docs as they are; detailed setup, when the docs pattern you pick differs from the one your docs follow, offers to prepare their move as a task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)). |
 | `/keel:configure` in a configured project | Asks what to change: a section, a new scan, or everything. |
 | `/keel:configure` when the config is out of date or broken | Repairs it: asks only about fields a newer keel added, or lists each problem with a proposed fix, and keeps everything else. |
 | `/keel:configure machine` | Only this machine's settings, for every project: the conversation language, the machine values of the Claude Code settings, usage and costs. Writes no `.keel/` files. |
@@ -45,7 +46,7 @@ first), a short "Working with Claude Code" section in your README, a status line
 At the end keel says how to commit the setup (on the main branch now, or with the first task:
 [the setup commit](getting-started.md#3-set-up-a-project-keelconfigure)) and to start the first task
 in a fresh conversation (`/clear`). When you agreed to move your docs, the summary names that task
-first: `/keel:start-task .keel/local/docs-migration.md`. Every other command but `/keel:help` checks this setup first and
+first: `/keel:start-task .keel/local/docs-migration.md`. Every other command but `/keel:help` and `/keel:usage` checks this setup first and
 offers to run it. Every setting: [settings](settings.md).
 
 ## `/keel:start-task`
@@ -133,6 +134,12 @@ Only `empty-trash` deletes files for good; the trash is never emptied by itself.
 also deletes a task's branch, after your confirmation.) Secret files are never moved or opened, nor is
 a folder that holds one: keel refuses it and names the secret file. After
 a task or session keel reminds you of `/keel:cleanup` only when enough leftovers have collected.
+
+## `/keel:usage`
+
+`/keel:usage` gives the link to this machine's private ["keel usage" page](usage-dashboard.md) and
+opens it. It works in any project, set up or not. No page on this machine yet → it says so and points
+to `/keel:configure usage`.
 
 ## `/keel:help`
 

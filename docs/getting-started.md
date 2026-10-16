@@ -39,12 +39,15 @@ stops if you say no. Then it works in these steps.
 CI, scripts, task runners, hooks, tool configs), existing AI rules (AGENTS.md, CLAUDE.md and similar),
 and security scanners. Files that hold secrets are listed by path only: the scan never opens them, and Claude is told not to.
 
-**What it asks.** Each question comes with a plain explanation, the options with pros and cons, and a
-recommendation.
+**What it asks.** Before each group of questions keel explains in a few plain lines what the
+setting is, what it changes, an example, and how to change it later; then the options with pros and
+cons and a recommendation. Each decision is its own question, so every option is in front of you; the
+recommended one comes first, and you can always write your own answer. Ask for more and keel explains
+the setting in full. Quick setup explains too; it only asks fewer questions.
 
 - **Quick setup** asks only: the two languages (the one keel talks in and the one it writes into the
   repository), the gate commands (the commands that must pass) and one dry run of them, the git mode
-  and the main branch, the recommended Claude Code settings as one yes or no, and, when this machine
+  and the main branch, the recommended Claude Code settings (all, one by one, or none), and, when this machine
   has no usage settings yet, how it pays, the status line and the usage page. Every other value is
   keel's recommendation; the summary lists each one with the command that changes it, for example
   `/keel:configure verification`.
@@ -74,10 +77,13 @@ An abridged example of a quick setup:
 keel: I found a Node project with npm. Gates: tests `npm test` (from package.json),
       lint `npm run lint` (from CI). Run them once to check that they work?
 you:  Yes.
-keel: Both passed. Git: manual (you commit; I write the message) or autonomous
-      (I commit, update, push; merge only when you ask)? I recommend manual for a first
-      project. Main branch: main?
-you:  Manual, main.
+keel: Both passed. Git mode: who commits and pushes. Manual: I give a report and a
+      ready commit message, you commit. Autonomous: I commit, update the branch from main,
+      re-run the tests and push; I merge only when you ask. You can switch later with
+      /keel:configure git.
+      1. Git mode? Manual (recommended for a first project) / Autonomous
+      2. Main branch? main (recommended, the repository's default) / another
+you:  1 Autonomous, 2 main.
 ```
 
 **What it writes.** Only after your yes, and it shows the files first:
@@ -102,9 +108,13 @@ ways, in both git modes:
   pull requests).
 
 Then start the first task in a fresh conversation (`/clear`): keel's working standards load when a
-conversation starts in a set-up project. keel may also advise running `/doctor prompt-audit` once
-(Claude Code 2.1.283 or newer), which looks for contradicting instructions across CLAUDE.md, rules and
-skills. Every other keel command except `/keel:help` checks this setup first and offers to run it.
+conversation starts in a set-up project. When the project or `~/.claude` already had instructions of
+its own (a long CLAUDE.md, rules, skills, commands, agents), keel advises running `/doctor
+prompt-audit` once, and says why: two instructions that say opposite things make Claude pick one
+arbitrarily, and outdated ones cost context in every conversation. That Claude Code command lists
+contradictions, outdated instructions and references to missing files, each with a proposed edit, and
+changes nothing until you agree. With no such instructions keel does not mention it. Every other keel
+command except `/keel:help` and `/keel:usage` checks this setup first and offers to run it.
 
 ## 4. Your first task: `/keel:start-task`
 

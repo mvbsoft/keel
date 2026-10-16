@@ -13,6 +13,7 @@ const languages = require('./lib/languages.js');
 const { matches, matchesAny } = require('./lib/patterns.js');
 const { findCommands } = require('./lib/commands.js');
 const { safeLocalWrite } = require('./lib/safe-path.js');
+const instructions = require('./lib/instructions.js');
 
 const MAX_READ = 1024 * 1024;
 
@@ -298,6 +299,7 @@ function scan(root) {
     architecture_rules: pick(catalog.architecture_rules.map((f) => f.split('#')[0])),
     security: Object.fromEntries(Object.entries(catalog.security.configs).map(([k, pats]) => [k, pick(pats)]).filter(([, v]) => v.length)),
     scanners_installed: Object.fromEntries(['gitleaks', 'semgrep', 'pip-audit', 'cargo-audit', 'govulncheck', 'bundle-audit'].map((n) => [n, onPath(n)])),
+    other_instructions: instructions.otherInstructions(root, profile.ai_rules),
     other_systems: otherSystems,
     android: pick(catalog.android.markers).length > 0,
     files_read: reads.length,
@@ -349,6 +351,7 @@ function summary(result, outFile) {
   }
   lines.push(`secret files (never opened): ${profile.secret_paths.join(', ') || 'none'}`);
   lines.push(`AI instruction files: ${profile.ai_rules.join(', ') || 'none'}`);
+  lines.push(instructions.describe(findings.other_instructions));
   const d = findings.docs;
   lines.push(`docs: ${d.files.join(', ') || 'no README or docs site'}; ADR ${d.adr_dirs.join(', ') || 'none'}; specs ${d.spec_dirs.join(', ') || 'none'}; pattern ${d.suggested_pattern}; suggested profile ${d.suggested_profile}`);
   if (d.always_loaded.length) lines.push(`loaded every session: ${d.always_loaded.map((f) => `${f.path} ${f.lines} lines${f.lines > 200 ? ' (over 200)' : ''}`).join(', ')}`);

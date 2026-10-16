@@ -1,10 +1,10 @@
 'use strict';
 // PreToolUse hook on Skill: in a project keel is not set up in (scripts/lib/active.js), keel's skills
-// are refused, so the model uses its own knowledge or another skill there. /keel:configure and
-// /keel:help stay available to set keel up. Fails soft: any error lets the skill run.
+// are refused, so the model uses its own knowledge or another skill there. /keel:configure,
+// /keel:help and /keel:usage (machine-wide) stay available. Fails soft: any error lets the skill run.
 const fs = require('node:fs');
 
-const ALWAYS = new Set(['configure', 'help']);
+const ALWAYS = new Set(['configure', 'help', 'usage']);
 
 function main() {
   const input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');

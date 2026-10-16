@@ -95,7 +95,7 @@ session's share is its dollars divided by the rate.
 ## The "keel usage" page
 
 `/keel:configure usage` can create the page (it asks first). It is private: only you see it, unless you
-share it. Its tabs follow. The screenshots show sample data, not real numbers.
+share it. `/keel:usage` gives its link and opens it. Its tabs follow. The screenshots show sample data, not real numbers.
 
 ### Dashboard
 

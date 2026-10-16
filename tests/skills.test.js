@@ -253,6 +253,18 @@ test('configure-flow.md has the usage and write sections, and names only usage-s
   for (const sub of used) assert.ok(line.includes(sub), `usage-setup.js has no ${sub}`);
 });
 
+test('/keel:usage: user-only, reads only the usage settings and gives or opens the page link', () => {
+  const { fields, body } = parse('usage');
+  assert.equal(fields.name, 'usage');
+  assert.equal(fields['disable-model-invocation'], 'true');
+  assert.match(fields['allowed-tools'], /^Bash\(node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/usage-setup\.js" \*\), PowerShell\(/);
+  assert.match(body, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/usage-setup\.js" "\$\{CLAUDE_PROJECT_DIR\}" show`$/m);
+  assert.match(body, /`artifact_url`/);
+  assert.match(body, /Artifact tool \(`action: open`/);
+  assert.match(body, /`\/keel:configure usage`/);
+  assert.match(body, /the language in keel's session-start line/);
+});
+
 test('/keel:help: user-only, static, short, and its table names every keel command and nothing else', () => {
   const { fields, body } = parse('help');
   assert.equal(fields.name, 'help');
@@ -263,6 +275,6 @@ test('/keel:help: user-only, static, short, and its table names every keel comma
   const rows = [...body.matchAll(/^\| `\/keel:([a-z-]+)/gm)].map((m) => m[1]);
   const userOnly = fs.readdirSync(SKILLS, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('_') && parse(e.name).fields['disable-model-invocation'] === 'true').map((e) => e.name);
   assert.deepEqual([...rows].sort(), [...userOnly].sort(), 'every user command, once');
-  assert.deepEqual([...COMMANDS, 'configure', 'help'].sort(), [...userOnly].sort());
+  assert.deepEqual([...COMMANDS, 'configure', 'help', 'usage'].sort(), [...userOnly].sort());
   assert.ok(body.split('\n').length < 30, 'short');
 });

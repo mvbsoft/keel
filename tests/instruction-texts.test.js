@@ -334,6 +334,31 @@ test('merging: only on the instruction, or on a finish with ask_before_merge fal
   assert.match(shared('git.md'), /Claude Code confirms each merge keel was told to do, except when\s+`git\.ask_before_merge` is false in a confirmed autonomous mode/);
 });
 
+test('configure: explains each question group first, one decision per question, every option offered', () => {
+  const flow = shared('configure-flow.md');
+  assert.match(flow, /\*\*Explain before you ask\*\*, in quick setup too, and also when all questions go in one message\.\s+Before each group of questions/);
+  for (const label of ['**What it is:**', '**What it changes:**', '**Example:**', '**Change later:**']) assert.ok(flow.includes(label), label);
+  assert.match(flow, /also when all questions go in one message/);
+  assert.match(flow, /\*\*One decision per question\.\*\*[\s\S]*never one question whose options combine two decisions/);
+  assert.match(flow, /a recommendation never removes the other options/);
+  const quick = flow.slice(flow.indexOf('**Quick or detailed**'), flow.indexOf('Read the check output'));
+  assert.doesNotMatch(quick, /in one question/, 'no merged questions in quick setup');
+  assert.match(quick, /4 Git \| asked: mode \(both modes offered\) and main branch, two questions in one call/);
+  assert.match(quick, /yes to all \/ choose one by one/);
+  assert.match(flow, /Its own\s+question with both modes as options/);
+});
+
+test('configure: the instruction audit is advised only when other instructions exist, with why and the effect', () => {
+  const flow = shared('configure-flow.md');
+  const step = flow.slice(flow.indexOf('**Instruction check, only when it is worth it**'));
+  assert.ok(step.length > 100, 'the step exists');
+  assert.match(step, /`other instructions:` line of the scan \(section 2\)/);
+  assert.match(step, /ends with `audit: advise`[\s\S]*`audit: not needed`\. Not needed → say nothing about it, not even that it is not needed/);
+  for (const part of ['- **Why:**', '- **What it does:**', '- **The effect:**', '- **How:**']) assert.ok(step.includes(part), part);
+  assert.match(step, /type `\/doctor prompt-audit` in a new conversation/);
+  assert.match(step, /not keel's rules/);
+});
+
 test('configure: the first question is always project or machine; optional sections may be skipped; the setup is committed', () => {
   const flow = shared('configure-flow.md');
   assert.ok(flow.indexOf('**The first question, always**') < flow.indexOf('## Ground rules'), 'the first line of the flow');

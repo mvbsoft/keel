@@ -152,3 +152,31 @@ test('installed scanners are found on PATH without running anything', () => {
     process.env.PATH = saved;
   }
 });
+
+test('other instructions: counted in the project and ~/.claude; the audit is advised from 50 lines or 3 folder entries', () => {
+  const os = require('node:os');
+  const { describe } = require('../plugins/keel/scripts/lib/instructions.js');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-ins-'));
+  const user = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-user-'));
+  fs.writeFileSync(path.join(root, 'CLAUDE.md'), 'one\ntwo\nthree\n');
+  fs.mkdirSync(path.join(root, '.claude', 'rules'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.claude', 'rules', 'style.md'), 'Use tabs.\n');
+  fs.writeFileSync(path.join(user, 'CLAUDE.md'), 'one\ntwo\n');
+  fs.mkdirSync(path.join(user, 'skills', 'notes'), { recursive: true });
+  const before = process.env.KEEL_USER_SETTINGS;
+  process.env.KEEL_USER_SETTINGS = path.join(user, 'settings.json');
+  try {
+    const ins = () => scan(root).findings.other_instructions;
+    assert.deepEqual(ins(), { project: ['CLAUDE.md (3 lines)', 'rules: 1'], user: ['CLAUDE.md (2 lines)', 'skills: 1'], advise_audit: false });
+    assert.equal(describe(ins()), 'other instructions: project CLAUDE.md (3 lines), rules: 1; user ~/.claude CLAUDE.md (2 lines), skills: 1; audit: not needed');
+    fs.mkdirSync(path.join(user, 'agents', 'helper'), { recursive: true });
+    assert.equal(ins().advise_audit, true, '3 folder entries');
+    fs.rmSync(path.join(user, 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'AGENTS.md'), 'line\n'.repeat(45));
+    assert.equal(ins().advise_audit, true, '50 lines in all');
+    process.env.KEEL_USER_SETTINGS = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'keel-user-')), 'settings.json');
+    assert.equal(describe(scan(fs.mkdtempSync(path.join(os.tmpdir(), 'keel-bare-'))).findings.other_instructions), 'other instructions: none; audit: not needed');
+  } finally {
+    if (before === undefined) delete process.env.KEEL_USER_SETTINGS; else process.env.KEEL_USER_SETTINGS = before;
+  }
+});

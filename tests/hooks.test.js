@@ -504,7 +504,7 @@ test('a project keel is not set up in: the hooks add nothing, keel\'s agents and
   assert.equal(runHook('agent-model.js', { tool_name: 'Agent', tool_input: { subagent_type: 'general-purpose', prompt: 'review' } }, env).raw, '', 'other agents are left alone');
   const skill = runHook('skill-gate.js', { tool_name: 'Skill', tool_input: { skill: 'keel:git' } }, env).out.hookSpecificOutput;
   assert.equal(skill.permissionDecision, 'deny');
-  for (const s of ['keel:configure', 'keel:help', 'other:git', 'git']) assert.equal(runHook('skill-gate.js', { tool_name: 'Skill', tool_input: { skill: s } }, env).raw, '', s);
+  for (const s of ['keel:configure', 'keel:help', 'keel:usage', 'other:git', 'git']) assert.equal(runHook('skill-gate.js', { tool_name: 'Skill', tool_input: { skill: s } }, env).raw, '', s);
 
   // /keel:configure has started (its scan writes .keel/local/): its context agent may run.
   fs.mkdirSync(path.join(bare, '.keel', 'local'), { recursive: true });

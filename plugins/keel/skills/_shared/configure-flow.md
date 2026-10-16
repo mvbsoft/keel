@@ -10,11 +10,25 @@ Section 0 says what each answer runs.
 
 ## Ground rules
 - Nothing is written without the user's explicit yes. Show what will be written first.
-- Explain each question the keel way: plain words and an example → a short technical note → the
-  options with pros and cons and your recommendation → the question (AskUserQuestion, recommended
-  option first, up to four questions at once). **Quick** setup (section 0) asks only the questions that
-  need the user and takes the recommendation for the rest; **detailed** setup asks every section, and
-  the user may skip the optional ones (see "Required and optional").
+- **Explain before you ask**, in quick setup too, and also when all questions go in one message.
+  Before each group of questions, in the conversation language and in plain words, write these four
+  short lines from the section's text below, each label translated, each on its own line and all four
+  in every group (never folded into one line or a parenthesis):
+  - **What it is:** the setting in one sentence, without keel's terms;
+  - **What it changes:** what keel will do differently with each answer;
+  - **Example:** one concrete case from this project (its commands, its branch, its files);
+  - **Change later:** `/keel:configure <section>`.
+  Then the options with pros and cons and your recommendation, then the question (AskUserQuestion,
+  recommended option first, up to four questions at once). Each option's description says what it
+  does in plain words, so the user can also write their own answer under "Other". The user asks for
+  more → give the section's full text in plain words.
+  **Quick** setup (section 0) asks only the questions that need the user and takes the
+  recommendation for the rest; **detailed** setup asks every section, and the user may skip the
+  optional ones (see "Required and optional").
+- **One decision per question.** "In one question group" or "in one call" means several separate
+  questions in one AskUserQuestion call, never one question whose options combine two decisions:
+  combined options leave room for only some of the choices. Every option a section names is offered,
+  the recommended one first and marked; a recommendation never removes the other options.
 - Every recommendation comes from the section's script output (scan, `comments.js --project`,
   `stack-skills.js`, `claude-settings.js show`), never from a guess. When you cannot ask
   interactively (no AskUserQuestion), first run the scripts of every section, then ask all questions
@@ -49,22 +63,23 @@ machine has none yet) / only this machine's settings, for every project.
   section 10, and section 11. It writes no `.keel/` files and ends with a short summary.
 - **Project mode** is everything below.
 
-**Quick or detailed** (project mode, fresh setup only; ask it together with the first question):
-quick (recommended: about six questions, every other value is the recommendation and can be changed
-later with `/keel:configure <section>`) / detailed (every section, each explained). Quick runs:
+**Quick or detailed** (project mode, fresh setup only; a second question in the same call as the first
+one): quick (recommended: about six questions, every other value is the recommendation and can be
+changed later with `/keel:configure <section>`) / detailed (every section asked). Both explain each
+question group first. Quick runs:
 
 | Section | Quick |
 |---|---|
-| 1 Languages | asked: both, in one question |
+| 1 Languages | asked: both, two questions in one call |
 | 2 Scan | runs as written; the profile is shown in a few lines, not confirmed part by part; the gaps still go to the context agent; `run_command` asked only when a part serves something |
 | 3 Gates | asked: the commands and the one dry run; scanners: those already on PATH, without a question; the missing ones are named in the summary |
-| 4 Git | asked: mode and main branch, in one question; `ask_before_merge` yes, state and task folders in git |
+| 4 Git | asked: mode (both modes offered) and main branch, two questions in one call; `ask_before_merge` yes, state and task folders in git |
 | 5 Verification | the defaults, stated in one line |
 | 6 Code | file sizes 700 / 1,000; the comment level `comments.js --project` recommends; ticket prefixes it lists from git history; `adr_refs` `allowed` |
 | 7 Stack plugins | skipped; the summary says `/keel:configure plugins` |
 | 8 Documentation | the suggested profile and pattern, stated with the reason; existing docs are kept up to date in every profile |
 | 9 Moving | asked only when `migrate.js find` finds another system |
-| 10 Claude Code settings | asked as one yes/no: the recommended values from `show` (listed), written for the machine where it has none, else for this project only where they differ; then as written |
+| 10 Claude Code settings | asked (never taken without a question: they change Claude Code's own settings) as one question: the recommended values from `show` (listed, each with what it does), written for the machine where it has none, else for this project only where they differ; options: yes to all / choose one by one (then as in section 10) / none |
 | 11 Usage and costs | asked when this machine has no usage settings: how it pays, the status line and the dashboard page in one group; names and prompt previews take the defaults from `show` |
 | 12 Write | as written, and the summary lists every value with the section to change it |
 
@@ -151,8 +166,10 @@ is not installed stays in the list and becomes a loud warning in reports, not a 
 ## 4. Git
 - **Mode:** manual (keel gives a report and a ready commit message; you commit, push and merge) or
   autonomous (keel commits, updates the branch from main, re-runs tests and pushes the branch; it
-  merges only when your instruction asks, or on a finish when "ask before merging" is off). Recommend
-  manual for a first project. Autonomous → after the config is written,
+  merges only when your instruction asks, or on a finish when "ask before merging" is off). Its own
+  question with both modes as options; recommend manual for a first project (the user sees each git
+  step before it happens) and say that autonomous saves the git work on every task and can be turned
+  on later with `/keel:configure git`. Autonomous → after the config is written,
   run `node "<keel>/scripts/git-flow.js" "<project>" trust` once (Claude Code asks the user to confirm).
 - **Main branch:** propose the repository's default (`git symbolic-ref refs/remotes/origin/HEAD`, else
   the current branch). Confirm.
@@ -430,7 +447,7 @@ Then, in one question group:
    - each program a picked plugin needs (a language server, for example), with its install command;
    - the security scanners from section 3 that the project uses, and how to install them.
    Nothing picked and no scanners → skip this step without a question.
-5. Summarize (after step 6 when it applies; then step 7): what was written (including the README section), the gates per part, git mode, the comment level and documentation
+5. Summarize (after step 6 when it applies; then steps 7 and 8): what was written (including the README section), the gates per part, git mode, the comment level and documentation
    profile, the Claude Code settings written (and backups), plugin commands still to run, a language
    server still to install, scanners that are not installed, and the move from another system (what
    moved, what stayed, the old plugin's disable command, the commit message or git result for the
@@ -454,5 +471,26 @@ Then, in one question group:
    steps never commit on the main branch, so the user runs them), or leave them uncommitted and the
    first `/keel:start-task` offers to take them into that task's branch, so they reach the main
    branch with its merge (for a main branch that takes changes only through pull requests).
-8. Advise running `/doctor prompt-audit` once (Claude Code 2.1.283 or newer): it looks for
-   contradicting instructions across CLAUDE.md, rules and skills.
+8. **Instruction check, only when it is worth it** (fresh setup). Decide from the
+   `other instructions:` line of the scan (section 2): it ends with `audit: advise` (50 or
+   more lines in those files, or 3 or more rules, skills, commands, agents or output styles) or
+   `audit: not needed`. Not needed → say nothing about it, not even that it is not needed. Advise →
+   it is the last part of the summary, after the commit step: a heading such as
+   "Recommended: check your instructions" and these four points as a list, each starting with its
+   label (translated), never folded into one paragraph:
+   - **Why:** before keel this project (or this machine) already had its own instructions for Claude;
+     name what the line lists ("CLAUDE.md, 120 lines; 4 rules; 6 skills in ~/.claude"). The more of
+     them, the likelier two say opposite things (one rule "a doc comment on every function", another
+     "small functions, no comments"): Claude then picks one arbitrarily and behaves differently from
+     day to day. Outdated lines (a removed folder, an old command) also cost context in every
+     conversation;
+   - **What it does:** Claude Code's own check `/doctor prompt-audit` reads the CLAUDE.md, AGENTS.md,
+     rules, skills, commands and agents of this project and of `~/.claude` (not keel's rules: their
+     conflicts with yours are the ones this setup raised), and lists contradictions, outdated
+     instructions and references to missing files, each with a proposed edit. It changes nothing until
+     you agree;
+   - **The effect:** one consistent set of instructions that Claude follows the same way every time,
+     and fewer lines loaded into every conversation;
+   - **How:** type `/doctor prompt-audit` in a new conversation (`/clear` first); keel cannot start a
+     Claude Code command for you. It runs on the current model. A report that is hard to read → ask
+     Claude to retell it as a short list: what was, what it will become, why it was a problem.
