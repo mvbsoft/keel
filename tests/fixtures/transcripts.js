@@ -56,8 +56,9 @@ function writeJsonl(file, rows, extraLines = []) {
   fs.writeFileSync(file, lines.concat(extraLines).join('\n') + '\n');
 }
 
-// Writes the session under <root>/<projDir>/. Returns paths and the session id.
-function buildSession(root, { projDir = 'proj-demo', malformed = false } = {}) {
+// Writes the session under <root>/<projDir>/. Returns paths and the session id. keel (default true): it also holds
+// a /keel:end-task command without a timestamp, so the usage page lists it and its times and turns stay the same.
+function buildSession(root, { projDir = 'proj-demo', malformed = false, keel = true } = {}) {
   const dir = path.join(root, projDir);
   const main = path.join(dir, `${SESSION_ID}.jsonl`);
   const sub = path.join(dir, SESSION_ID, 'subagents');
@@ -78,6 +79,7 @@ function buildSession(root, { projDir = 'proj-demo', malformed = false } = {}) {
     m(asst('m3', [{ type: 'tool_use', id: 'tu3', name: 'Agent', input: {} }, { type: 'tool_use', id: 'tu4', name: 'Task', input: {} }])),
     m(user(18, 'Third prompt')),
     m(asst('m4', [{ type: 'text', text: 'ok' }])),
+    ...(keel ? [m({ type: 'user', message: { role: 'user', content: '<command-message>keel:end-task</command-message>\n<command-name>/keel:end-task</command-name>' } })] : []),
   ];
   writeJsonl(main, mainRows, malformed ? ['{not json', ''] : []);
 

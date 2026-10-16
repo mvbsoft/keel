@@ -549,3 +549,29 @@ test('prepare: --out only under the project\'s .keel/local/usage/; it removes on
   assert.ok(fs.existsSync(path.join(w.out, 'mine.json')) && fs.existsSync(path.join(w.out, '2026-01-02_otherpc.json')), 'files prepare did not write stay');
   assert.deepEqual(read(path.join(w.out, 'written.json')).sort(), fs.readdirSync(w.out, { recursive: true }).map((f) => String(f).split(path.sep).join('/')).filter((f) => f.endsWith('.json') && !['mine.json', '2026-01-02_otherpc.json', 'written.json'].includes(f)).sort());
 });
+
+test('prepare: day documents sent before only keel sessions were listed are rebuilt once, back to the first day sent', () => {
+  const w = world({ history_days: 3650 });
+  const s = buildSession(w.root);
+  writeSession(w.root, { id: 'plain', keel: false, rows: [{ t: Date.UTC(2026, 0, 1, 11), prompt: 'hi' }, opusReq(Date.UTC(2026, 0, 1, 11, 1), 1)] });
+  const old = new Date(Date.UTC(2026, 0, 2));
+  for (const f of [s.main, ...Object.values(s.agentFiles), path.join(w.root, 'proj-test', 'plain.jsonl')]) fs.utimesSync(f, old, old);
+  const first = writesOf(w.prepare());
+  const day = read(first.find((x) => x.doc_id === '2026-01-01_testpc').file_path);
+  assert.deepEqual(day.sessions.map((x) => x.id), [SESSION_ID], 'the session without keel commands is not listed');
+  assert.ok(day.hours.some((h) => h.by_model[OPUS]), 'but its spend is in the hours');
+  w.run(['ack']);
+  const file = path.join(w.dir, 'sync-state.json');
+  assert.equal(read(file).sessions_rule, 'keel');
+  assert.deepEqual(writesOf(w.prepare()).map((x) => x.doc_id), ['testpc'], 'nothing changed: no day is rebuilt');
+  w.run(['ack']);
+  // A state an older keel wrote: no rule, and a day document that listed every session.
+  const state = read(file);
+  delete state.sessions_rule;
+  state.docs['2026-01-01_testpc'].hash = 'listed every session';
+  fs.writeFileSync(file, JSON.stringify(state));
+  assert.deepEqual(writesOf(w.prepare()).map((x) => x.doc_id), ['2026-01-01_testpc', 'testpc']);
+  w.run(['ack']);
+  assert.equal(read(file).sessions_rule, 'keel');
+  assert.deepEqual(writesOf(w.prepare()).map((x) => x.doc_id), ['testpc'], 'only once');
+});

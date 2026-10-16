@@ -59,6 +59,8 @@ function activeMinutes(timestampsMs, gapMin = 5) {
   return round1(total);
 }
 
+const KEEL_COMMAND = /^\/keel:(start-task|end-task|start-session|end-session)(?:\s|$)/;
+
 function promptText(content) {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
@@ -286,6 +288,9 @@ function summarizeSession(mainFile, opts = {}) {
   const outTurns = (lead.requests || lead.agents ? [lead] : []).concat(turns.filter((x) => !x.command || x.requests || x.agents))
     .map(({ command, ...x }) => x);
 
+  // keel's workflow commands typed in this session: only such sessions go to the usage page in detail.
+  const keelCommands = [...new Set(main.prompts.filter((x) => x.command).map((x) => (KEEL_COMMAND.exec(x.text) || [])[1]).filter(Boolean))];
+
   const usd = parts.reduce((s, x) => s + x.p.usd, 0);
   const cwd = main.cwd;
   return {
@@ -303,6 +308,7 @@ function summarizeSession(mainFile, opts = {}) {
     unpriced: [...unpriced],
     participants: parts.map((x) => x.p),
     turns: outTurns,
+    keel_commands: keelCommands,
     requests,
   };
 }

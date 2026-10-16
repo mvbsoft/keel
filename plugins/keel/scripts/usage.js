@@ -208,7 +208,13 @@ function prepare(opts) {
     state.docs = {}; state.pending = {}; state.synced_until = null; state.pending_until = null;
   }
   state.artifact_url = url;
-  const sinceMs = state.synced_until ? Date.parse(state.synced_until) - store.SAFETY_MS : nowMs - historyDays * DAY_MS;
+  let sinceMs = state.synced_until ? Date.parse(state.synced_until) - store.SAFETY_MS : nowMs - historyDays * DAY_MS;
+  // Documents sent under another rule for which sessions are listed are rebuilt once, back to the first day sent.
+  if (state.sessions_rule !== store.SESSIONS_RULE) {
+    const first = store.earliestDay(state);
+    sinceMs = Math.min(sinceMs, nowMs - historyDays * DAY_MS, first ? Date.parse(`${first}T00:00:00Z`) : Infinity);
+    state.pending_rule = store.SESSIONS_RULE;
+  }
 
   const root_ = projectsRoot();
   const sessionRef = typeof opts.session === 'string' ? store.listSessions(root_).find((r) => r.id === opts.session) : store.newestSessionIn(root_, root);

@@ -326,11 +326,13 @@ test('localRequests: every priced request of the period with its wallet', () => 
 // --- resumed and forked sessions, deleted transcripts, privacy ---
 
 // A transcript with chosen message ids: rows are {t, prompt} or {t, id, model, tok}; `old` sets the file times.
-function writeIds(root, id, rows, { old, cwd = 'O:\\work\\demo' } = {}) {
+// keel (default true): a /keel:end-task row without a timestamp, so the usage page lists the session.
+function writeIds(root, id, rows, { old, cwd = 'O:\\work\\demo', keel = true } = {}) {
   const usage = ({ in: i = 0, out = 0 }) => ({ input_tokens: i, output_tokens: out, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
   const lines = rows.map((r) => JSON.stringify('prompt' in r
     ? { sessionId: id, cwd, type: 'user', timestamp: new Date(r.t).toISOString(), message: { role: 'user', content: r.prompt } }
     : { sessionId: id, cwd, type: 'assistant', timestamp: new Date(r.t).toISOString(), message: { role: 'assistant', id: r.id, model: 'm1', content: [{ type: 'text', text: 'ok' }], usage: usage(r.tok || { in: 1 }) } }));
+  if (keel) lines.push(JSON.stringify({ sessionId: id, cwd, type: 'user', message: { role: 'user', content: '<command-name>/keel:end-task</command-name>' } }));
   const file = path.join(root, 'proj-test', `${id}.jsonl`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, lines.join('\n') + '\n');
@@ -464,4 +466,17 @@ test('a project can turn prompt previews off for itself while the machine sends 
   const raw = JSON.stringify(e.build().docs);
   assert.ok(raw.includes('loud words'), 'the machine setting still sends other projects');
   assert.ok(!raw.includes('hushed words'), 'the project setting wins');
+});
+
+test('only keel sessions are listed: a workflow command or an end-step record; every session still counts in the hours', () => {
+  const e = env();
+  const cmd = (name, args = '') => `<command-message>keel:${name}</command-message>\n<command-name>/keel:${name}</command-name>\n<command-args>${args}</command-args>`;
+  writeIds(e.root, 'plain', [{ t: DAY, prompt: 'just chatting' }, { t: DAY + MIN, id: 'p1' }], { keel: false });
+  writeIds(e.root, 'setup', [{ t: DAY + 2 * MIN, prompt: cmd('configure') }, { t: DAY + 3 * MIN, id: 's1' }], { keel: false });
+  writeIds(e.root, 'task', [{ t: DAY + 4 * MIN, prompt: cmd('start-task', 'SHOP-1') }, { t: DAY + 5 * MIN, id: 't1' }], { keel: false });
+  writeIds(e.root, 'ended', [{ t: DAY + 6 * MIN, prompt: 'go on' }, { t: DAY + 7 * MIN, id: 'e1' }], { keel: false });
+  const doc = e.build({ keelInfo: { session_id: 'ended', level: 'basic' } }).docs[0].doc;
+  assert.deepEqual(doc.sessions.map((s) => s.id), ['task', 'ended'], '/keel:configure alone does not make a keel session');
+  assert.equal(sum(doc.hours.map((h) => h.req)), 4, 'the calibration hours count every session');
+  assert.deepEqual(e.build().summaries.get('task').keel_commands, ['start-task']);
 });

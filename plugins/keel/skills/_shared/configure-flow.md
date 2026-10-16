@@ -360,7 +360,8 @@ Explain first: at the end of every `/keel:end-task` and `/keel:end-session` keel
 session cost: each participant (the main session, each agent run), its model, tokens and dollars at
 list price; on a subscription also about how many percent of the weekly and 5-hour limits that is.
 A private page "keel usage" in the user's claude.ai account collects this from every machine (charts,
-filters, every session with its agents and the cost of each request). Everything is read from Claude
+filters, every keel session with its agents and the cost of each request; other conversations count
+only in the hourly totals the limit calibration needs). Everything is read from Claude
 Code's own local logs; nothing leaves the machine except into that private page.
 Then, in one question group:
 1. **How this machine pays** (`wallet_default`): subscription (Pro/Max/Team; recommended when `show`

@@ -107,7 +107,8 @@ limit rate (1 % in dollars, median of n points). Charts: daily spend by model, t
 with the forecast, main conversation versus agents, token kinds and top projects, and spend by user when
 the period has more than one user. If no session in the period pays from a subscription (all pay with an
 API key or credit, or their wallet is unknown), the plan tiles and the weekly chart are replaced by the
-dollars spent, a tile for each of up to 3 users and the spend by user.
+dollars spent, a tile for each of up to 3 users and the spend by user. Dollars and charts count keel
+sessions only; the limit percentages are those of your whole account, as Claude Code counts them.
 
 ### Analysis
 
@@ -127,7 +128,7 @@ model stays right.
 
 ![Sessions tab with sample data](images/usage-sessions.png)
 
-*Sample data.* Every session: date, PC, project, task, models, dollars, percent of the week and the
+*Sample data.* Every keel session: date, PC, project, task, models, dollars, percent of the week and the
 verification level. Search by project, task, prompt text or branch; filter by PC, project and wallet;
 group by project, PC or day; export to CSV.
 
@@ -159,8 +160,11 @@ snapshots, a summary cache, sync state and settings.
 
 ## What goes to the page, and what never does
 
-Per machine and day, the page receives the following about every Claude Code session on the machine, in
-all its projects, also those keel is not set up in:
+Per machine and day, the page receives the following. The hourly totals count every Claude Code session
+on the machine, in all its projects, because the plan limits count them all and the calibration needs
+them; they hold no session id, project or request text. Everything per session goes only for keel
+sessions: a session in which you ran `/keel:start-task`, `/keel:end-task`, `/keel:start-session` or
+`/keel:end-session`. A conversation without keel shows up only in the hourly totals.
 
 - the machine name, your git email (to tell machines and people apart) and the machine's
   `wallet_default`;

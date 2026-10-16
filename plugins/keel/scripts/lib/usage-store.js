@@ -27,6 +27,9 @@ const MAX_DOC_BYTES = 240000;      // a bit under ArtifactData's 262 144 byte li
 const DAY_MS = 86400000;
 const HOUR_MS = 3600000;
 const SAFETY_MS = 5 * 60000;       // files touched this long before the last sync are looked at again
+// Which sessions a day document lists in detail: 'keel' = only sessions that ran a keel workflow command (or
+// that keel recorded at an end step). The hours still count every session, for the plan-limit calibration.
+const SESSIONS_RULE = 'keel';
 const GHOST_KEEP_DAYS = 180;       // cached sessions without a transcript are dropped after this, unless a live session shares a day
 const CACHE = 'usage-cache';
 const INDEX = 'usage-index.json';
@@ -223,7 +226,7 @@ const viewOf = (summary, hasText, ctx) => (ctx.withText || !hasText ? summary : 
 // other sessions own) the session without those messages; that second version is cached beside the first.
 function getSummary(ref, ctx, skip) {
   let c = ctx.cache.has(ref.id) ? ctx.cache.get(ref.id) : readJson(cacheFile(ctx, ref.id));
-  const valid = c && c.v === CACHE_VERSION && c.mtimeMs === ref.mtimeMs && c.size === ref.size && c.pricesHash === ctx.pricesHash && c.summary && (c.withText || !ctx.withText);
+  const valid = c && c.v === CACHE_VERSION && c.mtimeMs === ref.mtimeMs && c.size === ref.size && c.pricesHash === ctx.pricesHash && c.summary && Array.isArray(c.summary.keel_commands) && (c.withText || !ctx.withText);
   if (!valid) {
     c = { v: CACHE_VERSION, mtimeMs: ref.mtimeMs, size: ref.size, birthMs: ref.birthMs, pricesHash: ctx.pricesHash, withText: ctx.withText, summary: parse(ref, ctx) };
     persist(ctx, ref.id, c);
@@ -514,7 +517,7 @@ function buildDays(opts = {}) {
   const docs = [];
   for (const date of sorted) {
     const touching = [...summaries.values()].filter((s) => ctx.index[s.id].days.includes(date));
-    const own = touching.filter((s) => s.start && s.start.slice(0, 10) === date)
+    const own = touching.filter((s) => s.start && s.start.slice(0, 10) === date && isKeelSession(s, keel))
       .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id < b.id ? -1 : 1))
       .map((s) => sessionDoc(s, walletFor(s.id), keel.get(s.id) || null, cc.get(s.id), ctx.withText && previewIn(ctx, s.cwd)));
     const header = { schema: SCHEMA, date, pc, user: ctx.machine.user || null, part: 1, parts: 1, synced_until: nowIso };
@@ -525,6 +528,10 @@ function buildDays(opts = {}) {
   }
   return { docs, days: sorted, stats: ctx.stats, summaries };
 }
+
+// A session keel worked in: one of its workflow commands was typed there, or an end step recorded it. A summary
+// cached before commands were recorded (a session whose transcript is gone) counts only by that record.
+const isKeelSession = (s, keel) => (Array.isArray(s.keel_commands) && s.keel_commands.length > 0) || keel.has(s.id);
 
 // The machine document: always rewritten, because synced_until moves on.
 function buildMachineDoc(machine, nowIso) {
@@ -582,7 +589,15 @@ function readState(dir) {
     docs: ok && s.docs && typeof s.docs === 'object' ? s.docs : {},
     pending: ok && s.pending && typeof s.pending === 'object' ? s.pending : {},
     pending_until: ok && typeof s.pending_until === 'string' ? s.pending_until : null,
+    sessions_rule: ok && typeof s.sessions_rule === 'string' ? s.sessions_rule : null,
+    pending_rule: ok && typeof s.pending_rule === 'string' ? s.pending_rule : null,
   };
+}
+
+// The first day this machine has sent a day document for (state.docs keys are "<date>_<pc>" or "..._p<n>").
+function earliestDay(state) {
+  const days = Object.keys(state.docs).map((k) => (/^(\d{4}-\d{2}-\d{2})_/.exec(k) || [])[1]).filter(Boolean).sort();
+  return days.length ? days[0] : null;
 }
 
 function writeState(dir, state) {
@@ -635,12 +650,15 @@ function ack(state, { failed = [], batch = null } = {}) {
     committed++;
   }
   const left = Object.keys(state.pending);   // every key still pending, in any batch
-  if (!left.length && state.pending_until) { state.synced_until = state.pending_until; state.pending_until = null; }
+  if (!left.length && state.pending_until) {
+    state.synced_until = state.pending_until; state.pending_until = null;
+    if (state.pending_rule) { state.sessions_rule = state.pending_rule; state.pending_rule = null; }
+  }
   return { committed, left, unknown };
 }
 
 module.exports = {
   MAX_DOC_BYTES, sanitizePc, listSessions, projectFolderName, newestSessionIn, readWallets, walletOf, readKeel, readLines,
   buildDays, buildMachineDoc, localRequests, sessionSummary, readState, writeState, stage, ack, packDay, hashOf, sha1, SAFETY_MS,
-  DAY_MS, readJson, dayOf,
+  DAY_MS, readJson, dayOf, SESSIONS_RULE, earliestDay,
 };

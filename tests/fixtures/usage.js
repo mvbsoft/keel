@@ -11,8 +11,9 @@ const usageOf = ({ in: i = 0, out = 0, cr = 0, cw5 = 0, cw1h = 0 }) => ({
 });
 
 // rows: [{t: epoch ms, prompt: 'text'} | {t, model, tok: {in, out, cr, cw5, cw1h}}], in any order.
+// keel (default true): the session also holds a /keel:end-task command, so the usage page lists it.
 // Returns {file, id}.
-function writeSession(root, { id, projDir = 'proj-test', cwd = 'O:\\work\\demo', rows, mtimeMs }) {
+function writeSession(root, { id, projDir = 'proj-test', cwd = 'O:\\work\\demo', rows, mtimeMs, keel = true }) {
   const base = { sessionId: id, cwd, gitBranch: 'main', entrypoint: 'cli', isSidechain: false };
   const lines = [...rows].sort((a, b) => a.t - b.t).map((r, i) => JSON.stringify(
     'prompt' in r
@@ -22,6 +23,8 @@ function writeSession(root, { id, projDir = 'proj-test', cwd = 'O:\\work\\demo',
         message: { role: 'assistant', id: `msg_${id}_${i}`, model: r.model, content: [{ type: 'text', text: 'ok' }], usage: usageOf(r.tok) },
       },
   ));
+  // The command row has no timestamp, so the session's times and turns stay those of its rows.
+  if (keel) lines.push(JSON.stringify({ ...base, type: 'user', message: { role: 'user', content: '<command-message>keel:end-task</command-message>\n<command-name>/keel:end-task</command-name>' } }));
   const file = path.join(root, projDir, `${id}.jsonl`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, lines.join('\n') + '\n');
