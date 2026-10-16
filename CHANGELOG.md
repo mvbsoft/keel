@@ -6,6 +6,20 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-16
+
+### Added
+- `/keel:usage` gives the link to your private usage page and opens it, in any project.
+
+### Changed
+- Setup explains each group of questions first (what the setting is, what it changes, an example,
+  how to change it later), in quick setup too.
+- Setup asks one decision per question and always offers every option, the recommended one first: the
+  git mode question offers both manual and autonomous; Claude Code settings can be taken all, one by
+  one, or none.
+- Setup advises `/doctor prompt-audit` only when the project or `~/.claude` already had instructions of
+  its own (CLAUDE.md, rules, skills, commands, agents), and says why and what it gives.
+
 ## [1.0.0] - 2026-10-15
 
 First public release.
@@ -43,5 +57,6 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/mvbsoft/keel/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mvbsoft/keel/releases/tag/v1.0.0
