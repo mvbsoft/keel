@@ -6,6 +6,8 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-17
+
 ### Added
 - `/keel:usage-clear` deletes all data on your usage page (every machine's days and sessions, the
   machine and calibration documents) after a warning with the period, the sessions and dollars, the
@@ -72,7 +74,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/mvbsoft/keel/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/mvbsoft/keel/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/mvbsoft/keel/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mvbsoft/keel/releases/tag/v1.0.0
