@@ -318,7 +318,8 @@ function docsShape(list, pick, readText) {
   const kinds = Object.entries(d.diataxis).filter(([, names]) => names.some((n) => hasDir(`docs/${n}`))).map(([kind]) => kind);
   const arc42 = pick(d.arc42).length > 0;
   const c4 = pick(d.c4).length > 0;
-  const alwaysLoaded = pick(d.always_loaded).map((rel) => ({ path: rel, lines: (readText(rel) || '').split('\n').length }));
+  const lineCount = (text) => (text ? text.split('\n').length - (text.endsWith('\n') ? 1 : 0) : 0);
+  const alwaysLoaded = pick(d.always_loaded).map((rel) => ({ path: rel, lines: lineCount(readText(rel)) }));
   const pattern = arc42 && c4 ? 'arc42-c4' : arc42 ? 'arc42' : kinds.length >= 3 ? 'diataxis' : 'none';
   return {
     files: pick(d.files.map((f) => f.split('#')[0])).filter((f) => !f.includes('/') || f.startsWith('docs/')),

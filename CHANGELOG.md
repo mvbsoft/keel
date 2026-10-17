@@ -6,6 +6,25 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `/keel:configure check` says, without changing any setting, whether the project changed since the last
+  configure in ways keel's settings depend on: which sections to run again (needed or only worth a
+  look), each with the fact and why it matters, and the command that runs only those. A script does
+  the comparison, so the answer is one reply (measured headless: about $0.08 on Sonnet on top of the
+  session start). A machine without a record of the last configure rebuilds it once from the commit of
+  `.keel/`, in a temporary worktree.
+- `/keel:configure gates,git` (or `3,4`) runs several sections in one go, in section order, and writes
+  the files once at the end.
+
+### Changed
+- The profile counts as stale only when something the configure sections depend on changed, not when
+  only package versions or comments in a manifest did, so other commands stop suggesting a re-scan for
+  nothing. The note now points to `/keel:configure check`.
+
+### Fixed
+- The scan counted one line too many in files that end with a line break (the size of `CLAUDE.md` and
+  other files loaded into every session).
+
 ## [1.1.2] - 2026-10-17
 
 ### Added

@@ -54,7 +54,7 @@ test('"See `skill`" cross-references point to existing skills', () => {
 test('configure is user-only and every file the flow names exists in the plugin', () => {
   const text = fs.readFileSync(path.join(SKILLS, 'configure', 'SKILL.md'), 'utf8');
   assert.match(text, /^disable-model-invocation: true$/m);
-  assert.match(text, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/check-config\.js" "\$\{CLAUDE_PROJECT_DIR\}" --profile`$/m);
+  assert.match(text, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/config-check\.js" "\$\{CLAUDE_PROJECT_DIR\}"`$/m);
   const root = path.join(SKILLS, '..');
   for (const file of ['skills/configure/SKILL.md', 'skills/_shared/configure-flow.md', 'skills/_shared/preflight.md']) {
     const body = fs.readFileSync(path.join(root, file), 'utf8');

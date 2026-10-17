@@ -36,7 +36,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const SCRIPTS = new Set(['scan.js', 'check-config.js', 'safe-command.js', 'changes.js', 'fingerprint.js', 'votes.js', 'ledger-report.js', 'notes.js', 'plan-steps.js', 'git-flow.js', 'comments.js', 'stack-skills.js', 'claude-settings.js', 'migrate.js', 'cleanup.js', 'usage.js', 'usage-setup.js']);
+const SCRIPTS = new Set(['scan.js', 'check-config.js', 'safe-command.js', 'changes.js', 'fingerprint.js', 'votes.js', 'ledger-report.js', 'notes.js', 'plan-steps.js', 'git-flow.js', 'comments.js', 'stack-skills.js', 'claude-settings.js', 'migrate.js', 'cleanup.js', 'usage.js', 'usage-setup.js', 'config-check.js']);
 // Script steps that change the user's files for good or move them outside keel's own folders: left
 // to Claude Code's permission prompt.
 const ASK = { 'claude-settings.js': ['apply'], 'migrate.js': ['apply'], 'usage-setup.js': ['apply', 'prices-apply', 'install-statusline'] };

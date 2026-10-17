@@ -23,8 +23,8 @@ No check output above (a policy can turn off the shell lines in skills): run
 the check, then on a `git:` line:
 
 - `keel-config: ok` → go on with the command. If a `profile:` line says `stale`, say in one line that
-  package or build files changed since the last scan and offer to re-run the scan (configure,
-  section 2) after the command; do not block. `profile: missing` or `invalid` → say in one line that
+  the project changed since the last configure and that `/keel:configure check` says, without changing
+  anything, which settings to update and why; do not block. `profile: missing` or `invalid` → say in one line that
   keel has no valid project scan, so the verification proposal does not see the project's security,
   data, docs and config paths (the specialist groups they would add), and offer the same re-scan
   after the command; do not block.

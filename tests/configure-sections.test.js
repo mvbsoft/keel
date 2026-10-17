@@ -153,7 +153,7 @@ test('configure flow section 3: <main> is substituted from section 4, Docker is 
 test('configure flow section 12: the manual setup is proposed for the README, written only after a yes', () => {
   const text = flow();
   const twelve = text.slice(text.indexOf('## 12. Write and summary'));
-  assert.ok(twelve.indexOf('Write the manual setup down') > twelve.indexOf('check-config.js'), 'after the files are written and checked');
+  assert.ok(twelve.indexOf('Write the manual setup down') > twelve.indexOf('config-check.js'), 'after the files are written and checked');
   assert.match(twelve, /README \(or\s+its existing setup or getting-started doc/);
   assert.match(twelve, /"Working with Claude Code"/);
   assert.match(twelve, /`repo_language`/);

@@ -39,7 +39,8 @@ first commit of the current state, and stop on a no.
 | `/keel:configure` in a configured project | Asks what to change: a section, a new scan, or everything. |
 | `/keel:configure` when the config is out of date or broken | Repairs it: asks only about fields a newer keel added, or lists each problem with a proposed fix, and keeps everything else. |
 | `/keel:configure machine` | Only this machine's settings, for every project: the conversation language, the machine values of the Claude Code settings, usage and costs. Writes no `.keel/` files. |
-| `/keel:configure <section>` | Only that section again, in a configured project. Sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`. `prices` has an agent read the official pricing page and shows the differences; `migration` moves another notes system into keel. |
+| `/keel:configure check` | Says, without changing any setting, whether the project changed since the last configure in ways its settings depend on, which sections to run again and why (each with the fact, for example a new `npm run test:e2e` keel does not run, or a main branch that is gone), and the command that runs only those. Package versions alone never count. One script does the comparison, so the answer costs about one reply. On a machine without a record of the last configure it rebuilds one from the commit of `.keel/` (a few seconds, once). [More](#keelconfigure-check). |
+| `/keel:configure <section>[,<section>...]` | Only those sections again, in a configured project, in section order, and the files are written once at the end: `/keel:configure gates,git` (or `3,4`). Sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`. `prices` has an agent read the official pricing page and shows the differences; `migration` moves another notes system into keel. |
 
 Nothing is written without your yes. A project setup writes `.keel/config.json`, `.keel/profile.json`
 and `.keel/.gitignore`; with your yes also the Claude Code settings it recommends (each file backed up
@@ -49,6 +50,31 @@ At the end keel says how to commit the setup (on the main branch now, or with th
 in a fresh conversation (`/clear`). When you agreed to move your docs, the summary names that task
 first: `/keel:start-task .keel/local/docs-migration.md`. Every other command but `/keel:help` and `/keel:usage` checks this setup first and
 offers to run it. Every setting: [settings](settings.md).
+
+### `/keel:configure check`
+
+Each configure run records, in `.keel/local/configure-snapshot.json` (outside git), what the sections it ran were based on (a run of some sections keeps the record of the others): the
+parts of the project, their test, lint and type commands, the paths that call for a specialist review,
+the AI instruction files, the frameworks, the files loaded into every session, other notes systems.
+`check` compares the project with that record, and checks the main branch, ticket ids in the git
+history, settings a newer keel recommends and this machine's usage settings. Each reason is either
+**needed** (keel's settings no longer fit: a gate would be missed or fail, a part has no gates, tasks
+cannot branch off the main branch) or **worth a look** (keel could do more, such as a checked plugin for
+a new framework). For example:
+
+```text
+Needed: scan, gates, git. Worth a look: plugins, docs.
+- gates: new command npm run test:e2e — keel does not run it before a task is finished
+- git: the main branch "main" is gone — keel starts each task from it
+- docs: CLAUDE.md has 260 lines (6 at the last configure) — every request reads it
+Run: /keel:configure scan,gates,git   (with plugins,docs if you want those too)
+```
+
+Something the committed `.keel/profile.json` already lists (a part you added by hand, or what a teammate's later configure saw) is never new. A change of package versions alone is not a reason, and it no longer marks the profile as stale at the
+start of other commands. When this machine has no record (a fresh clone), keel scans the project as it
+was at the last commit of `.keel/` in a temporary worktree (git hooks off), keeps that as the record and
+removes the worktree. With `.keel/` never committed it compares with `.keel/profile.json` and names the
+checks it could not run.
 
 ## `/keel:start-task`
 

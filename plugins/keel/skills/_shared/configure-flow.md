@@ -93,10 +93,13 @@ Then by the first line:
 - `broken` or `invalid` → **repair path**: list each problem in plain words, propose a fix per
   problem, apply only confirmed fixes, then go to section 12. If the file is not valid JSON, offer to
   start fresh, keeping a copy in `.keel/local/tmp/config.broken.json`.
-- `ok` → the project is configured: ask what to change (a section, a re-scan, or everything). An
-  argument that names a section (its number or `languages`, `scan`, `gates`, `git`, `verification`,
-  `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`) runs only that section, then
-  section 12 for what it changed.
+- `ok` → the project is configured: ask what to change (a section, a re-scan, or everything); when
+  the `config-check:` block above names sections, recommend those first, each with its reason in one
+  line. An argument that names sections (numbers or `languages`, `scan`, `gates`, `git`,
+  `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`; several
+  separated by commas or spaces, such as `gates,git` or `3,4`) runs only those, in section order
+  whatever order they were given in, then section 12 once for what they changed. A name that is no
+  section → list the sections and ask; run nothing before the answer.
 
 Existing AI instruction files (`profile.ai_rules` from the scan: AGENTS.md, CLAUDE.md, Cursor or
 Copilot rules...) are read first: they state the project's own conventions and win over keel's guesses.
@@ -431,7 +434,10 @@ Then, in one question group:
 2. Write them. Create `.keel/.gitignore` with the content of `<keel>/templates/keel/gitignore` (open
    it with the Read tool); if section 4 chose "state not in git", add `next-session.md`, `memory/` and
    `sessions/` to it.
-3. Run `node "<keel>/scripts/check-config.js" "<project>" --profile`. Anything but `keel-config: ok`
+3. Run `node "<keel>/scripts/config-check.js" "<project>" save` (it records what the sections that ran
+   were based on, for `/keel:configure check`, then checks the files). When not every section ran, add
+   `--sections` with those that did, comma-separated: a run of chosen sections → those; quick setup →
+   `1,2,3,4,5,6,8,9,10,11` (every section but 7, which it skips); a repair → the sections it asked about. Anything but `keel-config: ok`
    and `profile: ok` → fix it before saying the setup is done.
 4. **Write the manual setup down for the next developer.** The plugin commands and programs of
    section 7 live only in this conversation, so propose a short section for the project's README (or

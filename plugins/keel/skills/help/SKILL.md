@@ -19,7 +19,7 @@ after day. The two never mix." Nothing else: run nothing, read nothing.
 | `/keel:tasks [id \| drop id]` | lists the unfinished tasks, shows one, or drops one with what it left | `/keel:tasks drop fix-reset-500` |
 | `/keel:start-session [instruction]` | continues the long line of work from its note, or starts one from a plan, a link or a description | `/keel:start-session only write the tests today` |
 | `/keel:end-session [instruction]` | verifies, writes the note for the next session, then git and the action you name | `/keel:end-session we continue tomorrow, prepare` |
-| `/keel:configure [section]` | sets up or changes keel for this project | `/keel:configure git` |
+| `/keel:configure [check \| section,...]` | sets up or changes keel for this project; `check` says what to reconfigure and why, changing no setting | `/keel:configure check` |
 | `/keel:cleanup` | finds leftovers and moves the ones you pick to keel's trash, with an undo | `/keel:cleanup restore` |
 | `/keel:usage` | gives the link to your private usage page (what each session cost) and opens it | `/keel:usage` |
 | `/keel:usage-clear` | deletes all data on the usage page, after a warning and your yes | `/keel:usage-clear` |

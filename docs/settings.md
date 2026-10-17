@@ -28,7 +28,8 @@ itself. Sessions in that project compact at 500,000; every other project still c
 | Installing keel | the two plugin options below, as **machine** values |
 | `/keel:configure` in a project | asks first: this project, or only this machine. Project mode sets the project's settings and, for "machine or project" settings, shows both values and lets you keep the machine value or set one for the project. A first setup also asks: **quick** (recommended, about six questions; every other value is keel's recommendation) or **detailed** (every section; both explain each question group first) |
 | `/keel:configure machine` | only the machine values, for every project |
-| `/keel:configure <section>` | one section again: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage` or `prices` |
+| `/keel:configure check` | which sections to run again since the last configure, and why; changes no setting |
+| `/keel:configure <section>[,<section>...]` | those sections again, written once at the end (`gates,git`); sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage` or `prices` |
 
 Nothing is written without your yes. The Claude Code settings files and the price table are backed up
 before keel changes them (project files in `.keel/local/backups/`, the machine file next to itself).
