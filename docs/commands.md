@@ -22,6 +22,7 @@ levels: [verification](verification.md).
 | [`/keel:end-session`](#keelend-session) | end a session: verify, write the note, git |
 | [`/keel:cleanup`](#keelcleanup) | move leftovers to keel's trash, put them back, empty old trash |
 | [`/keel:usage`](#keelusage) | the link to your private usage page, opened |
+| [`/keel:usage-clear`](#keelusage-clear) | deletes all data on the usage page, after a warning and your yes |
 | [`/keel:help`](#keelhelp) | a short table of the commands |
 
 ## `/keel:configure`
@@ -140,6 +141,17 @@ a task or session keel reminds you of `/keel:cleanup` only when enough leftovers
 `/keel:usage` gives the link to this machine's private ["keel usage" page](usage-dashboard.md) and
 opens it. It works in any project, set up or not. No page on this machine yet → it says so and points
 to `/keel:configure usage`.
+
+## `/keel:usage-clear`
+
+`/keel:usage-clear` deletes all data on the usage page: every machine's day documents (hours and
+sessions), the machine documents and the calibration. Before anything is deleted it shows a warning: the
+period (first and last day), how many sessions and dollars, the machines, the size, and what it affects
+(the page is empty until the next end step; it is gone for everyone the page is shared with; it cannot be
+undone). Only after your explicit yes it deletes, then says what was deleted. This machine's local logs,
+limit records and calibration stay, and so do the page itself and its language; the next sync sends only
+what happens after the clear. Document contents never pass through the conversation: a clear is three
+reads and one write per 50 documents. [More](usage-dashboard.md#clearing-the-page).
 
 ## `/keel:help`
 

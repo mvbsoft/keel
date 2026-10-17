@@ -22,7 +22,7 @@ Claude Code CLI (`claude plugin validate --strict .` checks the marketplace file
 keel's instructions (the retell and the "new?" question, lanes, the end-task menu, the level question
 before any review agent, a recorded verification before a task folder moves, the session note) and
 the coding standards. 17 of the 18 cases build a small shop project with git (`evals/_fixtures/shop.js`;
-`help-lists-nine-commands` needs none). Each case runs one keel command in Claude Code, or a plain
+`help-lists-every-command` needs none). Each case runs one keel command in Claude Code, or a plain
 request for the two cases tagged `standards`, and grades the reply and the tool calls.
 
 ```bash

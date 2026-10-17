@@ -6,6 +6,13 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `/keel:usage-clear` deletes all data on your usage page (every machine's days and sessions, the
+  machine and calibration documents) after a warning with the period, the sessions and dollars, the
+  machines and what it affects, and only on your explicit yes; then it says what was deleted. The page,
+  its language and this machine's local logs and calibration stay; the next sync sends only what happens
+  after the clear.
+
 ## [1.1.1] - 2026-10-17
 
 ### Fixed

@@ -221,7 +221,10 @@ function prepare(opts) {
   const fields = keelFields(root, opts, sessionRef ? sessionRef.id : undefined);
   const keelInfo = sessionRef && Object.keys(fields).length ? { session_id: sessionRef.id, ...fields } : null;
 
-  const built = store.buildDays({ projectsRoot: root_, machine, usageDir: dir, sinceMs, keelInfo, nowMs });
+  // After /keel:usage-clear nothing from before the clear goes to the page again.
+  const fromMs = state.cleared_at ? Date.parse(state.cleared_at) : undefined;
+  if (fromMs) sinceMs = Math.max(sinceMs, fromMs - store.SAFETY_MS);
+  const built = store.buildDays({ projectsRoot: root_, machine, usageDir: dir, sinceMs, keelInfo, nowMs, fromMs });
   const machineDoc = store.buildMachineDoc(machine, nowIso);
   const pc = store.sanitizePc(machine.pc);
   const calib = calibDoc(dir, pc);
@@ -505,4 +508,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { main, parseArgs, renderReport, loadRemote, unwrap, batches, keelFields };
+module.exports = { main, parseArgs, renderReport, loadRemote, unwrap, batches, keelFields, versionOverrides };

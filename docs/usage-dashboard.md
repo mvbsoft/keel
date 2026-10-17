@@ -208,6 +208,26 @@ usage goes. Once approved, the team page receives this machine's usage from **al
 from this one: project folder names, branches and request previews (unless previews are off), as listed
 above. A machine's own `artifact_url` always wins: a machine that has one keeps sending there.
 
+## Clearing the page
+
+`/keel:usage-clear` deletes all data on the page and keeps the page. It reads the page's documents into
+`.keel/local/usage/clear` (their contents never enter the conversation), then shows what would go:
+
+- the day documents from the first to the last day, with the number of sessions, their dollars and all
+  usage in those days;
+- the machines and the calibration documents, and the size in KB.
+
+And what it affects: the page is empty until the next `/keel:end-task` or `/keel:end-session`; the data is
+gone for every machine and everyone the page is shared with; it cannot be undone, because keel keeps no
+copy of the page. You answer "Delete all data on the page?"; "No, keep it" is the first option, and only
+an explicit yes deletes. Claude Code also asks you to approve each delete call.
+
+After the deletes this machine starts over: its next sync sends only what happens after the clear, not the
+old history. Its local logs, limit records and calibration stay, so the cost report and the limit
+percentages keep working. Another machine that still sends to the page recreates only its new days. The
+page's language setting stays; to remove the page itself, ask Claude to delete it and run
+`/keel:configure usage` for a new one.
+
 ## Prices
 
 Dollars are list prices from a table that ships with keel. Run `/keel:configure prices` to refresh it:

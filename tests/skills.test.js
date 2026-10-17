@@ -275,6 +275,6 @@ test('/keel:help: user-only, static, short, and its table names every keel comma
   const rows = [...body.matchAll(/^\| `\/keel:([a-z-]+)/gm)].map((m) => m[1]);
   const userOnly = fs.readdirSync(SKILLS, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('_') && parse(e.name).fields['disable-model-invocation'] === 'true').map((e) => e.name);
   assert.deepEqual([...rows].sort(), [...userOnly].sort(), 'every user command, once');
-  assert.deepEqual([...COMMANDS, 'configure', 'help', 'usage'].sort(), [...userOnly].sort());
+  assert.deepEqual([...COMMANDS, 'configure', 'help', 'usage', 'usage-clear'].sort(), [...userOnly].sort());
   assert.ok(body.split('\n').length < 30, 'short');
 });

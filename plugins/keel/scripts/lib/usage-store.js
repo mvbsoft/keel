@@ -409,12 +409,12 @@ function sessionDoc(sum, wallet, keel, ccCost, withText = true) {
   };
 }
 
-function hoursFor(date, summaries, walletFor) {
+function hoursFor(date, summaries, walletFor, fromMs = -Infinity) {
   const map = new Map();
   for (const sum of summaries) {
     const wallet = walletFor(sum.id);
     for (const q of sum.reqs) {
-      if (dayOf(q[0]) !== date) continue;
+      if (dayOf(q[0]) !== date || q[0] < fromMs) continue;
       const h = Math.floor(q[0] / HOUR_MS) * HOUR_MS;
       const key = `${h}|${wallet}`;
       let e = map.get(key);
@@ -475,6 +475,8 @@ function buildDays(opts = {}) {
   const nowIso = new Date(nowMs).toISOString();
   const pc = sanitizePc(ctx.machine.pc);
   const sinceMs = opts.sinceMs !== undefined ? opts.sinceMs : nowMs - 30 * DAY_MS;
+  // fromMs (the page was cleared then): requests, sessions and snapshots before it are left out.
+  const fromMs = Number.isFinite(opts.fromMs) ? opts.fromMs : -Infinity;
   const refs = listSessions(opts.projectsRoot);
   const refsById = new Map(refs.map((r) => [r.id, r]));
   const wallets = readWallets(ctx.dir);
@@ -489,7 +491,7 @@ function buildDays(opts = {}) {
   addFamily(ctx, refsById, entries);
   let summaries = settle(ctx, entries);
   const days = new Set();
-  for (const r of changed) for (const d of daysOf(summaries.get(r.id))) days.add(d);
+  for (const r of changed) for (const d of daysOf(summaries.get(r.id))) if (dayStart(d) + DAY_MS > fromMs) days.add(d);
   if (!days.size) {
     saveIndex(ctx);
     return { docs: [], days: [], stats: ctx.stats, summaries: new Map() };
@@ -517,12 +519,15 @@ function buildDays(opts = {}) {
   const docs = [];
   for (const date of sorted) {
     const touching = [...summaries.values()].filter((s) => ctx.index[s.id].days.includes(date));
-    const own = touching.filter((s) => s.start && s.start.slice(0, 10) === date && isKeelSession(s, keel))
+    const own = touching.filter((s) => s.start && s.start.slice(0, 10) === date && Date.parse(s.start) >= fromMs && isKeelSession(s, keel))
       .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id < b.id ? -1 : 1))
       .map((s) => sessionDoc(s, walletFor(s.id), keel.get(s.id) || null, cc.get(s.id), ctx.withText && previewIn(ctx, s.cwd)));
     const header = { schema: SCHEMA, date, pc, user: ctx.machine.user || null, part: 1, parts: 1, synced_until: nowIso };
-    const daySnaps = snapshots.filter((s) => typeof s.t === 'string' && s.t.slice(0, 10) === date);
-    const built = packDay(header, hoursFor(date, touching, walletFor), daySnaps, own);
+    const daySnaps = snapshots.filter((s) => typeof s.t === 'string' && s.t.slice(0, 10) === date && Date.parse(s.t) >= fromMs);
+    const hours = hoursFor(date, touching, walletFor, fromMs);
+    // The day of the clear holds nothing yet: no empty document goes back to the cleared page.
+    if (fromMs > -Infinity && !hours.length && !daySnaps.length && !own.length) continue;
+    const built = packDay(header, hours, daySnaps, own);
     const id = `${date}_${pc}`;
     built.forEach((doc, i) => docs.push({ id: partId(id, i + 1), key: partId(id, i + 1), doc, hash: hashOf(doc) }));
   }
@@ -591,6 +596,7 @@ function readState(dir) {
     pending_until: ok && typeof s.pending_until === 'string' ? s.pending_until : null,
     sessions_rule: ok && typeof s.sessions_rule === 'string' ? s.sessions_rule : null,
     pending_rule: ok && typeof s.pending_rule === 'string' ? s.pending_rule : null,
+    cleared_at: ok && typeof s.cleared_at === 'string' ? s.cleared_at : null,
   };
 }
 

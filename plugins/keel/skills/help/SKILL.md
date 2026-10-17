@@ -22,4 +22,5 @@ after day. The two never mix." Nothing else: run nothing, read nothing.
 | `/keel:configure [section]` | sets up or changes keel for this project | `/keel:configure git` |
 | `/keel:cleanup` | finds leftovers and moves the ones you pick to keel's trash, with an undo | `/keel:cleanup restore` |
 | `/keel:usage` | gives the link to your private usage page (what each session cost) and opens it | `/keel:usage` |
+| `/keel:usage-clear` | deletes all data on the usage page, after a warning and your yes | `/keel:usage-clear` |
 | `/keel:help` | this table | `/keel:help` |
