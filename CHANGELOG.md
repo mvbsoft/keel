@@ -6,6 +6,8 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-17
+
 ### Added
 - `/keel:configure check` says, without changing any setting, whether the project changed since the last
   configure in ways keel's settings depend on: which sections to run again (needed or only worth a
@@ -93,7 +95,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/mvbsoft/keel/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/mvbsoft/keel/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/mvbsoft/keel/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/mvbsoft/keel/compare/v1.0.0...v1.1.0
