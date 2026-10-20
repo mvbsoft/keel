@@ -29,7 +29,7 @@ test('marketplace lists the keel plugin from ./plugins/keel', () => {
 test('plugin manifest: name, version and the two userConfig options', () => {
   const p = json('plugins/keel/.claude-plugin/plugin.json');
   assert.equal(p.name, 'keel');
-  assert.equal(p.version, '1.2.0');
+  assert.equal(p.version, '1.2.1');
   assert.equal(p.license, 'MIT');
   assert.deepEqual(Object.keys(p.userConfig).sort(), ['allow_opus', 'conversation_language']);
   assert.equal(p.userConfig.conversation_language.default, 'en');

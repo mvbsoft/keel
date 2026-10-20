@@ -6,6 +6,8 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-20
+
 ### Fixed
 - The commit step of a finish no longer stops with `git add failed: ... did not match any files`
   when the work holds a change already staged by hand: a file moved with `git mv` or removed with
@@ -102,7 +104,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/mvbsoft/keel/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/mvbsoft/keel/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/mvbsoft/keel/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/mvbsoft/keel/compare/v1.1.0...v1.1.1
