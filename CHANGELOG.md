@@ -6,6 +6,13 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The commit step of a finish no longer stops with `git add failed: ... did not match any files`
+  when the work holds a change already staged by hand: a file moved with `git mv` or removed with
+  `git rm`. Such changes are committed as they are.
+- A tracked secret file moved with `git mv` stays out of the commit on both sides of the move; before,
+  its removal from the old path was committed.
+
 ## [1.2.0] - 2026-10-17
 
 ### Added

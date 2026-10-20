@@ -218,15 +218,19 @@ const commands = {
         // keel's machine-local files (agent replies, usage data, settings backups) never go into git,
         // even in a clone whose .keel/.gitignore is missing.
         if (p === '.keel/local' || p.startsWith('.keel/local/')) continue;
-        if (ctx.isSecret(p)) secret.push(p); else paths.add(p);
+        if (ctx.isSecret(p)) secret.push(p);
+        // Only a path with unstaged changes is added: a change already in the index (`git rm`, the
+        // source of `git mv`) may be on neither side any more, and git add stops on such a pathspec.
+        else if (p !== f.orig && f.xy[1] !== ' ') paths.add(p);
       }
     }
     if (paths.size) {
       const r = git(ctx.root, ['add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul'], [...paths].join('\0'));
       if (!r.ok) throw new Stop(`git add failed: ${firstLines(r.err)}`);
     }
-    // Secret files staged earlier by hand are taken out again.
-    const staged = git(ctx.root, ['diff', '--cached', '--name-only', '-z']).out.split('\0').filter(Boolean);
+    // Secret files staged earlier by hand are taken out again. --no-renames lists both sides of a
+    // staged move, so a secret moved away is caught too.
+    const staged = git(ctx.root, ['diff', '--cached', '--name-only', '--no-renames', '-z']).out.split('\0').filter(Boolean);
     const stagedSecret = staged.filter((p) => ctx.isSecret(p));
     const stagedLocal = staged.filter((p) => p.startsWith('.keel/local/') && !ctx.isSecret(p));
     if (stagedSecret.length || stagedLocal.length) git(ctx.root, ['reset', '-q', '--', ...stagedSecret, ...stagedLocal]);

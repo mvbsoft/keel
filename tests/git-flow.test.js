@@ -164,6 +164,46 @@ gitTest('commit: never on main, secret files stay out, AI lines are dropped, ign
   assert.equal(git(work, 'log', '-1', '--format=%B').trim(), '#42 Fix login\n\n#43 details', 'lines starting with # are kept');
 });
 
+gitTest('commit: changes already staged by hand (git mv, git rm) are committed as they are', () => {
+  const { work } = setup();
+  const doc = Array.from({ length: 10 }, (_, i) => `line ${i}\n`).join('');
+  write(work, 'docs/old.md', doc);
+  write(work, 'src/gone.js', 'gone\n');
+  git(work, 'add', '-A');
+  git(work, 'commit', '-q', '-m', 'more files');
+  git(work, 'push', '-q', 'origin', 'main');
+  flow(work, 'start', '--name', 'CAN-9-move');
+  git(work, 'mv', 'src/app.js', 'src/main.js'); // R: the source is gone from the tree and the index
+  git(work, 'mv', 'docs/old.md', 'docs/new.md');
+  write(work, 'docs/new.md', doc.replace('line 3', 'line three')); // RM: edited after the move
+  git(work, 'rm', '-q', 'src/gone.js'); // D: staged deletion
+  const out = commitWork(work);
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  const status = git(work, 'show', '-M', '--name-status', '--format=', 'HEAD');
+  assert.match(status, /^R100\tsrc\/app\.js\tsrc\/main\.js$/m, status);
+  assert.match(status, /^R\d+\tdocs\/old\.md\tdocs\/new\.md$/m, status);
+  assert.match(status, /^D\tsrc\/gone\.js$/m, status);
+  assert.match(git(work, 'show', 'HEAD:docs/new.md'), /line three/, 'the edit after the move is in');
+  assert.equal(git(work, 'status', '--porcelain'), '');
+});
+
+gitTest('commit: a tracked secret moved with git mv stays out on both sides of the move', () => {
+  const { work } = setup();
+  write(work, '.env', 'TOKEN=old\n');
+  git(work, 'add', '.env');
+  git(work, 'commit', '-q', '-m', 'tracked env');
+  git(work, 'push', '-q', 'origin', 'main');
+  flow(work, 'start', '--name', 'CAN-10-env-move');
+  fs.mkdirSync(path.join(work, 'config'));
+  git(work, 'mv', '.env', 'config/.env');
+  write(work, 'src/app.js', 'one\nmoved\nthree\n');
+  const out = commitWork(work);
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.match(line(out, 'not committed'), /\.env/);
+  assert.deepEqual(git(work, 'show', '--name-only', '--no-renames', '--format=', 'HEAD').split('\n'), ['src/app.js'], 'neither the removal of .env nor config/.env');
+  assert.equal(git(work, 'show', 'HEAD:.env'), 'TOKEN=old');
+});
+
 gitTest('a project in a sub-folder of its repository: the git steps stop with the reason, nothing is staged', () => {
   const { work } = setup({ remote: false });
   const sub = path.join(work, 'proj');
