@@ -22,8 +22,8 @@
 //   a changed `git` section needs it again). `merge` asks in every mode, unless the mode is autonomous,
 //   confirmed here, and ask_before_merge is off; `push` on the main line (or where git cannot tell the
 //   branch) is left to Claude Code's prompt; `delete-branch` always asks;
-// - claude-settings.js: `show` only. `apply` writes the user's Claude Code settings, so it is left to
-//   Claude Code's own permission prompt;
+// - claude-settings.js: `show` only. `apply` writes the user's Claude Code settings and `move-plans`
+//   moves the user's plan files, so both are left to Claude Code's own permission prompt;
 // - migrate.js: `find`, `refs`, `state` (they only read; `find` writes its result to .keel/local/tmp/).
 //   `apply` moves the user's files, so Claude Code asks;
 // - cleanup.js: everything but `empty-trash` (moving to keel's trash and back can be undone; deleting

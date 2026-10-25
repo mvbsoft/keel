@@ -149,7 +149,7 @@ git ще не ігнорує цей файл, `/keel:configure` пропонує
 
 | Налаштування | Що робить | Що пише keel |
 |---|---|---|
-| `plansDirectory` | де Plan Mode зберігає файли планів | `./.keel/local/plans` |
+| `plansDirectory` | де Plan Mode зберігає файли планів | `./.keel/local/plans/claude` (до keel 1.3: `./.keel/local/plans`; `/keel:configure` пропонує перенести старі плани) |
 | `permissions.allow` | команди, що запускаються без запиту дозволу | підтверджені вами команди гейтів |
 
 ## Приклади

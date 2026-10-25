@@ -331,7 +331,11 @@ no value yet is asked for the machine value first; machine mode: only the machin
   section 11): a project with sensitive requests can turn them off for itself.
 
 *This project* (project mode only):
-- **Plan files in the project** (`plansDirectory: ./.keel/local/plans`, outside git).
+- **Plan files in the project** (`plansDirectory: ./.keel/local/plans/claude`, outside git, beside
+  keel's planning drafts in `.keel/local/plans/keel/`). When `show` lists old Plan Mode files in
+  `.keel/local/plans/` (keel recommended that folder before), offer to move them into `claude/` with
+  the new value; on a yes run `node "<keel>/scripts/claude-settings.js" "<project>" move-plans` after
+  `apply` (Claude Code asks first; a name already in `claude/` stays where it is, say which).
 - **Gate commands without a prompt** (`permissions.allow`): for each confirmed gate command
   `Bash(<command>)` and `Bash(<command> *)`, and the same with `PowerShell(...)` on Windows, so tests
   and parallel agents do not stop on a prompt.

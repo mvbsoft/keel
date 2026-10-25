@@ -28,10 +28,21 @@ const TMP_PREFIX = 'keel-configure-';
 const sorted = (list) => [...new Set(list)].sort();
 const added = (before, now) => now.filter((x) => !before.includes(x));
 const keelVersion = () => (readJson(path.join(__dirname, '..', '..', '.claude-plugin', 'plugin.json')) || {}).version || null;
-const settingKeys = () => {
+// The settings keel reviews and the values it recommends. A record from a keel that kept no values
+// counts as recommending what `was` lists last for a key (claude-settings.js).
+function settingsBasis() {
   const { KEYS } = require('../claude-settings.js');
-  return sorted([...Object.keys(KEYS.user), ...Object.keys(KEYS.project)]);
-};
+  const specs = [...Object.entries(KEYS.user), ...Object.entries(KEYS.project)];
+  return {
+    keys: sorted(specs.map(([k]) => k)),
+    recommended: Object.fromEntries(specs.filter(([, spec]) => spec.recommended !== undefined).map(([k, spec]) => [k, spec.recommended])),
+  };
+}
+function recommendedThen(record) {
+  if (record.recommended) return record.recommended;
+  const { KEYS } = require('../claude-settings.js');
+  return Object.fromEntries([...Object.entries(KEYS.user), ...Object.entries(KEYS.project)].filter(([, spec]) => spec.was).map(([k, spec]) => [k, spec.was.at(-1)]));
+}
 
 // What the scan-based sections rest on, from a scan result. Only reads manifests.
 function scanBasis(root, { profile, findings }) {
@@ -68,7 +79,7 @@ function fullBasis(root, scanResult, { machine = true } = {}) {
   const { ticketPrefixesSeen } = require('../comments.js');
   const basis = { ...scanBasis(root, scanResult), code: { ticket_prefixes: ticketPrefixesSeen(root).map((t) => t.prefix) } };
   if (machine) {
-    basis.settings = { keys: settingKeys() };
+    basis.settings = settingsBasis();
     basis.usage = { configured: require('./usage-config.js').loadMachineConfig().configured };
   }
   return basis;
@@ -302,13 +313,16 @@ function liveReasons(root, now, ctx) {
   const systems = added((rec.migration || { other_systems: [] }).other_systems, now.migration.other_systems);
   if (systems.length) add('migration', 'worth', `another notes or memory system: ${systems.join(', ')}`, 'configure can move it into keel, so notes live in one place');
 
-  // 10 settings: never reviewed on this machine, or keys a newer keel recommends
+  // 10 settings: never reviewed on this machine, or keys or values a newer keel recommends
   if (!rec.settings) {
     if (snapshot.rebuilt) ctx.skipped.push('Claude Code settings');
     else add('settings', 'worth', 'the Claude Code settings keel recommends were not reviewed on this machine', 'configure explains each one and changes nothing without your yes');
   } else {
     const keys = added(rec.settings.keys, now.settings.keys);
     if (keys.length) add('settings', 'worth', `keel ${keelVersion()} recommends settings your last configure did not have: ${keys.join(', ')}`, 'configure explains each one and changes nothing without your yes');
+    const then = recommendedThen(rec.settings);
+    const renewed = Object.entries(now.settings.recommended).filter(([k, v]) => rec.settings.keys.includes(k) && k in then && JSON.stringify(then[k]) !== JSON.stringify(v));
+    if (renewed.length) add('settings', 'worth', `keel ${keelVersion()} recommends new values: ${renewed.map(([k, v]) => `${k} ${JSON.stringify(v)} (was ${JSON.stringify(then[k])})`).join(', ')}`, 'configure explains each one and changes nothing without your yes');
   }
 
   // 11 usage (this machine): never asked here, or gone since; a declined setup stays declined
@@ -319,7 +333,7 @@ function liveReasons(root, now, ctx) {
 // The whole check for a configured project, as lines for the conversation.
 function check(root, { scanResult, config, profile, snapshot }) {
   const { ticketPrefixesSeen } = require('../comments.js');
-  const now = { ...scanBasis(root, scanResult), code: { ticket_prefixes: ticketPrefixesSeen(root) }, settings: { keys: settingKeys() }, usage: { configured: require('./usage-config.js').loadMachineConfig().configured } };
+  const now = { ...scanBasis(root, scanResult), code: { ticket_prefixes: ticketPrefixesSeen(root) }, settings: settingsBasis(), usage: { configured: require('./usage-config.js').loadMachineConfig().configured } };
   const skipped = [];
   const ctx = { config, profile, snapshot, skipped };
   const sc = settingsCommit(root);

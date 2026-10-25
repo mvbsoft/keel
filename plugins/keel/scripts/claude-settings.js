@@ -8,9 +8,11 @@
 // file's in <project>/.keel/local/backups/, the machine file's next to it. keel's own options
 // (conversation_language, allow_opus, prompt_preview) go, for a project, to .keel/local/options.json:
 // Claude Code keeps plugin options for the whole machine only. keel lets `show` run without a prompt;
-// Claude Code asks the user before `apply` runs.
+// Claude Code asks the user before `apply` and `move-plans` run.
 // Usage: node claude-settings.js <projectDir> show
 //        node claude-settings.js <projectDir> apply <changes.json>
+//        node claude-settings.js <projectDir> move-plans   Plan Mode files keel's older plansDirectory
+//                                                           left in .keel/local/plans/ go to its claude/
 //   changes.json: { "user": { "<key>": value }, "project": { "<key>": value } }; in "project", null
 //   removes the project's value, so the machine value applies again.
 // The user settings file is ~/.claude/settings.json ($CLAUDE_CONFIG_DIR when set); KEEL_USER_SETTINGS
@@ -22,9 +24,11 @@ const { parseArgs } = require('./lib/project.js');
 const { projectOptions, writeProjectOptions, optionsFile } = require('./lib/options.js');
 const { loadMachineConfig } = require('./lib/usage-config.js');
 const { readJsonFile } = require('./lib/json.js');
+const { safeLocalPath } = require('./lib/safe-path.js');
 
 // Keys a project may set for itself over the machine value (sources: settings-reference.md in the
 // Claude Code docs, where each of these has the scope "any file"; numbers: the owner's choices).
+// `was`: what older keel versions recommended, so configure check can name a recommendation that changed.
 const BOTH = {
   showClearContextOnPlanAccept: { recommended: true, why: 'approving a plan can clear the planning context and start from the plan alone' },
   autoCompactWindow: { recommended: 300000, why: 'compact at about 300k tokens instead of about 967k: each request in a long session re-reads less' },
@@ -41,7 +45,7 @@ const KEYS = {
   project: {
     ...BOTH,
     prompt_preview: { option: true, why: 'send the first 100 characters of each request to the usage page (the machine value is in usage.json)' },
-    plansDirectory: { recommended: './.keel/local/plans', why: 'Plan Mode files stay in the project, outside git' },
+    plansDirectory: { recommended: './.keel/local/plans/claude', was: ['./.keel/local/plans'], why: 'Plan Mode files stay in the project, outside git, in their own folder beside the planning drafts (.keel/local/plans/keel)' },
     'permissions.allow': { list: true, why: 'the gate commands run without a prompt, also in parallel agents' },
   },
 };
@@ -77,6 +81,28 @@ function current(settings, key) {
   return settings[key];
 }
 
+// Plan Mode files in .keel/local/plans/ itself: Claude Code wrote them there while plansDirectory was
+// keel's older ./.keel/local/plans. keel's own planning files live in subfolders, never at this level.
+function oldPlans(root) {
+  try { return fs.readdirSync(safeLocalPath(root, 'plans'), { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.md')).map((e) => e.name).sort(); } catch { return []; }
+}
+
+// Moves them into claude/; a name already there stays where it is.
+function movePlans(root) {
+  const from = safeLocalPath(root, 'plans');
+  const to = safeLocalPath(root, 'plans', 'claude');
+  const moved = [];
+  const kept = [];
+  const names = oldPlans(root);
+  if (names.length) fs.mkdirSync(to, { recursive: true });
+  for (const name of names) {
+    if (fs.existsSync(path.join(to, name))) { kept.push(name); continue; }
+    fs.renameSync(path.join(from, name), path.join(to, name));
+    moved.push(name);
+  }
+  return { moved, kept };
+}
+
 function show(root) {
   const user = readJson(userFile());
   const project = readJson(projectFile(root));
@@ -95,7 +121,7 @@ function show(root) {
     }
   }
   const perModel = Object.entries(user.value.modelSettings || {}).filter(([, v]) => v && v.autoCompactWindow !== undefined).map(([m, v]) => `${m}: ${v.autoCompactWindow}`);
-  return { user_file: userFile(), project_file: projectFile(root), options_file: optionsFile(root), rows, per_model_compact: perModel };
+  return { user_file: userFile(), project_file: projectFile(root), options_file: optionsFile(root), rows, per_model_compact: perModel, old_plans: oldPlans(root) };
 }
 
 function report(r) {
@@ -108,6 +134,7 @@ function report(r) {
     else if (row.recommended !== undefined) line += row.matches ? ' (as keel recommends)' : ` | keel recommends ${JSON.stringify(row.recommended)}`;
     out.push(`${line} | ${row.why}`);
   }
+  if (r.old_plans.length) out.push(`- old Plan Mode files in .keel/local/plans/: ${r.old_plans.length} (move-plans moves them to .keel/local/plans/claude/)`);
   if (r.per_model_compact.length) out.push(`- user modelSettings auto-compact per model (wins over autoCompactWindow for that model): ${r.per_model_compact.join(', ')}`);
   return out.join('\n');
 }
@@ -186,7 +213,10 @@ if (require.main === module) {
   try {
     if (pos[1] === 'show') process.stdout.write(`${report(show(root))}\n`);
     else if (pos[1] === 'apply' && pos[2]) apply(root, path.resolve(pos[2])).forEach(say);
-    else process.stdout.write('usage: node claude-settings.js <projectDir> show | apply <changes.json>\n');
+    else if (pos[1] === 'move-plans') {
+      const { moved, kept } = movePlans(root);
+      process.stdout.write(`moved to .keel/local/plans/claude/: ${moved.length}${kept.length ? `; left in place (the same name is already there): ${kept.join(', ')}` : ''}\n`);
+    } else process.stdout.write('usage: node claude-settings.js <projectDir> show | apply <changes.json> | move-plans\n');
   } catch (e) {
     const done = e.written || [];
     done.forEach(say);
@@ -195,4 +225,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { KEYS, show, apply, report, userFile, keelId, homeOf };
+module.exports = { KEYS, show, apply, report, userFile, keelId, homeOf, movePlans };

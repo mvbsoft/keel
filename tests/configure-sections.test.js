@@ -120,9 +120,31 @@ test('claude-settings show: what is set and what keel recommends, per-model comp
     const row = (k) => r.rows.find((x) => x.key === k);
     assert.equal(row('showClearContextOnPlanAccept').matches, true);
     assert.equal(row('autoCompactWindow').now, undefined);
-    assert.equal(row('plansDirectory').recommended, './.keel/local/plans');
+    assert.equal(row('plansDirectory').recommended, './.keel/local/plans/claude');
     assert.deepEqual(r.per_model_compact, ['claude-opus-5-5: 500000']);
     assert.match(settings.report(r), /- user autoCompactWindow \[machine or project\]: not set \| keel recommends 300000/);
+  });
+});
+
+test('claude-settings: Plan Mode files the older plansDirectory left in .keel/local/plans/ are listed and moved into claude/', () => {
+  withUserFile({}, () => {
+    const dir = project({});
+    const plans = path.join(dir, '.keel', 'local', 'plans');
+    for (const [rel, text] of [['old-plan.md', 'a'], ['same-name.md', 'old'], ['claude/same-name.md', 'new'], ['keel/s3-storage/plan.md', 'draft'], ['notes.txt', 'x']]) {
+      fs.mkdirSync(path.dirname(path.join(plans, rel)), { recursive: true });
+      fs.writeFileSync(path.join(plans, rel), text);
+    }
+    const r = settings.show(dir);
+    assert.deepEqual(r.old_plans, ['old-plan.md', 'same-name.md']);
+    assert.ok(settings.report(r).split('\n').includes('- old Plan Mode files in .keel/local/plans/: 2 (move-plans moves them to .keel/local/plans/claude/)'));
+    const out = spawnSync(process.execPath, [path.join(SCRIPTS, 'claude-settings.js'), dir, 'move-plans'], { encoding: 'utf8' }).stdout.trim();
+    assert.equal(out, 'moved to .keel/local/plans/claude/: 1; left in place (the same name is already there): same-name.md');
+    assert.equal(fs.readFileSync(path.join(plans, 'claude', 'old-plan.md'), 'utf8'), 'a');
+    assert.equal(fs.readFileSync(path.join(plans, 'claude', 'same-name.md'), 'utf8'), 'new', 'never overwritten');
+    assert.ok(fs.existsSync(path.join(plans, 'same-name.md')));
+    assert.ok(fs.existsSync(path.join(plans, 'keel', 's3-storage', 'plan.md')), 'planning drafts stay');
+    assert.ok(fs.existsSync(path.join(plans, 'notes.txt')));
+    assert.deepEqual(settings.show(project({})).old_plans, [], 'a project without the folder');
   });
 });
 
