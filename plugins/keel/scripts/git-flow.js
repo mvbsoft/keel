@@ -8,8 +8,8 @@
 //   start --name <b> [--from <base>]  create the task branch: from the updated base when the tree is
 //                                     clean; from HEAD, carrying the changes, when it is not
 //   switch --name <b>                 switch to an existing branch (clean tree only)
-//   commit --message-file <f>         stage every changed file except secret ones, drop AI trailers
-//                                     from the message, commit (never on the main branch)
+//   commit --message-file <f>         stage every changed file except secret and planning ones, drop AI
+//                                     trailers from the message, commit (never on the main branch)
 //   sync [--from <base>]              merge the updated base into the current branch
 //   push                              push the current branch with upstream tracking
 //   merge [--into <target>]           merge the current branch into target with --no-ff, push target;
@@ -32,6 +32,7 @@ const { linkOnWay, safeLocalWrite, realPath, samePath } = require('./lib/safe-pa
 const { readFinish, clearFinish, markCommitted, validSid } = require('./lib/finish.js');
 const { stripAttribution } = require('./lib/attribution.js');
 const { untrackedRecord, fileStamp } = require('./lib/diff.js');
+const { planningFiles } = require('./lib/planning.js');
 
 const ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C', LANG: 'C', GIT_EDITOR: 'true', GIT_MERGE_AUTOEDIT: 'no' };
 
@@ -94,16 +95,23 @@ function notTaskWork(ctx, f) {
   return Boolean(b) && Object.prototype.hasOwnProperty.call(b, f.path) && b[f.path] !== null && b[f.path] === fileStamp(ctx.root, f.path);
 }
 
+// Planning's files (lib/planning.js) are not a task's work: its commit leaves them out and they do not
+// block a step. Only the ticket of the task being finished goes in, so its `done` lands with the code.
+function planningOf(ctx) {
+  if (!ctx.planning) ctx.planning = planningFiles(ctx.root);
+  return ctx.planning;
+}
+
 function requireReady(ctx, { clean = false } = {}) {
   // git reports paths from the repository's top folder; keel's steps read them from the project folder.
   if (!ctx.atTop) throw new Stop(`the project folder is not the top folder of its git repository (${ctx.top}); keel's git steps run only there`);
   if (ctx.busy) throw new Stop(`a git operation is in progress (${ctx.busy}); finish or abort it first`);
   if (!ctx.branch) throw new Stop('HEAD is detached; switch to a branch first');
   if (clean) {
-    // What commit leaves out on purpose (secret files, keel's own .keel/local) does not block a step:
+    // What commit leaves out on purpose (secret files, keel's own .keel/local, planning) does not block a step:
     // otherwise a finish whose commit kept a modified .env out could never update or merge. git itself
     // still refuses a merge that would overwrite such a file.
-    const dirty = changedFiles(ctx.root).filter((f) => !(f.path === '.keel/local' || f.path.startsWith('.keel/local/') || ctx.isSecret(f.path) || notTaskWork(ctx, f)));
+    const dirty = changedFiles(ctx.root).filter((f) => !(f.path === '.keel/local' || f.path.startsWith('.keel/local/') || ctx.isSecret(f.path) || notTaskWork(ctx, f) || planningOf(ctx)(f.path)));
     if (dirty.length) throw new Stop('the working tree has uncommitted changes', [`changed: ${dirty.slice(0, 10).map((f) => f.path).join(', ')}${dirty.length > 10 ? ` (+${dirty.length - 10})` : ''}`]);
   }
 }
@@ -212,6 +220,11 @@ const commands = {
     const paths = new Set();
     const secret = [];
     const notTask = [];
+    const planning = [];
+    const planned = (p) => {
+      const kind = planningOf(ctx)(p);
+      return Boolean(kind) && !(kind.kind === 'ticket' && kind.key === opts.finish);
+    };
     for (const f of files) {
       if (notTaskWork(ctx, f)) { notTask.push(f.path); continue; }
       for (const p of [f.path, f.orig].filter(Boolean)) {
@@ -219,6 +232,7 @@ const commands = {
         // even in a clone whose .keel/.gitignore is missing.
         if (p === '.keel/local' || p.startsWith('.keel/local/')) continue;
         if (ctx.isSecret(p)) secret.push(p);
+        else if (planned(p)) { if (!planning.includes(p)) planning.push(p); }
         // Only a path with unstaged changes is added: a change already in the index (`git rm`, the
         // source of `git mv`) may be on neither side any more, and git add stops on such a pathspec.
         else if (p !== f.orig && f.xy[1] !== ' ') paths.add(p);
@@ -233,11 +247,15 @@ const commands = {
     const staged = git(ctx.root, ['diff', '--cached', '--name-only', '--no-renames', '-z']).out.split('\0').filter(Boolean);
     const stagedSecret = staged.filter((p) => ctx.isSecret(p));
     const stagedLocal = staged.filter((p) => p.startsWith('.keel/local/') && !ctx.isSecret(p));
-    if (stagedSecret.length || stagedLocal.length) git(ctx.root, ['reset', '-q', '--', ...stagedSecret, ...stagedLocal]);
+    const stagedPlanning = staged.filter((p) => !ctx.isSecret(p) && !p.startsWith('.keel/local/') && planned(p));
+    const kept = [...stagedSecret, ...stagedLocal, ...stagedPlanning];
+    if (kept.length) git(ctx.root, ['reset', '-q', '--', ...kept]);
+    for (const p of stagedPlanning) if (!planning.includes(p)) planning.push(p);
     for (const p of stagedSecret) if (!secret.includes(p)) secret.push(p);
     const out = secret.length ? [`not committed (secret files, by path only): ${secret.join(', ')}`] : [];
     if (notTask.length) out.push(`not committed (untracked before the task, unchanged): ${notTask.slice(0, 10).join(', ')}${notTask.length > 10 ? ` (+${notTask.length - 10})` : ''}`);
-    if (staged.length === stagedSecret.length + stagedLocal.length) return ['commit: nothing to commit', ...out];
+    if (planning.length) out.push(`not committed (planning files): ${planning.slice(0, 10).join(', ')}${planning.length > 10 ? ` (+${planning.length - 10})` : ''}`);
+    if (staged.length === kept.length) return ['commit: nothing to commit', ...out];
 
     let msgFile;
     try { msgFile = safeLocalWrite(ctx.root, ['tmp', 'commit-message.clean.txt'], message + '\n'); } catch (e) { throw new Stop(e.message, out); }

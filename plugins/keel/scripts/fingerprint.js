@@ -15,6 +15,7 @@ const crypto = require('node:crypto');
 const { collectChanges, fileStamp, git } = require('./lib/diff.js');
 const { loadProject, localDir, writeLocal, readJson, parseArgs } = require('./lib/project.js');
 const { levelOf } = require('./lib/tier.js');
+const { planningFiles } = require('./lib/planning.js');
 
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
@@ -45,10 +46,14 @@ function compareStates(a, b) {
 }
 
 // The work without keel's own files: task files and .keel/local/ change during an ending (usage data,
-// a task's notes) but are not the verified work. It is measured from the commit that was HEAD at the
-// verification, so committing the verified work keeps it verified and any other edit does not.
-const notWork = (p) => p.startsWith('.keel/tasks/') || p === '.keel/local' || p.startsWith('.keel/local/');
-const workState = (root, isSecret, at) => treeState(root, isSecret, { ignore: notWork, at }).fingerprint;
+// a task's notes), and a ticket gets `done` after its verification (lib/planning.js); none is the
+// verified work. It is measured from the commit that was HEAD at the verification, so committing the
+// verified work keeps it verified and any other edit does not.
+function workState(root, isSecret, at) {
+  const planning = planningFiles(root);
+  const notWork = (p) => p.startsWith('.keel/tasks/') || p === '.keel/local' || p.startsWith('.keel/local/') || Boolean(planning(p));
+  return treeState(root, isSecret, { ignore: notWork, at }).fingerprint;
+}
 const isRepo = (root) => (git(root, ['rev-parse', '--is-inside-work-tree']) || '').trim() === 'true';
 
 // Why the work differs from the recorded verification `last`, or null when it is the same.
