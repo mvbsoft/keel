@@ -629,5 +629,5 @@ function taskInventory(root, id) {
 
 module.exports = {
   validId, listTasks, treeTasks, findTask, activeTask, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
-  taskDelete, taskRestore, taskDrop, taskInventory, sections, stepCounts, planText, readClosed, dateOf,
+  taskDelete, taskRestore, taskDrop, taskInventory, sections, setFront, stepCounts, planText, readClosed, dateOf,
 };
