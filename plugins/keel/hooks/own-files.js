@@ -16,7 +16,8 @@
 // - asks, so Claude Code itself shows the confirmation with keel's reason in the conversation language,
 //   also when the user's allow rules would let it run: notes.js `task delete` (a finished task's folder
 //   to keel's trash; denied with the reason while no verification is recorded) and `task drop`,
-//   cleanup.js `empty-trash` (deletes for good), git-flow.js `delete-branch`, `merge` and `trust` (below);
+//   cleanup.js `empty-trash` (deletes for good), git-flow.js `delete-branch`, `merge` and `trust` (below),
+//   plans.js `commit` and `push` (planning files into git and onto the remote);
 // - git-flow.js: `status` always; the other steps only when the project's git mode is autonomous
 //   and the user confirmed these git settings on this machine (`trust`, which itself always prompts;
 //   a changed `git` section needs it again). `merge` asks in every mode, unless the mode is autonomous,
@@ -28,6 +29,8 @@
 //   `apply` moves the user's files, so Claude Code asks;
 // - cleanup.js: everything but `empty-trash` (moving to keel's trash and back can be undone; deleting
 //   the trash cannot).
+// - plans.js: everything but `commit` and `push`; its other steps write only the planning files (the
+//   drafts, their settings and chat marks).
 // Refused with the reason, so the model sends the plain form: a command joined with shell operators
 // (outside quotes) that names keel's folder; a keel script whose arguments the hook cannot read; a step
 // that always asks, named with any project other than the current one's exact absolute path (so no
@@ -36,11 +39,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const SCRIPTS = new Set(['scan.js', 'check-config.js', 'safe-command.js', 'changes.js', 'fingerprint.js', 'votes.js', 'ledger-report.js', 'notes.js', 'plan-steps.js', 'git-flow.js', 'comments.js', 'stack-skills.js', 'claude-settings.js', 'migrate.js', 'cleanup.js', 'usage.js', 'usage-setup.js', 'config-check.js']);
+const SCRIPTS = new Set(['scan.js', 'check-config.js', 'safe-command.js', 'changes.js', 'fingerprint.js', 'votes.js', 'ledger-report.js', 'notes.js', 'plan-steps.js', 'git-flow.js', 'comments.js', 'stack-skills.js', 'claude-settings.js', 'migrate.js', 'cleanup.js', 'usage.js', 'usage-setup.js', 'config-check.js', 'plans.js']);
 // Script steps that change the user's files for good or move them outside keel's own folders: left
 // to Claude Code's permission prompt.
 const ASK = { 'claude-settings.js': ['apply'], 'migrate.js': ['apply'], 'usage-setup.js': ['apply', 'prices-apply', 'install-statusline'] };
 const GIT_STEPS = new Set(['start', 'switch', 'commit', 'sync', 'push']);
+// plans.js steps Claude Code confirms each time, even when an allow rule would let node run.
+const PLANS_ASK = new Set(['commit', 'push']);
 
 const norm = (p) => path.resolve(p).replace(/\\/g, '/').replace(/\/+$/, '');
 const sameFs = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
@@ -72,7 +77,8 @@ function taskPath(project, id) {
 function alwaysAsks(name, [, command, sub]) {
   return (name === 'notes.js' && command === 'task' && (sub === 'delete' || sub === 'drop'))
     || (name === 'cleanup.js' && command === 'empty-trash')
-    || (name === 'git-flow.js' && ['merge', 'delete-branch', 'trust'].includes(command));
+    || (name === 'git-flow.js' && ['merge', 'delete-branch', 'trust'].includes(command))
+    || (name === 'plans.js' && PLANS_ASK.has(command));
 }
 
 // notes.js task delete / drop, cleanup.js empty-trash: Claude Code confirms each with keel's reason.
@@ -196,6 +202,9 @@ function ownScript(name, argText, projectDir, bash) {
     const under = { out: local && path.join(local, 'usage'), keel: local };
     for (const k of ['out', 'keel']) if (opts[k] !== undefined && !(local && typeof opts[k] === 'string' && inside(opts[k], under[k]))) return null;
   }
+  // plans.js has none of the steps CONFIRMED_WORDS names, and its search takes free words ("drop old
+  // users"), so those words are not refused here.
+  if (name === 'plans.js') return alwaysAsks(name, pos) ? decide('ask', say(pos[0], `confirm.plans_${pos[1]}`)) : allow('keel runs its own plans.js');
   if (name === 'git-flow.js') {
     if (!alwaysAsks(name, pos) && argv.some((w) => CONFIRMED_WORDS.has(w))) return decide('deny', PLAIN_FORM);
     return gitFlow(pos, opts);
@@ -265,11 +274,14 @@ function main() {
 // A step that must be confirmed, run with a keel step script named by another path ($CLAUDE_PLUGIN_ROOT,
 // ~, another copy of the plugin): the hook cannot tell it from keel's own, so it is refused rather than
 // left to an allow rule. A project's own scripts/cleanup.js (no keel or plugin root in its path) is not.
-const STEP_SCRIPT_ELSEWHERE = /(CLAUDE_PLUGIN_ROOT|keel)[^\s"']*[\/\\]scripts[\/\\](notes|git-flow|cleanup)\.js(?![\w.-])/i;
+const STEP_SCRIPT_ELSEWHERE = /(CLAUDE_PLUGIN_ROOT|keel)[^\s"']*[\/\\]scripts[\/\\](notes|git-flow|cleanup|plans)\.js(?![\w.-])/i;
 const ELSEWHERE = 'keel: a step that needs your confirmation runs only as `node "<keel>/scripts/<name>.js" "<project>" ...` with keel\'s folder written out in full. Nothing ran; send it again in that form.';
 function stepElsewhere(cmd) {
-  return /(^|[^\w.-])(node|nodejs|bun|deno)(\.exe)?(?![\w.-])/i.test(cmd) && STEP_SCRIPT_ELSEWHERE.test(cmd)
-    && cmd.split(/[\s"'=;&|]+/).some((w) => CONFIRMED_WORDS.has(w));
+  const m = /(^|[^\w.-])(node|nodejs|bun|deno)(\.exe)?(?![\w.-])/i.test(cmd) && STEP_SCRIPT_ELSEWHERE.exec(cmd);
+  if (!m) return false;
+  // plans.js confirms its own steps, which CONFIRMED_WORDS does not hold.
+  const words = m[2].toLowerCase() === 'plans' ? PLANS_ASK : CONFIRMED_WORDS;
+  return cmd.split(/[\s"'=;&|]+/).some((w) => words.has(w));
 }
 
 // keel's library (scripts/lib/) holds the steps' functions (dropping or deleting a task, emptying the

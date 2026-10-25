@@ -233,3 +233,23 @@ test('keel\'s QA agents write only under the project\'s .keel/local/tmp/qa/', ()
   assert.equal(write('keel:implementer', `${proj}/src/app.js`), null, 'the implementer writes code');
   assert.equal(write(null, `${proj}/src/app.js`), null, 'the main conversation writes code');
 });
+
+test('plans.js is keel\'s own: its steps run silently, commit and push always ask, also named elsewhere', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  const plans = (args, tool = 'Bash') => shell(`node "${SCRIPTS}/plans.js" "${proj}" ${args}`, tool, env);
+  for (const args of ['list', 'find drop old users', 'find delete merge trust', 'new csv-export', 'ticket csv-export --title "Drop the old column"', 'check csv-export', 'state csv-export ready', 'settings set --draft repo', 'mark set csv-export --session s1']) {
+    assert.equal(plans(args), 'allow', args);
+    assert.equal(plans(args, 'PowerShell'), 'allow', args);
+  }
+  // Planning files into git and onto the remote: Claude Code asks every time, even in autonomous mode
+  // or with an allow rule for node.
+  for (const args of ['commit', 'push', 'commit csv-export', '--x 1 push']) assert.equal(plans(args), 'ask', args);
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "/elsewhere" commit`, 'Bash', env), 'deny', 'only on the current project');
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "/elsewhere" list`, 'Bash', env), null);
+  // Named by another path, commit and push are refused; its other steps are left to the user's permissions.
+  for (const cmd of [`node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" commit`, `node ~/keel/scripts/plans.js "${proj}" push`, `cd "${proj}" && node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" push`]) {
+    assert.equal(shell(cmd, 'Bash', env), 'deny', cmd);
+  }
+  assert.equal(shell(`node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" find drop users`, 'Bash', env), null);
+});
