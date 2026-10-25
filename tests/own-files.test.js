@@ -252,4 +252,9 @@ test('plans.js is keel\'s own: its steps run silently, commit and push always as
     assert.equal(shell(cmd, 'Bash', env), 'deny', cmd);
   }
   assert.equal(shell(`node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" find drop users`, 'Bash', env), null);
+  // Several scripts in one command: each one's confirmed steps count.
+  for (const cmd of [
+    `node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" list && node "$CLAUDE_PLUGIN_ROOT/scripts/notes.js" "${proj}" task drop T1`,
+    `node "$CLAUDE_PLUGIN_ROOT/scripts/notes.js" "${proj}" tasks && node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" commit`,
+  ]) assert.equal(shell(cmd, 'Bash', env), 'deny', cmd);
 });
