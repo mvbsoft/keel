@@ -20,6 +20,7 @@ const { safeLocalPath } = require('./lib/safe-path.js');
 const { treeState, lastVerify } = require('./fingerprint.js');
 const { onPath } = require('./lib/files.js');
 const { programOf } = require('./lib/commands.js');
+const { planningFiles } = require('./lib/planning.js');
 
 const MAX_READ = 1024 * 1024;
 
@@ -32,7 +33,8 @@ function currentLines(root, rel) {
   } catch { return null; }
 }
 
-// Task files (.keel/tasks/) are keel's own progress notes and change with every handoff: not part of the code change.
+// Task files (.keel/tasks/) are keel's own progress notes and change with every handoff, and planning's
+// files (lib/planning.js) are planning's work: neither is part of the code change.
 const isTaskFile = (p) => p.startsWith('.keel/tasks/');
 
 function startRun(root, base) {
@@ -53,7 +55,8 @@ function missingScanners(config, root) {
 function run(root, opts) {
   const { config, profile, isSecret } = loadProject(root);
   const base = typeof opts.base === 'string' ? opts.base : null;
-  const change = collectChanges(root, { base, isSecret, before: untrackedRecord(root), skip: opts.skip || [], isBulk, ignore: isTaskFile });
+  const planning = planningFiles(root);
+  const change = collectChanges(root, { base, isSecret, before: untrackedRecord(root), skip: opts.skip || [], isBulk, ignore: (p) => isTaskFile(p) || Boolean(planning(p)) });
   change.sizes = {};
   const sized = change.files.filter((f) => !(f.status === 'deleted' || f.secret || f.binary || isBulk(f.path)));
   const before = baseLineCounts(root, change.base.sha, sized.filter((f) => f.status !== 'added').map((f) => f.oldPath || f.path));

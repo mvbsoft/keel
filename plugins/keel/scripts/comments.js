@@ -22,6 +22,7 @@ const catalog = require('../data/catalog.json');
 const limits = require('../data/comments.json');
 const { projectLevel } = require('../hooks/comment-rules.js');
 const { readJsonFile } = require('./lib/json.js');
+const { planningFiles } = require('./lib/planning.js');
 
 const MAX_READ = 1024 * 1024;
 // Comment syntax per extension. data/change-signals.json lists only line markers; measuring needs block
@@ -45,9 +46,11 @@ function syntaxOf(rel) {
 
 // Added line numbers (1-based) per changed file, untracked files whole. The change is the one step 1 of
 // verification looks at (lib/diff.js): the same base, the task-start record and --skip leave the same files
-// out, and secret files are never listed. Throws when git cannot give the change.
+// out, planning's files are not the change, and secret files are never listed. Throws when git cannot give
+// the change.
 function addedLines(root, { base, isSecret, skip }) {
-  const change = collectChanges(root, { base, isSecret, before: untrackedRecord(root), skip });
+  const planning = planningFiles(root);
+  const change = collectChanges(root, { base, isSecret, before: untrackedRecord(root), skip, ignore: (p) => Boolean(planning(p)) });
   const result = new Map();
   for (const f of change.files) if (!f.secret && !f.binary) result.set(f.path, f.untracked ? 'all' : new Set(f.addedAt));
   return result;
