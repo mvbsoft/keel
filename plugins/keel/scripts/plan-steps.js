@@ -132,7 +132,7 @@ function thresholds(root) {
 }
 
 // The places keel's flows keep plans: the project (a task folder's plan.md, plansDirectory
-// ./.keel/local/plans) and Claude Code's own plans folder. Links are resolved first.
+// ./.keel/local/plans/claude) and Claude Code's own plans folder. Links are resolved first.
 function planAllowed(root, file) {
   const real = (p) => { try { return fs.realpathSync.native(p); } catch { return null; } };
   // A missing file is checked as written, so reading it reports ENOENT.

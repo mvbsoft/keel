@@ -147,7 +147,7 @@ git does not ignore that file yet, `/keel:configure` offers to add it to `.gitig
 
 | Setting | What it does | keel writes |
 |---|---|---|
-| `plansDirectory` | where Plan Mode keeps plan files | `./.keel/local/plans` |
+| `plansDirectory` | where Plan Mode keeps plan files | `./.keel/local/plans/claude` (before keel 1.3: `./.keel/local/plans`; `/keel:configure` offers to move the old plans) |
 | `permissions.allow` | commands that run without a permission prompt | your confirmed gate commands |
 
 ## Examples

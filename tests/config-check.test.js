@@ -176,6 +176,22 @@ test('worth a look: ticket ids, a checked plugin, a grown CLAUDE.md, another not
   assert.equal(lines.at(-1), 'run: /keel:configure code,plugins,docs,migration,settings,usage');
 });
 
+test('a recommended value that changed is worth a look once: a record from an older keel counts as its old value', () => {
+  const p = project();
+  p.save();
+  const file = path.join(p.dir, '.keel', 'local', 'configure-snapshot.json');
+  const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(snap.sections.settings.recommended.plansDirectory, './.keel/local/plans/claude');
+  assert.deepEqual(block(p.check()).slice(1, 2), ['result: nothing to reconfigure']);
+  delete snap.sections.settings.recommended;
+  fs.writeFileSync(file, JSON.stringify(snap));
+  const lines = block(p.check());
+  assert.equal(lines[1], 'result: needed none; worth a look settings');
+  assert.equal(lines[2].split(' | ')[0], `- settings [worth]: keel ${require('../plugins/keel/.claude-plugin/plugin.json').version} recommends new values: plansDirectory "./.keel/local/plans/claude" (was "./.keel/local/plans")`);
+  p.save('--sections', 'settings');
+  assert.deepEqual(block(p.check()).slice(1, 2), ['result: nothing to reconfigure'], 'the next configure records the new value, whatever the user chose');
+});
+
 test('a run of some sections records only those: the reason of a section that did not run stays', () => {
   const p = project();
   p.save();
