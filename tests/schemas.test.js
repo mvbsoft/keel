@@ -71,6 +71,25 @@ const EXAMPLES = {
       sources: ['src/orders/controller.ts:18'],
     }],
   },
+  'plan-findings.schema.json': {
+    agent: 'ticket-reviewer',
+    status: 'complete',
+    checks: [
+      { place: 'T2', check: 'testable-criteria', answer: 'no', note: 'criterion 2 says "fast"' },
+      { place: 'T2', check: 'true-in-code', answer: 'n/a' },
+    ],
+    findings: [{
+      id: 'ticket-reviewer-1',
+      place: 'T2',
+      check: 'testable-criteria',
+      severity: 'important',
+      what: 'Criterion 2 has no measure',
+      problem: 'The developer cannot tell when the export is fast enough',
+      fix: 'Say: 10 000 invoices export in under 5 s',
+      evidence: 'T2: "the export is fast"',
+      code: ['src/export/csv.js:42', 'src/export/csv.js:10-20'],
+    }],
+  },
   'verdicts.schema.json': {
     verifier: 'verifier',
     verdicts: [{
@@ -194,6 +213,37 @@ test('findings.schema.json enforces the four-part finding with a location', () =
   expectInvalid(s, ok, (d) => { d.findings[0].severity = 'high'; }, /severity: must be one of/);
   expectInvalid(s, ok, (d) => { d.findings[0].id = '1'; }, /id: does not match/);
   expectInvalid(s, ok, (d) => { d.status = 'partial'; }, /status: must be one of/);
+});
+
+test('plan-findings.schema.json: a finding names a ticket or part of the plan, with evidence; the decision has a reason', () => {
+  const s = load('plan-findings.schema.json');
+  const ok = EXAMPLES['plan-findings.schema.json'];
+  for (const part of ['place', 'check', 'severity', 'what', 'problem', 'fix', 'evidence']) {
+    expectInvalid(s, ok, (d) => { delete d.findings[0][part]; }, new RegExp(`missing "${part}"`));
+  }
+  for (const place of ['src/export/csv.js:42', 'T0', 'PROJ-101', 'ticket 2', 'decisions']) {
+    expectInvalid(s, ok, (d) => { d.findings[0].place = place; }, /place: does not match/);
+  }
+  expectInvalid(s, ok, (d) => { d.findings[0].evidence = ''; }, /evidence/);
+  expectInvalid(s, ok, (d) => { d.findings[0].code = ['src/export/csv.js']; }, /does not match/);
+  expectInvalid(s, ok, (d) => { d.findings[0].check = 'style'; }, /check: must be one of/);
+  expectInvalid(s, ok, (d) => { d.checks[0].answer = 'maybe'; }, /answer: must be one of/);
+  expectInvalid(s, ok, (d) => { d.agent = 'reviewer'; }, /agent: must be one of/);
+  expectInvalid(s, ok, (d) => { d.findings = Array(21).fill(ok.findings[0]); }, /more than 20 items/);
+  assert.deepEqual(validate({ ...ok, agent: 'plan-reviewer', checks: [{ place: 'plan', check: 'premortem', answer: 'yes' }], findings: [{ ...ok.findings[0], id: 'plan-reviewer-1', place: 'Decisions', check: 'consistency' }] }, s), []);
+
+  // Every section of the plan template is a place.
+  const template = fs.readFileSync(path.join(__dirname, '..', 'plugins', 'keel', 'templates', 'keel', 'planning', 'plan.md'), 'utf8');
+  for (const [, section] of template.matchAll(/^## (.+)$/gm)) {
+    assert.deepEqual(validate({ ...ok, findings: [{ ...ok.findings[0], place: section }] }, s), [], section);
+  }
+
+  const decision = { $defs: s.$defs, $ref: '#/$defs/decision' };
+  const made = { place: 'T2', what: 'Criterion 2 has no measure', choice: 'defer', reason: 'the target is not known yet', question: 'Q3' };
+  assert.deepEqual(validate(made, decision), []);
+  expectInvalid(decision, made, (d) => { delete d.reason; }, /missing "reason"/);
+  expectInvalid(decision, made, (d) => { d.choice = 'ignore'; }, /choice: must be one of/);
+  expectInvalid(decision, made, (d) => { d.question = 'D3'; }, /question: does not match/);
 });
 
 test('verdicts.schema.json requires evidence and a known verdict', () => {
