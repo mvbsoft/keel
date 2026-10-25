@@ -528,5 +528,5 @@ function markCommand(root, sub, feature, sid) {
 
 module.exports = {
   validFeature, settings, settingsShow, settingsSet, listDrafts, draftList, draftFind, draftNew, ticketNew,
-  draftCheck, draftReview, draftReviewed, draftState, planningMark, markCommand, ticketHash,
+  draftCheck, draftReview, draftReviewed, draftState, planningMark, markCommand, ticketHash, draftDirs,
 };

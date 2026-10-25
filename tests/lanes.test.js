@@ -63,8 +63,14 @@ test('skill-gate: a planning conversation refuses the task, session, configure a
   for (const name of PLANNING_REFUSES) assert.equal(skill(dir, 'chat-task', `keel:${name}`), undefined, name);
   // Another conversation, or this one after its planning ends, is in no lane.
   for (const name of [...PLANNING_REFUSES, 'start-planning', 'end-planning']) assert.equal(skill(dir, 'chat-other', `keel:${name}`), undefined, name);
+  // A bare name may run keel's skill too; another bare skill is left alone.
+  assert.equal(skill(dir, 'chat-plan', 'start-task')?.permissionDecision, 'deny');
+  assert.equal(skill(dir, 'chat-task', 'start-planning')?.permissionDecision, 'deny');
+  assert.equal(skill(dir, 'chat-plan', 'git'), undefined);
   script(dir, 'plans.js', 'mark', 'clear', '--session', 'chat-plan');
   assert.equal(skill(dir, 'chat-plan', 'keel:start-task'), undefined);
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-lanes-bare-'));
+  assert.equal(skill(bare, 's1', 'start-task'), undefined, 'a bare name is not refused as keel\'s in a project keel is not set up in');
 });
 
 test('no person, no planning: start-planning is refused when Claude Code says the session is unattended, and nothing is created', () => {
@@ -147,6 +153,17 @@ test('planning-guard: while a conversation plans, project files stay unchanged; 
   // Another feature's draft folder and the other chat marks are project files here.
   assert.equal(guard(dir, 'chat-plan', 'Write', { file_path: at('.keel', 'local', 'plans', 'keel', 'other-thing', 'plan.md') })?.permissionDecision, 'deny');
   assert.equal(guard(dir, 'chat-plan', 'Write', { file_path: at('.keel', 'local', 'plans', 'keel', 'sessions', 'chat-plan.json') })?.permissionDecision, 'deny');
+  // A target the shell expands is not known: left alone. Git Bash's /c/... is the Windows path.
+  assert.equal(guard(dir, 'chat-plan', 'Bash', { command: 'echo x > ~/note.txt' }), undefined);
+  assert.equal(guard(dir, 'chat-plan', 'PowerShell', { command: 'Set-Content -Path $env:TEMP\\n.txt -Value x' }), undefined);
+  if (process.platform === 'win32') {
+    const gitBash = `/${dir[0].toLowerCase()}${dir.slice(2).replace(/\\/g, '/')}`;
+    assert.equal(guard(dir, 'chat-plan', 'Bash', { command: `echo x > ${gitBash}/src.js` })?.permissionDecision, 'deny', gitBash);
+    assert.equal(guard(dir, 'chat-plan', 'Bash', { command: `cd ${gitBash} && echo x > src.js` })?.permissionDecision, 'deny');
+  }
+  // The conversation's own draft stays writable after it broke plan.md.
+  fs.writeFileSync(at('.keel', 'local', 'plans', 'keel', 'csv-export', 'plan.md'), 'broken');
+  assert.equal(guard(dir, 'chat-plan', 'Write', { file_path: at('.keel', 'local', 'plans', 'keel', 'csv-export', 'plan.md') }), undefined);
   // A conversation that does not plan writes freely; so does this one once planning ends.
   assert.equal(guard(dir, 'chat-task', 'Edit', { file_path: at('src', 'app.js') }), undefined);
   script(dir, 'plans.js', 'mark', 'clear', '--session', 'chat-plan');

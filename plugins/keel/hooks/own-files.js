@@ -274,14 +274,13 @@ function main() {
 // A step that must be confirmed, run with a keel step script named by another path ($CLAUDE_PLUGIN_ROOT,
 // ~, another copy of the plugin): the hook cannot tell it from keel's own, so it is refused rather than
 // left to an allow rule. A project's own scripts/cleanup.js (no keel or plugin root in its path) is not.
-const STEP_SCRIPT_ELSEWHERE = /(CLAUDE_PLUGIN_ROOT|keel)[^\s"']*[\/\\]scripts[\/\\](notes|git-flow|cleanup|plans)\.js(?![\w.-])/i;
+const STEP_SCRIPT_ELSEWHERE = /(CLAUDE_PLUGIN_ROOT|keel)[^\s"']*[\/\\]scripts[\/\\](notes|git-flow|cleanup|plans)\.js(?![\w.-])/gi;
 const ELSEWHERE = 'keel: a step that needs your confirmation runs only as `node "<keel>/scripts/<name>.js" "<project>" ...` with keel\'s folder written out in full. Nothing ran; send it again in that form.';
 function stepElsewhere(cmd) {
-  const m = /(^|[^\w.-])(node|nodejs|bun|deno)(\.exe)?(?![\w.-])/i.test(cmd) && STEP_SCRIPT_ELSEWHERE.exec(cmd);
-  if (!m) return false;
-  // plans.js confirms its own steps, which CONFIRMED_WORDS does not hold.
-  const words = m[2].toLowerCase() === 'plans' ? PLANS_ASK : CONFIRMED_WORDS;
-  return cmd.split(/[\s"'=;&|]+/).some((w) => words.has(w));
+  if (!/(^|[^\w.-])(node|nodejs|bun|deno)(\.exe)?(?![\w.-])/i.test(cmd)) return false;
+  // plans.js confirms its own steps, which CONFIRMED_WORDS does not hold; a command may name several scripts.
+  const words = [...cmd.matchAll(STEP_SCRIPT_ELSEWHERE)].flatMap((m) => [...(m[2].toLowerCase() === 'plans' ? PLANS_ASK : CONFIRMED_WORDS)]);
+  return cmd.split(/[\s"'=;&|]+/).some((w) => words.includes(w));
 }
 
 // keel's library (scripts/lib/) holds the steps' functions (dropping or deleting a task, emptying the
