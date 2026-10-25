@@ -61,5 +61,10 @@
   "confirm.delete_branch": "keel: delete the local branch {branch}? Its commits that no other branch holds are lost.",
   "confirm.delete_branch_remote": "keel: delete the branch {branch}, local and on the remote? Its commits that no other branch holds are lost.",
   "confirm.merge": "keel: merge the task branch into {target} and push {target}?",
-  "confirm.trust": "keel: let keel run its git steps (branch, commit, push) in this project on this machine without asking each time?"
+  "confirm.trust": "keel: let keel run its git steps (branch, commit, push) in this project on this machine without asking each time?",
+  "lane.planning": "keel: this conversation plans {feature}, so /keel:{command} does not run here. Finish planning with /keel:end-planning, or start a new conversation.",
+  "lane.task": "keel: this conversation works on task {id}, so /keel:{command} does not run here. Planning runs in its own conversation: finish the task with /keel:end-task, or start a new conversation.",
+  "lane.unattended": "keel: planning is a conversation with a person. Run /keel:start-planning in a regular chat.",
+  "confirm.plans_commit": "keel: commit the planning files?",
+  "confirm.plans_push": "keel: push the branch with the planning files to the remote?"
 }

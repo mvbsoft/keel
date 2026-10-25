@@ -33,6 +33,14 @@
               "${CLAUDE_PLUGIN_ROOT}/hooks/context-warning.js"
             ],
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/lane-gate.js"
+            ],
+            "timeout": 5
           }
         ]
       }
@@ -59,6 +67,19 @@
             "command": "node",
             "args": [
               "${CLAUDE_PLUGIN_ROOT}/hooks/skill-gate.js"
+            ],
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/planning-guard.js"
             ],
             "timeout": 10
           }
