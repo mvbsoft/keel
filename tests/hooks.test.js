@@ -492,6 +492,56 @@ test('handback: in auto mode a keel agent\'s report arrives through SubagentHand
   assert.ok(pre.some((h) => h.matcher === 'SubagentHandback' && h.hooks[0].args[0].endsWith('/hooks/handback.js')));
 });
 
+test('ledger: in a planning conversation keel agents\' replies go to its own folder, a ticket review is also kept as a sample', () => {
+  const dir = tempProject('{}');
+  const plans = (...args) => execFileSync(process.execPath, [path.join(PLUGIN, 'scripts', 'plans.js'), dir, ...args], { encoding: 'utf8' });
+  plans('new', 'csv-export');
+  plans('mark', 'set', 'csv-export', '--session', 'chat-plan');
+  const env = { CLAUDE_PROJECT_DIR: dir };
+  const local = (...p) => path.join(dir, '.keel', 'local', ...p);
+  const transcript = local('agent.jsonl');
+  fs.writeFileSync(transcript, [
+    JSON.stringify({ type: 'user', isSidechain: true, message: { role: 'user', content: 'Review T1 and T2 in .keel/local/plans/keel/csv-export/' } }),
+    JSON.stringify({ type: 'user', isSidechain: true, message: { role: 'user', content: '<system-reminder>x</system-reminder>' } }),
+    JSON.stringify({ type: 'assistant', message: { id: 'm1', role: 'assistant', model: 'claude-sonnet-5-5', content: [{ type: 'text', text: 'done' }], usage: { input_tokens: 10, output_tokens: 5 } } }),
+  ].join('\n') + '\n');
+  const report = '{"agent": "ticket-reviewer", "status": "complete", "checks": [], "findings": []}';
+  const stop = (session, type, id, message) => runHook('ledger.js', { session_id: session, agent_id: id, agent_type: type, last_assistant_message: message, agent_transcript_path: transcript, cwd: dir }, env);
+
+  stop('chat-plan', 'keel:ticket-reviewer', 'a1', report);
+  assert.equal(fs.readFileSync(local('tmp', 'planning', 'chat-plan', 'ticket-reviewer-a1.md'), 'utf8'), report);
+  assert.ok(!fs.existsSync(local('tmp', 'agents')), 'the task verification folder is not touched');
+  const samples = fs.readdirSync(local('plans', 'keel', 'samples'));
+  assert.equal(samples.length, 1);
+  assert.match(samples[0], /^\d{4}-\d{2}-\d{2}-ticket-reviewer-a1\.md$/);
+  assert.equal(fs.readFileSync(local('plans', 'keel', 'samples', samples[0]), 'utf8'), `# Task\n\nReview T1 and T2 in .keel/local/plans/keel/csv-export/\n\n# Reply\n\n${report}\n`);
+  assert.equal(fs.readFileSync(local('ledger.jsonl'), 'utf8').trim().split('\n').length, 1, 'the token ledger line is still written');
+
+  // The context agent of a planning conversation is planning's too: no context map for the verification.
+  stop('chat-plan', 'keel:context', 'a2', '# Context map\n- x');
+  assert.ok(fs.existsSync(local('tmp', 'planning', 'chat-plan', 'context-a2.md')));
+  assert.ok(!fs.existsSync(local('tmp', 'context-map.md')));
+  // Only keel's agents are saved; the plan reviewer gives no sample.
+  stop('chat-plan', 'Explore', 'a3', 'x');
+  stop('chat-plan', 'keel:plan-reviewer', 'a4', report);
+  assert.deepEqual(fs.readdirSync(local('tmp', 'planning', 'chat-plan')).sort(), ['context-a2.md', 'plan-reviewer-a4.md', 'ticket-reviewer-a1.md']);
+  assert.equal(fs.readdirSync(local('plans', 'keel', 'samples')).length, 1);
+
+  // In auto mode the report arrives through SubagentHandback first and is the one kept and sampled.
+  runHook('handback.js', { session_id: 'chat-plan', tool_name: 'SubagentHandback', tool_input: { message: report }, agent_id: 'a5', agent_type: 'keel:ticket-reviewer', cwd: dir }, env);
+  stop('chat-plan', 'keel:ticket-reviewer', 'a5', 'Report delivered.');
+  assert.equal(fs.readFileSync(local('tmp', 'planning', 'chat-plan', 'ticket-reviewer-a5.md'), 'utf8'), report);
+  assert.match(fs.readFileSync(local('plans', 'keel', 'samples', fs.readdirSync(local('plans', 'keel', 'samples')).find((f) => f.includes('a5'))), 'utf8'), /# Reply\n\n\{"agent": "ticket-reviewer"/);
+
+  // Another conversation, or this one once planning ends: replies go where the verification reads them.
+  stop('chat-task', 'keel:ticket-reviewer', 'b1', report);
+  plans('mark', 'clear', '--session', 'chat-plan');
+  stop('chat-plan', 'keel:context', 'b2', '# Context map\n- y');
+  assert.deepEqual(fs.readdirSync(local('tmp', 'agents')).sort(), ['context-b2.md', 'ticket-reviewer-b1.md']);
+  assert.ok(fs.existsSync(local('tmp', 'context-map.md')));
+  assert.equal(fs.readdirSync(local('plans', 'keel', 'samples')).length, 2, 'no sample outside planning');
+});
+
 test('a project keel is not set up in: the hooks add nothing, keel\'s agents and skills are refused', () => {
   const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-bare-'));
   const env = { CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: bare };

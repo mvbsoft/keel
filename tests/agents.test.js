@@ -16,8 +16,11 @@ function agent(name) {
   return { meta, body: fm[2] };
 }
 
-// 12 verification agents and the generalist reviewer, plus the implementer.
+// 12 verification agents and the generalist reviewer, the two planning reviewers, plus the implementer.
+// The planning reviewers report on tickets, not code, so they do not follow the shared search rules.
 const TEAM = {
+  'ticket-reviewer': { model: 'sonnet', notSearch: true, noPrinciples: true },
+  'plan-reviewer': { model: 'sonnet', notSearch: true, noPrinciples: true },
   qa: { model: 'sonnet', runsCode: true, writesTemp: true },
   'qa-break': { model: 'sonnet', runsCode: true, writesTemp: true },
   reviewer: { model: 'sonnet', noPrinciples: true },
@@ -118,6 +121,31 @@ test('the shared search rules describe the findings schema the scripts validate'
   // One verification rule, as votes.js applies it: critical and important within the cap, minor unverified.
   assert.match(text, /refute the critical and important findings \(critical first, within the level's cap\); minor findings\s+are listed unverified, and QA findings proven by a reproduce command skip verification/);
   assert.doesNotMatch(text, /unverified findings are dropped|^## Principles/m);
+});
+
+test('the planning reviewers check what the plan-findings schema names, with evidence, and skip secret files', () => {
+  const schema = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'schemas', 'plan-findings.schema.json'), 'utf8'));
+  const named = (body) => [.../^## Checklist[^\n]*\n([\s\S]*?)\n## /m.exec(body)[1].matchAll(/^- `([a-z-]+)`:/gm)].map((m) => m[1]);
+  const ticket = agent('ticket-reviewer').body;
+  const plan = agent('plan-reviewer').body;
+  // Spec 7: the ticket checklist and one free "what is missing?"; the plan checklist.
+  assert.deepEqual(named(ticket), ['one-goal', 'testable-criteria', 'scope', 'dependencies', 'size', 'one-task', 'true-in-code', 'how-to-check', 'no-steps', 'complete']);
+  assert.deepEqual(named(plan), ['coverage', 'consistency', 'order', 'forgotten', 'premortem']);
+  assert.deepEqual([...named(ticket), ...named(plan)], schema.$defs.check.properties.check.enum);
+  for (const [body, limit] of [[ticket, 'At most 5 per ticket'], [plan, 'At most 10']]) {
+    assert.match(body, /<keel>\/schemas\/plan-findings\.schema\.json/);
+    assert.ok(body.includes(limit), limit);
+    assert.match(body, /Every "no" has a finding/);
+    assert.match(body, /decisions already made on earlier findings[^]*do not raise them\s+again/);
+    assert.match(body, /Never open secret files: the list\s+is\s+under\s+"Scope"\s+in\s+`<keel>\/protocols\/_search\.md`/);
+    assert.match(body, /never change files and never run commands/);
+  }
+  assert.match(ticket, /up to 4\)/);
+  assert.match(ticket, /`file:line`/, 'what a ticket relies on is checked in the code');
+  for (const example of [ticket, plan]) {
+    const json = JSON.parse(/```json\n([\s\S]*?)\n```/.exec(example)[1]);
+    assert.deepEqual(require(path.join(PLUGIN, 'scripts', 'lib', 'schema.js')).validate(json, schema), [], 'the example in the agent file is valid');
+  }
 });
 
 test('topics in the lineup script match the protocol files', () => {

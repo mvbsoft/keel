@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keel/plan-findings.schema.json",
+  "title": "Report of one keel planning reviewer",
+  "description": "ticket-reviewer and plan-reviewer return exactly one JSON object of this shape. A finding points at a draft ticket or a part of the plan, not at code; the user decides on each one (decision).",
+  "type": "object",
+  "required": ["agent", "status", "checks", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": { "enum": ["ticket-reviewer", "plan-reviewer"] },
+    "status": {
+      "description": "'incomplete' when the agent hit its turn cap.",
+      "enum": ["complete", "incomplete"]
+    },
+    "checks": {
+      "description": "One answer per checklist item: per reviewed ticket for ticket-reviewer, for the plan for plan-reviewer.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/check" }
+    },
+    "findings": {
+      "description": "Up to 5 per ticket (4 tickets per call), up to 10 for the plan.",
+      "type": "array",
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/finding" }
+    }
+  },
+  "$defs": {
+    "place": {
+      "description": "A draft ticket (T3), a section of plan.md, or the plan as a whole.",
+      "type": "string",
+      "pattern": "^(T[1-9][0-9]*|plan|Summary|Problem / Goal|Decisions|Out of scope|Design sketch|Terms|Open questions|Tickets|Next action)$"
+    },
+    "check": {
+      "type": "object",
+      "required": ["place", "check", "answer"],
+      "additionalProperties": false,
+      "properties": {
+        "place": { "$ref": "#/$defs/place" },
+        "check": {
+          "description": "Ticket checklist, then plan checklist. 'yes' is good.",
+          "enum": ["one-goal", "testable-criteria", "scope", "dependencies", "size", "one-task", "true-in-code", "how-to-check", "no-steps", "complete", "coverage", "consistency", "order", "forgotten", "premortem"]
+        },
+        "answer": { "enum": ["yes", "no", "n/a"] },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": ["id", "place", "check", "severity", "what", "problem", "fix", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^(ticket|plan)-reviewer-[0-9]+$" },
+        "place": { "$ref": "#/$defs/place" },
+        "check": {
+          "description": "The checklist item it fails, or 'other' for what the checklist does not cover.",
+          "enum": ["one-goal", "testable-criteria", "scope", "dependencies", "size", "one-task", "true-in-code", "how-to-check", "no-steps", "complete", "coverage", "consistency", "order", "forgotten", "premortem", "other"]
+        },
+        "severity": {
+          "description": "critical: a developer would build the wrong thing or cannot start; important: gets stuck or must guess; minor: wording.",
+          "enum": ["critical", "important", "minor"]
+        },
+        "what": { "description": "What it is.", "type": "string", "minLength": 1 },
+        "problem": { "description": "Why it is a problem for the developer who picks the ticket up.", "type": "string", "minLength": 1 },
+        "fix": { "description": "The smallest change to the ticket or plan text.", "type": "string", "minLength": 1 },
+        "evidence": { "description": "The words of the ticket or plan that show it, and what the code shows.", "type": "string", "minLength": 1 },
+        "code": {
+          "description": "file:line of the code the claim rests on, relative to the project root.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[^\\s:][^:]*:[1-9][0-9]*(-[1-9][0-9]*)?$" }
+        }
+      }
+    },
+    "decision": {
+      "description": "The user's decision on one finding, as the conversation records it in reviews/<ticket>.md; the next review gets these as already decided.",
+      "type": "object",
+      "required": ["place", "what", "choice", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "place": { "$ref": "#/$defs/place" },
+        "what": { "description": "The finding, in one sentence.", "type": "string", "minLength": 1 },
+        "choice": { "description": "fix it now, defer it to an open question, or reject it.", "enum": ["fix", "defer", "reject"] },
+        "reason": { "description": "What was changed, which question holds it, or why it is rejected.", "type": "string", "minLength": 1 },
+        "question": { "type": "string", "pattern": "^Q[1-9][0-9]*$" }
+      }
+    }
+  }
+}
