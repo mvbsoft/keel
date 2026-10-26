@@ -54,19 +54,22 @@ Before the draft's first file is written (start) and before a commit (end): run
   a new branch `<branch>`?";
 - `changed files:` other than the draft's and the feature folder's → "Commit or stash those changes
   first.";
-- a task `active in another session` (or `in <n> other sessions`) here → three options: keep the draft on this machine until the
-  task ends (`plans.js settings set --draft pc`), plan in another copy of the repository
-  (`git worktree add`), or go on at your own risk.
-A yes to a new branch: autonomous git mode → `node "<keel>/scripts/git-flow.js" "<project>" start --name <branch> --from <the plan's merge_into>`;
-manual → `git switch -c <branch> <the plan's merge_into>` (Claude Code may ask). Never from another
-task's branch: its unmerged commits would travel with the planning files. Any `stopped` → tell the reason and wait.
+- the plan's branch (or a branch named like the feature) exists and you are not on it → "Switch to
+  `<branch>`?" (a draft committed there is not seen from here); yes → `git switch <branch>`;
+- a task `active in another session` (or `in <n> other sessions`) here → three options: keep the
+  draft on this machine until the task ends (`plans.js settings set --draft pc`), plan in another copy
+  of the repository (`git worktree add`), or go on at your own risk.
+A yes to a new branch, in both git modes: `git switch -c <branch> <the plan's merge_into>` (Claude
+Code may ask). It carries the uncommitted planning files along; never from another task's branch: its
+unmerged commits would travel with them. git refuses (a file would be overwritten) → tell its reason
+and wait.
 
 ## Commit and push (a repository draft or exported tickets)
 Branch hints first (`plans.js commit` refuses on the main branch). Then ask "Commit the planning
 files?"; yes → say "Claude Code will now ask you to allow it." (keel's hook asks every time) and run
-`plans.js commit <f>`: `committed: <sha> <subject>` (with any `renumbered:` lines: say them) or
-`commit: nothing to commit`. Then ask "Push `<branch>`?" on its own; yes → the same line, then
-`plans.js push <f>`: `pushed: <branch> -> <remote>/<branch>` or `push: no remote, nothing pushed`.
+`plans.js commit <f>`: its first line is the result, `committed: <sha> <subject>` or
+`commit: nothing to commit`; any `renumbered:` lines after it: say them. Then ask "Push `<branch>`?"
+on its own; yes → the same line, then `plans.js push <f>`: `pushed: <branch> -> <remote>/<branch>` or `push: no remote, nothing pushed`.
 A declined question or "Allow?" window is the user's no: never run it again or another way; say
 what stays uncommitted or unpushed.
 

@@ -102,7 +102,9 @@ test('start-planning: the first run asks the language, then the draft place, one
 test('start-planning: no argument lists the drafts, words find one, a link or file starts a new feature', () => {
   const text = start();
   assert.match(text, /empty → `plans\.js list`: show each draft \(feature, state, open Q, tickets, last change, where\)/);
-  assert.match(text, /other words → `plans\.js find <words>`: `find: 1 match` → "Continue `<f>`\?"; several → show them\s+and ask which; `find: no match` → the words are a new idea/);
+  assert.match(text, /other words → `plans\.js find <words>`: `find: 1 match` → "Continue `<f>`\?"; several → show them\s+and ask which/);
+  // Spec §5.2: no match shows the list, the user picks one or a new feature.
+  assert.match(text, /`find: no match` → show the drafts it lists \(if any\) and ask: one of these, or a\s+new feature from these words\?/);
   assert.match(text, /`exported` → its tickets live in the feature folder; editing them is not part\s+of this command/, 'editing exported tickets is a later stage');
 });
 
@@ -123,6 +125,9 @@ test('start-planning: a new feature reads its source like start-task, retells, c
   before(fresh, 'planning.md "Project rules"', 'Branch hints', 'the project\'s branch and backlog rules come before a branch is made');
   before(fresh, 'Branch hints', '`plans.js new <f>`', 'a repository draft is born on the right branch');
   before(fresh, '`plans.js new <f>`', '`plans.js set <f>', 'the branch fields are set on the new plan');
+  // A draft committed on its own branch: new refuses, the skill offers the switch and continues it there.
+  assert.match(fresh, /`branch <f> exists and\s+may hold this draft` → offer "Switch to `<f>`\?": yes → `git switch <f>`, then `plans\.js list`\s+there and continue that draft \(step 6\)/);
+  assert.match(read('scripts', 'lib', 'plans.js'), /exists and may hold this draft/, 'plans.js new prints that refusal');
 });
 
 test('start-planning: continuing shows the script\'s short state, a staleness line, a 3-6 line summary and the next action', () => {
@@ -146,11 +151,15 @@ test('branch hints for a repository draft: the main branch, a task\'s branch, un
   assert.match(hints, /on the main branch .* → "You are on <main>\. Create\s+branch `<branch>`\?"/s);
   assert.match(hints, /on another task's branch .* → "This is the branch of task <id>\. Switch to\s+a new branch `<branch>`\?"/s);
   assert.match(hints, /`changed files:` other than the draft's and the feature folder's → "Commit or stash those changes\s+first\."/);
-  assert.match(hints, /a task `active in another session` \(or `in <n> other sessions`\) here → three options: keep the draft on this machine until the\s+task ends .*, plan in another copy of the repository\s+\(`git worktree add`\), or go on at your own risk/s);
-  // A new branch starts from where the feature merges, never from another task's unmerged commits.
-  assert.match(hints, /git-flow\.js" "<project>" start --name <branch> --from <the plan's merge_into>`/);
-  assert.match(hints, /manual → `git switch -c <branch> <the plan's merge_into>`/);
+  assert.match(hints, /a task `active in another session` \(or `in <n> other sessions`\) here → three options: keep the\s+draft on this machine until the\s+task ends .*, plan in another copy\s+of the repository\s+\(`git worktree add`\), or go on at your own risk/s);
+  // A new branch starts from where the feature merges, never from another task's unmerged commits:
+  // git-flow.js start ignores --from on a dirty tree, and the planning files are always uncommitted.
+  assert.match(hints, /A yes to a new branch, in both git modes: `git switch -c <branch> <the plan's merge_into>`/);
+  assert.match(hints, /git refuses .* → tell its reason\s+and wait/s);
+  assert.doesNotMatch(hints, /git-flow\.js" "<project>" start/);
   assert.doesNotMatch(hints, /<current branch>/);
+  // A draft committed on its own branch is not seen from another one.
+  assert.match(hints, /the plan's branch \(or a branch named like the feature\) exists and you are not on it → "Switch to\s+`<branch>`\?" .* yes → `git switch <branch>`/s);
 });
 
 test('commit and push: each after its own yes, Claude Code\'s window announced, a no is final', () => {
@@ -162,7 +171,7 @@ test('commit and push: each after its own yes, Claude Code\'s window announced, 
   before(git, 'Push `<branch>`?', 'plans.js push <f>');
   assert.match(git, /"Claude Code will now ask you to allow it\." \(keel's hook asks every time\)/);
   assert.match(git, /`committed: <sha> <subject>`/);
-  assert.match(git, /`renumbered:` lines: say them/);
+  assert.match(git, /its first line is the result, `committed: <sha> <subject>` or\s+`commit: nothing to commit`; any `renumbered:` lines after it: say them/, 'plans.js commit prints its result first');
   assert.match(git, /`pushed: <branch> -> <remote>\/<branch>`/);
   assert.match(git, /is the user's no: never run it again or another way/);
 });
@@ -221,8 +230,8 @@ test('end-planning B: gates, ticket reviews then one plan review, at most 2 roun
   before(b, '`plans.js state <f> ready`', '**Export.**');
   assert.match(b, /`export: -` \(the first time\) → ask where: the repository .* or this\s+machine only \(a draft in the repository exports there: say so, do not ask\)/s);
   // A plan already ready was reviewed as it is: no second round of paid reviews.
-  assert.match(b, /A plan already\s+`ready` in `plans\.js list` \(not "changed after ready"\) was reviewed\s+as it is: go straight to step 5\./);
-  before(b, 'go straight to step 5', '**Gates**');
+  assert.match(b, /A plan already\s+`ready` in `plans\.js list` \(not "changed after ready"\) was reviewed\s+as it is: go straight to Export \(B\.5\)\./);
+  before(b, 'go straight to Export (B.5)', '**Gates**');
   assert.match(b, /`prefix: -` → propose the first `comments\.ticket_prefixes`\s+of `\.keel\/config\.json`, else 3-4 capital letters from the repository name; the user confirms/);
   assert.match(b, /`plans\.js settings set --export <pc\|repo> \[--export-dir <dir>\] --prefix <PROJ>`/);
   before(b, 'settings set --export', '`plans.js export <f>`');
