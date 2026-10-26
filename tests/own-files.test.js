@@ -237,6 +237,19 @@ test('keel\'s QA agents write only under the project\'s .keel/local/tmp/qa/', ()
   assert.equal(write(null, `${proj}/src/app.js`), null, 'the main conversation writes code');
 });
 
+test('a non-breaking space cannot move a step past the hook: bash does not split words on it', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  // Bash passes `<proj> /../<name>` as one word, which plans.js resolves back to the project, so push
+  // would run while the hook read "/../<name>" as the step.
+  for (const tool of ['Bash', 'PowerShell']) {
+    for (const cmd of [`node "${SCRIPTS}/plans.js" "${proj}" "/../${path.basename(proj)}" push f1`, `node "${SCRIPTS}/usage.js" prepare --project "${proj}"`]) {
+      assert.equal(shell(cmd, tool, env), 'deny', `${tool}: ${cmd}`);
+    }
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find стара оплата користувачів`, tool, env), 'allow', 'words in other alphabets');
+  }
+});
+
 test('plans.js is keel\'s own: its steps run silently (drop and done too), commit and push always ask, also named elsewhere', () => {
   const proj = project({ mode: 'autonomous' });
   const env = { CLAUDE_PROJECT_DIR: proj };

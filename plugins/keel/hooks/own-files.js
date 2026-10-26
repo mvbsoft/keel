@@ -113,12 +113,13 @@ function destructive(name, pos, opts) {
 // or space; in a bare word also PowerShell's (...), @(...) and {...}, bash's globs (and ~), a bare
 // backslash, # that starts a comment, and separators. Inside quotes these are plain text, as in a link
 // with ? and &. A bare comma makes a PowerShell array, which may reach node as several words, so it is
-// accepted only in a list of numbers (`--items 1,2`), which cannot become a step name.
+// accepted only in a list of numbers (`--items 1,2`), which cannot become a step name. Whitespace other
+// than spaces and tabs (a non-breaking space) is refused: bash does not split words on it.
 const CURLY_QUOTES = /[‘-„]/;
 const UNSAFE = /[$`‘-„]|\\["' ]/;
 const UNSAFE_BARE = /[(){}@*?[\]#;&|<>]/;
 function splitWords(text, bash) {
-  if (UNSAFE.test(text)) return null;
+  if (UNSAFE.test(text) || /[^\S \t]/.test(text)) return null;
   const token = /\s*(?:"([^"]*)"|'([^']*)'|([^\s"']+))(?=\s|$)/y;
   const out = [];
   while (token.lastIndex < text.length) {
