@@ -288,6 +288,9 @@ test('end-planning: the chat mark is cleared in every mode, then the costs, and 
   before(text, '**B. Final.**', 'mark clear --session <sid>', 'the mark is cleared after both modes');
   before(text, 'mark clear --session <sid>', 'usage-sync.md');
   assert.match(text, /usage-sync\.md` and follow its steps 1-4 with session id\s+`\$\{CLAUDE_SESSION_ID\}`/);
+  // The mark is gone by now: the feature name reaches the usage record through the flag.
+  assert.match(text, /steps 1-4 with session id\s+`\$\{CLAUDE_SESSION_ID\}` and `--feature <f>` \(`<f>` of step 2;/);
+  before(text, 'mark clear --session <sid>', '`--feature <f>`');
   assert.match(text, /run usage-sync\.md step 5 last/);
   assert.match(text, /final-report\.md` block 5 says/);
   assert.match(text, /"Continue with `\/keel:start-planning <f>`: <Next action>"/);

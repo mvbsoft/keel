@@ -64,7 +64,8 @@ Current state of this project:
 7. **Always**, whatever happened above (also after a stop or a no):
    `plans.js mark clear --session <sid>` → `planning: none`.
 8. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-4 with session id
-   `${CLAUDE_SESSION_ID}` (no level: planning has no verification); its step 5 runs in step 9.
+   `${CLAUDE_SESSION_ID}` and `--feature <f>` (`<f>` of step 2; no level: planning has no
+   verification); its step 5 runs in step 9.
 9. Report, one message in the conversation language, short: **Done** (mode, the plan's state, tickets,
    what changed); **Reviews** (found, fixed, deferred to Q, rejected; failed reviews named; or "no
    review: nothing changed"); **Git** (commit, branch, pushed or not; or nothing); **What next** (A:

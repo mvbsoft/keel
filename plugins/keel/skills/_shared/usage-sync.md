@@ -9,7 +9,8 @@ calling command gives it). Run each command exactly as written (preflight.md).
    `node "<keel>/scripts/usage.js" snapshot --src desktop --session <session> --five-hour <5-hour percentUsed> --seven-day <weekly all-models percentUsed> --five-hour-resets <its resetsAt> --seven-day-resets <its resetsAt>`.
    Its status `not_applicable` or `unavailable`, or no such tool → skip this step.
 2. Run `node "<keel>/scripts/usage.js" prepare --project "<project>" --session <session>` plus, after
-   a verification, `--level <level> --findings <must>/<should>/<nice> --gates <pass|fail|none>`.
+   a verification, `--level <level> --findings <must>/<should>/<nice> --gates <pass|fail|none>`;
+   plus, from `/keel:end-planning`, `--feature <feature>`.
    It prints JSON: `artifact_url` and `batches`. A `note` (with `not_approved`) means the project's
    committed URL is not approved on this machine: nothing is sent; tell the user in one line (they approve
    it in `/keel:configure`, usage section) and go on without syncing.

@@ -2,13 +2,13 @@
 
 [Українська](usage-dashboard.uk.md)
 
-keel shows what a session cost at the end of every `/keel:end-task` and `/keel:end-session`. It can also
-collect the numbers of all your machines into one private page, "keel usage", in your own claude.ai
-account. On a subscription it estimates how many percent of your plan limits a session used. Everything is
-read from Claude Code's own local logs, so collecting the numbers costs nothing; only writing them to the
-page costs a little (see [syncing](#syncing-between-machines)). This page explains the report,
-the page, where the data comes from, what leaves your machine and what never does. On this page a
-*session* is one Claude Code conversation, as the dashboard calls it, not keel's long-work lane.
+keel shows what a session cost at the end of every `/keel:end-task`, `/keel:end-session` and
+`/keel:end-planning`. It can also collect the numbers of all your machines into one private page, "keel
+usage", in your own claude.ai account. On a subscription it estimates how many percent of your plan limits a
+session used. Everything is read from Claude Code's own local logs, so collecting the numbers costs nothing;
+only writing them to the page costs a little (see [syncing](#syncing-between-machines)). This page explains
+the report, the page, where the data comes from, what leaves your machine and what never does. On this page
+a *session* is one Claude Code conversation, as the dashboard calls it, not keel's long-work lane.
 
 ## The cost report
 
@@ -163,8 +163,10 @@ snapshots, a summary cache, sync state and settings.
 Per machine and day, the page receives the following. The hourly totals count every Claude Code session
 on the machine, in all its projects, because the plan limits count them all and the calibration needs
 them; they hold no session id, project or request text. Everything per session goes only for keel
-sessions: a session in which you ran `/keel:start-task`, `/keel:end-task`, `/keel:start-session` or
-`/keel:end-session`. A conversation without keel shows up only in the hourly totals.
+sessions: a session in which you ran `/keel:start-task`, `/keel:end-task`, `/keel:start-session`,
+`/keel:end-session`, `/keel:start-planning` or `/keel:end-planning`; a session that ran
+`/keel:end-planning` shows "planning: <feature name>" in the Task column. A conversation without keel
+shows up only in the hourly totals.
 
 - the machine name, your git email (to tell machines and people apart) and the machine's
   `wallet_default`;
@@ -196,11 +198,11 @@ A project can only turn previews off: when the machine's value is off, a project
 
 ## Syncing between machines
 
-Each end step (`/keel:end-task`, `/keel:end-session`) prepares only the day documents that changed since
-the last sync and writes them to the page through files, never through the conversation. It costs about
-$0.01-0.04 (an estimate). The first sync reaches back 30 days (`history_days`). A session that cannot write to the page
-(for example, an API-key session without the page tool) leaves the backlog for the next one that can.
-Then keel reads the other machines' data back to calibrate the limits.
+Each end step (`/keel:end-task`, `/keel:end-session`, `/keel:end-planning`) prepares only the day documents
+that changed since the last sync and writes them to the page through files, never through the conversation.
+It costs about $0.01-0.04 (an estimate). The first sync reaches back 30 days (`history_days`). A session
+that cannot write to the page (for example, an API-key session without the page tool) leaves the backlog for
+the next one that can. Then keel reads the other machines' data back to calibrate the limits.
 
 A team can share one page: put its address in the project config as `usage.artifact_url`. Each machine
 sends to it only after its user approves that address, so a cloned repository cannot choose where your
