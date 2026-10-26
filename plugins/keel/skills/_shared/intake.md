@@ -238,8 +238,8 @@ from git (0 tokens). Each call is `node "<keel>/scripts/plans.js" "<project>" ti
      revert of that revert, or new commits.";
    - a `depends:` ticket `waiting for merge into the feature branch`, or one of another feature that is
      not done → ask: start from that ticket's branch / wait for its merge / start anyway;
-   - a `depends:` ticket of the same feature `to do`, `in progress` or `not found` → say which, and
-     ask: start anyway / take the next ticket. `not found` of a finished feature may be one merged
+   - a `depends:` ticket of the same feature `to do` or `in progress`, or any `not found` → say which,
+     and ask: start anyway / take the next ticket. A `not found` may be a finished feature merged
      with squash after its tickets were removed (no ticket file ever reached `merge_into`): say so;
      the user checks its code there;
    - `done` → say so; start it again only on a yes.
