@@ -1,4 +1,4 @@
-# keel final report (/keel:end-task and /keel:end-session)
+# keel final report (/keel:end-task and /keel:end-session; /keel:end-planning reads block 5)
 
 One message in the conversation language, plain words first, short, in this order. Leave out a block
 only where this file says so.

@@ -69,6 +69,7 @@ test('planning work: one question per message, 2-3 approaches, D and Q records, 
   const work = section('Work');
   assert.match(work, /\*\*One question per message\*\*/);
   assert.match(work, /2-3 approaches with your recommendation/);
+  assert.match(work, /The first question gets no answer \(no\s+one is there\) → stop/, 'the fallback when the hooks cannot tell there is no person');
   assert.match(work, /Decisions \(`D1\. decision - why`\)/);
   assert.match(work, /Open questions \(`Q1\. question - what depends on it`; an answered\s+Q leaves the list and becomes a D\)/);
   assert.match(work, /plans\.js ticket <f> --title "<title>" \[--slug <english-words>\] \[--depends T1,T2\]/);
@@ -80,7 +81,9 @@ test('planning work: one question per message, 2-3 approaches, D and Q records, 
 
 test('start-planning: preflight, the session-lane check, then notes.js check without --begin; the hooks keep the other refusals', () => {
   const text = start();
-  before(text, 'preflight.md', 'ran `/keel:start-session` and the note is not `done`');
+  before(text, 'preflight.md', 'ran `/keel:start-session` and no `/keel:end-session` since');
+  // The note stays open after a hand-over: only this conversation's own session lane counts.
+  assert.doesNotMatch(text, /the note is not `done`/);
   assert.match(text, /This\s+conversation leads a long-work line: end it with \/keel:end-session, or plan in a new\s+conversation\." and stop/);
   assert.match(text, /notes\.js" "<project>" check --session <sid>` \(no `--begin`/);
   assert.doesNotMatch(text, /check --begin/);
@@ -117,6 +120,7 @@ test('start-planning: a new feature reads its source like start-task, retells, c
   assert.match(fresh, /`plans\.js set <f> --branch <b> --merge-into <m>`/);
   assert.match(fresh, /planning\.md "Project rules"/);
   before(fresh, 'Source:', 'Retell', 'the source is read before the retell');
+  before(fresh, 'planning.md "Project rules"', 'Branch hints', 'the project\'s branch and backlog rules come before a branch is made');
   before(fresh, 'Branch hints', '`plans.js new <f>`', 'a repository draft is born on the right branch');
   before(fresh, '`plans.js new <f>`', '`plans.js set <f>', 'the branch fields are set on the new plan');
 });
@@ -141,10 +145,12 @@ test('branch hints for a repository draft: the main branch, a task\'s branch, un
   const hints = section('Branch hints');
   assert.match(hints, /on the main branch .* → "You are on <main>\. Create\s+branch `<branch>`\?"/s);
   assert.match(hints, /on another task's branch .* → "This is the branch of task <id>\. Switch to\s+a new branch `<branch>`\?"/s);
-  assert.match(hints, /`changed files:` other than the draft's → "Commit or stash those changes first\."/);
-  assert.match(hints, /a task `active in another session` here → three options: keep the draft on this machine until the\s+task ends .*, plan in another copy of the repository\s+\(`git worktree add`\), or go on at your own risk/s);
-  assert.match(hints, /git-flow\.js" "<project>" start --name <branch> --from <current branch>`/);
-  assert.match(hints, /manual → `git switch -c <branch>`/);
+  assert.match(hints, /`changed files:` other than the draft's and the feature folder's → "Commit or stash those changes\s+first\."/);
+  assert.match(hints, /a task `active in another session` \(or `in <n> other sessions`\) here → three options: keep the draft on this machine until the\s+task ends .*, plan in another copy of the repository\s+\(`git worktree add`\), or go on at your own risk/s);
+  // A new branch starts from where the feature merges, never from another task's unmerged commits.
+  assert.match(hints, /git-flow\.js" "<project>" start --name <branch> --from <the plan's merge_into>`/);
+  assert.match(hints, /manual → `git switch -c <branch> <the plan's merge_into>`/);
+  assert.doesNotMatch(hints, /<current branch>/);
 });
 
 test('commit and push: each after its own yes, Claude Code\'s window announced, a no is final', () => {
@@ -174,7 +180,7 @@ test('reviews: structure first, only changed tickets, batches of up to 4, one pl
   assert.match(r, /plans\.js report "<that file>"/);
   assert.match(r, /`report: ok · <agent> · <status> · findings N`/);
   assert.match(r, /`report: failed`, or no file → say "The review of <tickets> failed: <reason>", never "no\s+findings"/);
-  assert.match(r, /`plans\.js reviewed <f> <the tickets it reviewed>`/);
+  assert.match(r, /A ticket review → `plans\.js reviewed <f> <the tickets it reviewed>`/);
   assert.match(r, /fix \(edit the ticket or `plan\.md`\), defer \(a new Q\), or reject with a reason/);
   assert.match(r, /`reviews\/<ticket>\.md` \(plan findings: `reviews\/plan\.md`\)/);
   // The ledger hook saves replies under the session's planning folder: the path above must stay true.
@@ -213,7 +219,10 @@ test('end-planning B: gates, ticket reviews then one plan review, at most 2 roun
   before(b, '**Gates**', 'Reviews:');
   before(b, 'Reviews:', '`plans.js state <f> ready`');
   before(b, '`plans.js state <f> ready`', '**Export.**');
-  assert.match(b, /`export: -` \(the first time\) → ask where: the repository .* or this\s+machine only/s);
+  assert.match(b, /`export: -` \(the first time\) → ask where: the repository .* or this\s+machine only \(a draft in the repository exports there: say so, do not ask\)/s);
+  // A plan already ready was reviewed as it is: no second round of paid reviews.
+  assert.match(b, /A plan already\s+`ready` in `plans\.js list` \(not "changed after ready"\) was reviewed\s+as it is: go straight to step 5\./);
+  before(b, 'go straight to step 5', '**Gates**');
   assert.match(b, /`prefix: -` → propose the first `comments\.ticket_prefixes`\s+of `\.keel\/config\.json`, else 3-4 capital letters from the repository name; the user confirms/);
   assert.match(b, /`plans\.js settings set --export <pc\|repo> \[--export-dir <dir>\] --prefix <PROJ>`/);
   before(b, 'settings set --export', '`plans.js export <f>`');
@@ -233,6 +242,18 @@ test('end-planning: the chat mark is cleared in every mode, then the costs, and 
   assert.match(text, /final-report\.md` block 5 says/);
   assert.match(text, /"Continue with `\/keel:start-planning <f>`: <Next action>"/);
   assert.match(text, /a ticket\s+starts with `\/keel:start-task <KEY>`/);
+});
+
+test('every output line the planning instructions quote is printed by plans.js', () => {
+  const source = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-export.js'], ['lib', 'plans-report.js']].map((p) => read('scripts', ...p)).join('\n');
+  const text = all().join('\n');
+  const lines = ['settings: none yet', 'find: 1 match', 'find: no match', 'planning: none', 'check: clean', 'report: ok ·', 'report: failed',
+    'exported:', 'readme:', 'committed:', 'commit: nothing to commit', 'renumbered:', 'pushed:', 'push: no remote, nothing pushed', 'stale:', 'branch:', 'merge_into:'];
+  for (const line of lines) {
+    assert.ok(text.includes('`' + line), `the instructions do not quote ${line}`);
+    assert.ok(source.includes(line), `plans.js no longer prints "${line}"`);
+  }
+  assert.match(read('skills', '_shared', 'final-report.md').split('\n')[0], /\/keel:end-planning/, 'final-report.md names end-planning, which reads its block 5');
 });
 
 test('/keel:help names the planning commands and says the lane rule', () => {
