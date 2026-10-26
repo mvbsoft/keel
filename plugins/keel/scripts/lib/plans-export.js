@@ -83,13 +83,24 @@ function keyFolders(root, s) {
   return [...new Set(repo), ...local];
 }
 
-// The highest number the prefix has anywhere keys are looked for (see the top of this file).
-function highestKey(root, prefix, s, repo) {
+// The highest number the prefix has anywhere keys are looked for (see the top of this file). Only the
+// commit messages that name a key of the prefix are read, so a long history stays small. A git source
+// that cannot be read is named in `notes`: keys may then be incomplete.
+function highestKey(root, prefix, s, repo, notes = []) {
   const texts = [fileNames(keyFolders(root, s)).join('\n')];
   if (repo) {
-    texts.push(readGit(root, ['log', '--all', '--format=%B']));
-    texts.push(readGit(root, ['log', '--all', '--name-only', '--format=', '--', `:(icase)*${prefix}-*.md`]));
-    texts.push(readGit(root, ['for-each-ref', '--format=%(refname:lstrip=2)', 'refs/heads', 'refs/remotes']));
+    const sources = [
+      ['commit messages', ['log', '--all', '-i', '--extended-regexp', `--grep=${prefix}-[0-9]`, '--format=%B']],
+      ['ticket file names', ['log', '--all', '--name-only', '--format=', '--', `:(icase)*${prefix}-*.md`]],
+      ['branch names', ['for-each-ref', '--format=%(refname:lstrip=2)', 'refs/heads', 'refs/remotes']],
+    ];
+    const unread = [];
+    for (const [name, args] of sources) {
+      const text = readGit(root, args);
+      if (text === null) unread.push(name);
+      texts.push(text);
+    }
+    if (unread.length) notes.push(`keys: may be incomplete (git could not read the ${unread.join(', ')}); check that the new keys are free`);
   }
   return Math.max(0, ...texts.map((t) => highestIn(t, prefix)));
 }
@@ -181,7 +192,7 @@ function exportFeature(root, feature, { stop = () => {} } = {}) {
   } catch (e) { return refuse(what, `what an earlier export left is not removed: ${e.message}`); }
 
   const git = fetched(root);
-  const first = highestKey(root, prefix, s, git.repo) + 1;
+  const first = highestKey(root, prefix, s, git.repo, git.notes) + 1;
   const keys = new Map(plans.tickets(d).map((t, i) => [t.id, `${prefix}-${first + i}`]));
   const { files, readme } = exportFiles(root, d, keys, { feature, branch, merge_into: mergeInto });
   const into = temp ? path.join(temp, local ? 'tickets' : '') : target;
@@ -298,13 +309,13 @@ function keyCheck(root, keys, folder) {
 }
 
 // New numbers for the taken keys, replaced in every file of the feature folder (files renamed).
-function renumber(root, c, taken) {
+function renumber(root, c, taken, notes) {
   const old = [...taken.keys()].sort(byNumber);
   const s = plans.settings(root);
   const next = new Map();
   const map = new Map(old.map((k) => {
     const p = prefixOfKey(k);
-    if (!next.has(p)) next.set(p, highestKey(root, p, s, true) + 1);
+    if (!next.has(p)) next.set(p, highestKey(root, p, s, true, notes) + 1);
     const n = next.get(p);
     next.set(p, n + 1);
     return [k, `${p}-${n}`];
@@ -345,25 +356,30 @@ function commitFeature(root, feature) {
     const { taken, published } = keyCheck(root, c.keys, c.folder);
     const stuck = [...taken.keys()].find((k) => published.has(k));
     if (stuck) return refuse(what, `${stuck} is also ${taken.get(stuck)}, and this feature's ${stuck} is already ${published.get(stuck)}: a published key is not renumbered; settle the duplicate by hand`);
-    if (taken.size) { try { out.push(...renumber(root, c, taken)); } catch (e) { return refuse(what, `renumbering failed: ${e.message}`); } }
+    if (taken.size) { try { out.push(...renumber(root, c, taken, notes)); } catch (e) { return [...out, ...refuse(what, `renumbering failed: ${e.message}`)]; } }
   }
   if (c.draft && plans.stateOf(c.draft) === 'exported') {
     const r = moveToTrash(root, draftFiles(root, c.draft), 'planning');
-    if (r.failed.length) return refuse(what, `the draft's files did not go to keel's trash: ${r.failed.map((f) => `${f.path}: ${f.reason}`).join(', ')}`);
+    if (r.failed.length) {
+      // All or none: what did go comes back, so the next run still sees the exported draft.
+      if (r.batch) restore(root, r.batch);
+      return [...out, ...refuse(what, `the draft's files did not go to keel's trash: ${r.failed.map((f) => `${f.path}: ${f.reason}`).join(', ')}`)];
+    }
     for (const dir of [path.join(c.draft.folder, 'tickets'), c.draft.folder]) { try { fs.rmdirSync(dir); } catch { /* not empty */ } }
   }
-  // The draft folder, also after an earlier run moved the draft away, and the ticket folder.
-  const folders = [c.draft && c.draft.folder, ...plans.draftDirs(root).filter((d) => !d.local).map((d) => path.join(d.dir, feature)), c.folder];
+  // The draft folder, also after an earlier run moved the draft away, and the ticket folder when it holds
+  // exported tickets (other files there are not planning's to commit).
+  const folders = [c.draft && c.draft.folder, ...plans.draftDirs(root).filter((d) => !d.local).map((d) => path.join(d.dir, feature)), c.list.length ? c.folder : null];
   const paths = [...new Set(folders.filter(Boolean).map((f) => rel(root, f)))].filter((p) => known(root, p));
   if (!paths.length) return [...out, 'commit: nothing to commit', ...notes];
   let r = flow.git(root, ['add', '-A', '--', ...paths]);
-  if (!r.ok) return refuse(what, `git add failed: ${gitText(r)}`);
+  if (!r.ok) return [...out, ...refuse(what, `git add failed: ${gitText(r)}`)];
   if (!flow.git(root, ['diff', '--cached', '--name-only', '--', ...paths]).out) return [...out, 'commit: nothing to commit', ...notes];
   const keys = c.exported ? exportedTickets(c.folder).map((t) => t.fm.key.toUpperCase()).sort(byNumber) : [];
   const message = keys.length ? `${keys.join(', ')}: add the ${feature} tickets` : `Plan ${feature}`;
   // Only these paths: changes staged before stay staged and out of this commit.
   r = flow.git(root, ['commit', '-q', '-m', message, '--', ...paths]);
-  if (!r.ok) return refuse(what, `git commit failed (a project hook?): ${gitText(r)}`);
+  if (!r.ok) return [...out, ...refuse(what, `git commit failed (a project hook?): ${gitText(r)}`)];
   return [...out, `committed: ${flow.git(root, ['rev-parse', '--short', 'HEAD']).out} ${message}`, ...notes];
 }
 
