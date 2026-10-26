@@ -323,7 +323,12 @@ gitTest('tickets: a dependency deleted while its last version said todo is not f
 });
 
 gitTest('tickets: a dependency that left merge_into with a revert of its merge is not done', () => {
-  const work = droppedDependency('done', (w) => {
+  const work = droppedDependency('done', (w, folder) => {
+    // An older deletion whose last version says done: only the merge revert keeps the key from it.
+    const done = readRel(w, `${folder}/PROJ-1-t1.md`);
+    git(w, 'rm', '-q', `${folder}/PROJ-1-t1.md`);
+    git(w, 'commit', '-q', '-m', 'Remove PROJ-1 for a moment');
+    commit(w, 'Bring PROJ-1 back', { [`${folder}/PROJ-1-t1.md`]: done });
     git(w, 'checkout', '-q', 'main');
     git(w, 'merge', '-q', '--no-ff', '-m', 'Merge s3-storage', 's3-storage');
     git(w, 'revert', '-m', '1', '--no-edit', 'HEAD');
