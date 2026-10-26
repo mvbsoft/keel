@@ -30,7 +30,8 @@
 // - cleanup.js: everything but `empty-trash` (moving to keel's trash and back can be undone; deleting
 //   the trash cannot).
 // - plans.js: everything but `commit` and `push`; its other steps write only the planning files (the
-//   drafts, their settings and chat marks).
+//   drafts, the exported tickets and their status, settings and chat marks), and `drop` moves a feature
+//   folder whose tickets are all done to keel's trash, which can be undone.
 // Refused with the reason, so the model sends the plain form: a command joined with shell operators
 // (outside quotes) that names keel's folder; a keel script whose arguments the hook cannot read; a step
 // that always asks, named with any project other than the current one's exact absolute path (so no
@@ -202,8 +203,9 @@ function ownScript(name, argText, projectDir, bash) {
     const under = { out: local && path.join(local, 'usage'), keel: local };
     for (const k of ['out', 'keel']) if (opts[k] !== undefined && !(local && typeof opts[k] === 'string' && inside(opts[k], under[k]))) return null;
   }
-  // plans.js has none of the steps CONFIRMED_WORDS names, and its search takes free words ("drop old
-  // users"), so those words are not refused here.
+  // plans.js confirms only commit and push: its `drop` (a done feature's folder to keel's trash) runs
+  // without a window, and its search takes free words ("drop old users"), so CONFIRMED_WORDS are not
+  // refused here.
   if (name === 'plans.js') return alwaysAsks(name, pos) ? decide('ask', say(pos[0], `confirm.plans_${pos[1]}`)) : allow('keel runs its own plans.js');
   if (name === 'git-flow.js') {
     if (!alwaysAsks(name, pos) && argv.some((w) => CONFIRMED_WORDS.has(w))) return decide('deny', PLAIN_FORM);
@@ -278,7 +280,7 @@ const STEP_SCRIPT_ELSEWHERE = /(CLAUDE_PLUGIN_ROOT|keel)[^\s"']*[\/\\]scripts[\/
 const ELSEWHERE = 'keel: a step that needs your confirmation runs only as `node "<keel>/scripts/<name>.js" "<project>" ...` with keel\'s folder written out in full. Nothing ran; send it again in that form.';
 function stepElsewhere(cmd) {
   if (!/(^|[^\w.-])(node|nodejs|bun|deno)(\.exe)?(?![\w.-])/i.test(cmd)) return false;
-  // plans.js confirms its own steps, which CONFIRMED_WORDS does not hold; a command may name several scripts.
+  // plans.js confirms its own steps (PLANS_ASK; its drop is not one of them); a command may name several scripts.
   const words = [...cmd.matchAll(STEP_SCRIPT_ELSEWHERE)].flatMap((m) => [...(m[2].toLowerCase() === 'plans' ? PLANS_ASK : CONFIRMED_WORDS)]);
   return cmd.split(/[\s"'=;&|]+/).some((w) => words.includes(w));
 }

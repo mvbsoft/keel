@@ -234,11 +234,11 @@ test('keel\'s QA agents write only under the project\'s .keel/local/tmp/qa/', ()
   assert.equal(write(null, `${proj}/src/app.js`), null, 'the main conversation writes code');
 });
 
-test('plans.js is keel\'s own: its steps run silently, commit and push always ask, also named elsewhere', () => {
+test('plans.js is keel\'s own: its steps run silently (drop and done too), commit and push always ask, also named elsewhere', () => {
   const proj = project({ mode: 'autonomous' });
   const env = { CLAUDE_PROJECT_DIR: proj };
   const plans = (args, tool = 'Bash') => shell(`node "${SCRIPTS}/plans.js" "${proj}" ${args}`, tool, env);
-  for (const args of ['list', 'find drop old users', 'find delete merge trust', 'new csv-export', 'ticket csv-export --title "Drop the old column"', 'check csv-export', 'state csv-export ready', 'settings set --draft repo', 'mark set csv-export --session s1']) {
+  for (const args of ['list', 'find drop old users', 'find delete merge trust', 'new csv-export', 'ticket csv-export --title "Drop the old column"', 'check csv-export', 'state csv-export ready', 'settings set --draft repo', 'mark set csv-export --session s1', 'tickets', 'tickets PROJ-1 --fetch', 'done PROJ-1', 'done PROJ-1 --undo', 'drop csv-export']) {
     assert.equal(plans(args), 'allow', args);
     assert.equal(plans(args, 'PowerShell'), 'allow', args);
   }
@@ -251,7 +251,8 @@ test('plans.js is keel\'s own: its steps run silently, commit and push always as
   for (const cmd of [`node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" commit`, `node ~/keel/scripts/plans.js "${proj}" push`, `cd "${proj}" && node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" push`]) {
     assert.equal(shell(cmd, 'Bash', env), 'deny', cmd);
   }
-  assert.equal(shell(`node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" find drop users`, 'Bash', env), null);
+  // drop is not a step that asks: named by another path it is left to the user's permissions.
+  for (const args of ['find drop users', 'drop csv-export', 'done PROJ-1']) assert.equal(shell(`node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" ${args}`, 'Bash', env), null, args);
   // Several scripts in one command: each one's confirmed steps count.
   for (const cmd of [
     `node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" list && node "$CLAUDE_PLUGIN_ROOT/scripts/notes.js" "${proj}" task drop T1`,
