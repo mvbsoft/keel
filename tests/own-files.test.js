@@ -328,17 +328,26 @@ test('a step word in quotes is plain text: a title "drop" or a branch "merge" ru
   }
 });
 
+test('in Bash a double backslash is refused: a network path is written //server/share', () => {
+  const env = { CLAUDE_PROJECT_DIR: '\\\\srv\\share\\p' };
+  // Claude Code's Bash tool folds \\ into \, so the script would run on another folder.
+  assert.equal(shell(`node "${SCRIPTS}/notes.js" "\\\\srv\\share\\p" tasks`, 'Bash', env), 'deny');
+  assert.equal(shell(`node "${SCRIPTS}/notes.js" '\\\\srv\\share\\p' tasks`, 'Bash', env), 'deny', 'in single quotes too');
+  assert.equal(shell(`node "${SCRIPTS}/notes.js" "//srv/share/p" tasks`, 'Bash', env), 'allow');
+  assert.equal(shell(`node "${SCRIPTS}/notes.js" "\\\\srv\\share\\p" tasks`, 'PowerShell', env), 'allow', 'PowerShell passes it as written');
+});
+
 test('on Windows only A-Z fold: a path with the Kelvin sign for k is another folder, for the hook and for trust', { skip: process.platform !== 'win32' }, () => {
   const proj = project({ mode: 'autonomous' });
   const env = { CLAUDE_PROJECT_DIR: proj };
   const other = proj.replace('k', '\u212a');
   assert.notEqual(other, proj);
   assert.equal(shell(`node "${SCRIPTS}/plans.js" "${other}" drop f1`, 'Bash', env), null, 'the Kelvin sign names another folder');
-  assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj.toUpperCase()}" drop f1`, 'Bash', env), 'allow', 'A-Z case does not matter');
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj.replace(/[a-z]/g, (c) => c.toUpperCase())}" drop f1`, 'Bash', env), 'allow', 'A-Z case does not matter');
   const { trust, isTrusted, trustState } = require(path.join(PLUGIN, 'scripts', 'lib', 'trust.js'));
   const tenv = { KEEL_USAGE_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'keel-usage-')) };
   trust(proj, tenv);
-  assert.equal(isTrusted(proj.toUpperCase(), tenv), true);
+  assert.equal(isTrusted(proj.replace(/[a-z]/g, (c) => c.toUpperCase()), tenv), true);
   assert.equal(trustState(other, tenv), 'none', 'no confirmation is found for the other folder');
 });
 

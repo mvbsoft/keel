@@ -141,12 +141,13 @@ folders and the note move with git: [two ways of working](workflows.md#where-the
   - a command joined with shell operators (`;`, `&&`, `|`, redirection, `$(...)`, a line break) that
     names keel's folder;
   - a keel script with `$`, a backquote, `~`, curly quotes, control characters, an unquoted backslash
-    (Bash), a backslash before a quote or a space, a special space (such as a non-breaking one)
-    outside quotes, a double quote inside single quotes or an unquoted comma list of anything but
-    numbers in its arguments, in Bash an unquoted backslash path to the script, or in PowerShell
-    `--%`, an empty argument or a bare word starting with one dash (`-`, or the en dash, em dash or
-    horizontal bar PowerShell also reads as one) that holds a dot or ends with a colon (PowerShell
-    would not pass them on as written);
+    (Bash), a backslash before a quote or a space, a special space (such as a non-breaking one) outside
+    quotes, a double quote inside single quotes or an unquoted comma list of anything but numbers in its
+    arguments, in Bash an unquoted backslash path to the script or a double backslash (Claude Code's
+    Bash tool folds it into one, so a network path is written `//server/share`), or in PowerShell `--%`,
+    an empty argument or a bare word starting with one dash (`-`, or the en dash, em dash or horizontal
+    bar PowerShell also reads as one) that holds a dot or ends with a colon (PowerShell would not pass
+    them on as written);
   - a keel script command that holds the words of a step Claude Code must confirm (`delete`, `drop`,
     `empty-trash`, `merge`, `delete-branch`, `trust`) as a word without quotes but does not read as that
     step (in quotes it is plain text, such as a title "drop"); `plans.js`
