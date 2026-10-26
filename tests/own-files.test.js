@@ -237,16 +237,22 @@ test('keel\'s QA agents write only under the project\'s .keel/local/tmp/qa/', ()
   assert.equal(write(null, `${proj}/src/app.js`), null, 'the main conversation writes code');
 });
 
-test('a non-breaking space cannot move a step past the hook: bash does not split words on it', () => {
+test('words split only on spaces and tabs: a special space or control character cannot move a step past the hook', () => {
   const proj = project({ mode: 'autonomous' });
   const env = { CLAUDE_PROJECT_DIR: proj };
-  // Bash passes `<proj> /../<name>` as one word, which plans.js resolves back to the project, so push
-  // would run while the hook read "/../<name>" as the step.
+  const n = (name) => `node "${SCRIPTS}/${name}" "${proj}"`;
   for (const tool of ['Bash', 'PowerShell']) {
-    for (const cmd of [`node "${SCRIPTS}/plans.js" "${proj}" "/../${path.basename(proj)}" push f1`, `node "${SCRIPTS}/usage.js" prepare --project "${proj}"`]) {
-      assert.equal(shell(cmd, tool, env), 'deny', `${tool}: ${cmd}`);
+    // Bash keeps a non-breaking space inside a word (`<proj> /../<name>` resolves back to the project);
+    // Windows PowerShell 5.1 splits words on U+0085. Either way the hook would read another step.
+    for (const cmd of [`${n('plans.js')}\u00a0"/../${path.basename(proj)}" push f1`, `node "${SCRIPTS}/usage.js" prepare --project\u00a0"${proj}"`,
+      `${n('plans.js')} --k v\u0085push f1`, `${n('git-flow.js')} --k v\u0085merge`, `${n('cleanup.js')} --k v\u0085empty-trash`,
+      `${n('plans.js')} --k v\u000bpush f1`, `${n('plans.js')} --k v\u00a0push f1`, `${n('plans.js')} "x\u0085y" push f1`]) {
+      assert.equal(shell(cmd, tool, env), 'deny', `${tool}: ${JSON.stringify(cmd)}`);
     }
-    assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find стара оплата користувачів`, tool, env), 'allow', 'words in other alphabets');
+    // Inside quotes both shells keep a special space as text: a title copied from a tracker, French text.
+    for (const cmd of [`${n('plans.js')} ticket f1 --title "Fix\u00a0export"`, `${n('plans.js')} ticket f1 --title 'Prix\u202f: 10\u00a0€\u3000x'`, `${n('plans.js')} find стара оплата користувачів`]) {
+      assert.equal(shell(cmd, tool, env), 'allow', `${tool}: ${JSON.stringify(cmd)}`);
+    }
   }
 });
 

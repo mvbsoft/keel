@@ -30,7 +30,7 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   Q leaves the list and becomes a D), Tickets (one line per ticket: `T3 title`), Next action. Sections
   stay, empty when there is nothing to say; no TBD and no `<...>`.
 - **Tickets** at once in the short template: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends T1,T2]`
-  (a plain title: quotes, brackets or `$` make Claude Code ask; `--slug` in English when the title is
+  (a plain title: double or curly quotes, `$` or a backquote are refused; `--slug` in English when the title is
   not), then fill the file it names (Edit): Goal (1-2 sentences, how to tell it is done), Why (the D it
   follows), Acceptance criteria (behaviour an action checks; no "fast" or "easy" without a measure),
   Where to look (`file:line` you checked), Out of scope, Dependencies, How to check (a command and the
