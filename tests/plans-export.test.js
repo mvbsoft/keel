@@ -256,6 +256,16 @@ gitTest('keys: the highest of the prefix in commit messages, ticket file names o
   assert.equal(top(), 101);
   assert.equal(highestKey(work, 'PROJ', s, false), 25, 'without git only the files count');
   assert.equal(highestKey(work, 'XPROJ', s, true), 900);
+  const notes = [];
+  assert.equal(highestKey(work, 'PROJ', s, true, notes), 101);
+  assert.deepEqual(notes, [], 'every git source was read');
+  // A source git cannot read is said, never skipped in silence; export shows it.
+  write(work, '.git/refs/heads/broken', `${'0123456789'.repeat(4)}\n`);
+  assert.equal(highestKey(work, 'PROJ', s, true, notes), 25);
+  assert.deepEqual(notes, ['keys: may be incomplete (git could not read the commit messages, ticket file names); check that the new keys are free']);
+  run(work, 'settings', 'set', '--export', 'pc', '--prefix', 'PROJ');
+  ready(work, 's3-storage', 1);
+  assert.ok(run(work, 'export', 's3-storage').includes(notes[0]));
 });
 
 // --- export ---
@@ -432,9 +442,16 @@ gitTest('commit and push: a key taken on another branch since the export is renu
   // A colleague took PROJ-2 meanwhile; PROJ-10 is another key, not PROJ-1.
   otherPush(server, tmp, 'other-work', 'tickets/payments/PROJ-2-pay.md', '---\ntype: ticket\nkey: PROJ-2\n---\n');
   otherPush(server, tmp, 'more-work', 'tickets/payments/PROJ-10-refund.md', '---\ntype: ticket\nkey: PROJ-10\n---\n');
+  // A project hook stops the commit: the renumbering is still reported, its files are renamed.
+  const hook = path.join(work, '.git', 'hooks', 'pre-commit');
+  fs.writeFileSync(hook, '#!/bin/sh\nexit 1\n');
+  fs.chmodSync(hook, 0o755);
+  const stopped = run(work, 'commit', 's3-storage');
+  assert.equal(stopped[0], 'renumbered: PROJ-2 -> PROJ-11');
+  assert.match(stopped[1], /^plans: commit refused \(git commit failed \(a project hook\?\)/);
+  fs.rmSync(hook);
   const out = run(work, 'commit', 's3-storage');
-  assert.equal(out[0], 'renumbered: PROJ-2 -> PROJ-11');
-  assert.match(out[1], /^committed: [0-9a-f]{7,} PROJ-1, PROJ-11: add the s3-storage tickets$/);
+  assert.match(out[0], /^committed: [0-9a-f]{7,} PROJ-1, PROJ-11: add the s3-storage tickets$/);
   assert.ok(!exists(work, 'tickets/s3-storage/PROJ-2-ticket-2.md'));
   const t = readRel(work, 'tickets/s3-storage/PROJ-11-ticket-2.md');
   assert.match(t, /^key: PROJ-11$/m);
@@ -450,6 +467,67 @@ gitTest('commit and push: a key taken on another branch since the export is renu
   write(work, 'tickets/s3-storage/PROJ-1-ticket-1.md', `${readRel(work, 'tickets/s3-storage/PROJ-1-ticket-1.md')}\nMore.\n`);
   assert.deepEqual(run(work, 'commit', 's3-storage'), ['plans: commit refused (PROJ-1 is also docs/PROJ-1.md on origin/late-work, and this feature\'s PROJ-1 is already on origin/s3-storage: a published key is not renumbered; settle the duplicate by hand)']);
   assert.deepEqual(run(work, 'push', 's3-storage'), ['plans: push refused (PROJ-1 is also docs/PROJ-1.md on origin/late-work: commit again (plans.js commit s3-storage gives it a new number), then push)']);
+});
+
+gitTest('commit: when part of an exported draft cannot go to keel\'s trash, what went comes back and nothing is committed', () => {
+  const { tmp, work } = setup({ remote: false });
+  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo');
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  ready(work, 's3-storage', 2, 'tickets/s3-storage');
+  write(work, 'tickets/s3-storage/reviews/T1.md', 'decided\n');
+  run(work, 'export', 's3-storage');
+  // The draft's tickets/ folder becomes a link: keel's trash refuses the T-files below it.
+  const elsewhere = path.join(tmp, 'elsewhere');
+  fs.cpSync(path.join(work, 'tickets', 's3-storage', 'tickets'), elsewhere, { recursive: true });
+  fs.rmSync(path.join(work, 'tickets', 's3-storage', 'tickets'), { recursive: true });
+  fs.symlinkSync(elsewhere, path.join(work, 'tickets', 's3-storage', 'tickets'), 'junction');
+  const head = git(work, 'rev-parse', 'HEAD');
+  const out = run(work, 'commit', 's3-storage');
+  assert.match(out[0], /^plans: commit refused \(the draft's files did not go to keel's trash: tickets\/s3-storage\/tickets\/T1-ticket-1\.md: .*is a link/);
+  assert.ok(exists(work, 'tickets/s3-storage/plan.md'), 'plan.md is back');
+  assert.ok(exists(work, 'tickets/s3-storage/reviews/T1.md'), 'reviews/ is back');
+  assert.deepEqual(trashed(work), []);
+  assert.equal(git(work, 'rev-parse', 'HEAD'), head);
+  assert.match(line(run(work, 'list'), '- s3-storage'), /^- s3-storage: exported · /, 'the next commit still sees the exported draft');
+});
+
+gitTest('commit: a draft in its own repository folder; "Plan" leaves other files of the ticket folder alone; after export the committed draft leaves with the tickets; a draft on this machine is refused', () => {
+  const { work } = setup({ remote: false });
+  run(work, 'new', 'local-thing');
+  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo', '--draft-dir', 'plans');
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  assert.deepEqual(run(work, 'commit', 'local-thing'), ['plans: commit refused (the draft of local-thing is on this machine: none of it goes into git)']);
+  ready(work, 's3-storage', 2, 'plans/s3-storage');
+  write(work, 'tickets/s3-storage/notes.md', 'mine\n');
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Plan s3-storage$/);
+  assert.doesNotMatch(git(work, 'show', '--name-only', '--format=', 'HEAD'), /notes\.md/);
+  assert.equal(git(work, 'status', '--porcelain', '--', 'tickets'), '?? tickets/');
+  fs.rmSync(path.join(work, 'tickets'), { recursive: true });
+  assert.equal(run(work, 'export', 's3-storage')[0], 'exported: tickets/s3-storage/ (2 tickets)');
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} PROJ-1, PROJ-2: add the s3-storage tickets$/);
+  assert.deepEqual(git(work, 'show', '--name-status', '--no-renames', '--format=', 'HEAD').split('\n').sort(), [
+    'A\ttickets/s3-storage/PROJ-1-ticket-1.md', 'A\ttickets/s3-storage/PROJ-2-ticket-2.md', 'A\ttickets/s3-storage/README.md',
+    'D\tplans/s3-storage/plan.md', 'D\tplans/s3-storage/tickets/T1-ticket-1.md', 'D\tplans/s3-storage/tickets/T2-ticket-2.md',
+  ]);
+  assert.ok(!exists(work, 'plans/s3-storage'));
+  assert.equal(git(work, 'status', '--porcelain'), '');
+});
+
+gitTest('stale: a project below its repository\'s top folder compares its own paths', () => {
+  const { work } = setup({ remote: false });
+  const proj = path.join(work, 'apps', 'web');
+  write(proj, '.keel/config.json', readRel(work, '.keel/config.json'));
+  write(proj, '.keel/.gitignore', 'local/\n');
+  write(proj, 'src/app.js', 'web\n');
+  git(work, 'add', '-A');
+  git(work, 'commit', '-q', '-m', 'web');
+  run(proj, 'new', 's3-storage');
+  run(proj, 'ticket', 's3-storage', '--title', 'One');
+  body(proj, `${LOCAL}/s3-storage/tickets/T1-one.md`, TICKET_BODY('T1'));
+  const after = git(work, 'rev-parse', '--short', 'HEAD');
+  write(proj, 'src/app.js', 'changed\n');
+  git(work, 'commit', '-q', '-a', '-m', 'change');
+  assert.deepEqual(run(proj, 'stale', 's3-storage'), [`stale: 1 of 1 named files changed since ${after}: src/app.js`]);
 });
 
 gitTest('push: a remote ahead of the branch is refused and explained; on main refused', () => {

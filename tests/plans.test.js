@@ -302,7 +302,7 @@ test('settings: defaults (language from repo_language), saved values, refused va
   assert.deepEqual(run(dir, 'settings').slice(0, 4), ['settings: none yet (the first planning here asks the language and where the draft lives)', 'language: uk (default)', 'draft: pc (default)', 'draft_dir: tickets (default)']);
   const out = run(dir, 'settings', 'set', '--language', 'en', '--draft', 'repo', '--draft-dir', 'docs/tickets/', '--prefix', 'PROJ', '--export', 'repo');
   assert.equal(out[0], `settings: ${LOCAL}/settings.json`);
-  for (const l of ['language: en', 'draft: repo', 'draft_dir: docs/tickets', 'export: repo', 'prefix: PROJ', 'export_dir: -']) assert.ok(out.includes(l), l);
+  for (const l of ['language: en', 'draft: repo', 'draft_dir: docs/tickets', 'export: repo', 'prefix: PROJ', 'export_dir: tickets (default)']) assert.ok(out.includes(l), l);
   assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { language: 'en', draft: 'repo', draft_dir: 'docs/tickets', export: 'repo', prefix: 'PROJ' });
   const bad = {
     '--draft': 'cloud', '--language': 'English', '--prefix': 'proj', '--export': 'jira',

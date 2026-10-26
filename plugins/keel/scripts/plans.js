@@ -3,7 +3,8 @@
 // machine (.keel/local/plans/keel/<feature>/) or in the repository (<draft_dir>/<feature>/), as the
 // planning settings say (lib/plans.js). Writes only the draft files, the exported tickets, the settings
 // and the chat marks; an abandoned or exported draft on this machine goes to keel's trash. git beyond
-// reading runs only in export (fetch), commit and push (lib/plans-export.js), which Claude Code confirms.
+// reading runs only in export (a fetch, not confirmed), commit and push (lib/plans-export.js); Claude
+// Code confirms each commit and push (hooks/own-files.js).
 // The result is the first output line; a refusal is `plans: <command> refused (<why>)`. Exit code 0.
 // Usage: node plans.js <projectDir> <command>
 //   list                                  the drafts: feature, state, open questions, tickets, last change

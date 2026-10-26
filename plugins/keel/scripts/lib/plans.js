@@ -35,9 +35,7 @@ const FEATURE = /^[a-z][a-z0-9]*(?:-[a-z][a-z0-9]*){1,3}$/;
 const FEATURE_MAX = 40;
 const SLUG_MAX = 60;
 const TICKET_FILE = /^T(\d+)-[a-z0-9-]+\.md$/;
-const DEFAULTS = { draft: 'pc', draft_dir: 'tickets' };
-// Where exported features go in the repository while export_dir is not set.
-const EXPORT_DIR = 'tickets';
+const DEFAULTS = { draft: 'pc', draft_dir: 'tickets', export_dir: 'tickets' };
 const SETTING_KEYS = ['language', 'draft', 'draft_dir', 'export', 'export_dir', 'prefix'];
 // Files a ticket names in "Where to look" without a folder or a line count only with a known extension:
 // `obj.id` or `fs.readFileSync` are code, not files.
@@ -137,10 +135,10 @@ function draftDirs(root) {
   return [{ dir: base(root), local: true }, ...(badFolder(root, dir) ? [] : [{ dir: path.join(root, dir), local: false }])];
 }
 
-// The repository folder exported features go to (export_dir, else tickets), or null when it is not one
+// The repository folder exported features go to (export_dir), or null when it is not one
 // keel uses.
 function exportDir(root, s = settings(root)) {
-  const dir = s.export_dir || EXPORT_DIR;
+  const dir = s.export_dir;
   return badFolder(root, dir) ? null : path.join(root, dir);
 }
 
@@ -312,7 +310,7 @@ function draftNew(root, feature, now = new Date()) {
   const draft = listDrafts(root).find((d) => d.feature === feature);
   if (draft) return refuse('new', `a draft "${feature}" exists (${stateOf(draft)}, ${where(root, draft)}): continue it or pick another name`);
   const folder = path.join(local ? base(root) : path.join(root, s.draft_dir), feature);
-  const repoDirs = [s.draft_dir, s.export_dir || EXPORT_DIR].filter((x) => x && !badFolder(root, x));
+  const repoDirs = [s.draft_dir, s.export_dir].filter((x) => x && !badFolder(root, x));
   const taken = [folder, ...repoDirs.map((x) => path.join(root, x, feature))].find((f) => fs.existsSync(f));
   if (taken) return refuse('new', `${rel(root, taken)}/ exists: pick another name`);
   const head = git(root, ['rev-parse', '--short', 'HEAD']);
@@ -487,8 +485,9 @@ function draftStale(root, feature) {
   const files = [...new Set(tickets(d).flatMap((t) => mentionedFiles(sections(t.text)['Where to look'] || '')))]
     .filter((f) => !(path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..') || f.startsWith('-')));
   if (!files.length) return [`stale: none of 0 named files changed since ${after}`];
+  // Paths from the project folder (--relative), which may sit below the repository's top.
   const lines = (args) => (git(root, args) || '').split('\n').filter(Boolean);
-  const changed = new Set([...lines(['diff', '--name-only', after, 'HEAD', '--', ...files]), ...lines(['diff', '--name-only', 'HEAD', '--', ...files])]);
+  const changed = new Set([...lines(['diff', '--relative', '--name-only', after, 'HEAD', '--', ...files]), ...lines(['diff', '--relative', '--name-only', 'HEAD', '--', ...files])]);
   const hit = files.filter((f) => changed.has(f));
   if (!hit.length) return [`stale: none of ${files.length} named files changed since ${after}`];
   const shown = hit.slice(0, STALE_SHOWN).map((f) => clean(f)).join(', ') + (hit.length > STALE_SHOWN ? ', …' : '');
