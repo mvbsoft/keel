@@ -31,7 +31,7 @@
 //   the feature merge in the same feature (its code is already on the feature branch). A dependency no
 //   read branch has a file for (its feature finished, its tickets dropped and merged) counts as done when
 //   the last version of its file before a commit deleted it on the dependent ticket's merge_into says done
-//   (not when a revert of a merge deleted it); else it is not found.
+//   (not when a revert of a merge commit deleted it); else it is not found.
 // Reads only, except `done` (one status line of a ticket in the working tree) and `drop` (the feature
 // folder to keel's trash).
 const fs = require('node:fs');
@@ -325,13 +325,14 @@ function states(d) {
       if (noteSet().has(e.key)) return { state: 3, hint: 'session (.keel/next-session.md)' };
       return null;
     };
+    // The target also for a ticket kept on this machine: its dependencies may be read from git history.
+    const target = targetOf(e);
+    e.target = target;
     if (!e.found.length) {
       const s = e.pc.some((t) => t.fm.status === 'done') ? { state: 0 } : inProgress() || { state: 4 };
       Object.assign(e, s);
       continue;
     }
-    const target = targetOf(e);
-    e.target = target;
     const featureRefs = new Set([`refs/heads/${e.branch}`, ...(d.remote ? [`refs/remotes/${d.remote}/${e.branch}`] : []), ...(target && target !== `refs/heads/${e.mergeInto}` ? [`refs/heads/${e.mergeInto}`] : [])]);
     const onTarget = e.found.filter((f) => f.view.ref === target);
     // A done that a later commit or the working tree took back (done --undo) does not count. The target and
@@ -390,8 +391,10 @@ function states(d) {
 
 // Dependencies no read branch has a file for (a finished feature whose tickets were dropped and merged):
 // the last version of the ticket file before a commit deleted it on the dependent ticket's target. Done
-// there -> the key counts as done; a revert of a merge is not a drop. One git log per target for every
-// such key, one cat-file --batch for the last versions. The keys found done.
+// there -> the key counts as done for that target. A revert of a merge commit is not a drop: the key is
+// then not done; a revert of another commit is passed over for the older deletion. One git log per target
+// for every such key, one cat-file --batch for the last versions; a revert costs two more calls. The
+// answers as "<target> <KEY>".
 function doneInHistory(d, keys) {
   const wanted = new Map();
   for (const e of keys.values()) {
@@ -401,27 +404,41 @@ function doneInHistory(d, keys) {
       wanted.get(e.target).add(k);
     }
   }
+  const mergeReverts = new Map();
+  const revertsMerge = (sha) => {
+    if (!mergeReverts.has(sha)) {
+      const reverted = /This reverts commit ([0-9a-f]{7,40})/.exec(git(d.root, ['show', '-s', '--format=%B', sha]) || '');
+      const parents = reverted ? (git(d.root, ['rev-list', '--parents', '-n', '1', reverted[1]]) || '').split(' ').length - 1 : 0;
+      mergeReverts.set(sha, parents > 1);
+    }
+    return mergeReverts.get(sha);
+  };
   const last = new Map();
   for (const [target, set] of wanted) {
     const specs = [...set].flatMap((k) => [`:(glob,icase)**/${k}-*.md`, `:(glob,icase)**/${k}.md`]);
-    // Newest first: "\0<sha>\0<subject>\n\n<path>\n..." per commit, paths from the project folder.
+    // Newest first: "\0<sha>\0<subject>\n\n<path>\n..." per commit, paths from the project folder and not
+    // quoted (core.quotePath: a path with non-ASCII letters would come back in quotes).
     // --full-history: a feature branch merged without its folder would be left out of the walk.
-    const parts = (git(d.root, ['log', '--full-history', '--diff-filter=D', '--name-only', '--relative', '--format=%x00%H%x00%s', target, '--', ...specs]) || '').split('\0');
+    const parts = (git(d.root, ['-c', 'core.quotePath=false', 'log', '--full-history', '--diff-filter=D', '--name-only', '--relative', '--format=%x00%H%x00%s', target, '--', ...specs]) || '').split('\0');
+    const decided = new Set();
     for (let i = 1; i + 1 < parts.length; i += 2) {
       const [subject, ...paths] = parts[i + 1].split('\n');
       for (const p of paths.filter(Boolean)) {
         const m = /^([A-Za-z][A-Za-z0-9]+-\d+)(?:-[^/]*)?\.md$/.exec(path.posix.basename(p));
         const k = m && upper(m[1]);
-        if (k && set.has(k) && !last.has(k)) last.set(k, subject.startsWith('Revert "') ? null : `${parts[i]}^:./${p}`);
+        if (!k || !set.has(k) || decided.has(k)) continue;
+        const revert = subject.startsWith('Revert "');
+        if (revert && !revertsMerge(parts[i])) continue;
+        decided.add(k);
+        if (!revert) last.set(`${target} ${k}`, `${parts[i]}^:./${p}`);
       }
     }
   }
-  const names = [...last.values()].filter(Boolean);
-  const blobs = readBlobs(d.root, names);
+  const blobs = readBlobs(d.root, [...last.values()]);
   const done = new Set();
-  for (const [k, name] of last) {
-    const t = name && ticketOf(blobs.get(name));
-    if (t && t.key === k && t.fm.status === 'done') done.add(k);
+  for (const [at, name] of last) {
+    const t = ticketOf(blobs.get(name));
+    if (t && t.key === at.slice(at.lastIndexOf(' ') + 1) && t.fm.status === 'done') done.add(at);
   }
   return done;
 }
@@ -431,7 +448,7 @@ function doneInHistory(d, keys) {
 function nextOf(keys, list, gone) {
   return list.find((e) => e.state === 4 && e.depends.every((k) => {
     const dep = keys.get(k);
-    return dep ? dep.state === 0 || (dep.state === 1 && dep.feature === e.feature) : gone.has(k);
+    return dep ? dep.state === 0 || (dep.state === 1 && dep.feature === e.feature) : gone.has(`${e.target} ${k}`);
   })) || null;
 }
 
@@ -487,7 +504,7 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
         const where = e.found.find((x) => x.path === p && x.view.work) || e.pc.find((x) => x.path === p) ? null : e.found.find((x) => x.path === p).view.ref;
         out.push(`  file: ${where ? `${short(where)}:` : ''}${p}`);
       }
-      if (e.depends.length) out.push(`  depends: ${e.depends.map((k) => `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : gone.has(k) ? 'done' : 'not found'}`).join(', ')}`);
+      if (e.depends.length) out.push(`  depends: ${e.depends.map((k) => `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : gone.has(`${e.target} ${k}`) ? 'done' : 'not found'}`).join(', ')}`);
     }
     count += lines.length;
   }

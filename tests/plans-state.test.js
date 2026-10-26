@@ -49,15 +49,17 @@ function commit(dir, message, files = {}, env = {}) {
   execFileSync('git', ['-C', dir, 'commit', '-q', '-m', message], { env: { ...process.env, ...env }, stdio: 'ignore' });
 }
 
-// A project with keel's config and one commit on main; when asked, a remote with main pushed.
-function setup({ remote = true } = {}) {
+// A project with keel's config and one commit on main; when asked, a remote with main pushed. `sub`: the
+// project is that sub-folder of the repository (`work` is the project).
+function setup({ remote = true, sub = '' } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-'));
-  const work = path.join(tmp, 'work');
-  fs.mkdirSync(work);
-  git(work, 'init', '-q', '-b', 'main');
-  git(work, 'config', 'user.name', 'Test');
-  git(work, 'config', 'user.email', 'test@example.com');
-  git(work, 'config', 'core.autocrlf', 'false');
+  const repo = path.join(tmp, 'work');
+  const work = path.join(repo, sub);
+  fs.mkdirSync(work, { recursive: true });
+  git(repo, 'init', '-q', '-b', 'main');
+  git(repo, 'config', 'user.name', 'Test');
+  git(repo, 'config', 'user.email', 'test@example.com');
+  git(repo, 'config', 'core.autocrlf', 'false');
   write(work, '.keel/config.json', JSON.stringify(CONFIG));
   write(work, '.keel/.gitignore', 'local/\n');
   commit(work, 'init', { 'src/app.js': 'module.exports = 1;\n' });
@@ -284,22 +286,23 @@ gitTest('tickets: a done only in the working tree of a branch already merged is 
   assert.equal(line(run(work, 'tickets'), 'PROJ-62'), '  PROJ-62 Ticket PROJ-62 — waiting for the feature merge · branch csv-export, Test, today');
 });
 
-// main has auth-flow's PROJ-9, which depends on PROJ-1 of s3-storage; s3-storage's tickets leave in
-// `finish` (a removal, or a revert) and the branch is deleted, so no branch has PROJ-1's file.
-function droppedDependency(status, finish) {
-  const { work } = setup();
-  commit(work, 'Add the auth-flow tickets', { [file(9, 'tickets/auth-flow')]: ticket('PROJ-9', { feature: 'auth-flow', depends: ['PROJ-1'] }) });
+// main has auth-flow's PROJ-9, which depends on PROJ-1 of s3-storage; s3-storage's tickets (`folder`,
+// PROJ-1's file `name`) leave in `finish` (a removal, or a revert) and the branch is deleted, so no branch
+// has PROJ-1's file. `dependents`: other tickets to add on main first.
+function droppedDependency(status, finish, { folder = F, name = 'PROJ-1-t1.md', sub = '', dependents = {} } = {}) {
+  const { work } = setup({ sub });
+  commit(work, 'Add the auth-flow tickets', { [file(9, 'tickets/auth-flow')]: ticket('PROJ-9', { feature: 'auth-flow', depends: ['PROJ-1'] }), ...dependents });
   git(work, 'push', '-q', 'origin', 'main');
   git(work, 'checkout', '-q', '-b', 's3-storage');
-  commit(work, 'Add the s3-storage tickets', { [file(1)]: ticket('PROJ-1') });
-  commit(work, 'PROJ-1: client', { 'src/client.js': '1\n', [file(1)]: ticket('PROJ-1', { status }) });
-  finish(work);
+  commit(work, 'Add the s3-storage tickets', { [`${folder}/${name}`]: ticket('PROJ-1') });
+  commit(work, 'PROJ-1: client', { 'src/client.js': '1\n', [`${folder}/${name}`]: ticket('PROJ-1', { status }) });
+  finish(work, folder);
   git(work, 'branch', '-q', '-D', 's3-storage');
   git(work, 'push', '-q', 'origin', 'main');
   return work;
 }
-const dropThenMerge = (work) => {
-  git(work, 'rm', '-r', '-q', F);
+const dropThenMerge = (work, folder) => {
+  git(work, 'rm', '-r', '-q', folder);
   git(work, 'commit', '-q', '-m', 'Remove the s3-storage tickets');
   git(work, 'checkout', '-q', 'main');
   git(work, 'merge', '-q', '--no-ff', '-m', 'Merge s3-storage', 's3-storage');
@@ -328,6 +331,49 @@ gitTest('tickets: a dependency that left merge_into with a revert of its merge i
   const out = run(work, 'tickets', 'PROJ-9');
   assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — to do');
   assert.ok(out.includes('  depends: PROJ-1 not found'), out.join('\n'));
+});
+
+gitTest('tickets: a dropped dependency is found in history under a folder or name with non-ASCII letters', () => {
+  const work = droppedDependency('done', dropThenMerge, { folder: 'плани/s3-storage', name: 'PROJ-1-завантаження.md' });
+  assert.ok(run(work, 'tickets', 'PROJ-9').includes('  depends: PROJ-1 done'));
+});
+
+gitTest('tickets: a dropped dependency is found in history from a project in a sub-folder', () => {
+  const work = droppedDependency('done', dropThenMerge, { sub: 'app' });
+  const out = run(work, 'tickets', 'PROJ-9');
+  assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — next');
+  assert.ok(out.includes('  depends: PROJ-1 done'), out.join('\n'));
+});
+
+gitTest('tickets: a ticket kept on this machine sees a dropped dependency in history', () => {
+  const work = droppedDependency('done', dropThenMerge);
+  write(work, `${LOCAL}/pdf-report/tickets/PROJ-20-a.md`, ticket('PROJ-20', { feature: 'pdf-report', depends: ['PROJ-1'] }));
+  const out = run(work, 'tickets', 'PROJ-20');
+  assert.equal(line(out, 'PROJ-20'), '  PROJ-20 Ticket PROJ-20 — next');
+  assert.ok(out.includes('  depends: PROJ-1 done'), out.join('\n'));
+});
+
+gitTest('tickets: a dependency found done in history counts only for dependents with that merge_into', () => {
+  const work = droppedDependency('done', (w, folder) => {
+    git(w, 'branch', '-q', 'release-1', 'main');
+    git(w, 'push', '-q', 'origin', 'release-1');
+    dropThenMerge(w, folder);
+  }, { dependents: { [file(30, 'tickets/rel-fixes')]: ticket('PROJ-30', { feature: 'rel-fixes', mergeInto: 'release-1', depends: ['PROJ-1'] }) } });
+  assert.ok(run(work, 'tickets', 'PROJ-9').includes('  depends: PROJ-1 done'));
+  const out = run(work, 'tickets', 'PROJ-30');
+  assert.equal(line(out, 'PROJ-30'), '  PROJ-30 Ticket PROJ-30 — to do');
+  assert.ok(out.includes('  depends: PROJ-1 not found'), out.join('\n'));
+});
+
+gitTest('tickets: a revert of a commit that is not a merge is passed over for the older deletion', () => {
+  const work = droppedDependency('done', (w, folder) => {
+    dropThenMerge(w, folder);
+    commit(w, 'Restore old notes', { [`${folder}/PROJ-1-t1.md`]: ticket('PROJ-1', { status: 'done' }) });
+    git(w, 'revert', '--no-edit', 'HEAD');
+  });
+  const out = run(work, 'tickets', 'PROJ-9');
+  assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — next');
+  assert.ok(out.includes('  depends: PROJ-1 done'), out.join('\n'));
 });
 
 gitTest('tickets: a project in a sub-folder of its repository reads the branches too', () => {
