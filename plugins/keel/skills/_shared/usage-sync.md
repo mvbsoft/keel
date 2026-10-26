@@ -21,8 +21,8 @@ calling command gives it). Run each command exactly as written (preflight.md).
      or paste the files); when it succeeded, at once run
      `node "<keel>/scripts/usage.js" ack --batch <n>` (the last ack closes the sync);
    - a batch refused because a document changed → `ArtifactData get` that document, then run
-     `prepare` again with `--version <collection>/<doc_id>=<its version>` and write again (once; batches
-     already acked are not sent again; if it fails again, run
+     the same `prepare` again, plus `--version <collection>/<doc_id>=<its version>` and write again
+     (once; batches already acked are not sent again; if it fails again, run
      `node "<keel>/scripts/usage.js" ack --batch <n> --failed <doc_id>` and say the sync is incomplete);
      refused because the document does not exist (the page was cleared from another machine) → the same,
      with `--version <collection>/<doc_id>=0` (it is created anew).

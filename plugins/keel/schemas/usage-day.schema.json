@@ -93,7 +93,7 @@
       }
     },
     "keel": {
-      "description": "keel task data when the session ran a keel task; null otherwise.",
+      "description": "keel fields an end step recorded (end-task, end-session, end-planning); null when none did.",
       "type": ["object", "null"],
       "additionalProperties": false,
       "properties": {

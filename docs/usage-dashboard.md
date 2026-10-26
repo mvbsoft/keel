@@ -165,8 +165,8 @@ on the machine, in all its projects, because the plan limits count them all and 
 them; they hold no session id, project or request text. Everything per session goes only for keel
 sessions: a session in which you ran `/keel:start-task`, `/keel:end-task`, `/keel:start-session`,
 `/keel:end-session`, `/keel:start-planning` or `/keel:end-planning`; a session that ran
-`/keel:end-planning` shows "planning: <feature name>" in the Task column. A conversation without keel
-shows up only in the hourly totals.
+`/keel:end-planning` shows "planning: <feature name>" in the Task column (when previews are on). A
+conversation without keel shows up only in the hourly totals.
 
 - the machine name, your git email (to tell machines and people apart) and the machine's
   `wallet_default`;
@@ -219,10 +219,10 @@ above. A machine's own `artifact_url` always wins: a machine that has one keeps 
   usage in those days;
 - the machines and the calibration documents, and the size in KB.
 
-And what it affects: the page is empty until the next `/keel:end-task` or `/keel:end-session`; the data is
-gone for every machine and everyone the page is shared with; it cannot be undone, because keel keeps no
-copy of the page. You answer "Delete all data on the page?"; "No, keep it" is the first option, and only
-an explicit yes deletes. Claude Code also asks you to approve each delete call.
+And what it affects: the page is empty until the next `/keel:end-task`, `/keel:end-session` or
+`/keel:end-planning`; the data is gone for every machine and everyone the page is shared with; it cannot be
+undone, because keel keeps no copy of the page. You answer "Delete all data on the page?"; "No, keep it" is
+the first option, and only an explicit yes deletes. Claude Code also asks you to approve each delete call.
 
 After the deletes this machine starts over: its next sync sends only what happens after the clear, not the
 old history. Its local logs, limit records and calibration stay, so the cost report and the limit

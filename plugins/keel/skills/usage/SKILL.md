@@ -16,8 +16,8 @@ This machine's usage settings:
 Use only the `artifact_url` line above; run nothing else and read nothing.
 - A URL (or `not set` with approved project urls: the first of them) → give it as a link on its own
   line, then one line: the page shows what every session cost, by participant, model and request,
-  from every machine, and keel adds to it at each `/keel:end-task` and `/keel:end-session`. Then open
-  it with the Artifact tool (`action: open`, that `url`) when you have that tool; otherwise say to open
-  the link in a browser (in the terminal, `/artifacts` lists it too).
+  from every machine, and keel adds to it at each `/keel:end-task`, `/keel:end-session` and
+  `/keel:end-planning`. Then open it with the Artifact tool (`action: open`, that `url`) when you have
+  that tool; otherwise say to open the link in a browser (in the terminal, `/artifacts` lists it too).
 - `not set` and no approved urls → say this machine has no usage page yet and `/keel:configure usage`
   sets it up (it also finds a page made on another machine of the same account).
