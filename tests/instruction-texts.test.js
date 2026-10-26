@@ -541,6 +541,8 @@ test('start-task: each ticket state has its answer; waiting is never free, done 
   assert.match(p, /a `depends:` ticket `waiting for merge into the feature branch`, or one of another feature that is\s+not done → ask: start from that ticket's branch \/ wait for its merge \/ start anyway/);
   assert.match(p, /`done` → say so; start it again only on a yes/);
   assert.match(p, /a `depends:` ticket of the same feature `to do`, `in progress` or `not found` → say which, and\s+ask: start anyway \/ take the next ticket/);
+  // A squash merge after the tickets were removed leaves no ticket file in merge_into's history.
+  assert.match(p, /`not found` of a finished feature may be one merged\s+with squash after its tickets were removed/);
 });
 
 test('start-task: a ticket\'s task id is its key exactly; its feature branch comes first; the task file names the right base', () => {
