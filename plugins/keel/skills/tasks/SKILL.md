@@ -50,7 +50,8 @@ Current state of this project:
      manual: give the commands), else the task is still listed from that branch; the user also
      removes that branch → no commit (the folder goes with it). Then switch back to the branch the
      user was on;
-   - the branch → `node "<keel>/scripts/git-flow.js" "<project>" delete-branch --name <branch>`, with
+   - the branch, only when the task's `branch` differs from its `base` (a planned ticket's shared
+     feature branch is never offered) → `node "<keel>/scripts/git-flow.js" "<project>" delete-branch --name <branch>`, with
      `--remote` when it was pushed (it refuses the main branch and the current one: switch away
      first; its `deleted:` line says how to bring the local branch back);
    - changes already in the base branch → only `git revert` of the named commits (after the user's

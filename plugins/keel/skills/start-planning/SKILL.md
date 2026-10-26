@@ -41,6 +41,8 @@ Current state of this project:
      (an idea, a link, a file or your own words);
    - a draft's exact name → continue it (step 6);
    - a link or a file → a new feature from it (step 5);
+   - a single name with no draft → `plans.js tickets <it>` first: it lists tickets → an exported
+     feature (below); `tickets: none ...` → the next case;
    - other words → `plans.js find <words>`: `find: 1 match` → "Continue `<f>`?"; several → show them
      and ask which; `find: no match` → show the drafts it lists (if any) and ask: one of these, or a
      new feature from these words? No drafts → "No draft matches, so this is a new feature. Right?"

@@ -79,7 +79,7 @@ Current state of this project:
    - The user declines (a non-interactive run denies it): that is the user's "no". Never run it again
      or another way. The task stays as it is (active, on its branch): skip steps 8 and 9; the report
      says the work is verified and the task stays active (go on, or run /keel:end-task again).
-   - Right after `task delete`, only when the verification passed (gates green, no must item left;
+   - Right after `task delete` printed `deleted:`, only when the verification passed (gates green, no must item left;
      no verification is not a pass): `node "<keel>/scripts/plans.js" "<project>" done <id>` marks a
      planned ticket done in the same commit as its code. `done: <KEY> (<path>)` or
      `done: <KEY> (already)` → go on; then `done: feature <f> complete (<n> tickets)` → git.md "End of
@@ -106,7 +106,9 @@ Current state of this project:
    Any `restored:` line, or that manual `task restore`, after step 7 marked a ticket done → also
    `node "<keel>/scripts/plans.js" "<project>" done <id> --undo` (the ticket is `todo` again).
    The user commits by hand (manual git, or declines keel's commit) after step 7 marked a ticket
-   done → one line: "The ticket file <path> is marked done: commit it with the code."
+   done → one line: "The ticket file <path> is marked done: commit it with the code." (not for a
+   ticket under `.keel/local/`: it is outside git); with `done: feature <f> complete` also "Feature
+   <f> is complete; /keel:tasks offers its end once you have committed and pushed."
 9. Hand off: `node "<keel>/scripts/notes.js" "<project>" task deactivate --session <sid>`.
 10. Run `node "<keel>/scripts/cleanup.js" "<project>" reminder`; its line goes into the report only
     when it names `/keel:cleanup`.
