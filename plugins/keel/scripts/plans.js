@@ -1,10 +1,11 @@
 'use strict';
 // keel's planning drafts (/keel:start-planning, /keel:end-planning): one folder per feature, on this
 // machine (.keel/local/plans/keel/<feature>/) or in the repository (<draft_dir>/<feature>/), as the
-// planning settings say (lib/plans.js). Writes only the draft files, the exported tickets, the settings
-// and the chat marks; an abandoned or exported draft on this machine goes to keel's trash. git beyond
-// reading runs only in export (a fetch, not confirmed), commit and push (lib/plans-export.js); Claude
-// Code confirms each commit and push (hooks/own-files.js).
+// planning settings say (lib/plans.js). Writes only the draft files, the exported tickets (and their
+// status), the settings and the chat marks; an abandoned or exported draft on this machine and a dropped
+// feature folder go to keel's trash. git beyond reading runs only in export and `tickets --fetch` (a
+// fetch, not confirmed), commit and push (lib/plans-export.js); Claude Code confirms each commit and
+// push (hooks/own-files.js). The state of exported tickets: lib/plans-state.js.
 // The result is the first output line; a refusal is `plans: <command> refused (<why>)`. Exit code 0.
 // Usage: node plans.js <projectDir> <command>
 //   list                                  the drafts: feature, state, open questions, tickets, last change
@@ -13,9 +14,12 @@
 //   new <feature>                         a draft folder with plan.md (status draft); refused for an invalid
 //                                         or taken name
 //   ticket <feature> --title <t> [--slug <english-words>] [--depends T1,T2]
-//                                         tickets/T<n>-<slug>.md; T-numbers are never reused
+//                                         tickets/T<n>-<slug>.md; T-numbers are never reused. An exported
+//                                         feature: <KEY>-<slug>.md in its folder with the next key (as
+//                                         export gives them), status todo, --depends K1,K2
 //   check <feature>                       the structure: sections, acceptance criteria, no TBD or <...>, the
-//                                         files Where to look names exist, depends_on valid, no cycles
+//                                         files Where to look names exist, depends_on valid, no cycles; an
+//                                         exported feature: its tickets, depends_on are keys
 //   review <feature>                      per ticket: never reviewed, changed since review, unchanged
 //   reviewed <feature> <T1> [T2...]       record the tickets' review hashes after their review
 //   state <feature> <draft|ready|exported|abandoned>   move the plan; ready needs a clean check, no open
@@ -31,19 +35,33 @@
 //                                         across the repository (export, export_dir, prefix settings); all
 //                                         or nothing
 //   commit <feature>                      the feature's planning files into git on the current branch (keys
-//                                         checked again, taken ones renumbered); never on the main branch
+//                                         checked again, taken ones renumbered), also a feature folder
+//                                         removed by drop; never on the main branch
 //   push <feature>                        the current branch to the remote after the same key check
+//   tickets [<feature> | <KEY>] [--fetch] the exported tickets' state: no argument, every feature with a
+//                                         ticket not done; one feature (and its branch); one key (and
+//                                         its file and dependencies); `next:` the ticket to take next.
+//                                         --fetch: git fetch --prune first
+//   done <KEY> [--undo]                   status done (--undo: todo) in the working tree's ticket with that
+//                                         key; says when every ticket of its feature is done
+//   drop <feature>                        a feature whose every ticket is done: its folder to keel's trash
+//                                         (a repository folder only off the branch it merges into; then
+//                                         commit <feature>)
 //   settings                              the planning settings (.keel/local/plans/keel/settings.json)
 //   settings set [--language <l>] [--draft pc|repo] [--draft-dir <dir>] [--export pc|repo]
 //                [--export-dir <dir>] [--prefix <PROJ>]
-//   mark set <feature> --session <id>     this chat plans the feature
+//   mark set <feature> --session <id>     this chat plans the feature: a draft, or an exported feature
+//                                         whose folder is in the working tree (the mark keeps the folder)
 //   mark get --session <id>               the feature this chat plans, or none
 //   mark clear --session <id>             this chat plans nothing
 const path = require('node:path');
 const { parseArgs } = require('./lib/project.js');
 const plans = require('./lib/plans.js');
 
-const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, set, stale, report, export, commit, push, settings, mark';
+const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, set, stale, report, export, commit, push, tickets, done, drop, settings, mark';
+
+// A flag followed by a word takes it as its value (lib/project.js): `done --undo PROJ-1` names PROJ-1.
+const flagged = (pos, opts, flag) => ({ on: opts[flag] !== undefined, arg: pos[2] ?? (typeof opts[flag] === 'string' ? opts[flag] : undefined) });
 
 function run(root, pos, opts) {
   const command = pos[1] || 'list';
@@ -62,6 +80,9 @@ function run(root, pos, opts) {
   if (command === 'export') return require('./lib/plans-export.js').exportFeature(root, feature);
   if (command === 'commit') return require('./lib/plans-export.js').commitFeature(root, feature);
   if (command === 'push') return require('./lib/plans-export.js').pushFeature(root, feature);
+  if (command === 'tickets') { const f = flagged(pos, opts, 'fetch'); return require('./lib/plans-state.js').ticketsCommand(root, f.arg, { fetch: f.on }); }
+  if (command === 'done') { const f = flagged(pos, opts, 'undo'); return require('./lib/plans-state.js').doneCommand(root, f.arg, f.on); }
+  if (command === 'drop') return require('./lib/plans-state.js').dropCommand(root, feature);
   if (command === 'settings') {
     if (!pos[2]) return plans.settingsShow(root);
     if (pos[2] !== 'set') return [`plans: unknown settings command "${pos[2]}" (set)`];
