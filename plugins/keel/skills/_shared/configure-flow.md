@@ -39,7 +39,9 @@ Section 0 says what each answer runs.
   and only after `safe-command.js` says `safe` and the user agreed.
 - Temporary files go to `<project>/.keel/local/tmp/`.
 - Run keel's scripts exactly as written here, one plain command each (no `;`, `&&`, pipes or
-  redirections): keel lets these run without a permission prompt. Do not explore the plugin folder.
+  redirections): keel lets these run without a permission prompt. In Bash, write a path that starts
+  with `\\` (a network or WSL share) with forward slashes: `//server/share/...`. Do not explore the
+  plugin folder.
 - A keel script refused by a project hook (a reason that does not start with `keel:`): follow
   "A keel script refused by a project hook" in `<keel>/skills/_shared/preflight.md`.
 - **Where each setting lives.** Every question names it in plain words:

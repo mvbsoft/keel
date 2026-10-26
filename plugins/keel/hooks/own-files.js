@@ -6,7 +6,8 @@
 //   operators or characters a shell would expand (~ included; inside quotes only $ and ` count), on
 //   the current project: the first argument must be the project folder itself, as an absolute path
 //   (a relative one is resolved from the shell's folder, a sub-folder may hold another project's
-//   .keel), and for Bash no unquoted backslash (bash drops it, so the script would get another path).
+//   .keel), and for Bash no unquoted backslash (bash drops it, so the script would get another path)
+//   and no double backslash (the Bash tool folds it into one; a network path is written //server/share).
 //   These scripts only read the project; some write their results under .keel/local/ (tmp/, last-verify.json, session-start.json)
 //   and nowhere else; notes.js `task` writes keel's task folders (.keel/tasks/, .keel/local/); the
 //   script touches only `.keel/tasks/<id>/` or `.keel/local/tasks/<id>/` for a validated id and refuses
@@ -133,7 +134,7 @@ const UNSAFE_BARE = /[(){}@*?[\]#;&|<>]/;
 const PS_PARAMETER = /^[-\u2013-\u2015](?![-\u2013-\u2015])/;
 // -> { words, bare } (bare: the words written without quotes), or null.
 function splitWords(text, bash) {
-  // Claude Code's Bash tool and bash fold a double backslash into one, even inside quotes, so a network
+  // Claude Code's Bash tool folds a double backslash into one, even inside single quotes, so a network
   // path such as \\server\share reaches the script as another folder; written //server/share it runs.
   if (UNSAFE.test(text) || /[\u0000-\u0008\u000a-\u001f\u007f-\u009f\u2028\u2029]/.test(text) || (bash && text.includes('\\\\'))) return null;
   const token = /[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"']+))(?=[ \t]|$)/y;
