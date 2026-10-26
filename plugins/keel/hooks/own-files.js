@@ -116,12 +116,13 @@ function destructive(name, pos, opts) {
 // accepted only in a list of numbers (`--items 1,2`), which cannot become a step name. Words split only
 // on spaces and tabs, as in bash: a special space is text inside quotes and refused outside them
 // (PowerShell splits on it). Control characters other than tab are refused anywhere (Windows
-// PowerShell 5.1 splits words on U+0085).
+// PowerShell 5.1 splits words on U+0085); U+2028 and U+2029 count as control characters here. A double
+// quote inside single quotes is refused: Windows PowerShell 5.1 passes it to node unescaped.
 const CURLY_QUOTES = /[‘-„]/;
 const UNSAFE = /[$`‘-„]|\\["' ]/;
 const UNSAFE_BARE = /[(){}@*?[\]#;&|<>]/;
 function splitWords(text, bash) {
-  if (UNSAFE.test(text) || /[\u0000-\u0008\u000a-\u001f\u007f-\u009f]/.test(text)) return null;
+  if (UNSAFE.test(text) || /[\u0000-\u0008\u000a-\u001f\u007f-\u009f\u2028\u2029]/.test(text)) return null;
   const token = /[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"']+))(?=[ \t]|$)/y;
   const out = [];
   while (token.lastIndex < text.length) {
@@ -129,7 +130,7 @@ function splitWords(text, bash) {
     const m = token.exec(text);
     // A shell expands ~ only in a bare word, at its start or after = or :; inside a word, as in a
     // Windows short name such as RUNNER~1, and inside quotes it is plain text.
-    if (!m || (m[3] && UNSAFE_BARE.test(m[3])) || (m[3] && m[3].includes(',') && !/^\d+(,\d+)*$/.test(m[3])) || (m[3] && /(^|[=:])~/.test(m[3])) || (bash && m[3] && m[3].includes('\\'))) return null;
+    if (!m || (m[2] !== undefined && m[2].includes('"')) || (m[3] && UNSAFE_BARE.test(m[3])) || (m[3] && m[3].includes(',') && !/^\d+(,\d+)*$/.test(m[3])) || (m[3] && /(^|[=:])~/.test(m[3])) || (bash && m[3] && m[3].includes('\\'))) return null;
     out.push(m[1] ?? m[2] ?? m[3]);
   }
   // PowerShell drops `--%` (stop-parsing) and, in Windows PowerShell 5.1, an empty argument before node
@@ -181,7 +182,7 @@ function gitFlow(pos, opts) {
   return null;
 }
 
-const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, curly quotes or control characters, and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
+const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, curly quotes, control characters or double quotes inside single quotes, a comma only between numbers (quote a list), and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
 
 // The decision for `node <keel>/scripts/<name> <args>`. Arguments are read with the scripts' own
 // parseArgs, so the step the hook judges is the step the script runs.
@@ -260,7 +261,7 @@ function main() {
       if (!mentionsKeel && stepElsewhere(cmd)) return decide('deny', ELSEWHERE);
       return mentionsKeel ? decide('deny', 'keel: run each keel script as its own plain command (no ;, &&, |, redirection, cd or shell variables) and read keel\'s files with the Read tool. Nothing ran; send the commands one by one.') : null;
     }
-    const m = /^node(?:\.exe)?\s+("([^"]+)"|'([^']+)'|(\S+))(\s.*)?$/.exec(cmd);
+    const m = /^node(?:\.exe)?\s+("([^"]+)"|'([^']+)'|(\S+))(\s.*)?$/s.exec(cmd);
     const bash = tool === 'Bash';
     const script = m && (m[2] || m[3] || m[4]);
     const name = script && script.replace(/\\/g, '/').split('/').pop();

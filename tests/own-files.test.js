@@ -11,7 +11,7 @@ const { spawnSync } = require('node:child_process');
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts').split(path.sep).join('/');
 
-function decide(tool, toolInput, env = {}, cwd = undefined) {
+function hook(tool, toolInput, env = {}, cwd = undefined) {
   const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_') && k !== 'KEEL_USAGE_DIR'));
   const r = spawnSync(process.execPath, [path.join(PLUGIN, 'hooks', 'own-files.js')], {
     input: JSON.stringify({ tool_name: tool, tool_input: toolInput }),
@@ -19,8 +19,9 @@ function decide(tool, toolInput, env = {}, cwd = undefined) {
     encoding: 'utf8',
     cwd,
   });
-  return r.stdout ? JSON.parse(r.stdout).hookSpecificOutput.permissionDecision : null;
+  return r.stdout ? JSON.parse(r.stdout).hookSpecificOutput : null;
 }
+const decide = (...args) => hook(...args)?.permissionDecision ?? null;
 const shell = (command, tool = 'Bash', env, cwd) => decide(tool, { command }, env, cwd);
 
 function project(git) {
@@ -250,9 +251,40 @@ test('words split only on spaces and tabs: a special space or control character 
       assert.equal(shell(cmd, tool, env), 'deny', `${tool}: ${JSON.stringify(cmd)}`);
     }
     // Inside quotes both shells keep a special space as text: a title copied from a tracker, French text.
-    for (const cmd of [`${n('plans.js')} ticket f1 --title "Fix\u00a0export"`, `${n('plans.js')} ticket f1 --title 'Prix\u202f: 10\u00a0€\u3000x'`, `${n('plans.js')} find стара оплата користувачів`]) {
+    for (const cmd of [`${n('plans.js')} ticket f1 --title "Fix\u00a0export"`, `${n('plans.js')} ticket f1 --title 'Prix\u202f: 10\u00a0€\u3000x'`]) {
       assert.equal(shell(cmd, tool, env), 'allow', `${tool}: ${JSON.stringify(cmd)}`);
     }
+    assert.equal(shell(`${n('plans.js')} find стара оплата користувачів`, tool, env), 'allow', `${tool}: words in other alphabets`);
+    // U+2028 counts as a control character, also inside quotes; refused with the plain form to use.
+    const out = hook(tool, { command: `${n('plans.js')} ticket f1 --title "a\u2028b"` }, env);
+    assert.equal(out?.permissionDecision, 'deny', `${tool}: U+2028 in a title`);
+    assert.match(out.permissionDecisionReason, /^keel: run keel's scripts as one plain command/, `${tool}: U+2028 in a title`);
+  }
+});
+
+test('a double quote inside single quotes is refused: Windows PowerShell 5.1 passes it to node unescaped', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  const n = (name) => `node "${SCRIPTS}/${name}" "${proj}"`;
+  for (const tool of ['Bash', 'PowerShell']) {
+    for (const cmd of [`${n('plans.js')} '"commit"' -m x`, `${n('plans.js')} '""push'`, `${n('plans.js')} --t 'a"' '"b' push`, `${n('plans.js')} 'push" "f1" "--a b'`,
+      `${n('cleanup.js')} '"empty-trash"' --all`, `${n('notes.js')} task '"drop"' t1`, `${n('notes.js')} task '"delete"' t1`, `${n('git-flow.js')} '"merge"'`]) {
+      assert.equal(shell(cmd, tool, env), 'deny', `${tool}: ${cmd}`);
+    }
+  }
+});
+
+test('a comma list of words reaches keel only quoted: PowerShell would pass a bare one as an array', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  const n = (name) => `node "${SCRIPTS}/${name}" "${proj}"`;
+  // end-session's commit of the tickets it marked done, as git.md runs it.
+  const commit = `${n('git-flow.js')} commit --message-file "${proj}/.keel/local/tmp/commit-message.txt" --tickets`;
+  for (const tool of ['Bash', 'PowerShell']) {
+    assert.equal(shell(`${n('plans.js')} ticket f1 --title "x" --depends T1,T2`, tool, env), 'deny', `${tool}: bare --depends`);
+    assert.equal(shell(`${n('plans.js')} ticket f1 --title "x" --depends "T1,T2"`, tool, env), 'allow', `${tool}: quoted --depends`);
+    assert.equal(shell(`${commit} K-1,K-2`, tool, env), 'deny', `${tool}: bare --tickets`);
+    assert.equal(shell(`${commit} "K-1,K-2"`, tool, env), null, `${tool}: quoted --tickets, left to the git mode (not confirmed here)`);
   }
 });
 

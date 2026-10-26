@@ -139,9 +139,11 @@ folders and the note move with git: [two ways of working](workflows.md#where-the
   prompt only with `--project`. Refused, with the plain form to use:
   - a command joined with shell operators (`;`, `&&`, `|`, redirection, `$(...)`, a line break) that
     names keel's folder;
-  - a keel script with `$`, a backquote, `~`, curly quotes or an unquoted backslash (Bash) in its
-    arguments, in Bash an unquoted backslash path to the script, or in PowerShell `--%` or an empty
-    argument (PowerShell would not pass them on as written);
+  - a keel script with `$`, a backquote, `~`, curly quotes, control characters, an unquoted backslash
+    (Bash), a special space (such as a non-breaking one) outside quotes, a double quote inside single
+    quotes or an unquoted comma list of anything but numbers in its arguments, in Bash an unquoted
+    backslash path to the script, or in PowerShell `--%` or an empty argument (PowerShell would not
+    pass them on as written);
   - a keel script command that holds the words of a step Claude Code must confirm (`delete`, `drop`,
     `empty-trash`, `merge`, `delete-branch`, `trust`) but does not read as that step;
   - a keel script run with `node`, `nodejs`, `bun` or `deno` in any other form (node options, `env`,
