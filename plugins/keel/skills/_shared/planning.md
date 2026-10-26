@@ -44,7 +44,8 @@ Its tickets live in the feature folder; work there continues while others may al
    (`branch: <b> -> <merge_into>`, each ticket's state and hint).
 2. The feature folder is not in this working tree (its tickets are on another branch: `plans.js mark
    set` refuses and names it) → ask "Switch to `<branch>`?"; yes →
-   `node "<keel>/scripts/git-flow.js" "<project>" switch --name <branch>` (`stopped` → its reason, wait),
+   `node "<keel>/scripts/git-flow.js" "<project>" switch --name <branch>` (the name without the remote
+   prefix: `origin/x` → `x`; `stopped` → its reason, wait),
    then the mark again; no → stop. The mark set prints `planning: <f> (exported: <folder>)`.
 3. Only `to do` (or `next`) tickets are edited: show each change and write it only on a yes. Then
    `plans.js check <f>` and a ticket review of the changed tickets ("Reviews" steps 3, 5 and 6 with

@@ -268,16 +268,21 @@ gitTest('sync on the base itself: pulls the shared branch, stops cleanly on a co
   assert.equal(git(work, 'status', '--porcelain'), '', 'the tree is clean again');
 
   git(work, 'switch', '-q', '-c', 'not-pushed');
+  // A feature branch never pushed, or no remote: nothing to pull, so a finish goes on with the push.
   out = flow(work, 'sync', '--from', 'not-pushed');
-  assert.equal(out[0], 'git-flow: stopped');
-  assert.equal(line(out, 'reason:'), 'reason: already on not-pushed, with no origin/not-pushed to pull; sync merges not-pushed into a task branch');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.equal(out[1], 'sync: nothing to pull (no origin/not-pushed)');
 
   const local = setup({ remote: false }).work;
-  assert.equal(line(flow(local, 'sync'), 'reason:'), 'reason: already on main, with no remote to pull; sync merges main into a task branch');
+  out = flow(local, 'sync');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.equal(out[1], 'sync: nothing to pull (no remote)');
 });
 
 gitTest('sync on the main branch pulls it only forward: local commits there stop it', () => {
   const { tmp, work, server } = setup();
+  // A team that wants explicit merges: still no merge commit on the main branch.
+  git(work, 'config', 'merge.ff', 'false');
   otherPush(server, tmp, 'docs/a.md', 'a\n', 'docs');
   let out = flow(work, 'sync');
   assert.equal(out[0], 'git-flow: ok', out.join('\n'));

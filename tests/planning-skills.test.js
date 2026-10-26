@@ -118,6 +118,10 @@ test('exported feature: its tickets\' state first, a switch to the branch that h
   before(ex, 'tickets <f>`', 'switch --name <branch>', 'the state is read first');
   assert.match(ex, /The feature folder is not in this working tree \(its tickets are on another branch: `plans\.js mark\s+set` refuses and names it\) → ask "Switch to `<branch>`\?"; yes →\s+`node "<keel>\/scripts\/git-flow\.js" "<project>" switch --name <branch>`/);
   before(ex, 'switch --name <branch>', 'then the mark again', 'the mark is set once the folder is here');
+  // The refusal may name a remote branch; git-flow.js switch takes a local name.
+  assert.match(ex, /\(the name without the remote\s+prefix: `origin\/x` → `x`;/);
+  // A chat already marked for an exported feature goes on with its tickets, not with the draft steps.
+  assert.match(start(), /continue\s+`<f>` \(step 6; an exported feature, told apart as in step 4: planning\.md "Exported feature" steps\s+3-6\)/);
   assert.match(ex, /Only `to do` \(or `next`\) tickets are edited: show each change and write it only on a yes/);
   before(ex, 'write it only on a yes', '`plans.js check <f>`');
   before(ex, '`plans.js check <f>`', 'a ticket review of the changed tickets', 'no reviewer runs on a broken structure');

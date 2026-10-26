@@ -25,7 +25,8 @@ Current state of this project:
    a person.) Run `node "<keel>/scripts/notes.js" "<project>" check --session <sid>` (no `--begin`:
    that record is for tasks), then `node "<keel>/scripts/plans.js" "<project>" mark get --session <sid>`:
    `planning: <f>` → this conversation already plans `<f>`: one conversation, one feature; continue
-   `<f>` (step 6), or end it with /keel:end-planning first.
+   `<f>` (step 6; an exported feature, told apart as in step 4: planning.md "Exported feature" steps
+   3-6), or end it with /keel:end-planning first.
 3. Read `<keel>/skills/_shared/planning.md`, sections "Rules" and "Work"; they hold for the whole
    command (an exported feature: also "Exported feature"). Run `plans.js settings`.
    `settings: none yet` → two questions, one per message: the

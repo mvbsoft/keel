@@ -534,6 +534,7 @@ test('start-task: each ticket state has its answer; waiting is never free, done 
   assert.match(p, /`reverted` → say "The branch\s+was merged once and that merge was reverted; merging it again brings nothing back: it needs a\s+revert of that revert, or new commits\."/);
   assert.match(p, /a `depends:` ticket `waiting for merge into the feature branch`, or one of another feature that is\s+not done → ask: start from that ticket's branch \/ wait for its merge \/ start anyway/);
   assert.match(p, /`done` → say so; start it again only on a yes/);
+  assert.match(p, /a `depends:` ticket of the same feature `to do`, `in progress` or `not found` → say which, and\s+ask: start anyway \/ take the next ticket/);
 });
 
 test('start-task: a ticket\'s task id is its key exactly; its feature branch comes first; the task file names the right base', () => {
@@ -544,6 +545,8 @@ test('start-task: a ticket\'s task id is its key exactly; its feature branch com
   order(p, 'switch --name <branch>', 'start --name <branch> --from <the ref that has the ticket>', 'an existing feature branch is switched to, a missing one created');
   order(p, 'start --name <branch> --from', 'Push `<branch>`', 'a new branch is offered to push at once, so others see the ticket is taken');
   assert.match(p, /ticket is taken\?" \(yes → `git-flow\.js push`\)/);
+  // `file: origin/main:path` names a remote ref; git-flow.js start --from takes a branch name.
+  assert.match(p, /\(the `file:` ref without the remote prefix: `origin\/x` → `x`; a working-tree `file:`: the current\s+branch\)/);
   assert.match(p, /A ticket branch \(rare: the user asks for one\) →\s+`<KEY>-<short-name>`, always from the feature branch/);
   assert.match(p, /on the feature branch `branch` = `base` = the feature branch and\s+`merge_into` = the ticket's `merge_into`; on a ticket branch `branch` = it and `base` = `merge_into`\s+= the feature branch/);
   assert.match(intake, /A planned ticket: its\s+branch options are in "Planned ticket" below/, 'step 6 hands the branch choice over');
@@ -571,7 +574,11 @@ test('end-task: a planned ticket is marked done right after the folder deletion,
   assert.match(text, /Right after `task delete`, only when the verification passed \(gates green, no must item left;\s+no verification is not a pass\)/);
   assert.match(text, /`done: feature <f> complete \(<n> tickets\)` → git\.md "End of\s+feature" after the push/);
   assert.match(text, /`done: none \(no ticket <KEY> here\)` → `plans\.js tickets <id>`:\s+`tickets: none \.\.\.` → not a ticket, go on; else warn[\s\S]{0,120}put the task back[\s\S]{0,80}task restore <id> --session <sid>`\) and stop before git/);
-  assert.match(text, /Red verification or a\s+hand off → no `plans\.js done` call/);
+  assert.match(text, /Red verification or a hand off → no\s+`plans\.js done` call/);
+  // A slug id is no key: plans.js refuses it, and that only means the task is not a ticket.
+  assert.match(text, /`plans: done refused \(invalid key \.\.\.\)` → the id is no key, not a ticket: go\s+on/);
+  assert.match(text, /Any other `plans: done refused \(\.\.\.\)` \(e\.g\. two files with the key\) → warn with its reason,\s+put the task back the same way and stop before git/);
+  assert.match(read('scripts', 'lib', 'plans-state.js'), /invalid key "/, 'plans.js done refuses a slug with "invalid key"');
 });
 
 test('end-task: a task put back puts its ticket back to todo; a hand-made commit is reminded of the ticket file', () => {
@@ -599,6 +606,8 @@ test('end-session: a passed full verification marks the finished planned tickets
   order(six, 'done <KEY>`', '`--tickets <those keys>`', 'the keys marked done are the ones committed');
   assert.match(six, /so their ticket files go into the commit/, 'git-flow.js commit leaves planning files out unless named');
   assert.match(six, /Gates only or red → no `plans\.js done` call/);
+  assert.match(six, /A git step\s+that stops after these calls → `plans\.js done <KEY> --undo` for each/);
+  assert.match(six, /manual git → one line: "The ticket files <paths> are marked done: commit them with the code\."/);
   assert.match(six, /`done: feature <f> complete \(<n> tickets\)`\s+→ git\.md "End of feature" after the push/);
   order(text, 'verify.md', 'done <KEY>`', 'done only after the verification');
 });
@@ -612,6 +621,10 @@ test('start-session: a feature\'s planned tickets become the Plan, their keys th
   assert.match(row, /one ⬜ step each \(`<KEY> <title>`\); `keys` = those keys \(each must give `lane: none`\)/);
   assert.match(row, /`branch` and `base` = the feature branch/);
   assert.match(row, /Tickets `in progress` or `waiting for \.\.\.` are listed with their hints and the user decides/);
+  assert.match(row, /each after the tickets it depends on \(`plans\.js tickets <KEY>` prints its `depends:` line; the feature view does not\)/);
+  // The note is tracked: a switch needs a clean tree, so the branch comes before the note.
+  assert.match(row, /on yes the branch first, then write the note \(a switch needs a clean tree\)/);
+  assert.match(row, /missing: `start --name <b> --from <the ref that has the tickets>`; refs without the remote prefix: `origin\/x` → `x`\); manual: give `git switch <b>` and wait/);
   const h = shared('handoff.md');
   order(h, '+ a feature\'s name or folder', '| no note (or `status: done`) + a description |', 'a feature name is tried before it is read as a description');
   assert.match(skill('start-session'), /a feature's planned tickets/);
@@ -628,7 +641,8 @@ test('/keel:tasks: a Planned block after the tasks, the data date, the next key 
 
 test('git.md: a ticket on its feature branch: no start, the shared branch pulled, never merged before the feature is complete', () => {
   const git = shared('git.md');
-  assert.match(git, /\*\*A planned ticket on its feature branch\*\* \(the task's `branch` is its `base`, the feature branch;[\s\S]{0,80}\): no `start`, `sync` pulls the shared branch, then `push`/);
+  // A session over a feature has the same branch = base and no single task id.
+  assert.match(git, /\*\*A planned ticket on its feature branch\*\* \(a task or a session over a feature: the task file's or\s+the note's `branch` equals its `base`, and `plans\.js tickets <the task id or a key of the note>`\s+prints `branch: <that branch> -> <merge_into>`\): no `start`, `sync` pulls the shared branch, then\s+`push`/);
   assert.match(git, /feature branch is never merged, also when `git\.ask_before_merge` is false or the instruction asks/, 'overrides ask_before_merge: false');
   assert.match(git, /only "End of feature" below merges\s+it, after `done: feature <f> complete` and a yes/);
   assert.match(git, /A ticket branch\s+\(`base` = `merge_into` = the feature branch\) merges into the feature branch like any task/);
@@ -652,16 +666,27 @@ test('git.md: the hand off of a ticket on a shared feature branch asks three opt
 test('git.md: the end of a feature says so, then asks one step at a time; the feature branch is the one other branch keel deletes', () => {
   const git = shared('git.md');
   const end = part(git, '## End of feature', '## Never');
-  assert.match(end, /After `done: feature <f> complete \(<n> tickets\)` and the push \(both git modes: each step runs only on\s+its own yes/);
-  assert.match(end, /say "Feature <f> is complete: all <n> tickets done\." Then one\s+question at a time/);
+  assert.match(end, /After `done: feature <f> complete \(<n> tickets\)` and the push, or offered by `\/keel:tasks` \(both git\s+modes: each step runs only on its own yes/);
+  assert.match(end, /say "Feature <f> is complete:\s+all <n> tickets done\."[\s\S]*Then one question\s+at a time/);
+  // The branches come from the tickets, not from a ticket branch's task file (base = the feature branch).
+  assert.match(end, /`<branch>` and `<merge_into>` come from the `branch: <b> -> <m>` line of\s+`node "<keel>\/scripts\/plans\.js" "<project>" tickets <f>`, never from the task file/);
+  const zero = part(end, '0. Onto `<branch>`.', '1. The tickets');
+  assert.match(zero, /On the ticket branch the last ticket finished on → first\s+its usual merge into `<branch>` \(step 6; it leaves you on `<branch>`\); declined or refused → say the\s+feature waits for that merge and stop here/);
+  assert.match(zero, /Anywhere else \(e\.g\. the main branch\) → "Switch to\s+`<branch>`\?" → `switch --name <branch>`/, 'from /keel:tasks keel is usually on the main branch, where drop refuses');
+  order(end, '0. Onto `<branch>`.', 'drop <f>`', 'on the feature branch before anything is dropped or committed');
+  // Only a merge that really happened lets the branch go; git-flow.js merge prints that line.
+  assert.match(end, /3\. Only after step 2 printed `merge: <branch> -> <merge_into> \(<sha>\)`/);
+  assert.match(end, /A declined or refused merge, or a pull request instead →\s+no step 3: say the branch stays/);
+  assert.match(read('scripts', 'git-flow.js'), /`merge: \$\{source\} -> \$\{target\} \(\$\{merged\}\)`/);
   assert.match(end, /keep them \(default\) or delete them/);
   order(end, 'plans.js" "<project>" drop <f>`', 'plans.js" "<project>" commit <f>`', 'the folder leaves in its own commit');
   assert.match(end, /`drop: <folder> -> trash <batch>`/);
   assert.match(end, /in its own commit on the feature branch, before the merge\s+\(keel never commits on the main branch\)/);
   order(end, 'commit <f>`', '"Merge `<branch>` into `<merge_into>`?"', 'the tickets leave before the merge');
   order(end, '"Merge `<branch>` into `<merge_into>`?"', 'delete-branch --name <branch>', 'the branch goes last');
-  assert.match(end, /`switch --name <merge_into>`, then\s+`node "<keel>\/scripts\/git-flow\.js" "<project>" delete-branch --name <branch>`/);
-  assert.match(part(git, '## Never'), /which Claude Code confirms\), except the feature branch in "End of\s+feature" above, on its yes/);
+  // The merge leaves keel on merge_into (`now on:`), so the feature branch is not the current one.
+  assert.match(end, /\(it leaves you on\s+`<merge_into>`\): "Delete the branch `<branch>`\?" →\s+`node "<keel>\/scripts\/git-flow\.js" "<project>" delete-branch --name <branch>`/);
+  assert.match(part(git, '## Never'), /which Claude Code confirms\), except the feature branch in "End of\s+feature" above and the task's own branch in intake\.md "Task to planning", each on its yes/);
   for (const name of ['end-task', 'end-session']) assert.match(skill(name), /git\.md "End of\s+feature"/, `${name} leads to the end of a feature`);
 });
 
@@ -669,7 +694,8 @@ test('git advice: keys are allowed inside ticket files; a planned ticket works o
   const advice = read('skills', 'git', 'SKILL.md');
   assert.match(advice, /Ticket\s+files themselves \(front matter `type: ticket` or `type: feature`\) may hold keys/);
   assert.match(advice, /A planned\s+ticket \(a file with `type: ticket`\) works on its feature branch \(its `branch:` field\), not from the\s+main branch/);
-  assert.match(shared('git.md'), /Keys inside ticket files \(front matter `type: ticket` or `type: feature`\) are allowed/);
+  // A rule about what files may hold, not about commit messages: it lives with the comment rule only.
+  assert.doesNotMatch(shared('git.md'), /Keys inside ticket files/);
 });
 
 test('every plans.js output line the task and session instructions quote is printed by the scripts', () => {

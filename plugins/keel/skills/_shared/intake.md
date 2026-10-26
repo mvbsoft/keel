@@ -237,12 +237,15 @@ from git (0 tokens). Each call is `node "<keel>/scripts/plans.js" "<project>" ti
      revert of that revert, or new commits.";
    - a `depends:` ticket `waiting for merge into the feature branch`, or one of another feature that is
      not done → ask: start from that ticket's branch / wait for its merge / start anyway;
+   - a `depends:` ticket of the same feature `to do`, `in progress` or `not found` → say which, and
+     ask: start anyway / take the next ticket;
    - `done` → say so; start it again only on a yes.
 3. **Branch** (step 6's options for a ticket), "Before any branch change" first: the ticket's
    `branch:` (its feature branch) is offered first. It exists (local or on the remote) →
    `node "<keel>/scripts/git-flow.js" "<project>" switch --name <branch>`; missing →
    `node "<keel>/scripts/git-flow.js" "<project>" start --name <branch> --from <the ref that has the ticket>`
-   (a working-tree `file:`: the current branch), then ask "Push `<branch>` now, so others see the
+   (the `file:` ref without the remote prefix: `origin/x` → `x`; a working-tree `file:`: the current
+   branch), then ask "Push `<branch>` now, so others see the
    ticket is taken?" (yes → `git-flow.js push`). A ticket branch (rare: the user asks for one) →
    `<KEY>-<short-name>`, always from the feature branch.
 4. **Task file** (step 7 item 2): on the feature branch `branch` = `base` = the feature branch and

@@ -706,10 +706,15 @@ gitTest('a teammate\'s clone with no planning settings finds the exported featur
   assert.equal(guard(mate, 'chat-1', 'features/payments/PROJ-9-x.md'), 'deny');
   assert.equal(guard(mate, 'chat-1', 'src/app.js'), 'deny');
   assert.deepEqual(run(mate, 'ticket', 's3-storage', '--title', 'Delete files'), ['created: features/s3-storage/PROJ-3-delete-files.md', 'ticket: PROJ-3'], 'the feature\'s own prefix; none is set here');
+  assert.deepEqual(run(mate, 'ticket', 's3-storage', '--title', 'Rename files'), ['created: features/s3-storage/PROJ-4-rename-files.md', 'ticket: PROJ-4'], 'the folder\'s uncommitted PROJ-3 counts');
   body(mate, 'features/s3-storage/PROJ-3-delete-files.md', TICKET_BODY('PROJ-3'));
-  assert.deepEqual(run(mate, 'check', 's3-storage'), ['check: clean (3 tickets in features/s3-storage/)']);
+  body(mate, 'features/s3-storage/PROJ-4-rename-files.md', TICKET_BODY('PROJ-4'));
+  assert.deepEqual(run(mate, 'check', 's3-storage'), ['check: clean (4 tickets in features/s3-storage/)']);
+  write(mate, 'features/s3-storage/PROJ-4-copy.md', readRel(mate, 'features/s3-storage/PROJ-4-rename-files.md'));
+  assert.deepEqual(run(mate, 'check', 's3-storage'), ['check: 1 problems', '- PROJ-4: duplicate key (2 files: PROJ-4-copy.md, PROJ-4-rename-files.md)']);
+  fs.rmSync(path.join(mate, 'features', 's3-storage', 'PROJ-4-copy.md'));
   assert.match(run(mate, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Update the s3-storage tickets$/);
-  assert.equal(git(mate, 'show', '--name-status', '--format=', 'HEAD'), 'A\tfeatures/s3-storage/PROJ-3-delete-files.md');
+  assert.deepEqual(git(mate, 'show', '--name-status', '--format=', 'HEAD').split('\n'), ['A\tfeatures/s3-storage/PROJ-3-delete-files.md', 'A\tfeatures/s3-storage/PROJ-4-rename-files.md']);
   assert.deepEqual(run(mate, 'push', 's3-storage'), ['pushed: s3-storage -> origin/s3-storage']);
 
   // The folder removed by hand: only HEAD's commit has it, so no branch is named.
@@ -717,9 +722,28 @@ gitTest('a teammate\'s clone with no planning settings finds the exported featur
   assert.match(run(mate, 'mark', 'set', 's3-storage', '--session', 'chat-2')[0], /^plans: mark set refused \(no draft "s3-storage"/);
   assert.match(run(mate, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Remove the s3-storage tickets$/);
   assert.deepEqual(git(mate, 'show', '--name-status', '--format=', 'HEAD').split('\n').sort(), [
-    'D\tfeatures/s3-storage/PROJ-1-ticket-1.md', 'D\tfeatures/s3-storage/PROJ-2-ticket-2.md', 'D\tfeatures/s3-storage/PROJ-3-delete-files.md', 'D\tfeatures/s3-storage/README.md',
+    'D\tfeatures/s3-storage/PROJ-1-ticket-1.md', 'D\tfeatures/s3-storage/PROJ-2-ticket-2.md', 'D\tfeatures/s3-storage/PROJ-3-delete-files.md',
+    'D\tfeatures/s3-storage/PROJ-4-rename-files.md', 'D\tfeatures/s3-storage/README.md',
   ]);
   assert.deepEqual(run(mate, 'mark', 'set', 's3-storage', '--session', 'chat-2'), ['plans: mark set refused (the tickets of s3-storage are not in this working tree; branch origin/s3-storage has them: switch to it first)']);
+});
+
+gitTest('a feature folder under a non-ASCII folder commits as "Update" once HEAD has its tickets; a branch with the feature folder at the top is named', () => {
+  const { work } = setup({ remote: false });
+  const ticket = (key) => `---\ntype: ticket\nkey: ${key}\nstatus: todo\nfeature: s3-storage\nbranch: s3-storage\nmerge_into: main\ndepends_on: []\n---\n\n${TICKET_BODY(key)}`;
+  write(work, 'плани/s3-storage/PROJ-1-client.md', ticket('PROJ-1'));
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  git(work, 'add', '-A');
+  git(work, 'commit', '-q', '-m', 'tickets');
+  assert.deepEqual(run(work, 'ticket', 's3-storage', '--title', 'Second one'), ['created: плани/s3-storage/PROJ-2-second-one.md', 'ticket: PROJ-2', 'fetch: no remote, skipped; keys from this clone only']);
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Update the s3-storage tickets$/);
+  // Another branch has csv-export/ at the top of the project.
+  git(work, 'checkout', '-q', '-b', 'csv-work', 'main');
+  write(work, 'csv-export/PROJ-5-rows.md', ticket('PROJ-5'));
+  git(work, 'add', '-A');
+  git(work, 'commit', '-q', '-m', 'csv');
+  git(work, 'checkout', '-q', 's3-storage');
+  assert.deepEqual(run(work, 'mark', 'set', 'csv-export', '--session', 'chat-1'), ['plans: mark set refused (the tickets of csv-export are not in this working tree; branch csv-work has them: switch to it first)']);
 });
 
 // --- the write guard ---
