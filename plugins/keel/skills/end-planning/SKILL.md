@@ -28,6 +28,10 @@ Current state of this project:
    later") → **A**; final words ("final", "done", "export the tickets") → **B**. No instruction →
    by the state: open questions (the `open Q` of `plans.js list`) or `check` problems → **A**, say why
    in one line; else ask "Final review and export, or hand over?". Ambiguous → ask, never guess.
+   **An exported feature** (its tickets in the feature folder; planning.md "Exported feature") → neither
+   mode: no plan gates and no plan review. `plans.js check <f>` (step 3) → `check: clean`, or fix its
+   problems with the user (each write on a yes); then the repository → planning.md "Commit and push"
+   (this machine: nothing to commit); then step 7.
 5. **A. Hand over.**
    1. Reviews of the changed tickets only: planning.md "Reviews", steps 1-3, 5 and 6 (no plan
       review). Nothing changed → no review.
@@ -64,7 +68,7 @@ Current state of this project:
 9. Report, one message in the conversation language, short: **Done** (mode, the plan's state, tickets,
    what changed); **Reviews** (found, fixed, deferred to Q, rejected; failed reviews named; or "no
    review: nothing changed"); **Git** (commit, branch, pushed or not; or nothing); **What next** (A:
-   "Continue with `/keel:start-planning <f>`: <Next action>"; B: the feature folder and "a ticket
-   starts with `/keel:start-task <KEY>`"; both: "/clear before other work keeps it apart and costs
-   less"); **Costs**: run usage-sync.md step 5 last and give its text as
+   "Continue with `/keel:start-planning <f>`: <Next action>"; B or an exported feature: the feature
+   folder and "a ticket starts with `/keel:start-task <KEY>`"; all: "/clear before other work keeps
+   it apart and costs less"); **Costs**: run usage-sync.md step 5 last and give its text as
    `<keel>/skills/_shared/final-report.md` block 5 says (read only that block).

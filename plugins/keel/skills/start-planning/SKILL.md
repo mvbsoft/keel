@@ -27,7 +27,8 @@ Current state of this project:
    `planning: <f>` → this conversation already plans `<f>`: one conversation, one feature; continue
    `<f>` (step 6), or end it with /keel:end-planning first.
 3. Read `<keel>/skills/_shared/planning.md`, sections "Rules" and "Work"; they hold for the whole
-   command. Run `plans.js settings`. `settings: none yet` → two questions, one per message: the
+   command (an exported feature: also "Exported feature"). Run `plans.js settings`.
+   `settings: none yet` → two questions, one per message: the
    tickets' language (default: its `language:` line), then where the draft lives: on this machine
    (default, outside git) or in the repository (folder `tickets`, or a ticket folder the project
    already has; colleagues see it through git). Save with
@@ -42,8 +43,10 @@ Current state of this project:
    - other words → `plans.js find <words>`: `find: 1 match` → "Continue `<f>`?"; several → show them
      and ask which; `find: no match` → show the drafts it lists (if any) and ask: one of these, or a
      new feature from these words? No drafts → "No draft matches, so this is a new feature. Right?"
-   A chosen plan that is `exported` → its tickets live in the feature folder; editing them is not part
-   of this command: say so and stop. `abandoned` → say so; another draft or a new feature.
+   A chosen plan that is `exported`, or a name `plans.js tickets <f>` lists tickets for (an exported
+   feature without a draft) → its tickets live in the feature folder: planning.md "Exported feature"
+   steps 1-2, then step 7, then its steps 3-6 as the work (not steps 5, 6 and 8). `abandoned` → say
+   so; another draft or a new feature.
 5. **New feature.**
    - Source: a link → its connector tool (names with `atlassian`/`jira`, `linear`, `asana`, `google`,
      `notion`...; load deferred tools first), GitHub `gh issue view <link> --json title,body,labels,comments`,
@@ -70,7 +73,8 @@ Current state of this project:
    tickets): the ticket list, open Q, Next action; and in `reviews/` the findings without a decision.
    Stale? `plans.js stale <f>`: show its `stale:` line as it is. A repository draft → planning.md
    "Branch hints". Then a summary in 3-6 lines and the Next action. A `ready` plan: any change makes it a draft again.
-7. `plans.js mark set <f> --session <sid>` → `planning: <f>`. Say in one line: this conversation now
+7. `plans.js mark set <f> --session <sid>` → `planning: <f>` (an exported feature:
+   `planning: <f> (exported: <folder>)`). Say in one line: this conversation now
    plans `<f>`; task and session commands wait for /keel:end-planning; no code changes here.
 8. Work as planning.md "Work" says, from the Next action (new: the first open question). When the user
    wants to stop: "/keel:end-planning hands over, or reviews and exports the tickets."

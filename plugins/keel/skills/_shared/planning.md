@@ -38,6 +38,25 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
 - More than about 15 tickets → offer to split the feature in two.
 - The user abandons the plan → confirm, then `plans.js state <f> abandoned` and say what its lines say.
 
+## Exported feature
+Its tickets live in the feature folder; work there continues while others may already build them.
+1. `node "<keel>/scripts/plans.js" "<project>" tickets <f>`: show its lines as printed
+   (`branch: <b> -> <merge_into>`, each ticket's state and hint).
+2. The feature folder is not in this working tree (its tickets are on another branch: `plans.js mark
+   set` refuses and names it) → ask "Switch to `<branch>`?"; yes →
+   `node "<keel>/scripts/git-flow.js" "<project>" switch --name <branch>` (`stopped` → its reason, wait),
+   then the mark again; no → stop. The mark set prints `planning: <f> (exported: <folder>)`.
+3. Only `to do` (or `next`) tickets are edited: show each change and write it only on a yes. Then
+   `plans.js check <f>` and a ticket review of the changed tickets ("Reviews" steps 3, 5 and 6 with
+   the feature folder; no `plans.js review` or `reviewed`, no `reviews/` record: the user decides each
+   finding in the chat).
+4. A ticket `in progress`, `waiting for ...` or `done` is never changed: offer a new ticket, or leave it
+   as it is; name whom it concerns (the branch and author of its hint).
+5. A new ticket: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends K1,K2]` →
+   `created: <path>` and `ticket: <KEY>` (the next key shared across the repository); fill it as
+   "Work" says, then step 3's check and review.
+6. Done → `/keel:end-planning` checks the folder and offers the commit and push.
+
 ## Project rules
 Grep `AGENTS.md`, `CLAUDE.md` and `CONTRIBUTING.md` for tickets, backlog, plans and branch names. A
 rule against keel or the user's choice (e.g. "no backlog in the repo" with tickets in the repository,
