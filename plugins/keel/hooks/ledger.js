@@ -68,9 +68,14 @@ function planning(project, session) {
 }
 
 // Where a keel agent's reply is saved: in a planning conversation its own folder, which the task
-// verification neither clears nor reads; else where the verification scripts read it.
+// verification neither clears nor reads; else where the verification scripts read it. A reply already in
+// the planning folder keeps it the place: in auto mode the report is handed back there, and end-planning
+// may clear the chat mark before this hook writes the agent's closing words.
 function replyParts(project, session, name, agentId) {
-  return planning(project, session) ? ['tmp', 'planning', session, `${name}-${agentId}.md`] : ['tmp', 'agents', `${name}-${agentId}.md`];
+  const own = ['tmp', 'planning', session, `${name}-${agentId}.md`];
+  if (planning(project, session)) return own;
+  const saved = require('../scripts/lib/ids.js').validSid(session) && fs.existsSync(path.join(project, '.keel', 'local', ...own));
+  return saved ? own : ['tmp', 'agents', `${name}-${agentId}.md`];
 }
 
 // Saves a keel agent's reply. keep: leave a saved reply as it is.
@@ -127,7 +132,7 @@ function main() {
 
   let file = String(input.agent_transcript_path || '');
   if (file.startsWith('~')) file = path.join(os.homedir(), file.slice(1));
-  if (type === 'keel:ticket-reviewer' && planning(project, session)) {
+  if (type === 'keel:ticket-reviewer' && replyParts(project, session, 'ticket-reviewer', agentId)[1] === 'planning') {
     try { saveSample(project, session, agentId, file); } catch { /* no transcript or reply: no sample */ }
   }
   let summary = { usage: null, model: null, requests: 0, estimated: false };

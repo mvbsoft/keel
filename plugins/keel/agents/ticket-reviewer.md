@@ -40,8 +40,9 @@ is under "Scope" in `<keel>/protocols/_search.md` (read only that part); mention
   "yes".
 
 ## Findings
-- At most 5 per ticket, the most important first. Every "no" has a finding; use `other` for a real
-  problem the checklist does not name.
+- At most 5 per ticket, the most important first. Every "no" has a finding, within that cap; a "no"
+  left without one is explained in its check's `note`. Use `other` for a real problem the checklist
+  does not name.
 - Each finding has evidence: a short quote of the ticket's words, and for code claims the `file:line`
   you found in `code` (or where you looked and found nothing, in `evidence`).
 - `fix` is the smallest change to the ticket text: a sharper criterion, a split, a named dependency.
@@ -79,6 +80,6 @@ Reply with one JSON object and nothing else (a ```json fence around it is fine).
 
 - `checks`: one entry per checklist item per reviewed ticket; `place` is the ticket (`T2`).
 - Ids are `ticket-reviewer-1`, `ticket-reviewer-2`, ... across all tickets of the call.
-- `status: "incomplete"` if you ran out of turns; name the tickets left in a `note`.
+- `status: "incomplete"` if you ran out of turns; name the tickets left in the top-level `note`.
 - Write `what`, `problem`, `fix` and `evidence` in the language the tickets are written in, in plain
   words; field names and check names stay as above. Paths relative to the project root.

@@ -12,6 +12,11 @@
       "description": "'incomplete' when the agent hit its turn cap.",
       "enum": ["complete", "incomplete"]
     },
+    "note": {
+      "description": "With status 'incomplete': what is left (the tickets or checks not done).",
+      "type": "string",
+      "minLength": 1
+    },
     "checks": {
       "description": "One answer per checklist item: per reviewed ticket for ticket-reviewer, for the plan for plan-reviewer.",
       "type": "array",
