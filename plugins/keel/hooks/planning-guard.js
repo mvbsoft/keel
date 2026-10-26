@@ -2,10 +2,11 @@
 // PreToolUse hook on Edit, Write, NotebookEdit, Bash and PowerShell: while the conversation plans a
 // feature (its chat mark, scripts/lib/plans.js), project files stay unchanged. Allowed: the feature's
 // draft folder, its exported feature folder in the repository (<export_dir>/<feature>/: export writes it
-// and the conversation edits the exported tickets), the planning settings, keel's working files in
-// .keel/local/tmp/, Claude Code's Plan Mode files in .keel/local/plans/claude/ (Plan Mode writes its plan
-// with Write and Edit) and anything outside the project (memory, temporary files). A safeguard against
-// slips, not a wall: shell commands are read with skill-hints.js shell(), which sees redirections,
+// and the conversation edits the exported tickets; also the folder plans.js mark set recorded in the chat
+// mark when it reopened an exported feature, wherever export_dir points), the planning settings, keel's
+// working files in .keel/local/tmp/, Claude Code's Plan Mode files in .keel/local/plans/claude/ (Plan
+// Mode writes its plan with Write and Edit) and anything outside the project (memory, temporary files).
+// A safeguard against slips, not a wall: shell commands are read with skill-hints.js shell(), which sees redirections,
 // sed -i, cp and mv and PowerShell's write cmdlets, but not rm, git checkout, node -e and the like;
 // keel's own scripts write only their own files.
 // Fails soft.
@@ -19,13 +20,15 @@ const within = (file, place) => fold(norm(file)) === fold(norm(place)) || fold(n
 
 // The places a planning conversation may write in the project. The feature's folder counts by its name
 // in both draft places and in the export folder, so a plan.md the conversation broke can still be fixed.
-function allowedPlaces(root, feature) {
+function allowedPlaces(root, feature, sid) {
   const local = path.join(root, '.keel', 'local');
   const plans = require('../scripts/lib/plans.js');
   const exported = plans.exportDir(root);
+  const marked = plans.markedFolder(root, sid);
   return [
     ...plans.draftDirs(root).map((d) => path.join(d.dir, feature)),
     ...(exported ? [path.join(exported, feature)] : []),
+    ...(marked ? [marked] : []),
     path.join(local, 'plans', 'keel', 'settings.json'),
     path.join(local, 'tmp'),
     path.join(local, 'plans', 'claude'),
@@ -57,7 +60,7 @@ function main() {
   if (!root || !validSid(sid) || !fs.existsSync(path.join(root, '.keel', 'local', 'plans', 'keel', 'sessions', `${sid}.json`))) return null;
   const feature = require('../scripts/lib/plans.js').planningMark(root, sid);
   if (!feature) return null;
-  const places = allowedPlaces(root, feature);
+  const places = allowedPlaces(root, feature, sid);
   const blocked = written(input.tool_name, input.tool_input || {}, input.cwd || root)
     .find((f) => within(f, root) && !places.some((p) => within(f, p)));
   if (!blocked) return null;

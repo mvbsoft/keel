@@ -14,7 +14,10 @@
 // - A draft on this machine goes to keel's trash once exported; one in the repository leaves with the
 //   commit of its tickets.
 // - Commit and push check the keys again: a key another ticket file took (on any branch or in the working
-//   tree) gets a new number while the ticket is not on a remote yet.
+//   tree) gets a new number while the ticket is not on a remote yet. A ticket folder HEAD has and the
+//   working tree no longer has (a dropped feature) is committed as its removal.
+// - An exported feature is reopened for editing (plans.js mark set, ticket, check) in its folder: a new
+//   ticket takes the next key the same way; depends_on are keys.
 // Claude Code asks before every commit and push (hooks/own-files.js).
 const fs = require('node:fs');
 const path = require('node:path');
@@ -138,6 +141,111 @@ function folderFiles(folder) {
   return names.map((name) => { const file = path.join(folder, name); const text = read(file) || ''; return { name, file, text, fm: frontmatter(text) }; });
 }
 const exportedTickets = (folder) => folderFiles(folder).filter((t) => t.fm.type === 'ticket' && t.fm.key);
+
+// --- the exported feature, reopened ---
+
+const KEY = /^[A-Z][A-Z0-9]+-\d+$/;
+
+// The folders among git's paths (from the project folder) that hold a ticket-named file
+// (<KEY>-<slug>.md) and are named after the feature, as absolute paths. The export_dir setting is this
+// machine's: a colleague's feature folder may be anywhere.
+function namedFolders(root, feature, paths) {
+  const named = new RegExp(`(?:^|/)${feature}/[A-Za-z][A-Za-z0-9]+-\\d+(?:-[^/]*)?\\.md$`);
+  const rels = [...new Set(paths.filter((p) => named.test(p)).map((p) => p.slice(0, p.lastIndexOf('/'))))].sort();
+  return rels.map((r) => path.join(root, ...r.split('/')));
+}
+const gitPaths = (root, args) => (readGit(root, [...args, '-z']) || '').split('\0').filter(Boolean);
+
+// The feature's exported tickets in the working tree: <export_dir>/<feature>/, this machine's
+// <base>/<feature>/tickets/, else any folder of the project named after the feature with a ticket-named
+// file git sees (committed or not, not ignored). null when none holds a ticket.
+function featureFolder(root, feature) {
+  const dir = plans.exportDir(root);
+  const found = (folder, local) => {
+    const list = exportedTickets(folder).sort((a, b) => byNumber(a.fm.key, b.fm.key));
+    return list.length ? { folder, local, list } : null;
+  };
+  const first = (dir && found(path.join(dir, feature), false)) || found(path.join(plans.base(root), feature, 'tickets'), true);
+  if (first) return first;
+  for (const folder of namedFolders(root, feature, gitPaths(root, ['ls-files', '-co', '--exclude-standard']))) {
+    const f = found(folder, false);
+    if (f) return f;
+  }
+  return null;
+}
+
+// A branch whose tree has the feature's ticket files (<KEY>-<slug>.md in a folder named after the
+// feature), or null: the feature's own branch first, then the local branches, then the remote's. A
+// branch at HEAD's commit is never named: switching to it changes nothing.
+function branchWith(root, feature) {
+  const head = readGit(root, ['rev-parse', '-q', '--verify', 'HEAD']);
+  const refs = (readGit(root, ['for-each-ref', '--format=%(objectname) %(refname)', 'refs/heads', 'refs/remotes']) || '').split('\n')
+    .map((l) => /^([0-9a-f]+) (refs\/(heads|remotes)\/(.+))$/.exec(l)).filter((m) => m && m[1] !== head && !(m[3] === 'remotes' && /\/HEAD$/.test(m[4])))
+    .map((m) => ({ sha: m[1], name: m[4], remote: m[3] === 'remotes' }))
+    .map((r) => ({ ...r, rank: ((r.remote ? r.name.slice(r.name.indexOf('/') + 1) : r.name) === feature ? 0 : 2) + (r.remote ? 1 : 0) }))
+    .sort((a, b) => a.rank - b.rank);
+  const has = new Map();
+  for (const r of refs) {
+    // The same commit is read once.
+    if (!has.has(r.sha)) has.set(r.sha, namedFolders(root, feature, gitPaths(root, ['ls-tree', '-r', '--name-only', r.sha])).length > 0);
+    if (has.get(r.sha)) return r.name;
+  }
+  return null;
+}
+
+// The keys no ticket file has: not in the feature, on a branch, in the working tree or in this
+// machine's feature folders.
+function missingKeys(root, keys, f) {
+  const own = new Set(f.list.map((t) => t.fm.key.toUpperCase()));
+  const rest = [...new Set(keys)].filter((k) => !own.has(k));
+  const valid = rest.filter((k) => KEY.test(k));
+  if (!valid.length) return rest;
+  const { taken } = keyCheck(root, valid, f.folder);
+  const names = fileNames(keyFolders(root, plans.settings(root))).map((n) => n.toUpperCase());
+  return rest.filter((k) => !KEY.test(k) || (!taken.has(k) && !names.some((n) => n === `${k}.MD` || n.startsWith(`${k}-`))));
+}
+
+// plans.js ticket on an exported feature: the next key of the feature's prefix (fetch, the highest
+// anywhere + 1), <KEY>-<slug>.md beside the others with a sibling's feature, branch and merge_into.
+function exportedTicket(root, feature, f, { title, slug, deps }) {
+  const what = 'ticket';
+  // The fetch first: a key the dependencies name may be on the remote only.
+  const git = fetched(root);
+  const depends = deps.map((x) => x.toUpperCase());
+  const unknown = missingKeys(root, depends, f);
+  if (unknown.length) return refuse(what, `--depends: no ticket ${unknown.map((x) => clean(x)).join(', ')}`);
+  const sibling = f.list[0];
+  const prefix = prefixOfKey(sibling.fm.key);
+  const key = `${prefix}-${highestKey(root, prefix, plans.settings(root), git.repo, git.notes) + 1}`;
+  const file = path.join(f.folder, `${key}-${slug}.md`);
+  if (fs.existsSync(file)) return refuse(what, `${rel(root, file)} exists`);
+  const t = plans.fromTemplate('ticket.md', {
+    type: 'ticket', key, status: 'todo', feature: sibling.fm.feature || feature, branch: sibling.fm.branch || '-',
+    merge_into: sibling.fm.merge_into || '-', depends_on: `[${depends.join(', ')}]`,
+  });
+  try { plans.writeFile(root, { local: f.local }, file, t.text(t.body.replace(/^# .*$/m, () => `# [${key}] ${title}`))); } catch (e) { return refuse(what, e.message); }
+  return [`created: ${rel(root, file)}`, `ticket: ${key}`, ...git.notes];
+}
+
+// plans.js check on an exported feature: each ticket's structure as in a draft, its key, status and
+// depends_on (keys of the feature or other existing ones), no cycles.
+function exportedProblems(root, f) {
+  const out = [];
+  const list = f.list.map((t) => ({ ...t, id: t.fm.key.toUpperCase(), deps: plans.ticketIds(t.fm.depends_on).map((x) => x.toUpperCase()) }));
+  const missing = new Set(missingKeys(root, list.flatMap((t) => t.deps.filter((x) => x !== t.id)), f));
+  for (const t of list) {
+    const upper = t.name.toUpperCase();
+    if (!upper.startsWith(`${t.id}-`) && upper !== `${t.id}.MD`) out.push(`${t.id}: the file name ${clean(t.name)} does not start with the key`);
+    if (!['todo', 'done'].includes(t.fm.status)) out.push(`${t.id}: status is "${clean(t.fm.status || '')}"; todo or done`);
+    out.push(...plans.ticketProblems(root, t.id, t.text));
+    for (const dep of t.deps) {
+      if (dep === t.id) out.push(`${t.id}: depends on itself`);
+      else if (missing.has(dep)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist`);
+    }
+  }
+  for (const c of plans.cycles(list.map((t) => ({ id: t.id, fm: { depends_on: t.deps.join(',') } })))) out.push(`dependency cycle: ${c}`);
+  return { out, count: list.length };
+}
 
 // What an export into the draft's own folder that did not finish left there: its tickets and overview.
 const leftovers = (d) => folderFiles(d.folder).filter((f) => (f.fm.type === 'ticket' && f.fm.feature === d.feature) || (f.fm.type === 'feature' && f.name === README));
@@ -271,15 +379,21 @@ function gitReady(root, what) {
 }
 
 // The feature's planning files in the repository: its draft there, its ticket folder and the exported
-// tickets in it. { why } when none of it belongs in git.
+// tickets in it, or the removal of a ticket folder HEAD has and the working tree no longer has.
+// { why } when none of it belongs in git.
 function featureFiles(root, feature, what) {
   if (!plans.validFeature(feature)) return { why: refuse(what, `invalid feature name "${clean(String(feature))}"`) };
   const drafts = plans.listDrafts(root).filter((d) => d.feature === feature);
   const draft = drafts.find((d) => !d.local) || null;
+  // The ticket folder as plans.js mark set, ticket and check find it, wherever export_dir points.
+  const found = featureFolder(root, feature);
   const dir = plans.exportDir(root);
-  const folder = dir ? path.join(dir, feature) : null;
-  const list = folder ? exportedTickets(folder) : [];
+  const folder = found && !found.local ? found.folder : dir ? path.join(dir, feature) : null;
+  const list = found && !found.local ? found.list : [];
   if (!draft && !list.length) {
+    const preferred = (a, b) => (samePath(a, folder || '') ? -1 : samePath(b, folder || '') ? 1 : 0);
+    const gone = namedFolders(root, feature, gitPaths(root, ['ls-tree', '-r', '--name-only', 'HEAD'])).filter((f) => !fs.existsSync(f)).sort(preferred)[0];
+    if (gone) return { draft: null, folder: gone, list, exported: false, removed: true, keys: [] };
     if (drafts.length) return { why: refuse(what, `the draft of ${feature} is on this machine: none of it goes into git`) };
     if (fs.existsSync(path.join(plans.base(root), feature, 'tickets'))) return { why: refuse(what, `the tickets of ${feature} are on this machine (export pc): none of it goes into git`) };
     return { why: refuse(what, `no draft or exported tickets "${feature}" in the repository`) };
@@ -381,14 +495,17 @@ function commitFeature(root, feature) {
   }
   // The draft folder, also after an earlier run moved the draft away, and the ticket folder when it holds
   // exported tickets (other files there are not planning's to commit).
-  const folders = [c.draft && c.draft.folder, ...plans.draftDirs(root).filter((d) => !d.local).map((d) => path.join(d.dir, feature)), c.list.length ? c.folder : null];
+  const folders = [c.draft && c.draft.folder, ...plans.draftDirs(root).filter((d) => !d.local).map((d) => path.join(d.dir, feature)), c.list.length || c.removed ? c.folder : null];
   const paths = [...new Set(folders.filter(Boolean).map((f) => rel(root, f)))].filter((p) => known(root, p));
   if (!paths.length) return done('commit: nothing to commit');
   let r = flow.git(root, ['add', '-A', '--', ...paths]);
   if (!r.ok) return done(refuse(what, `git add failed: ${gitText(r)}`));
   if (!flow.git(root, ['diff', '--cached', '--name-only', '--', ...paths]).out) return done('commit: nothing to commit');
-  const keys = c.exported ? exportedTickets(c.folder).map((t) => t.fm.key.toUpperCase()).sort(byNumber) : [];
-  const message = keys.length ? `${keys.join(', ')}: add the ${feature} tickets` : `Plan ${feature}`;
+  // No keys in the message: a commit with a key reads as work on that ticket. Tickets HEAD already has
+  // in the folder (a reopened feature) are updated; a draft committed there before does not count.
+  const inHead = c.exported && (readGit(root, ['ls-tree', '--name-only', 'HEAD', '--', `${rel(root, c.folder)}/`]) || '').split('\n')
+    .some((p) => /^[A-Za-z][A-Za-z0-9]+-\d+(?:-[^/]*)?\.md$/.test(p.slice(p.lastIndexOf('/') + 1)));
+  const message = c.removed ? `Remove the ${feature} tickets` : inHead ? `Update the ${feature} tickets` : c.exported ? `Add the ${feature} tickets` : `Plan ${feature}`;
   // Only these paths: changes staged before stay staged and out of this commit.
   r = flow.git(root, ['commit', '-q', '-m', message, '--', ...paths]);
   if (!r.ok) return done(refuse(what, `git commit failed (a project hook?): ${gitText(r)}`));
@@ -417,4 +534,8 @@ function pushFeature(root, feature) {
   return refuse(what, `the push of ${b} was refused (${kind}): ${gitText(r)}`);
 }
 
-module.exports = { exportFeature, commitFeature, pushFeature, highestKey, keyCheck };
+module.exports = {
+  exportFeature, commitFeature, pushFeature, fetched, highestKey, prefixOf, keyCheck,
+  // for lib/plans.js
+  featureFolder, branchWith, exportedTicket, exportedProblems,
+};
