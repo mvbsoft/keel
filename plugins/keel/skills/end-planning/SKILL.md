@@ -36,7 +36,7 @@ Current state of this project:
       next conversation starts from it); front matter `after_commit` = `git rev-parse --short HEAD`.
    4. A repository draft → planning.md "Commit and push".
 6. **B. Final.** A plan already `ready` in `plans.js list` (not "changed after ready") was reviewed
-   as it is: go straight to step 5.
+   as it is: go straight to Export (B.5).
    1. **Gates**: `open Q 0`, `check: clean`, and every finding in `reviews/` has a decision. Else
       show what blocks and offer mode A (yes → A; no → go to step 7).
    2. Reviews: planning.md "Reviews", all steps: the ticket reviews, then one plan review.

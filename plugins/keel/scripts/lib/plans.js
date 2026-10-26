@@ -299,6 +299,14 @@ function fromTemplate(name, front) {
   return { body, text: (b) => `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n${b}` };
 }
 
+// Whether a local branch <feature> or the remote's <remote>/<feature> exists while HEAD is on another one.
+function featureBranchElsewhere(root, feature) {
+  if (git(root, ['symbolic-ref', '--short', '-q', 'HEAD']) === feature) return false;
+  const remote = require('../git-flow.js').pickRemote((git(root, ['remote']) || '').split('\n').filter(Boolean));
+  const refs = [`refs/heads/${feature}`, ...(remote ? [`refs/remotes/${remote}/${feature}`] : [])];
+  return refs.some((ref) => git(root, ['rev-parse', '-q', '--verify', ref]) !== null);
+}
+
 function draftNew(root, feature, now = new Date()) {
   if (!validFeature(feature)) return refuse('new', `invalid feature name "${clean(String(feature))}": ${FEATURE_RULE}`);
   const s = settings(root);
@@ -313,6 +321,8 @@ function draftNew(root, feature, now = new Date()) {
   const repoDirs = [s.draft_dir, s.export_dir].filter((x) => x && !badFolder(root, x));
   const taken = [folder, ...repoDirs.map((x) => path.join(root, x, feature))].find((f) => fs.existsSync(f));
   if (taken) return refuse('new', `${rel(root, taken)}/ exists: pick another name`);
+  // A draft committed on its feature branch is not seen from another branch: that branch takes the name.
+  if (!local && featureBranchElsewhere(root, feature)) return refuse('new', `branch ${feature} exists and may hold this draft: switch to it, or pick another name`);
   const head = git(root, ['rev-parse', '--short', 'HEAD']);
   const front = { type: 'plan', status: 'draft', feature, language: s.language, export: '-', branch: feature, merge_into: mainBranch(root) || '-', created: dateOf(now), after_commit: head || '-', last_ticket: 0, ready_hash: '-' };
   const t = fromTemplate(PLAN_FILE, front);
@@ -482,13 +492,14 @@ function draftStale(root, feature) {
   if (!given(after) || after.startsWith('-')) return ['stale: unknown (no after_commit)'];
   if (git(root, ['rev-parse', '--git-dir']) === null) return ['stale: unknown (not a git repository)'];
   if (git(root, ['rev-parse', '-q', '--verify', `${after}^{commit}`]) === null) return [`stale: unknown (after_commit ${clean(after, 40)} not found)`];
-  const files = [...new Set(tickets(d).flatMap((t) => mentionedFiles(sections(t.text)['Where to look'] || '')))]
-    .filter((f) => !(path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..') || f.startsWith('-')));
+  // A named folder (src/lib/) counts by everything in it.
+  const files = [...new Set(tickets(d).flatMap((t) => mentionedFiles(sections(t.text)['Where to look'] || '')).map((f) => f.replace(/\\/g, '/').replace(/\/+$/, '')))]
+    .filter((f) => f && !(path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..') || f.startsWith('-')));
   if (!files.length) return [`stale: none of 0 named files changed since ${after}`];
   // Paths from the project folder (--relative), which may sit below the repository's top.
   const lines = (args) => (git(root, args) || '').split('\n').filter(Boolean);
   const changed = new Set([...lines(['diff', '--relative', '--name-only', after, 'HEAD', '--', ...files]), ...lines(['diff', '--relative', '--name-only', 'HEAD', '--', ...files])]);
-  const hit = files.filter((f) => changed.has(f));
+  const hit = files.filter((f) => [...changed].some((c) => c === f || c.startsWith(`${f}/`)));
   if (!hit.length) return [`stale: none of ${files.length} named files changed since ${after}`];
   const shown = hit.slice(0, STALE_SHOWN).map((f) => clean(f)).join(', ') + (hit.length > STALE_SHOWN ? ', …' : '');
   return [`stale: ${hit.length} of ${files.length} named files changed since ${after}: ${shown}`];

@@ -446,9 +446,10 @@ gitTest('commit and push: a key taken on another branch since the export is renu
   const hook = path.join(work, '.git', 'hooks', 'pre-commit');
   fs.writeFileSync(hook, '#!/bin/sh\nexit 1\n');
   fs.chmodSync(hook, 0o755);
+  assert.deepEqual(run(work, 'push', 's3-storage'), ['plans: push refused (PROJ-2 is also tickets/payments/PROJ-2-pay.md on origin/other-work: commit again (plans.js commit s3-storage gives it a new number), then push)']);
   const stopped = run(work, 'commit', 's3-storage');
-  assert.equal(stopped[0], 'renumbered: PROJ-2 -> PROJ-11');
-  assert.match(stopped[1], /^plans: commit refused \(git commit failed \(a project hook\?\)/);
+  assert.match(stopped[0], /^plans: commit refused \(git commit failed \(a project hook\?\)/, 'the result comes first');
+  assert.equal(stopped[1], 'renumbered: PROJ-2 -> PROJ-11');
   fs.rmSync(hook);
   const out = run(work, 'commit', 's3-storage');
   assert.match(out[0], /^committed: [0-9a-f]{7,} PROJ-1, PROJ-11: add the s3-storage tickets$/);
@@ -466,7 +467,7 @@ gitTest('commit and push: a key taken on another branch since the export is renu
   otherPush(server, tmp, 'late-work', 'docs/PROJ-1.md', 'x\n');
   write(work, 'tickets/s3-storage/PROJ-1-ticket-1.md', `${readRel(work, 'tickets/s3-storage/PROJ-1-ticket-1.md')}\nMore.\n`);
   assert.deepEqual(run(work, 'commit', 's3-storage'), ['plans: commit refused (PROJ-1 is also docs/PROJ-1.md on origin/late-work, and this feature\'s PROJ-1 is already on origin/s3-storage: a published key is not renumbered; settle the duplicate by hand)']);
-  assert.deepEqual(run(work, 'push', 's3-storage'), ['plans: push refused (PROJ-1 is also docs/PROJ-1.md on origin/late-work: commit again (plans.js commit s3-storage gives it a new number), then push)']);
+  assert.deepEqual(run(work, 'push', 's3-storage'), ['plans: push refused (PROJ-1 is also docs/PROJ-1.md on origin/late-work, and this feature\'s PROJ-1 is already on origin/s3-storage: a published key is not renumbered; settle the duplicate by hand)']);
 });
 
 gitTest('commit: when part of an exported draft cannot go to keel\'s trash, what went comes back and nothing is committed', () => {
@@ -528,6 +529,62 @@ gitTest('stale: a project below its repository\'s top folder compares its own pa
   write(proj, 'src/app.js', 'changed\n');
   git(work, 'commit', '-q', '-a', '-m', 'change');
   assert.deepEqual(run(proj, 'stale', 's3-storage'), [`stale: 1 of 1 named files changed since ${after}: src/app.js`]);
+});
+
+gitTest('stale: a named folder counts by every file in it, committed or not', () => {
+  const { work } = setup({ remote: false });
+  write(work, 'src/lib/a.js', 'a\n');
+  write(work, 'src/lib/b.js', 'b\n');
+  write(work, 'src/library.js', 'not in the folder\n');
+  git(work, 'add', '-A');
+  git(work, 'commit', '-q', '-m', 'lib');
+  run(work, 'new', 's3-storage');
+  run(work, 'ticket', 's3-storage', '--title', 'One');
+  body(work, `${LOCAL}/s3-storage/tickets/T1-one.md`, TICKET_BODY('T1', '`src/lib/`'));
+  const after = git(work, 'rev-parse', '--short', 'HEAD');
+  write(work, 'src/library.js', 'changed\n');
+  git(work, 'commit', '-q', '-a', '-m', 'library');
+  assert.deepEqual(run(work, 'stale', 's3-storage'), [`stale: none of 1 named files changed since ${after}`], 'src/library.js is not in src/lib/');
+  write(work, 'src/lib/a.js', 'changed\n');
+  git(work, 'commit', '-q', '-a', '-m', 'a');
+  assert.deepEqual(run(work, 'stale', 's3-storage'), [`stale: 1 of 1 named files changed since ${after}: src/lib`]);
+  git(work, 'reset', '-q', '--hard', after);
+  write(work, 'src/lib/b.js', 'uncommitted\n');
+  assert.deepEqual(run(work, 'stale', 's3-storage'), [`stale: 1 of 1 named files changed since ${after}: src/lib`]);
+});
+
+gitTest('export into the draft\'s own folder never replaces a README of the user\'s own', () => {
+  const { work } = setup({ remote: false });
+  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo');
+  ready(work, 's3-storage', 2, 'tickets/s3-storage');
+  write(work, 'tickets/s3-storage/README.md', '# My notes\n');
+  assert.deepEqual(run(work, 'export', 's3-storage'), ['plans: export refused (tickets/s3-storage/README.md is not keel\'s overview: move it away, then export again)']);
+  assert.equal(readRel(work, 'tickets/s3-storage/README.md'), '# My notes\n');
+  assert.match(readRel(work, 'tickets/s3-storage/plan.md'), /^status: ready$/m);
+  assert.ok(!exists(work, 'tickets/s3-storage/PROJ-1-ticket-1.md'));
+  // One ticket writes no overview: the user's README stays and the export goes on.
+  run(work, 'settings', 'set', '--draft', 'repo', '--draft-dir', 'plans', '--export-dir', 'plans');
+  ready(work, 'csv-export', 1, 'plans/csv-export');
+  write(work, 'plans/csv-export/README.md', '# Mine\n');
+  assert.equal(run(work, 'export', 'csv-export')[2], 'readme: none (1 ticket)');
+  assert.equal(readRel(work, 'plans/csv-export/README.md'), '# Mine\n');
+});
+
+gitTest('new in the repository: refused while a branch of that name (local or on the remote) may hold the draft; allowed on that branch', () => {
+  const { tmp, work, server } = setup();
+  run(work, 'settings', 'set', '--draft', 'repo');
+  const refused = (f) => [`plans: new refused (branch ${f} exists and may hold this draft: switch to it, or pick another name)`];
+  git(work, 'branch', 's3-storage');
+  assert.deepEqual(run(work, 'new', 's3-storage'), refused('s3-storage'));
+  assert.ok(!exists(work, 'tickets/s3-storage'));
+  otherPush(server, tmp, 'csv-export', 'tickets/csv-export/plan.md', '---\ntype: plan\nstatus: draft\n---\n');
+  git(work, 'fetch', '-q', 'origin');
+  assert.deepEqual(run(work, 'new', 'csv-export'), refused('csv-export'));
+  git(work, 'checkout', '-q', 's3-storage');
+  assert.equal(run(work, 'new', 's3-storage')[0], 'created: tickets/s3-storage/plan.md');
+  // A draft on this machine is not in git: no branch check.
+  run(work, 'settings', 'set', '--draft', 'pc');
+  assert.equal(run(work, 'new', 'csv-export')[0], `created: ${LOCAL}/csv-export/plan.md`);
 });
 
 gitTest('push: a remote ahead of the branch is refused and explained; on main refused', () => {

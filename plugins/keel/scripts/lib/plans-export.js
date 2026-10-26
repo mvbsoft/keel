@@ -7,8 +7,10 @@
 // - Export is all or nothing: every key first, the T-numbers replaced in one pass, the files written into
 //   a temporary folder next to the target, one rename. A draft in the repository whose folder is the
 //   target gets the new files beside its own (they never clash with plan.md, tickets/ and reviews/).
-//   Anything failing before the end leaves no feature folder and the plan ready; the next run removes
-//   what an interrupted one left and starts again with the same keys.
+//   A run that fails before the end is rolled back: no feature folder, the plan ready. The next run
+//   removes what is left of an earlier one (a temporary folder, an overview and tickets of this feature
+//   in the draft's folder) and starts again with the same keys. A run killed between two steps may leave
+//   a state the next run refuses (a feature folder that exists); that one is settled by hand.
 // - A draft on this machine goes to keel's trash once exported; one in the repository leaves with the
 //   commit of its tickets.
 // - Commit and push check the keys again: a key another ticket file took (on any branch or in the working
@@ -184,6 +186,11 @@ function exportFeature(root, feature, { stop = () => {} } = {}) {
   const target = toRepo ? path.join(dir, feature) : d.folder;
   const intoDraft = toRepo && !d.local && samePath(path.resolve(target), path.resolve(d.folder));
   if (toRepo && !intoDraft && fs.existsSync(target)) return refuse(what, `${rel(root, target)}/ exists and is not this draft's folder: set another export_dir or move that folder away`);
+  // The overview goes beside the draft's files: a README of the user's own there is never replaced.
+  const ownReadme = path.join(target, README);
+  if (intoDraft && plans.tickets(d).length >= 2 && fs.existsSync(ownReadme) && frontmatter(read(ownReadme) || '').type !== 'feature') {
+    return refuse(what, `${rel(root, ownReadme)} is not keel's overview: move it away, then export again`);
+  }
   const temp = intoDraft ? null : `${target}${TEMP}`;
   const local = !toRepo;
   try {
@@ -343,27 +350,32 @@ function draftFiles(root, d) {
   return [...out, ...names.map((n) => path.join(d.folder, 'tickets', n))].map((f) => rel(root, f));
 }
 
+// A key of ours another ticket file has, while ours is already on a remote.
+const publishedTaken = (k, taken, published) => `${k} is also ${taken.get(k)}, and this feature's ${k} is already ${published.get(k)}: a published key is not renumbered; settle the duplicate by hand`;
+
 function commitFeature(root, feature) {
   const what = 'commit';
   const { ctx, why } = gitReady(root, what);
   if (!ctx) return why;
   const c = featureFiles(root, feature, what);
   if (c.why) return c.why;
-  const out = [];
+  const renumbered = [];
   let notes = [];
+  // The result first, then the renumbering (files renamed even when the commit stops) and the notes.
+  const done = (result) => [...[].concat(result), ...renumbered, ...notes];
   if (c.exported) {
     notes = fetched(root).notes;
     const { taken, published } = keyCheck(root, c.keys, c.folder);
     const stuck = [...taken.keys()].find((k) => published.has(k));
-    if (stuck) return refuse(what, `${stuck} is also ${taken.get(stuck)}, and this feature's ${stuck} is already ${published.get(stuck)}: a published key is not renumbered; settle the duplicate by hand`);
-    if (taken.size) { try { out.push(...renumber(root, c, taken, notes)); } catch (e) { return [...out, ...refuse(what, `renumbering failed: ${e.message}`)]; } }
+    if (stuck) return done(refuse(what, publishedTaken(stuck, taken, published)));
+    if (taken.size) { try { renumbered.push(...renumber(root, c, taken, notes)); } catch (e) { return done(refuse(what, `renumbering failed: ${e.message}`)); } }
   }
   if (c.draft && plans.stateOf(c.draft) === 'exported') {
     const r = moveToTrash(root, draftFiles(root, c.draft), 'planning');
     if (r.failed.length) {
       // All or none: what did go comes back, so the next run still sees the exported draft.
       if (r.batch) restore(root, r.batch);
-      return [...out, ...refuse(what, `the draft's files did not go to keel's trash: ${r.failed.map((f) => `${f.path}: ${f.reason}`).join(', ')}`)];
+      return done(refuse(what, `the draft's files did not go to keel's trash: ${r.failed.map((f) => `${f.path}: ${f.reason}`).join(', ')}`));
     }
     for (const dir of [path.join(c.draft.folder, 'tickets'), c.draft.folder]) { try { fs.rmdirSync(dir); } catch { /* not empty */ } }
   }
@@ -371,16 +383,16 @@ function commitFeature(root, feature) {
   // exported tickets (other files there are not planning's to commit).
   const folders = [c.draft && c.draft.folder, ...plans.draftDirs(root).filter((d) => !d.local).map((d) => path.join(d.dir, feature)), c.list.length ? c.folder : null];
   const paths = [...new Set(folders.filter(Boolean).map((f) => rel(root, f)))].filter((p) => known(root, p));
-  if (!paths.length) return [...out, 'commit: nothing to commit', ...notes];
+  if (!paths.length) return done('commit: nothing to commit');
   let r = flow.git(root, ['add', '-A', '--', ...paths]);
-  if (!r.ok) return [...out, ...refuse(what, `git add failed: ${gitText(r)}`)];
-  if (!flow.git(root, ['diff', '--cached', '--name-only', '--', ...paths]).out) return [...out, 'commit: nothing to commit', ...notes];
+  if (!r.ok) return done(refuse(what, `git add failed: ${gitText(r)}`));
+  if (!flow.git(root, ['diff', '--cached', '--name-only', '--', ...paths]).out) return done('commit: nothing to commit');
   const keys = c.exported ? exportedTickets(c.folder).map((t) => t.fm.key.toUpperCase()).sort(byNumber) : [];
   const message = keys.length ? `${keys.join(', ')}: add the ${feature} tickets` : `Plan ${feature}`;
   // Only these paths: changes staged before stay staged and out of this commit.
   r = flow.git(root, ['commit', '-q', '-m', message, '--', ...paths]);
-  if (!r.ok) return [...out, ...refuse(what, `git commit failed (a project hook?): ${gitText(r)}`)];
-  return [...out, `committed: ${flow.git(root, ['rev-parse', '--short', 'HEAD']).out} ${message}`, ...notes];
+  if (!r.ok) return done(refuse(what, `git commit failed (a project hook?): ${gitText(r)}`));
+  return done(`committed: ${flow.git(root, ['rev-parse', '--short', 'HEAD']).out} ${message}`);
 }
 
 function pushFeature(root, feature) {
@@ -392,8 +404,9 @@ function pushFeature(root, feature) {
   if (!ctx.remote) return ['push: no remote, nothing pushed'];
   const { notes } = fetched(root);
   if (c.exported) {
-    const { taken } = keyCheck(root, c.keys, c.folder);
+    const { taken, published } = keyCheck(root, c.keys, c.folder);
     const k = [...taken.keys()].sort(byNumber)[0];
+    if (k && published.has(k)) return refuse(what, publishedTaken(k, taken, published));
     if (k) return refuse(what, `${k} is also ${taken.get(k)}: commit again (plans.js commit ${feature} gives it a new number), then push`);
   }
   const b = ctx.branch;

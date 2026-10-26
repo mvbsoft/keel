@@ -40,8 +40,8 @@ Current state of this project:
    - a draft's exact name → continue it (step 6);
    - a link or a file → a new feature from it (step 5);
    - other words → `plans.js find <words>`: `find: 1 match` → "Continue `<f>`?"; several → show them
-     and ask which; `find: no match` → the words are a new idea: "No draft matches, so this is a new
-     feature. Right?"
+     and ask which; `find: no match` → show the drafts it lists (if any) and ask: one of these, or a
+     new feature from these words? No drafts → "No draft matches, so this is a new feature. Right?"
    A chosen plan that is `exported` → its tickets live in the feature folder; editing them is not part
    of this command: say so and stop. `abandoned` → say so; another draft or a new feature.
 5. **New feature.**
@@ -62,7 +62,9 @@ Current state of this project:
      feature's tasks merge?"; otherwise say in one line that they merge into `git.main_branch`.
    - planning.md "Project rules" (the draft's place, the branch name).
    - A repository draft → planning.md "Branch hints".
-   - `plans.js new <f>` (`a draft "<f>" exists` → continue it or another name). A merge branch other
+   - `plans.js new <f>` (`a draft "<f>" exists` → continue it or another name; `branch <f> exists and
+     may hold this draft` → offer "Switch to `<f>`?": yes → `git switch <f>`, then `plans.js list`
+     there and continue that draft (step 6); no → another name). A merge branch other
      than `git.main_branch`, or a branch name other than `<f>` → `plans.js set <f> --branch <b> --merge-into <m>` (`branch:` and `merge_into:` lines).
 6. **Continue a draft.** `plans.js check <f>` and `plans.js review <f>`; read `plan.md` only (not the
    tickets): the ticket list, open Q, Next action; and in `reviews/` the findings without a decision.
