@@ -315,6 +315,33 @@ test('a comma list of words reaches keel only quoted: PowerShell would pass a ba
   }
 });
 
+test('a step word in quotes is plain text: a title "drop" or a branch "merge" runs, bare they are refused', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  for (const tool of ['Bash', 'PowerShell']) {
+    const notes = (title) => shell(`node "${SCRIPTS}/notes.js" "${proj}" task new T1 --title ${title} --source text --session s1`, tool, env);
+    assert.equal(notes('"drop"'), 'allow', `${tool}: a quoted title`);
+    assert.equal(notes('drop'), 'deny', `${tool}: a bare title`);
+    const start = (name) => shell(`node "${SCRIPTS}/git-flow.js" "${proj}" start --name ${name}`, tool, env);
+    assert.notEqual(start('"merge"'), 'deny', `${tool}: a quoted branch name`);
+    assert.equal(start('merge'), 'deny', `${tool}: a bare branch name`);
+  }
+});
+
+test('on Windows only A-Z fold: a path with the Kelvin sign for k is another folder, for the hook and for trust', { skip: process.platform !== 'win32' }, () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  const other = proj.replace('k', '\u212a');
+  assert.notEqual(other, proj);
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "${other}" drop f1`, 'Bash', env), null, 'the Kelvin sign names another folder');
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj.toUpperCase()}" drop f1`, 'Bash', env), 'allow', 'A-Z case does not matter');
+  const { trust, isTrusted, trustState } = require(path.join(PLUGIN, 'scripts', 'lib', 'trust.js'));
+  const tenv = { KEEL_USAGE_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'keel-usage-')) };
+  trust(proj, tenv);
+  assert.equal(isTrusted(proj.toUpperCase(), tenv), true);
+  assert.equal(trustState(other, tenv), 'none', 'no confirmation is found for the other folder');
+});
+
 test('plans.js is keel\'s own: its steps run silently (drop and done too), commit and push always ask, also named elsewhere', () => {
   const proj = project({ mode: 'autonomous' });
   const env = { CLAUDE_PROJECT_DIR: proj };

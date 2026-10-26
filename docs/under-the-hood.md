@@ -148,7 +148,8 @@ folders and the note move with git: [two ways of working](workflows.md#where-the
     horizontal bar PowerShell also reads as one) that holds a dot or ends with a colon (PowerShell
     would not pass them on as written);
   - a keel script command that holds the words of a step Claude Code must confirm (`delete`, `drop`,
-    `empty-trash`, `merge`, `delete-branch`, `trust`) but does not read as that step; `plans.js`
+    `empty-trash`, `merge`, `delete-branch`, `trust`) as a word without quotes but does not read as that
+    step (in quotes it is plain text, such as a title "drop"); `plans.js`
     confirms only its own `commit` and `push` (its search takes free words such as `drop`), and
     when either word stands anywhere else in its command, Claude Code asks instead of refusing;
   - a keel script run with `node`, `nodejs`, `bun` or `deno` in any other form (node options, `env`,
