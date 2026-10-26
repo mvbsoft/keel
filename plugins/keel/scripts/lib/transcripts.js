@@ -59,7 +59,7 @@ function activeMinutes(timestampsMs, gapMin = 5) {
   return round1(total);
 }
 
-const KEEL_COMMAND = /^\/keel:(start-task|end-task|start-session|end-session)(?:\s|$)/;
+const KEEL_COMMAND = /^\/keel:(start-task|end-task|start-session|end-session|start-planning|end-planning)(?:\s|$)/;
 
 function promptText(content) {
   if (typeof content === 'string') return content;

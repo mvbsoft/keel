@@ -31,6 +31,7 @@ function world(usage = {}) {
       env: { ...process.env, KEEL_USAGE_DIR: w.dir, KEEL_PROJECTS_DIR: w.root, HOME: w.home, USERPROFILE: w.home, CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: '', ...extraEnv },
     });
     assert.equal(r.status, 0, r.stderr);
+    w.stderr = r.stderr;
     return r.stdout.trim();
   };
   w.prepare = (...more) => JSON.parse(w.run(['prepare', '--out', w.out, '--project', w.project, ...more]));
@@ -194,6 +195,31 @@ test('prepare: keel fields from flags, the session\'s active task and changes.js
   fs.writeFileSync(outside, JSON.stringify({ task: 'Leaked', token: 'sk-secret' }));
   const k3 = read(writesOf(w.prepare('--session', SESSION_ID, '--keel', outside))[0].file_path).sessions[0].keel;
   assert.ok(!JSON.stringify(k3).includes('sk-secret') && !JSON.stringify(k3).includes('Leaked'));
+});
+
+test('prepare --feature: a planning chat records only its feature name, over an earlier task\'s fields', () => {
+  const w = world();
+  buildSession(w.root);
+  fs.mkdirSync(path.join(w.project, '.keel', 'local', 'tmp'), { recursive: true });
+  fs.writeFileSync(path.join(w.project, '.keel', 'local', 'tmp', 'changes.json'), JSON.stringify({ totals: { files: 3, added: 40, removed: 7 } }));
+  w.prepare('--session', SESSION_ID, '--level', 'standard', '--findings', '0/2/5', '--gates', 'pass');
+  const day = read(writesOf(w.prepare('--session', SESSION_ID, '--feature', 's3-connection'))[0].file_path);
+  assert.deepEqual(day.sessions[0].keel, { task: 'planning: s3-connection', steps: [], level: null, findings: null, gates: null, lines: null, files: null });
+  assert.deepEqual(validate(day, SCHEMA), []);
+  assert.equal(w.stderr, '');
+});
+
+test('prepare --feature: an invalid or missing name is ignored with one line and records nothing', () => {
+  const w = world();
+  buildSession(w.root);
+  fs.mkdirSync(path.join(w.project, '.keel', 'local', 'tmp'), { recursive: true });
+  fs.writeFileSync(path.join(w.project, '.keel', 'local', 'tmp', 'changes.json'), JSON.stringify({ totals: { files: 3, added: 40, removed: 7 } }));
+  for (const flag of [['--feature', 'Bad_Name'], ['--feature']]) {
+    const day = read(writesOf(w.prepare('--session', SESSION_ID, ...flag))[0].file_path);
+    assert.equal(day.sessions[0].keel, null, `${flag.join(' ')}: no keel fields, changes.json not used`);
+    assert.equal(w.stderr, 'usage: --feature ignored (not a feature name)\n', 'the value is not echoed');
+  }
+  assert.equal(fs.existsSync(path.join(w.dir, 'keel-tasks.jsonl')), false);
 });
 
 test('prepare: with no keel data nothing is attached', () => {

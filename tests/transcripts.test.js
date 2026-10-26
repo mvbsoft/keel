@@ -139,6 +139,22 @@ test('a slash command the model answers is a turn, read as typed; one it never a
   assert.ok(!('command' in out.turns[1]));
 });
 
+test('keel_commands: the planning commands count, a longer name does not', () => {
+  const root = tempRoot();
+  const main = path.join(root, 'p', 's1.jsonl');
+  const row = (r) => ({ sessionId: 's1', cwd: 'C:\\x\\proj', isSidechain: false, ...r });
+  const cmd = (t, name, args = '') => row(user(t, `<command-message>keel:${name}</command-message>\n<command-name>/keel:${name}</command-name>\n<command-args>${args}</command-args>`));
+  writeJsonl(main, [
+    cmd(1, 'start-planning', 'some idea'),
+    row(asst('m1', [{ type: 'text', text: 'ok' }])),
+    cmd(10, 'end-planning'),
+  ]);
+  assert.deepEqual(T.summarizeSession(main, { cost: price }).keel_commands, ['start-planning', 'end-planning']);
+  const other = path.join(root, 'p', 's2.jsonl');
+  writeJsonl(other, [cmd(1, 'start-planningx'), row(asst('m1', [{ type: 'text', text: 'ok' }]))]);
+  assert.deepEqual(T.summarizeSession(other, { cost: price }).keel_commands, []);
+});
+
 test('requests before the first prompt go to a turn with null text', () => {
   const root = tempRoot();
   const main = path.join(root, 'p', 's1.jsonl');

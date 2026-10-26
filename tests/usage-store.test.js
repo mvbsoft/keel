@@ -480,3 +480,13 @@ test('only keel sessions are listed: a workflow command or an end-step record; e
   assert.equal(sum(doc.hours.map((h) => h.req)), 4, 'the calibration hours count every session');
   assert.deepEqual(e.build().summaries.get('task').keel_commands, ['start-task']);
 });
+
+test('a planning chat is listed: /keel:start-planning alone makes a keel session', () => {
+  const e = env();
+  const cmd = (name, args = '') => `<command-message>keel:${name}</command-message>\n<command-name>/keel:${name}</command-name>\n<command-args>${args}</command-args>`;
+  writeIds(e.root, 'plain', [{ t: DAY, prompt: 'just chatting' }, { t: DAY + MIN, id: 'p1' }], { keel: false });
+  writeIds(e.root, 'plan', [{ t: DAY + 2 * MIN, prompt: cmd('start-planning', 'an idea') }, { t: DAY + 3 * MIN, id: 'q1' }], { keel: false });
+  const doc = e.build().docs[0].doc;
+  assert.deepEqual(doc.sessions.map((s) => s.id), ['plan']);
+  assert.equal(doc.sessions[0].keel, null, 'no end step recorded it, so it has no task fields');
+});
