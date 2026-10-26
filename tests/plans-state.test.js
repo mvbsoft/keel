@@ -163,7 +163,7 @@ gitTest('tickets: the export commit (keys only in the ticket folder) is not work
 gitTest('tickets: commits with the key on merge_into after the folder came there, status not written, are work in progress', () => {
   const { work } = setup();
   const T = 'tickets/csv-export';
-  commit(work, 'PROJ-61: an earlier fix', { 'src/early.js': '1\n' });
+  commit(work, 'PROJ-61: an earlier fix', { 'src/early.js': '1\n' }, OLD);
   commit(work, 'Add the csv-export tickets', { [file(60, T)]: ticket('PROJ-60', { feature: 'csv-export' }), [file(61, T)]: ticket('PROJ-61', { feature: 'csv-export' }) });
   commit(work, 'proj-60: fixed by hand', { 'src/fix.js': '1\n' });
   git(work, 'push', '-q', 'origin', 'main');
@@ -209,6 +209,97 @@ gitTest('tickets: a branch merged and reverted on merge_into is marked reverted'
   git(work, 'revert', '-m', '1', '--no-edit', 'HEAD');
   git(work, 'push', '-q', 'origin', 'main');
   assert.equal(line(run(work, 'tickets'), 'PROJ-50'), '  PROJ-50 Ticket PROJ-50 — waiting for the feature merge · branch csv-import, Test, today · reverted');
+});
+
+gitTest('tickets: a revert of the merge that brought the ticket folder to merge_into is not done', () => {
+  const { work } = setup();
+  const T = 'tickets/csv-import';
+  git(work, 'checkout', '-q', '-b', 'csv-import');
+  commit(work, 'Add the csv-import tickets', { [file(51, T)]: ticket('PROJ-51', { feature: 'csv-import' }) });
+  commit(work, 'PROJ-51: import', { 'src/import.js': '1\n', [file(51, T)]: ticket('PROJ-51', { feature: 'csv-import', status: 'done' }) });
+  git(work, 'checkout', '-q', 'main');
+  git(work, 'merge', '-q', '--no-ff', '-m', 'Merge csv-import', 'csv-import');
+  git(work, 'revert', '-m', '1', '--no-edit', 'HEAD');
+  git(work, 'push', '-q', 'origin', 'main');
+  assert.equal(line(run(work, 'tickets'), 'PROJ-51'), '  PROJ-51 Ticket PROJ-51 — waiting for the feature merge · branch csv-import, Test, today · reverted');
+});
+
+gitTest('tickets: a ticket branch merged into a feature branch whose tickets were dropped waits for the feature merge', () => {
+  const { work } = setup();
+  const T = 'tickets/csv-export';
+  git(work, 'checkout', '-q', '-b', 'csv-export');
+  commit(work, 'Add the csv-export tickets', { [file(52, T)]: ticket('PROJ-52', { feature: 'csv-export' }) });
+  git(work, 'checkout', '-q', '-b', 'PROJ-52-x');
+  commit(work, 'PROJ-52: export', { 'src/x.js': '1\n', [file(52, T)]: ticket('PROJ-52', { feature: 'csv-export', status: 'done' }) });
+  git(work, 'checkout', '-q', 'csv-export');
+  git(work, 'merge', '-q', '--no-ff', '-m', 'Merge PROJ-52-x', 'PROJ-52-x');
+  git(work, 'rm', '-r', '-q', T);
+  git(work, 'commit', '-q', '-m', 'Remove the csv-export tickets');
+  git(work, 'checkout', '-q', 'main');
+  assert.equal(line(run(work, 'tickets'), 'PROJ-52'), '  PROJ-52 Ticket PROJ-52 — waiting for the feature merge · branch PROJ-52-x, Test, today');
+});
+
+gitTest('tickets: work done by hand on merge_into before the feature merges is in progress', () => {
+  const { work } = setup();
+  const T = 'tickets/csv-export';
+  git(work, 'checkout', '-q', '-b', 'csv-export');
+  commit(work, 'Add the csv-export tickets', { [file(53, T)]: ticket('PROJ-53', { feature: 'csv-export' }), [file(54, T)]: ticket('PROJ-54', { feature: 'csv-export' }) });
+  git(work, 'checkout', '-q', 'main');
+  commit(work, 'PROJ-53: fixed on main', { 'src/fix.js': '1\n' });
+  git(work, 'push', '-q', 'origin', 'main');
+  const out = run(work, 'tickets');
+  assert.equal(line(out, 'PROJ-53'), '  PROJ-53 Ticket PROJ-53 — in progress · commits with the key on main, status not written');
+  assert.equal(line(out, 'PROJ-54'), '  PROJ-54 Ticket PROJ-54 — next');
+});
+
+gitTest('tickets: a done written in the working tree and not committed is not merged', () => {
+  const { work } = setup();
+  const T = 'tickets/csv-export';
+  git(work, 'checkout', '-q', '-b', 'csv-export');
+  write(work, file(55, T), ticket('PROJ-55', { feature: 'csv-export', status: 'done' }));
+  assert.equal(line(run(work, 'tickets'), 'PROJ-55'), '  PROJ-55 Ticket PROJ-55 — waiting for the feature merge · branch csv-export, Test, today');
+});
+
+gitTest('tickets: a project in a sub-folder of its repository reads the branches too', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-'));
+  const repo = path.join(tmp, 'repo');
+  fs.mkdirSync(repo);
+  git(repo, 'init', '-q', '-b', 'main');
+  git(repo, 'config', 'user.name', 'Test');
+  git(repo, 'config', 'user.email', 'test@example.com');
+  git(repo, 'config', 'core.autocrlf', 'false');
+  const work = path.join(repo, 'app');
+  write(work, '.keel/config.json', JSON.stringify(CONFIG));
+  write(work, '.keel/.gitignore', 'local/\n');
+  commit(repo, 'init', { 'app/src/app.js': '1\n' });
+  git(repo, 'checkout', '-q', '-b', 'csv-export');
+  commit(repo, 'Add the csv-export tickets', { [`app/${file(56, 'tickets/csv-export')}`]: ticket('PROJ-56', { feature: 'csv-export', status: 'done' }) });
+  git(repo, 'checkout', '-q', 'main');
+  const out = run(work, 'tickets', 'PROJ-56');
+  assert.equal(line(out, 'PROJ-56'), '  PROJ-56 Ticket PROJ-56 — waiting for the feature merge · branch csv-export, Test, today');
+  assert.ok(out.includes(`  file: csv-export:${file(56, 'tickets/csv-export')}`), out.join('\n'));
+});
+
+gitTest('tickets: hundreds of branches do not hide work in progress', () => {
+  const { work } = setup({ remote: false });
+  const T = 'tickets/csv-export';
+  commit(work, 'Add the csv-export tickets', { [file(57, T)]: ticket('PROJ-57', { feature: 'csv-export' }) });
+  const head = git(work, 'rev-parse', 'HEAD');
+  const names = Array.from({ length: 900 }, (_, i) => `refs/heads/a-rather-long-branch-name-for-the-test-${i}`);
+  execFileSync('git', ['-C', work, 'update-ref', '--stdin'], { input: names.map((n) => `create ${n} ${head}\n`).join('') });
+  git(work, 'checkout', '-q', '-b', 'work-x');
+  commit(work, 'PROJ-57: start', { 'src/x.js': '1\n' });
+  git(work, 'checkout', '-q', 'main');
+  assert.equal(line(run(work, 'tickets'), 'PROJ-57'), '  PROJ-57 Ticket PROJ-57 — in progress · branch work-x, Test, today');
+});
+
+gitTest('tickets: a commit that edits only another feature\'s tickets is not work on a key it names', () => {
+  const { work } = setup({ remote: false });
+  commit(work, 'Add the tickets', { [file(58, 'tickets/csv-export')]: ticket('PROJ-58', { feature: 'csv-export' }), [file(59, 'tickets/pdf-report')]: ticket('PROJ-59', { feature: 'pdf-report' }) });
+  git(work, 'checkout', '-q', '-b', 'pdf-report');
+  commit(work, 'PROJ-59: depends on PROJ-58 now', { [file(59, 'tickets/pdf-report')]: ticket('PROJ-59', { feature: 'pdf-report', depends: ['PROJ-58'] }) });
+  git(work, 'checkout', '-q', 'main');
+  assert.equal(line(run(work, 'tickets'), 'PROJ-58'), '  PROJ-58 Ticket PROJ-58 — next');
 });
 
 gitTest('tickets: branches older than 30 days are read only when a ticket names them', () => {
@@ -321,6 +412,8 @@ gitTest('drop: refused until every ticket is done and on the branch the feature 
   git(work, 'merge', '-q', 'csv-export');
   assert.deepEqual(run(work, 'drop', 'csv-export'), ['plans: drop refused (on main, where the feature merges; the tickets are removed on the feature branch before its merge)']);
   assert.ok(exists(work, T));
+  git(work, 'checkout', '-q', '--detach', 'csv-export');
+  assert.deepEqual(run(work, 'drop', 'csv-export'), ['plans: drop refused (HEAD is detached; switch to the feature branch first)']);
   git(work, 'checkout', '-q', 'csv-export');
   const out = run(work, 'drop', 'csv-export');
   const m = /^drop: tickets\/csv-export\/ -> trash (\S+)$/.exec(out[0]);
