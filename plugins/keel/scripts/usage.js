@@ -2,7 +2,7 @@
 // keel usage calculator: syncs day documents for the spending dashboard and writes the end-of-task cost report.
 // Usage: node usage.js <command> [options]   (prints plain text, or JSON for `prepare`; always exits 0)
 //   prepare   [--out <dir>] [--session <id>] [--keel <json-file>] [--level L] [--findings m/s/n] [--gates pass|fail|none]
-//             [--project <dir>] [--artifact <url>] [--version <docKey>=<n>]...
+//             [--feature <name>] [--project <dir>] [--artifact <url>] [--version <docKey>=<n>]...
 //             builds the day documents that changed since the last sync, writes them to <out> (a folder
 //             under <project>/.keel/local/usage/, default usage/out) and prints the ArtifactData batch spec as JSON
 //   ack       [--batch <n>] [--failed <docId>]...   marks the prepared writes (or those of batch n) as written (versions go up by one)
@@ -116,6 +116,15 @@ function keelFile(root, file) {
 }
 
 function keelFields(root, opts, sessionId) {
+  // A planning chat (end-planning) records only its feature name. The nulls and [] overwrite what an earlier
+  // end-task in the same chat recorded (recordKeel merges fields per session); changes.json is not read,
+  // as it belongs to an earlier task and planning changes no code.
+  if (opts.feature !== undefined) {
+    const { validFeature } = require('./lib/plans.js');
+    if (validFeature(opts.feature)) return { task: `planning: ${opts.feature}`, steps: [], level: null, findings: null, gates: null, lines: null, files: null };
+    process.stderr.write('usage: --feature ignored (not a feature name)\n');
+    return {};
+  }
   const out = {};
   if (typeof opts.keel === 'string') {
     const f = keelFile(root, opts.keel);
