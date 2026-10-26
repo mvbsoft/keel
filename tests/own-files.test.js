@@ -255,10 +255,13 @@ test('words split only on spaces and tabs: a special space or control character 
       assert.equal(shell(cmd, tool, env), 'allow', `${tool}: ${JSON.stringify(cmd)}`);
     }
     assert.equal(shell(`${n('plans.js')} find стара оплата користувачів`, tool, env), 'allow', `${tool}: words in other alphabets`);
-    // U+2028 counts as a control character, also inside quotes; refused with the plain form to use.
-    const out = hook(tool, { command: `${n('plans.js')} ticket f1 --title "a\u2028b"` }, env);
-    assert.equal(out?.permissionDecision, 'deny', `${tool}: U+2028 in a title`);
-    assert.match(out.permissionDecisionReason, /^keel: run keel's scripts as one plain command/, `${tool}: U+2028 in a title`);
+    // U+2028 and U+2029 count as control characters, also inside quotes; refused with the plain form to use.
+    for (const ch of ['\u2028', '\u2029']) {
+      const out = hook(tool, { command: `${n('plans.js')} ticket f1 --title "a${ch}b"` }, env);
+      const what = `${tool}: U+${ch.charCodeAt(0).toString(16).toUpperCase()} in a title`;
+      assert.equal(out?.permissionDecision, 'deny', what);
+      assert.match(out.permissionDecisionReason, /^keel: run keel's scripts as one plain command/, what);
+    }
   }
 });
 
@@ -271,6 +274,30 @@ test('a double quote inside single quotes is refused: Windows PowerShell 5.1 pas
       `${n('cleanup.js')} '"empty-trash"' --all`, `${n('notes.js')} task '"drop"' t1`, `${n('notes.js')} task '"delete"' t1`, `${n('git-flow.js')} '"merge"'`]) {
       assert.equal(shell(cmd, tool, env), 'deny', `${tool}: ${cmd}`);
     }
+  }
+});
+
+test('a bare word starting with one - that holds a dot is refused in PowerShell: Windows PowerShell 5.1 splits it at the dot', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  // PowerShell passes `-a.` as `-a` and `.`: node reads --x -a and the project ".", the current folder,
+  // so the confirmed step runs while the hook would read no project at all.
+  const hidden = [`node "${SCRIPTS}/cleanup.js" --x -a. empty-trash --all`, `node "${SCRIPTS}/git-flow.js" --x -a. merge`, `node "${SCRIPTS}/notes.js" --x -a. task drop 3`];
+  for (const tool of ['Bash', 'PowerShell']) {
+    for (const cmd of hidden) assert.equal(shell(cmd, tool, env), 'deny', `${tool}: ${cmd}`);
+  }
+  const out = hook('PowerShell', { command: `node "${SCRIPTS}/plans.js" "${proj}" ticket f1 --title "x" -t.x` }, env);
+  assert.equal(out?.permissionDecision, 'deny', 'PowerShell: a bare -t.x after the project');
+  assert.match(out.permissionDecisionReason, /^keel: run keel's scripts as one plain command/);
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" ticket f1 --title "x" -t.x`, 'Bash', env), 'allow', 'Bash passes -t.x as one word');
+});
+
+test('a confirmed step word in a command whose project is not the current one is refused, but not plans.js search words', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  for (const tool of ['Bash', 'PowerShell']) {
+    assert.equal(shell(`node "${SCRIPTS}/git-flow.js" "/elsewhere" status merge`, tool, env), 'deny', `${tool}: git-flow.js`);
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "/elsewhere" find drop users`, tool, env), null, `${tool}: plans.js find`);
   }
 });
 

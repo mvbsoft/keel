@@ -319,7 +319,7 @@ gitTest('commit --tickets lets exactly those tickets in (keys without case); --f
   assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['src/app.js', 'tickets/s3-storage/PROJ-101-part.md', 'tickets/s3-storage/PROJ-102-part.md']);
 
   out = flow(work, 'commit', '--message-file', msg, '--tickets');
-  assert.equal(line(out, 'reason:'), 'reason: --tickets needs the keys: --tickets <K1,K2>');
+  assert.equal(line(out, 'reason:'), 'reason: --tickets needs the keys: --tickets "<K1,K2>"');
 
   write(work, 'src/app.js', 'one\nfinish\nthree\n');
   out = flow(work, 'commit', '--message-file', msg, '--finish', 'proj-103', '--session', 's1');

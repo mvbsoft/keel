@@ -737,5 +737,5 @@ test('every plans.js output line the task and session instructions quote is prin
   const named = new Set([...text.matchAll(/plans\.js" "<project>" ([a-z]+)/g)].map((m) => m[1]));
   for (const cmd of ['tickets', 'done', 'drop', 'commit']) assert.ok(named.has(cmd), `the instructions never call ${cmd}`);
   for (const cmd of named) assert.match(header, new RegExp(`^//   ${cmd}\\b`, 'm'), `plans.js documents no ${cmd}`);
-  assert.match(read('scripts', 'git-flow.js'), /^\/\/   commit --message-file <f> \[--tickets <K1,K2>\]/m, 'end-session commits the tickets it marked done');
+  assert.match(read('scripts', 'git-flow.js'), /^\/\/   commit --message-file <f> \[--tickets "<K1,K2>"\]/m, 'end-session commits the tickets it marked done');
 });

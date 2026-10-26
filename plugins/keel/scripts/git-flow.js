@@ -8,7 +8,7 @@
 //   start --name <b> [--from <base>]  create the task branch: from the updated base when the tree is
 //                                     clean; from HEAD, carrying the changes, when it is not
 //   switch --name <b>                 switch to an existing branch (clean tree only)
-//   commit --message-file <f> [--tickets <K1,K2>]   stage every changed file except secret and planning
+//   commit --message-file <f> [--tickets "<K1,K2>"]   stage every changed file except secret and planning
 //                                     ones, drop AI trailers from the message, commit (never on the main
 //                                     branch); the ticket files of the keys --tickets names go in (tickets
 //                                     a session marked done), as the finished task's own does with --finish
@@ -225,7 +225,7 @@ const commands = {
     try { message = stripAttribution(fs.readFileSync(messageFile, 'utf8')); } catch (e) { throw new Stop(`cannot read the message file: ${e.message}`); }
     if (!message) throw new Stop('the commit message is empty');
 
-    if (opts.tickets === true) throw new Stop('--tickets needs the keys: --tickets <K1,K2>');
+    if (opts.tickets === true) throw new Stop('--tickets needs the keys: --tickets "<K1,K2>"');
     const carried = new Set([opts.finish, ...(typeof opts.tickets === 'string' ? opts.tickets.split(',') : [])]
       .filter((k) => typeof k === 'string' && k.trim()).map((k) => k.trim().toLowerCase()));
 

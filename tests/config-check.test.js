@@ -255,7 +255,7 @@ test('configure: check answers from the injected block without the flow; section
   assert.match(flow, /separated by commas or spaces, such as `gates,git` or `3,4`\) runs only those, in section order/);
   assert.match(flow, /then section 12 once for what they changed/);
   assert.match(flow, /3\. Run `node "<keel>\/scripts\/config-check\.js" "<project>" save`/);
-  assert.match(flow, /add\s+`--sections` with those that did, comma-separated: a run of chosen sections → those; quick setup →\s+`1,2,3,4,5,6,8,9,10,11`/);
+  assert.match(flow, /add\s+`--sections "<those that did>"`, comma-separated in quotes: a run of chosen sections → those; quick\s+setup → `"1,2,3,4,5,6,8,9,10,11"`/);
   assert.doesNotMatch(flow, /check-config\.js/, 'step 12 checks through config-check.js');
   const preflight = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'preflight.md'), 'utf8');
   assert.match(preflight, /`stale`, say in one line that\s+the project changed since the last configure and that `\/keel:configure check` says/);
