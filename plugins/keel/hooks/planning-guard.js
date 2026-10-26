@@ -1,11 +1,13 @@
 'use strict';
 // PreToolUse hook on Edit, Write, NotebookEdit, Bash and PowerShell: while the conversation plans a
 // feature (its chat mark, scripts/lib/plans.js), project files stay unchanged. Allowed: the feature's
-// draft folder, the planning settings, keel's working files in .keel/local/tmp/, Claude Code's Plan Mode
-// files in .keel/local/plans/claude/ (Plan Mode writes its plan with Write and Edit) and anything outside
-// the project (memory, temporary files). A safeguard against slips, not a wall: shell commands are read
-// with skill-hints.js shell(), which sees redirections, sed -i, cp and mv and PowerShell's write
-// cmdlets, but not rm, git checkout, node -e and the like; keel's own scripts write only their own files.
+// draft folder, its exported feature folder in the repository (<export_dir>/<feature>/: export writes it
+// and the conversation edits the exported tickets), the planning settings, keel's working files in
+// .keel/local/tmp/, Claude Code's Plan Mode files in .keel/local/plans/claude/ (Plan Mode writes its plan
+// with Write and Edit) and anything outside the project (memory, temporary files). A safeguard against
+// slips, not a wall: shell commands are read with skill-hints.js shell(), which sees redirections,
+// sed -i, cp and mv and PowerShell's write cmdlets, but not rm, git checkout, node -e and the like;
+// keel's own scripts write only their own files.
 // Fails soft.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -16,11 +18,14 @@ const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
 const within = (file, place) => fold(norm(file)) === fold(norm(place)) || fold(norm(file)).startsWith(`${fold(norm(place))}/`);
 
 // The places a planning conversation may write in the project. The feature's folder counts by its name
-// in both draft places, so a plan.md the conversation broke can still be fixed.
+// in both draft places and in the export folder, so a plan.md the conversation broke can still be fixed.
 function allowedPlaces(root, feature) {
   const local = path.join(root, '.keel', 'local');
+  const plans = require('../scripts/lib/plans.js');
+  const exported = plans.exportDir(root);
   return [
-    ...require('../scripts/lib/plans.js').draftDirs(root).map((d) => path.join(d.dir, feature)),
+    ...plans.draftDirs(root).map((d) => path.join(d.dir, feature)),
+    ...(exported ? [path.join(exported, feature)] : []),
     path.join(local, 'plans', 'keel', 'settings.json'),
     path.join(local, 'tmp'),
     path.join(local, 'plans', 'claude'),

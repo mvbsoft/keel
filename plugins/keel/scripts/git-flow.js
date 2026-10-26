@@ -72,13 +72,16 @@ function changedFiles(root) {
   return files;
 }
 
+// The remote keel works with: origin, else the first one.
+const pickRemote = (remotes) => (remotes.includes('origin') ? 'origin' : remotes[0] || null);
+
 function context(root) {
   const { config, isSecret } = loadProject(root);
   const repo = git(root, ['rev-parse', '--git-dir']);
   if (!repo.ok) throw new Stop(/dubious ownership/i.test(repo.err) ? `git does not trust this folder's owner: ${firstLines(repo.err)}` : 'not a git repository');
   const branch = git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).out || null;
   const remotes = git(root, ['remote']).out.split('\n').filter(Boolean);
-  const remote = remotes.includes('origin') ? 'origin' : remotes[0] || null;
+  const remote = pickRemote(remotes);
   const top = git(root, ['rev-parse', '--show-toplevel']).out;
   let atTop = false;
   try { atTop = samePath(realPath(path.resolve(top)), realPath(root)); } catch { /* unreadable: not the top */ }
@@ -440,4 +443,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { run, pushRefusal };
+module.exports = { run, pushRefusal, git, context, requireReady, sameBranch, pickRemote, firstLines };

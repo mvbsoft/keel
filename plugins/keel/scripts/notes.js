@@ -256,4 +256,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { check, lane, laneConflicts, frontmatter, LIMIT };
+module.exports = { check, lane, laneConflicts, frontmatter, LIMIT, TRACKER };
