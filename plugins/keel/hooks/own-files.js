@@ -50,7 +50,10 @@ const GIT_STEPS = new Set(['start', 'switch', 'commit', 'sync', 'push']);
 const PLANS_ASK = new Set(['commit', 'push']);
 
 const norm = (p) => path.resolve(p).replace(/\\/g, '/').replace(/\/+$/, '');
-const sameFs = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
+// Windows compares A-Z without case; toLowerCase also folds signs such as the Kelvin sign into k, which
+// name another folder there.
+const foldAscii = (s) => s.replace(/[A-Z]/g, (c) => c.toLowerCase());
+const sameFs = (a, b) => (process.platform === 'win32' ? foldAscii(a) === foldAscii(b) : a === b);
 const inside = (file, root) => {
   const f = norm(file);
   const r = norm(root);
@@ -128,10 +131,12 @@ const UNSAFE_BARE = /[(){}@*?[\]#;&|<>]/;
 // A word PowerShell reads as a parameter: one dash (it counts the en dash, em dash and horizontal bar as
 // dashes too) not followed by another.
 const PS_PARAMETER = /^[-\u2013-\u2015](?![-\u2013-\u2015])/;
+// -> { words, bare } (bare: the words written without quotes), or null.
 function splitWords(text, bash) {
   if (UNSAFE.test(text) || /[\u0000-\u0008\u000a-\u001f\u007f-\u009f\u2028\u2029]/.test(text)) return null;
   const token = /[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"']+))(?=[ \t]|$)/y;
   const out = [];
+  const bare = [];
   while (token.lastIndex < text.length) {
     if (/^[ \t]*$/.test(text.slice(token.lastIndex))) break;
     const m = token.exec(text);
@@ -139,16 +144,18 @@ function splitWords(text, bash) {
     // Windows short name such as RUNNER~1, and inside quotes it is plain text.
     if (!m || (m[2] !== undefined && m[2].includes('"')) || (m[3] && UNSAFE_BARE.test(m[3])) || (m[3] && m[3].includes(',') && !/^\d+(,\d+)*$/.test(m[3])) || (m[3] && /(^|[=:])~/.test(m[3])) || (bash && m[3] && m[3].includes('\\')) || (!bash && m[3] && PS_PARAMETER.test(m[3]) && (m[3].includes('.') || m[3].endsWith(':')))) return null;
     out.push(m[1] ?? m[2] ?? m[3]);
+    if (m[3]) bare.push(m[3]);
   }
   // PowerShell drops `--%` (stop-parsing) and, in Windows PowerShell 5.1, an empty argument before node
   // sees them, so the words the hook reads would not be the ones the script gets.
   if (!bash && out.some((w) => w === '--%' || w === '')) return null;
-  return out;
+  return { words: out, bare };
 }
 
-// Words that name a step Claude Code must confirm. A command that holds one but does not read as that
-// confirmed step is refused rather than allowed: a shell may pass the words in an order the hook
-// cannot see.
+// Words that name a step Claude Code must confirm. A command that holds one as a bare word but does not
+// read as that confirmed step is refused rather than allowed: a shell may pass bare words in an order
+// the hook cannot see. A quoted word reaches the script as written, so a title "drop" or a branch
+// "merge" in quotes runs.
 const CONFIRMED_WORDS = new Set(['delete', 'drop', 'empty-trash', 'merge', 'delete-branch', 'trust']);
 
 // Whether HEAD is on the main line (the configured main branch or a remote's default branch), or git
@@ -194,10 +201,11 @@ const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the ste
 // The decision for `node <keel>/scripts/<name> <args>`. Arguments are read with the scripts' own
 // parseArgs, so the step the hook judges is the step the script runs.
 function ownScript(name, argText, projectDir, bash) {
-  const argv = splitWords(argText, bash);
+  const split = splitWords(argText, bash);
   // keel's instructions never need shell expansions; refused, the model sends the plain form, which the
   // steps that always ask can recognise.
-  if (!argv) return decide('deny', PLAIN_FORM);
+  if (!split) return decide('deny', PLAIN_FORM);
+  const argv = split.words;
   // Loaded here, not at the top: this hook runs on every shell command and these pull in the catalog.
   const { opts, pos } = require('../scripts/lib/project.js').parseArgs(argv);
   // Every listed script but usage.js takes the project folder first; none is called on a sub-folder.
@@ -231,12 +239,12 @@ function ownScript(name, argText, projectDir, bash) {
     return argv.some((w) => PLANS_ASK.has(w)) ? decide('ask', say(pos[0], 'confirm.plans_word')) : allow('keel runs its own plans.js');
   }
   if (name === 'git-flow.js') {
-    if (!alwaysAsks(name, pos) && argv.some((w) => CONFIRMED_WORDS.has(w))) return decide('deny', PLAIN_FORM);
+    if (!alwaysAsks(name, pos) && split.bare.some((w) => CONFIRMED_WORDS.has(w))) return decide('deny', PLAIN_FORM);
     return gitFlow(pos, opts);
   }
   const asked = destructive(name, pos, opts);
   if (asked) return asked;
-  if (argv.some((w) => CONFIRMED_WORDS.has(w))) return decide('deny', PLAIN_FORM);
+  if (split.bare.some((w) => CONFIRMED_WORDS.has(w))) return decide('deny', PLAIN_FORM);
   if (name === 'claude-settings.js' && !(pos[1] === 'show' && pos.length === 2 && !Object.keys(opts).length)) return null;
   if (ASK[name] && ASK[name].includes(pos[1])) return null;
   return allow(`keel runs its own ${name}`);

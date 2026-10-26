@@ -13,7 +13,8 @@ const { readJsonFile } = require('./json.js');
 const file = (env = process.env) => path.join(usageDir(env), 'trusted-git.json');
 const key = (root) => {
   const p = path.resolve(root).replace(/\\/g, '/').replace(/\/+$/, '');
-  return process.platform === 'win32' ? p.toLowerCase() : p;
+  // Windows folds only A-Z here: toLowerCase would also turn the Kelvin sign into k, another folder.
+  return process.platform === 'win32' ? p.replace(/[A-Z]/g, (c) => c.toLowerCase()) : p;
 };
 
 // Key order does not change the hash.
