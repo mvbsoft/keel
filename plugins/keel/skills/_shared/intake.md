@@ -169,8 +169,8 @@ lands on the main branch:
 2. `node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source <jira|linear|asana|github|file|text> [--link <url or path>] --session <sid>`
    (any other page or document link, e.g. Google Docs or Notion: `--source text --link <url>`; a
    planned ticket: `--source file --link <its file path>`; a
-   title with quotes, brackets or `$` makes Claude Code ask for permission: keep `--title` plain and
-   fix it in the file). A line starting `notes:` is a refusal: read it, fix the argument;
+   title with double or curly quotes, `$` or a backquote is refused by keel (nothing runs): keep `--title`
+   plain and fix it in the file). A line starting `notes:` is a refusal: read it, fix the argument;
    `the note ... names <key>` → that key is led by /keel:start-session: say so and stop. Then fill the
    `task.md` it names (Edit): front matter `branch`, `base`, `merge_into` (a planned ticket: as
    "Planned ticket" says), `execution`, `plan`, and the

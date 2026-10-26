@@ -113,17 +113,19 @@ function destructive(name, pos, opts) {
 // or space; in a bare word also PowerShell's (...), @(...) and {...}, bash's globs (and ~), a bare
 // backslash, # that starts a comment, and separators. Inside quotes these are plain text, as in a link
 // with ? and &. A bare comma makes a PowerShell array, which may reach node as several words, so it is
-// accepted only in a list of numbers (`--items 1,2`), which cannot become a step name. Whitespace other
-// than spaces and tabs (a non-breaking space) is refused: bash does not split words on it.
+// accepted only in a list of numbers (`--items 1,2`), which cannot become a step name. Words split only
+// on spaces and tabs, as in bash: a special space is text inside quotes and refused outside them
+// (PowerShell splits on it). Control characters other than tab are refused anywhere (Windows
+// PowerShell 5.1 splits words on U+0085).
 const CURLY_QUOTES = /[‘-„]/;
 const UNSAFE = /[$`‘-„]|\\["' ]/;
 const UNSAFE_BARE = /[(){}@*?[\]#;&|<>]/;
 function splitWords(text, bash) {
-  if (UNSAFE.test(text) || /[^\S \t]/.test(text)) return null;
-  const token = /\s*(?:"([^"]*)"|'([^']*)'|([^\s"']+))(?=\s|$)/y;
+  if (UNSAFE.test(text) || /[\u0000-\u0008\u000a-\u001f\u007f-\u009f]/.test(text)) return null;
+  const token = /[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"']+))(?=[ \t]|$)/y;
   const out = [];
   while (token.lastIndex < text.length) {
-    if (/^\s*$/.test(text.slice(token.lastIndex))) break;
+    if (/^[ \t]*$/.test(text.slice(token.lastIndex))) break;
     const m = token.exec(text);
     // A shell expands ~ only in a bare word, at its start or after = or :; inside a word, as in a
     // Windows short name such as RUNNER~1, and inside quotes it is plain text.
@@ -179,7 +181,7 @@ function gitFlow(pos, opts) {
   return null;
 }
 
-const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments or unquoted backslashes. Nothing ran; send it again in that form.';
+const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, curly quotes or control characters, and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
 
 // The decision for `node <keel>/scripts/<name> <args>`. Arguments are read with the scripts' own
 // parseArgs, so the step the hook judges is the step the script runs.
