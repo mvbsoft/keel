@@ -133,7 +133,8 @@ folders and the note move with git: [two ways of working](workflows.md#where-the
 - **keel's own scripts run without a prompt** only as one plain command,
   `node "<keel>/scripts/<name>.js" "<project>" ...`, whose project folder is the current project's
   exact absolute path. A relative path, a sub-folder or a different project goes through your normal
-  permissions; a step that always asks is refused instead, so no allow rule can run it unconfirmed.
+  permissions; a step that always asks, or a command that holds one of its words (for `plans.js` only
+  `commit` and `push`), is refused instead, so no allow rule can run it unconfirmed.
   `usage.js` takes no project folder first: its `--project`, when given, must be the current project,
   and it writes only under that project's `.keel/local/`; its `prepare` and `report` run without a
   prompt only with `--project`. Refused, with the plain form to use:
@@ -143,10 +144,13 @@ folders and the note move with git: [two ways of working](workflows.md#where-the
     (Bash), a backslash before a quote or a space, a special space (such as a non-breaking one)
     outside quotes, a double quote inside single quotes or an unquoted comma list of anything but
     numbers in its arguments, in Bash an unquoted backslash path to the script, or in PowerShell
-    `--%`, an empty argument or a bare word starting with one `-` that holds a dot (PowerShell would
-    not pass them on as written);
+    `--%`, an empty argument or a bare word starting with one dash (`-`, or the en dash, em dash or
+    horizontal bar PowerShell also reads as one) that holds a dot or ends with a colon (PowerShell
+    would not pass them on as written);
   - a keel script command that holds the words of a step Claude Code must confirm (`delete`, `drop`,
-    `empty-trash`, `merge`, `delete-branch`, `trust`) but does not read as that step;
+    `empty-trash`, `merge`, `delete-branch`, `trust`) but does not read as that step; `plans.js`
+    confirms only its own `commit` and `push` (its search takes free words such as `drop`) and asks
+    when either word stands anywhere else in its command;
   - a keel script run with `node`, `nodejs`, `bun` or `deno` in any other form (node options, `env`,
     `bash -c`, a wrapper), which the hook cannot judge, so a broad allow rule cannot run a step that
     must be confirmed. A command that only reads a script (`grep`, `sed`, `cat`) runs nothing and is
