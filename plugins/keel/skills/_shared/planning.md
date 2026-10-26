@@ -79,6 +79,9 @@ Before the draft's first file is written (start) and before a commit (end): run
 - a task `active in another session` (or `in <n> other sessions`) here → three options: keep the
   draft on this machine until the task ends (`plans.js settings set --draft pc`), plan in another copy
   of the repository (`git worktree add`), or go on at your own risk.
+Exported tickets (an "Exported feature" commit) belong on their feature branch: only the main-branch,
+`changed files:` and "branch exists, switch" cases apply, not another task's branch nor the
+`--draft pc` option.
 A yes to a new branch, in both git modes: `git switch -c <branch> <the plan's merge_into>` (Claude
 Code may ask). It carries the uncommitted planning files along; never from another task's branch: its
 unmerged commits would travel with them. git refuses (a file would be overwritten) → tell its reason

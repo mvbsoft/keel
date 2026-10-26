@@ -331,7 +331,11 @@ function states(d) {
     e.target = target;
     const featureRefs = new Set([`refs/heads/${e.branch}`, ...(d.remote ? [`refs/remotes/${d.remote}/${e.branch}`] : []), ...(target && target !== `refs/heads/${e.mergeInto}` ? [`refs/heads/${e.mergeInto}`] : [])]);
     const onTarget = e.found.filter((f) => f.view.ref === target);
-    const doneOn = e.found.filter((f) => f.fm.status === 'done' && f.view.ref !== target).map((f) => f.view);
+    // A done that a later commit or the working tree took back (done --undo) does not count. The target and
+    // the local merge_into are left out: a todo there after a merge is a revert, marked below.
+    const undoneBy = e.found.filter((f) => f.fm.status !== 'done' && f.view.ref !== target && f.view.ref !== `refs/heads/${e.mergeInto}`).map((f) => f.view);
+    const doneOn = e.found.filter((f) => f.fm.status === 'done' && f.view.ref !== target
+      && (f.view.work || !undoneBy.some((u) => (u.sha !== f.view.sha || u.work) && isAncestor(d, f.view.sha, u.sha)))).map((f) => f.view);
     if (onTarget.some((f) => f.fm.status === 'done')) { e.state = 0; continue; }
     const tips = [`refs/heads/${e.branch}`, ...(d.remote ? [`refs/remotes/${d.remote}/${e.branch}`] : [])].filter((r) => d.byRef.has(r));
     // Merged into the target, which has no file for the key: done, unless the folder left the target with
@@ -354,7 +358,8 @@ function states(d) {
       e.state = undone || merged || featureRefs.has(held.ref) ? 1 : 2;
       const b = behind(d, held);
       e.hint = b.hint;
-      if (undone || (onTarget.length && isAncestor(d, held.sha, target))) e.marks.unshift('reverted');
+      // Reverted: a committed done already merged; a done only in the working tree is not merged yet.
+      if (undone || (onTarget.length && doneOn.some((v) => !v.work && isAncestor(d, v.sha, target)))) e.marks.unshift('reverted');
       if (b.stale) e.marks.push('stale');
       continue;
     }
@@ -498,6 +503,9 @@ function dropCommand(root, feature) {
   const folders = [...new Set(here.map((t) => (t.pc ? rel(root, path.join(plans.base(root), feature)) : folderOf(t))))];
   if (repo.length) {
     if (folders.includes('')) return refuse(what, 'a ticket of the feature is in the project\'s top folder, not in a feature folder');
+    // Only the feature's own folder goes: one shared with other features or with code is never moved.
+    const shared = [...new Set(repo.map(folderOf))].find((f) => path.posix.basename(f) !== feature);
+    if (shared) return refuse(what, `${shared}/ is not the feature's own folder ${feature}/; move its tickets into one first`);
     if (!d.current) return refuse(what, 'HEAD is detached; switch to the feature branch first');
     const branch = short(d.current);
     const mainLine = [d.main, ...new Set(keys.map((e) => e.mergeInto))].filter(Boolean);

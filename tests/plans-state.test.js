@@ -260,6 +260,30 @@ gitTest('tickets: a done written in the working tree and not committed is not me
   assert.equal(line(run(work, 'tickets'), 'PROJ-55'), '  PROJ-55 Ticket PROJ-55 — waiting for the feature merge · branch csv-export, Test, today');
 });
 
+gitTest('tickets: a done taken back with done --undo no longer counts, committed or not', () => {
+  const { work } = setup();
+  const T = 'tickets/csv-export';
+  git(work, 'checkout', '-q', '-b', 'csv-export');
+  commit(work, 'Add the csv-export tickets', { [file(61, T)]: ticket('PROJ-61', { feature: 'csv-export' }) });
+  commit(work, 'Mark the ticket done', { [file(61, T)]: ticket('PROJ-61', { feature: 'csv-export', status: 'done' }) });
+  git(work, 'push', '-q', '-u', 'origin', 'csv-export');
+  assert.equal(line(run(work, 'tickets'), 'PROJ-61'), '  PROJ-61 Ticket PROJ-61 — waiting for the feature merge · branch csv-export, Test, today');
+  assert.deepEqual(run(work, 'done', 'PROJ-61', '--undo'), [`done: PROJ-61 -> todo (${file(61, T)})`]);
+  assert.equal(line(run(work, 'tickets'), 'PROJ-61'), '  PROJ-61 Ticket PROJ-61 — next', 'undone in the working tree');
+  commit(work, 'Mark the ticket todo again');
+  assert.equal(line(run(work, 'tickets'), 'PROJ-61'), '  PROJ-61 Ticket PROJ-61 — next', 'undone in a local commit');
+});
+
+gitTest('tickets: a done only in the working tree of a branch already merged is not marked reverted', () => {
+  const { work } = setup();
+  const T = 'tickets/csv-export';
+  commit(work, 'Add the csv-export tickets', { [file(62, T)]: ticket('PROJ-62', { feature: 'csv-export' }) });
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'checkout', '-q', '-b', 'csv-export');
+  write(work, file(62, T), ticket('PROJ-62', { feature: 'csv-export', status: 'done' }));
+  assert.equal(line(run(work, 'tickets'), 'PROJ-62'), '  PROJ-62 Ticket PROJ-62 — waiting for the feature merge · branch csv-export, Test, today');
+});
+
 gitTest('tickets: a project in a sub-folder of its repository reads the branches too', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-'));
   const repo = path.join(tmp, 'repo');
@@ -421,6 +445,18 @@ gitTest('drop: refused until every ticket is done and on the branch the feature 
   assert.ok(!exists(work, T));
   assert.ok(exists(work, `.keel/local/trash/${m[1]}/files/${T}/PROJ-1-a.md`));
   assert.deepEqual(run(work, 'drop', 'csv-export'), ['plans: drop refused (no tickets of csv-export in this working tree)']);
+});
+
+gitTest('drop: a folder shared with other features or code is never moved', () => {
+  const { work } = setup({ remote: false });
+  git(work, 'checkout', '-q', '-b', 'csv-export');
+  commit(work, 'Add the tickets', {
+    'tickets/PROJ-63-a.md': ticket('PROJ-63', { feature: 'csv-export', status: 'done' }),
+    'tickets/PROJ-64-b.md': ticket('PROJ-64', { feature: 'pdf-report' }),
+    'tickets/helper.js': 'module.exports = 1;\n',
+  });
+  assert.deepEqual(run(work, 'drop', 'csv-export'), ['plans: drop refused (tickets/ is not the feature\'s own folder csv-export/; move its tickets into one first)']);
+  assert.ok(exists(work, 'tickets/helper.js') && exists(work, 'tickets/PROJ-64-b.md'));
 });
 
 gitTest('drop: this machine\'s feature folder goes to keel\'s trash once its tickets are done, also on main', () => {

@@ -145,6 +145,8 @@ const exportedTickets = (folder) => folderFiles(folder).filter((t) => t.fm.type 
 // --- the exported feature, reopened ---
 
 const KEY = /^[A-Z][A-Z0-9]+-\d+$/;
+// Branches without a commit for longer are not read for a feature's tickets (as plans.js tickets).
+const RECENT_DAYS = 30;
 
 // The folders among git's paths (from the project folder) that hold a ticket-named file
 // (<KEY>-<slug>.md) and are named after the feature, as absolute paths. The export_dir setting is this
@@ -175,14 +177,17 @@ function featureFolder(root, feature) {
 }
 
 // A branch whose tree has the feature's ticket files (<KEY>-<slug>.md in a folder named after the
-// feature), or null: the feature's own branch first, then the local branches, then the remote's. A
-// branch at HEAD's commit is never named: switching to it changes nothing.
-function branchWith(root, feature) {
+// feature), or null: the feature's own branch first, then the local branches, then the remote's. Other
+// branches count only with a commit in the last RECENT_DAYS days, so hundreds of old remote branches
+// are not read. A branch at HEAD's commit is never named: switching to it changes nothing.
+function branchWith(root, feature, now = Date.now()) {
   const head = readGit(root, ['rev-parse', '-q', '--verify', 'HEAD']);
-  const refs = (readGit(root, ['for-each-ref', '--format=%(objectname) %(refname)', 'refs/heads', 'refs/remotes']) || '').split('\n')
-    .map((l) => /^([0-9a-f]+) (refs\/(heads|remotes)\/(.+))$/.exec(l)).filter((m) => m && m[1] !== head && !(m[3] === 'remotes' && /\/HEAD$/.test(m[4])))
-    .map((m) => ({ sha: m[1], name: m[4], remote: m[3] === 'remotes' }))
+  const since = now / 1000 - RECENT_DAYS * 86400;
+  const refs = (readGit(root, ['for-each-ref', '--format=%(objectname) %(committerdate:unix) %(refname)', 'refs/heads', 'refs/remotes']) || '').split('\n')
+    .map((l) => /^([0-9a-f]+) (\d*) (refs\/(heads|remotes)\/(.+))$/.exec(l)).filter((m) => m && m[1] !== head && !(m[4] === 'remotes' && /\/HEAD$/.test(m[5])))
+    .map((m) => ({ sha: m[1], date: Number(m[2]), name: m[5], remote: m[4] === 'remotes' }))
     .map((r) => ({ ...r, rank: ((r.remote ? r.name.slice(r.name.indexOf('/') + 1) : r.name) === feature ? 0 : 2) + (r.remote ? 1 : 0) }))
+    .filter((r) => r.rank < 2 || r.date >= since)
     .sort((a, b) => a.rank - b.rank);
   if (!refs.length) return null;
   // Only the .md files directly in a folder named after the feature, from the project folder: a diff

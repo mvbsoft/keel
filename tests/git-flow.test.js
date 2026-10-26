@@ -243,7 +243,7 @@ gitTest('sync: up to date, merges new main commits, and stops cleanly on a confl
   assert.match(line(flow(work, 'sync'), 'reason:'), /uncommitted/);
 });
 
-gitTest('sync on the base itself: pulls the shared branch, stops cleanly on a conflict, stops without a remote copy', () => {
+gitTest('sync on the base itself: pulls the shared branch, stops cleanly on a conflict, nothing to pull without a remote copy', () => {
   const { tmp, work, server } = setup();
   git(work, 'switch', '-q', '-c', 's3-storage');
   git(work, 'push', '-q', '-u', 'origin', 's3-storage');

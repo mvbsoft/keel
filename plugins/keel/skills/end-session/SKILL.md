@@ -47,9 +47,13 @@ Current state of this project:
    (`done: <KEY> (<path>)`; `done: none (no ticket <KEY> here)` for a key `plans.js tickets <KEY>`
    knows → warn that its status is not written). git.md's `commit` then adds `--tickets <those keys>`
    (comma-separated), so their ticket files go into the commit; `done: feature <f> complete (<n> tickets)`
-   → git.md "End of feature" after the push. Gates only or red → no `plans.js done` call. A git step
-   that stops after these calls → `plans.js done <KEY> --undo` for each (the tickets are `todo`
-   again); manual git → one line: "The ticket files <paths> are marked done: commit them with the code."
+   → git.md "End of feature" after the push. Gates only or red → no `plans.js done` call. git stops
+   before the commit holds them (`commit` stopped or never ran) → `plans.js done <KEY> --undo` for
+   each (the tickets are `todo` again); a stop after the commit (sync, push) → no undo: the commit
+   holds them, say the push is left. Manual git → one line: "The ticket files <paths> are marked
+   done: commit them with the code." (not for tickets under `.keel/local/`: they are outside git);
+   with `done: feature <f> complete` also "Feature <f> is complete; /keel:tasks offers its end once
+   you have committed and pushed."
 7. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-4 with session id
    `${CLAUDE_SESSION_ID}` and the level and findings from step 4; its step 5 runs in step 9, right
    before the report.

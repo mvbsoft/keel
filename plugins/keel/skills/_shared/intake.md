@@ -41,7 +41,8 @@ items only when the description alone leaves the goal unclear.
 (the long-work note names it); continue it there." and stop. `lane: conflict` → show its lines, ask
 which lane leads it and stop. `lane: task` → it is an unfinished task: step 3 offers to continue it.
 `lane: none (task <id> was finished or dropped earlier)` → say so and ask whether to start it as a new
-task; no → stop (a dropped or finished folder may still be in keel's trash: `/keel:cleanup restore`).
+task; no → stop (a dropped or finished folder may still be in keel's trash: `/keel:cleanup restore`);
+yes for a key → "Planned ticket" below first.
 Any other `lane: none` for a key → it may be a planned ticket: "Planned ticket" below first.
 
 ## 3. Retell, new or continuation

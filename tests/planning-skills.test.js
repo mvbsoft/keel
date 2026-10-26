@@ -120,6 +120,12 @@ test('exported feature: its tickets\' state first, a switch to the branch that h
   before(ex, 'switch --name <branch>', 'then the mark again', 'the mark is set once the folder is here');
   // The refusal may name a remote branch; git-flow.js switch takes a local name.
   assert.match(ex, /\(the name without the remote\s+prefix: `origin\/x` → `x`;/);
+  // Exported tickets belong on their feature branch: the draft-only hints do not apply to them.
+  assert.match(section('Branch hints'), /Exported tickets \(an "Exported feature" commit\) belong on their feature branch: only the main-branch,\s+`changed files:` and "branch exists, switch" cases apply, not another task's branch nor the\s+`--draft pc` option/);
+  // A bare name with no draft may be an exported feature: its tickets are looked up before any words search.
+  const which = start().slice(start().indexOf('**Which feature**'), start().indexOf('**New feature.**'));
+  assert.match(which, /a single name with no draft → `plans\.js tickets <it>` first: it lists tickets → an exported\s+feature \(below\); `tickets: none \.\.\.` → the next case/);
+  before(which, 'plans.js tickets <it>', 'plans.js find <words>');
   // A chat already marked for an exported feature goes on with its tickets, not with the draft steps.
   assert.match(start(), /continue\s+`<f>` \(step 6; an exported feature, told apart as in step 4: planning\.md "Exported feature" steps\s+3-6\)/);
   assert.match(ex, /Only `to do` \(or `next`\) tickets are edited: show each change and write it only on a yes/);

@@ -744,6 +744,18 @@ gitTest('a feature folder under a non-ASCII folder commits as "Update" once HEAD
   git(work, 'commit', '-q', '-m', 'csv');
   git(work, 'checkout', '-q', 's3-storage');
   assert.deepEqual(run(work, 'mark', 'set', 'csv-export', '--session', 'chat-1'), ['plans: mark set refused (the tickets of csv-export are not in this working tree; branch csv-work has them: switch to it first)']);
+  // A branch without a commit for 30 days is read only when it is named after the feature.
+  const old = (branch) => {
+    git(work, 'checkout', '-q', '-b', branch, 'main');
+    write(work, 'plans/pay-flow/PROJ-6-pay.md', ticket('PROJ-6'));
+    git(work, 'add', '-A');
+    execFileSync('git', ['-C', work, 'commit', '-q', '-m', 'old'], { env: { ...process.env, GIT_COMMITTER_DATE: '2020-01-01T00:00:00Z' }, stdio: 'ignore' });
+    git(work, 'checkout', '-q', 's3-storage');
+  };
+  old('old-work');
+  assert.match(run(work, 'mark', 'set', 'pay-flow', '--session', 'chat-1')[0], /^plans: mark set refused \(no draft "pay-flow"/);
+  old('pay-flow');
+  assert.deepEqual(run(work, 'mark', 'set', 'pay-flow', '--session', 'chat-1'), ['plans: mark set refused (the tickets of pay-flow are not in this working tree; branch pay-flow has them: switch to it first)']);
 });
 
 // --- the write guard ---

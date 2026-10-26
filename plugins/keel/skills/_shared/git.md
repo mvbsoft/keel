@@ -16,7 +16,9 @@ the note's `branch` equals its `base`, and `plans.js tickets <the task id or a k
 prints `branch: <that branch> -> <merge_into>`): no `start`, `sync` pulls the shared branch, then
 `push`. Its feature branch is never merged, also when `git.ask_before_merge` is false or the instruction asks
 (say why in one line: other tickets of the feature are not done): only "End of feature" below merges
-it, after `done: feature <f> complete` and a yes. A ticket branch
+it, after `done: feature <f> complete` and a yes. Its report says "the feature merges at End of
+feature, after its last ticket", not "merge it when ready"; manual mode: commit and push, no merge
+advice. A ticket branch
 (`base` = `merge_into` = the feature branch) merges into the feature branch like any task.
 Red verification and an instruction to push or merge → stop and ask before any git step.
 A **task handoff** whose instruction asks to merge, with the task folder in git: before any git step say
@@ -38,7 +40,7 @@ user asked.
 A planned ticket on its feature branch asks this instead, when the feature has 2 or more tickets
 (`plans.js tickets <feature>`; one ticket → the usual commit and push to its branch):
 - a new ticket branch `<KEY>-<short-name>` from the feature branch (recommended; later merged back
-  into it): `start --name <it>` carries the changes; set the task file's `branch` to it and `base` and
+  into it): `start --name <it> --from <the feature branch>` carries the changes; set the task file's `branch` to it and `base` and
   `merge_into` to the feature branch before the commit;
 - commit and push to the feature branch (you work on it alone);
 - no commit: the changes stay uncommitted here for the next session.
@@ -65,7 +67,7 @@ everything else stays with the user. Give the user:
 - the changed files (from `node "<keel>/scripts/git-flow.js" "<project>" status`);
 - the commit message, ready to copy;
 - **finish**: the task folder's removal (it is in keel's trash) is part of that commit; then merge as
-  they usually do;
+  they usually do (a planned ticket on its feature branch: commit and push only, see above);
 - **handoff of a task**: commit the work and the task folder on the task branch (preferred), then
   `git switch <base>`. Not a commit: commit only the task folder when it is in git, then
   `git stash push -u -m "keel: <id>"` for the rest. Say which one in the task's State. A task without
