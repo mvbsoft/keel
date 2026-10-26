@@ -26,6 +26,13 @@ Current state of this project:
    ids, links, branches and paths stay as they are. A task handed off 30 days ago or more → offer
    `/keel:tasks drop <id>`, or `/keel:start-task <id>` then `/keel:end-task` to finish it; say nothing
    about age otherwise. End with: "Continue one with `/keel:start-task <id>`." No tasks → say so.
+   Then the planned tickets: `node "<keel>/scripts/plans.js" "<project>" tickets`. Not
+   `tickets: none` → a block "Planned": each feature and its ticket lines as printed (states and hints
+   in the conversation language; keys, branches and names stay), the data-date line
+   (`server data from <date>`, `no remote` or `never fetched`), and "Start the next one with
+   `/keel:start-task <KEY>`" with the key of its `next:` line (`next: none` → no such line). A
+   feature whose every ticket is `done` or `waiting for the feature merge` (all done in its feature
+   branch) → offer its end as `<keel>/skills/_shared/git.md` "End of feature" says.
 4. `<task id>`: show its block, then read its `task.md` (and `plan.md`): in this working tree from the
    path in Files; on another branch: `git show <branch>:<path>/task.md`. Tell its goal, state,
    open questions and next action in 3-6 lines. An id that is not listed → say so and show the list.

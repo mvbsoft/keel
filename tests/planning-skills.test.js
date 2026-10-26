@@ -31,7 +31,7 @@ test('every plans.js command the planning instructions name is documented in pla
   const header = read('scripts', 'plans.js').split('\n').filter((l) => l.startsWith('//')).join('\n');
   const named = new Set();
   for (const text of all()) for (const m of text.matchAll(/plans\.js(?:" "<project>")? ([a-z]+)/g)) named.add(m[1]);
-  for (const cmd of ['list', 'find', 'new', 'set', 'ticket', 'check', 'review', 'reviewed', 'report', 'stale', 'state', 'settings', 'mark', 'export', 'commit', 'push']) assert.ok(named.has(cmd), `the instructions never call ${cmd}`);
+  for (const cmd of ['list', 'find', 'new', 'set', 'ticket', 'check', 'review', 'reviewed', 'report', 'stale', 'state', 'settings', 'mark', 'export', 'commit', 'push', 'tickets']) assert.ok(named.has(cmd), `the instructions never call ${cmd}`);
   for (const cmd of named) assert.match(header, new RegExp(`^//   ${cmd}\\b`, 'm'), `plans.js documents no ${cmd}`);
 });
 
@@ -105,7 +105,38 @@ test('start-planning: no argument lists the drafts, words find one, a link or fi
   assert.match(text, /other words → `plans\.js find <words>`: `find: 1 match` → "Continue `<f>`\?"; several → show them\s+and ask which/);
   // Spec §5.2: no match shows the list, the user picks one or a new feature.
   assert.match(text, /`find: no match` → show the drafts it lists \(if any\) and ask: one of these, or a\s+new feature from these words\?/);
-  assert.match(text, /`exported` → its tickets live in the feature folder; editing them is not part\s+of this command/, 'editing exported tickets is a later stage');
+  // An exported feature is reopened to edit its tickets in the feature folder (spec §5.6), not refused.
+  assert.doesNotMatch(text, /editing them is not part\s+of this command/);
+  assert.match(text, /A chosen plan that is `exported`, or a name `plans\.js tickets <f>` lists tickets for \(an exported\s+feature without a draft\) → its tickets live in the feature folder: planning\.md "Exported feature"\s+steps 1-2, then step 7, then its steps 3-6 as the work \(not steps 5, 6 and 8\)/);
+  assert.match(text, /read `<keel>\/skills\/_shared\/planning\.md`, sections "Rules" and "Work"; they hold for the whole\s+command \(an exported feature: also "Exported feature"\)/i);
+  assert.match(text, /`planning: <f>` \(an exported feature:\s+`planning: <f> \(exported: <folder>\)`\)/);
+});
+
+test('exported feature: its tickets\' state first, a switch to the branch that has them, only to-do tickets edited on a yes, then check and review', () => {
+  const ex = section('Exported feature');
+  assert.match(ex, /`node "<keel>\/scripts\/plans\.js" "<project>" tickets <f>`: show its lines as printed/);
+  before(ex, 'tickets <f>`', 'switch --name <branch>', 'the state is read first');
+  assert.match(ex, /The feature folder is not in this working tree \(its tickets are on another branch: `plans\.js mark\s+set` refuses and names it\) → ask "Switch to `<branch>`\?"; yes →\s+`node "<keel>\/scripts\/git-flow\.js" "<project>" switch --name <branch>`/);
+  before(ex, 'switch --name <branch>', 'then the mark again', 'the mark is set once the folder is here');
+  assert.match(ex, /Only `to do` \(or `next`\) tickets are edited: show each change and write it only on a yes/);
+  before(ex, 'write it only on a yes', '`plans.js check <f>`');
+  before(ex, '`plans.js check <f>`', 'a ticket review of the changed tickets', 'no reviewer runs on a broken structure');
+  assert.match(ex, /"Reviews" steps 3, 5 and 6 with\s+the feature folder/);
+  assert.match(ex, /A ticket `in progress`, `waiting for \.\.\.` or `done` is never changed: offer a new ticket, or leave it\s+as it is; name whom it concerns \(the branch and author of its hint\)/);
+  assert.match(ex, /`plans\.js ticket <f> --title "<title>" \[--slug <english-words>\] \[--depends K1,K2\]` →\s+`created: <path>` and `ticket: <KEY>`/);
+  assert.match(ex, /`\/keel:end-planning` checks the folder and offers the commit and push/);
+  assert.ok(flow().indexOf('## Exported feature') > flow().indexOf('## Work'), 'after the rules and the work it builds on');
+});
+
+test('end-planning: an exported feature is checked and committed, without plan gates, plan review or export', () => {
+  const text = end();
+  const ex = text.slice(text.indexOf('**An exported feature**'), text.indexOf('5. **A. Hand over.**'));
+  assert.match(ex, /→ neither\s+mode: no plan gates and no plan review/);
+  assert.match(ex, /`plans\.js check <f>` \(step 3\) → `check: clean`, or fix its\s+problems with the user \(each write on a yes\)/);
+  before(ex, '`plans.js check <f>`', 'planning.md "Commit and push"', 'checked before it is committed');
+  assert.match(ex, /\(this machine: nothing to commit\); then step 7/, 'the chat mark is cleared as always');
+  before(text, '**An exported feature**', 'mark clear --session <sid>');
+  assert.match(text, /B or an exported feature: the feature\s+folder and "a ticket starts with `\/keel:start-task <KEY>`"/);
 });
 
 test('start-planning: a new feature reads its source like start-task, retells, checks the premise, sizes, names and asks the main branch only when there are several', () => {
@@ -254,13 +285,20 @@ test('end-planning: the chat mark is cleared in every mode, then the costs, and 
 });
 
 test('every output line the planning instructions quote is printed by plans.js', () => {
-  const source = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-export.js'], ['lib', 'plans-report.js']].map((p) => read('scripts', ...p)).join('\n');
+  const scripts = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-export.js'], ['lib', 'plans-report.js'], ['lib', 'plans-state.js']];
+  const source = scripts.map((p) => (fs.existsSync(path.join(PLUGIN, 'scripts', ...p)) ? read('scripts', ...p) : '')).join('\n');
   const text = all().join('\n');
   const lines = ['settings: none yet', 'find: 1 match', 'find: no match', 'planning: none', 'check: clean', 'report: ok ·', 'report: failed',
-    'exported:', 'readme:', 'committed:', 'commit: nothing to commit', 'renumbered:', 'pushed:', 'push: no remote, nothing pushed', 'stale:', 'branch:', 'merge_into:'];
+    'exported:', 'readme:', 'committed:', 'commit: nothing to commit', 'renumbered:', 'pushed:', 'push: no remote, nothing pushed', 'stale:', 'branch:', 'merge_into:',
+    'created:', 'ticket:'];
   for (const line of lines) {
     assert.ok(text.includes('`' + line), `the instructions do not quote ${line}`);
     assert.ok(source.includes(line), `plans.js no longer prints "${line}"`);
+  }
+  // Quoted with placeholders, printed from template literals.
+  for (const [quoted, printed] of [['`planning: <f> (exported: <folder>)`', ' (exported: ${'], ['`branch: <b> -> <merge_into>`', '`  branch: ${']]) {
+    assert.ok(text.includes(quoted), `the instructions do not quote ${quoted}`);
+    assert.ok(source.includes(printed), `plans.js does not print ${printed}`);
   }
   assert.match(read('skills', '_shared', 'final-report.md').split('\n')[0], /\/keel:end-planning/, 'final-report.md names end-planning, which reads its block 5');
 });

@@ -18,7 +18,7 @@ planning." Nothing else: run nothing, read nothing.
 |---|---|---|
 | `/keel:start-task <link, key or words>` | starts a task (bug, ticket, small feature) or continues one: retells it, asks "new or continuation?", plans, then codes | `/keel:start-task https://jira.example.com/browse/CAN-123` |
 | `/keel:end-task [instruction]` | finishes the task (verification, git, its folder moved to keel's trash) or hands it off for another session; no instruction: a menu | `/keel:end-task finish and merge into main` |
-| `/keel:tasks [id \| drop id]` | lists the unfinished tasks, shows one, or drops one with what it left | `/keel:tasks drop fix-reset-500` |
+| `/keel:tasks [id \| drop id]` | lists the unfinished tasks and the planned tickets, shows one, or drops one with what it left | `/keel:tasks drop fix-reset-500` |
 | `/keel:start-session [instruction]` | continues the long line of work from its note, or starts one from a plan, a link or a description | `/keel:start-session only write the tests today` |
 | `/keel:end-session [instruction]` | verifies, writes the note for the next session, then git and the action you name | `/keel:end-session we continue tomorrow, prepare` |
 | `/keel:start-planning [idea, link, file or feature]` | plans a feature in its own conversation: one question at a time, decisions and short tickets in a draft, no code; no argument lists the drafts | `/keel:start-planning CSV export of invoices` |

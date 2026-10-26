@@ -7,7 +7,9 @@ description: Use when branching, committing, writing a commit message, comment o
 
 ## Branches
 - Follow the project's convention first. Without one, keel names a branch `<KEY>-<short-name>`
-  (ticket key, then a few words), created from the main branch or the one the user names.
+  (ticket key, then a few words), created from the main branch or the one the user names. A planned
+  ticket (a file with `type: ticket`) works on its feature branch (its `branch:` field), not from the
+  main branch; a ticket branch, when one is needed, starts from the feature branch.
 - Never commit straight to the main branch unless the project's convention allows it.
 - Need isolation from work in progress → a git worktree in a git-ignored folder, removed after merge.
 
@@ -25,7 +27,8 @@ description: Use when branching, committing, writing a commit message, comment o
   AI, no "generated with", no tool signatures. Claude Code's `attribution` setting turns its own
   trailer off; keel's configure offers it.
 - No ticket keys, plan, phase or step codes in code comments or docs; they become dangling
-  references once the plan is gone. They belong in the PR description or the issue tracker.
+  references once the plan is gone. They belong in the PR description or the issue tracker. Ticket
+  files themselves (front matter `type: ticket` or `type: feature`) may hold keys.
 - Code comments follow the project's comment level (`comments.level`, rules injected at session start).
 
 ## Push, merge, PR

@@ -42,6 +42,12 @@ Current state of this project:
    step 6, otherwise after it.
 6. Git: read `<keel>/skills/_shared/git.md` and follow it: **finish** when the line is finished, else
    **handoff**, with the actions from the instruction (merging and red verification: as git.md says).
+   Planned tickets first: a passed full verification (not gates only, not red) → for each key in the
+   note's `keys:` whose Plan items are all ✅, `node "<keel>/scripts/plans.js" "<project>" done <KEY>`
+   (`done: <KEY> (<path>)`; `done: none (no ticket <KEY> here)` for a key `plans.js tickets <KEY>`
+   knows → warn that its status is not written). git.md's `commit` then adds `--tickets <those keys>`
+   (comma-separated), so their ticket files go into the commit; `done: feature <f> complete (<n> tickets)`
+   → git.md "End of feature" after the push. Gates only or red → no `plans.js done` call.
 7. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-4 with session id
    `${CLAUDE_SESSION_ID}` and the level and findings from step 4; its step 5 runs in step 9, right
    before the report.

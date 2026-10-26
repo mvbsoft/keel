@@ -105,6 +105,11 @@ test('end commands verify, then write the note and do git in the agreed order', 
   assert.doesNotMatch(et, /Is the task fully\s+done\?/, 'no question in the chat');
   assert.ok(end('end-task').indexOf('usage-sync.md') < end('end-task').indexOf('task delete <id> --session'), 'the costs read the task title first');
   assert.ok(end('end-task').indexOf('task deactivate') > end('end-task').indexOf('git.md'), 'a handed-off task is released after git');
+  // A planned ticket is marked done after the folder deletion (a declined deletion marks nothing) and before git (same commit as the code).
+  const done = et.indexOf('plans.js" "<project>" done <id>`');
+  assert.ok(et.indexOf('task delete <id> --session') < done && done < et.indexOf('8. Git: read `<keel>/skills/_shared/git.md`'), 'task delete, then plans.js done, then git');
+  const es = end('end-session');
+  assert.ok(es.indexOf('verify.md') < es.indexOf('plans.js" "<project>" done <KEY>`') && es.indexOf('done <KEY>`') < es.indexOf('7. Costs'), 'end-session: verified first, tickets marked before the commit');
   assert.match(fs.readFileSync(path.join(SKILLS, '_shared', 'final-report.md'), 'utf8'), /\/clear before the next task/);
   assert.ok(end('end-session').indexOf('handoff.md') < end('end-session').indexOf('git.md'), 'the note is prepared before the action');
 });
