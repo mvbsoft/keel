@@ -373,7 +373,7 @@ test('plans.js commit or push anywhere in its command is never silent: refused o
   }
 });
 
-test('a confirmed step word with a project path that is not the current one\'s exact path asks for that path', () => {
+test('a confirmed step word with a project path that is not the current one\'s exact path is refused, naming that path', () => {
   const proj = project({ mode: 'autonomous' });
   const env = { CLAUDE_PROJECT_DIR: proj };
   for (const tool of ['Bash', 'PowerShell']) {

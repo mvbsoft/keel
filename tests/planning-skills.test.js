@@ -102,7 +102,7 @@ test('start-planning: the first run asks the language, then the draft place, one
 test('start-planning: no argument lists the drafts, words find one, a link or file starts a new feature', () => {
   const text = start();
   assert.match(text, /empty → `plans\.js list`: show each draft \(feature, state, open Q, tickets, last change, where\)/);
-  assert.match(text, /other words → `plans\.js find <words>`: `find: 1 match` → "Continue `<f>`\?"; several → show them\s+and ask which/);
+  assert.match(text, /other words → `plans\.js find "<words>"`: `find: 1 match` → "Continue `<f>`\?"; several → show\s+them and ask which/);
   // Spec §5.2: no match shows the list, the user picks one or a new feature.
   assert.match(text, /`find: no match` → show the drafts it lists \(if any\) and ask: one of these, or a\s+new feature from these words\?/);
   // An exported feature is reopened to edit its tickets in the feature folder (spec §5.6), not refused.
@@ -125,7 +125,7 @@ test('exported feature: its tickets\' state first, a switch to the branch that h
   // A bare name with no draft may be an exported feature: its tickets are looked up before any words search.
   const which = start().slice(start().indexOf('**Which feature**'), start().indexOf('**New feature.**'));
   assert.match(which, /a single name with no draft → `plans\.js tickets <it>` first: it lists tickets → an exported\s+feature \(below\); `tickets: none \.\.\.` → the next case/);
-  before(which, 'plans.js tickets <it>', 'plans.js find <words>');
+  before(which, 'plans.js tickets <it>', 'plans.js find "<words>"');
   // A chat already marked for an exported feature goes on with its tickets, not with the draft steps.
   assert.match(start(), /continue\s+`<f>` \(step 6; an exported feature, told apart as in step 4: planning\.md "Exported feature" steps\s+3-6\)/);
   assert.match(ex, /Only `to do` \(or `next`\) tickets are edited: show each change and write it only on a yes/);

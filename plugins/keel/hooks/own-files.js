@@ -31,12 +31,13 @@
 //   the trash cannot).
 // - plans.js: everything but `commit` and `push`; its other steps write only the planning files (the
 //   drafts, the exported tickets and their status, settings and chat marks), and `drop` moves a feature
-//   folder whose tickets are all done to keel's trash, which can be undone.
+//   folder whose tickets are all done to keel's trash, which can be undone. commit or push anywhere
+//   else in its command asks too (the shell may pass that step in another order).
 // Refused with the reason, so the model sends the plain form: a command joined with shell operators
 // (outside quotes) that names keel's folder; a keel script whose arguments the hook cannot read; a step
-// that always asks, named with any project other than the current one's exact absolute path (so no
-// allow rule runs it unconfirmed). Everything else is left to the user's normal permissions (no
-// output). Fails soft.
+// that always asks, or a command that holds its word (for plans.js only commit and push), named with any
+// project other than the current one's exact absolute path (so no allow rule runs it unconfirmed).
+// Everything else is left to the user's normal permissions (no output). Fails soft.
 const fs = require('node:fs');
 const path = require('node:path');
 
