@@ -23,7 +23,8 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
 
 ## Work
 - **One question per message** (AskUserQuestion when it exists), answerable in a line. A design
-  choice → 2-3 approaches with your recommendation and why.
+  choice → 2-3 approaches with your recommendation and why. The first question gets no answer (no
+  one is there) → stop: planning is a conversation with a person.
 - Keep `plan.md` true as you go: Summary (2-3 lines), Problem / Goal, Decisions (`D1. decision - why`),
   Out of scope, Design sketch, Terms, Open questions (`Q1. question - what depends on it`; an answered
   Q leaves the list and becomes a D), Tickets (one line per ticket: `T3 title`), Next action. Sections
@@ -51,12 +52,14 @@ Before the draft's first file is written (start) and before a commit (end): run
   branch `<branch>`?" (the plan's `branch:`: the feature name, or what the project's branch rules say);
 - on another task's branch (a task's `branch` in the list) → "This is the branch of task <id>. Switch to
   a new branch `<branch>`?";
-- `changed files:` other than the draft's → "Commit or stash those changes first.";
-- a task `active in another session` here → three options: keep the draft on this machine until the
+- `changed files:` other than the draft's and the feature folder's → "Commit or stash those changes
+  first.";
+- a task `active in another session` (or `in <n> other sessions`) here → three options: keep the draft on this machine until the
   task ends (`plans.js settings set --draft pc`), plan in another copy of the repository
   (`git worktree add`), or go on at your own risk.
-A yes to a new branch: autonomous git mode → `node "<keel>/scripts/git-flow.js" "<project>" start --name <branch> --from <current branch>`;
-manual → `git switch -c <branch>` (Claude Code may ask). Any `stopped` → tell the reason and wait.
+A yes to a new branch: autonomous git mode → `node "<keel>/scripts/git-flow.js" "<project>" start --name <branch> --from <the plan's merge_into>`;
+manual → `git switch -c <branch> <the plan's merge_into>` (Claude Code may ask). Never from another
+task's branch: its unmerged commits would travel with the planning files. Any `stopped` → tell the reason and wait.
 
 ## Commit and push (a repository draft or exported tickets)
 Branch hints first (`plans.js commit` refuses on the main branch). Then ask "Commit the planning
@@ -81,7 +84,7 @@ what stays uncommitted or unpushed.
    (the agent id is in the Agent result). Run `plans.js report "<that file>"`.
    - `report: ok · <agent> · <status> · findings N`: its `- <id> <place> <severity> <check>: <what>`
      lines are the findings. `incomplete` → the tickets its note names are reviewed in one more call.
-     Then `plans.js reviewed <f> <the tickets it reviewed>` at once: a ticket fixed afterwards shows
+     A ticket review → `plans.js reviewed <f> <the tickets it reviewed>` at once: a ticket fixed afterwards shows
      `changed since review` and is reviewed again.
    - `report: failed`, or no file → say "The review of <tickets> failed: <reason>", never "no
      findings"; offer one more run; those tickets stay unreviewed.

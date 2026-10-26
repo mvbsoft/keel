@@ -35,7 +35,8 @@ Current state of this project:
    3. Update `plan.md`: Open questions; Next action (where planning stands and the next step, so the
       next conversation starts from it); front matter `after_commit` = `git rev-parse --short HEAD`.
    4. A repository draft → planning.md "Commit and push".
-6. **B. Final.**
+6. **B. Final.** A plan already `ready` in `plans.js list` (not "changed after ready") was reviewed
+   as it is: go straight to step 5.
    1. **Gates**: `open Q 0`, `check: clean`, and every finding in `reviews/` has a decision. Else
       show what blocks and offer mode A (yes → A; no → go to step 7).
    2. Reviews: planning.md "Reviews", all steps: the ticket reviews, then one plan review.
@@ -46,7 +47,8 @@ Current state of this project:
    4. `plans.js state <f> ready` → `status: ready`; refused → show its reason and offer mode A.
    5. **Export.** `plans.js settings`. `export: -` (the first time) → ask where: the repository (a
       ticket folder the project has, else `tickets`; the feature lands in `<folder>/<f>/`) or this
-      machine only; then planning.md "Project rules" for that choice. `prefix: -` → propose the first `comments.ticket_prefixes`
+      machine only (a draft in the repository exports there: say so, do not ask); then planning.md
+      "Project rules" for that choice. `prefix: -` → propose the first `comments.ticket_prefixes`
       of `.keel/config.json`, else 3-4 capital letters from the repository name; the user confirms.
       Save with `plans.js settings set --export <pc|repo> [--export-dir <dir>] --prefix <PROJ>`. Set
       before → say the target and prefix in one line (the user may change them). Ask "Export the

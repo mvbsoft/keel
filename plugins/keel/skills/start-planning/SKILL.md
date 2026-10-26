@@ -19,7 +19,7 @@ Current state of this project:
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" "${CLAUDE_PROJECT_DIR}" --profile`
 
 1. Read `<keel>/skills/_shared/preflight.md` and act on the state above.
-2. **Lane.** This conversation ran `/keel:start-session` and the note is not `done` → say "This
+2. **Lane.** This conversation ran `/keel:start-session` and no `/keel:end-session` since → say "This
    conversation leads a long-work line: end it with /keel:end-session, or plan in a new
    conversation." and stop. (keel's hooks already refuse planning in a task conversation and without
    a person.) Run `node "<keel>/scripts/notes.js" "<project>" check --session <sid>` (no `--begin`:
@@ -60,8 +60,8 @@ Current state of this project:
    - Main branch: run `git for-each-ref --format="%(refname:short)" refs/heads refs/remotes`. Several
      of main, master, develop, release/* (remote prefix dropped) → one question: "Where will this
      feature's tasks merge?"; otherwise say in one line that they merge into `git.main_branch`.
-   - A repository draft → planning.md "Branch hints".
    - planning.md "Project rules" (the draft's place, the branch name).
+   - A repository draft → planning.md "Branch hints".
    - `plans.js new <f>` (`a draft "<f>" exists` → continue it or another name). A merge branch other
      than `git.main_branch`, or a branch name other than `<f>` → `plans.js set <f> --branch <b> --merge-into <m>` (`branch:` and `merge_into:` lines).
 6. **Continue a draft.** `plans.js check <f>` and `plans.js review <f>`; read `plan.md` only (not the
