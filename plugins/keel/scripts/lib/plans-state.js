@@ -28,7 +28,10 @@
 //   whose folder a revert took away),
 //   stale (the branch behind the state has no commit for 30 days), duplicate key (several files).
 // - Next, per feature: the first to do by key number whose depends_on are each done, or waiting for
-//   the feature merge in the same feature (its code is already on the feature branch).
+//   the feature merge in the same feature (its code is already on the feature branch). A dependency no
+//   read branch has a file for (its feature finished, its tickets dropped and merged) counts as done when
+//   the last version of its file before a commit deleted it on the dependent ticket's merge_into says done
+//   (not when a revert of a merge deleted it); else it is not found.
 // Reads only, except `done` (one status line of a ticket in the working tree) and `drop` (the feature
 // folder to keel's trash).
 const fs = require('node:fs');
@@ -385,12 +388,50 @@ function states(d) {
   return keys;
 }
 
-// The next ticket of each feature: the first to do whose dependencies are done, or waiting for the
-// feature merge in the same feature.
-function nextOf(keys, list) {
+// Dependencies no read branch has a file for (a finished feature whose tickets were dropped and merged):
+// the last version of the ticket file before a commit deleted it on the dependent ticket's target. Done
+// there -> the key counts as done; a revert of a merge is not a drop. One git log per target for every
+// such key, one cat-file --batch for the last versions. The keys found done.
+function doneInHistory(d, keys) {
+  const wanted = new Map();
+  for (const e of keys.values()) {
+    for (const k of e.target ? e.depends : []) {
+      if (keys.has(k)) continue;
+      if (!wanted.has(e.target)) wanted.set(e.target, new Set());
+      wanted.get(e.target).add(k);
+    }
+  }
+  const last = new Map();
+  for (const [target, set] of wanted) {
+    const specs = [...set].flatMap((k) => [`:(glob,icase)**/${k}-*.md`, `:(glob,icase)**/${k}.md`]);
+    // Newest first: "\0<sha>\0<subject>\n\n<path>\n..." per commit, paths from the project folder.
+    // --full-history: a feature branch merged without its folder would be left out of the walk.
+    const parts = (git(d.root, ['log', '--full-history', '--diff-filter=D', '--name-only', '--relative', '--format=%x00%H%x00%s', target, '--', ...specs]) || '').split('\0');
+    for (let i = 1; i + 1 < parts.length; i += 2) {
+      const [subject, ...paths] = parts[i + 1].split('\n');
+      for (const p of paths.filter(Boolean)) {
+        const m = /^([A-Za-z][A-Za-z0-9]+-\d+)(?:-[^/]*)?\.md$/.exec(path.posix.basename(p));
+        const k = m && upper(m[1]);
+        if (k && set.has(k) && !last.has(k)) last.set(k, subject.startsWith('Revert "') ? null : `${parts[i]}^:./${p}`);
+      }
+    }
+  }
+  const names = [...last.values()].filter(Boolean);
+  const blobs = readBlobs(d.root, names);
+  const done = new Set();
+  for (const [k, name] of last) {
+    const t = name && ticketOf(blobs.get(name));
+    if (t && t.key === k && t.fm.status === 'done') done.add(k);
+  }
+  return done;
+}
+
+// The next ticket of each feature: the first to do whose dependencies are done (also one found done in
+// history), or waiting for the feature merge in the same feature.
+function nextOf(keys, list, gone) {
   return list.find((e) => e.state === 4 && e.depends.every((k) => {
     const dep = keys.get(k);
-    return Boolean(dep) && (dep.state === 0 || (dep.state === 1 && dep.feature === e.feature));
+    return dep ? dep.state === 0 || (dep.state === 1 && dep.feature === e.feature) : gone.has(k);
   })) || null;
 }
 
@@ -414,6 +455,7 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
   const notes = fetch ? require('./plans-export.js').fetched(root).notes.map((n) => n.replace(/; keys .*$/, '')) : [];
   const d = collect(root, now);
   const keys = states(d);
+  const gone = d.inRepo ? doneInHistory(d, keys) : new Set();
   if (!keys.size && !arg) return ['tickets: none', ...notes];
   const features = new Map();
   for (const e of [...keys.values()].sort((a, b) => byKey(a.key, b.key))) {
@@ -431,7 +473,7 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
   let next = null;
   for (const f of shown) {
     const list = features.get(f);
-    const own = nextOf(keys, list);
+    const own = nextOf(keys, list, gone);
     if (!next && own) next = own;
     const done = list.filter((e) => e.state === 0).length;
     const waiting = list.filter((e) => e.state === 1 || e.state === 2).length;
@@ -445,7 +487,7 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
         const where = e.found.find((x) => x.path === p && x.view.work) || e.pc.find((x) => x.path === p) ? null : e.found.find((x) => x.path === p).view.ref;
         out.push(`  file: ${where ? `${short(where)}:` : ''}${p}`);
       }
-      if (e.depends.length) out.push(`  depends: ${e.depends.map((k) => `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : 'not found'}`).join(', ')}`);
+      if (e.depends.length) out.push(`  depends: ${e.depends.map((k) => `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : gone.has(k) ? 'done' : 'not found'}`).join(', ')}`);
     }
     count += lines.length;
   }

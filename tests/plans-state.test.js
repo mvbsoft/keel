@@ -284,6 +284,52 @@ gitTest('tickets: a done only in the working tree of a branch already merged is 
   assert.equal(line(run(work, 'tickets'), 'PROJ-62'), '  PROJ-62 Ticket PROJ-62 — waiting for the feature merge · branch csv-export, Test, today');
 });
 
+// main has auth-flow's PROJ-9, which depends on PROJ-1 of s3-storage; s3-storage's tickets leave in
+// `finish` (a removal, or a revert) and the branch is deleted, so no branch has PROJ-1's file.
+function droppedDependency(status, finish) {
+  const { work } = setup();
+  commit(work, 'Add the auth-flow tickets', { [file(9, 'tickets/auth-flow')]: ticket('PROJ-9', { feature: 'auth-flow', depends: ['PROJ-1'] }) });
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  commit(work, 'Add the s3-storage tickets', { [file(1)]: ticket('PROJ-1') });
+  commit(work, 'PROJ-1: client', { 'src/client.js': '1\n', [file(1)]: ticket('PROJ-1', { status }) });
+  finish(work);
+  git(work, 'branch', '-q', '-D', 's3-storage');
+  git(work, 'push', '-q', 'origin', 'main');
+  return work;
+}
+const dropThenMerge = (work) => {
+  git(work, 'rm', '-r', '-q', F);
+  git(work, 'commit', '-q', '-m', 'Remove the s3-storage tickets');
+  git(work, 'checkout', '-q', 'main');
+  git(work, 'merge', '-q', '--no-ff', '-m', 'Merge s3-storage', 's3-storage');
+};
+
+gitTest('tickets: a dependency dropped and merged counts as done when its last version said done', () => {
+  const work = droppedDependency('done', dropThenMerge);
+  const out = run(work, 'tickets', 'PROJ-9');
+  assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — next');
+  assert.ok(out.includes('  depends: PROJ-1 done'), out.join('\n'));
+});
+
+gitTest('tickets: a dependency deleted while its last version said todo is not found', () => {
+  const work = droppedDependency('todo', dropThenMerge);
+  const out = run(work, 'tickets', 'PROJ-9');
+  assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — to do');
+  assert.ok(out.includes('  depends: PROJ-1 not found'), out.join('\n'));
+});
+
+gitTest('tickets: a dependency that left merge_into with a revert of its merge is not done', () => {
+  const work = droppedDependency('done', (w) => {
+    git(w, 'checkout', '-q', 'main');
+    git(w, 'merge', '-q', '--no-ff', '-m', 'Merge s3-storage', 's3-storage');
+    git(w, 'revert', '-m', '1', '--no-edit', 'HEAD');
+  });
+  const out = run(work, 'tickets', 'PROJ-9');
+  assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — to do');
+  assert.ok(out.includes('  depends: PROJ-1 not found'), out.join('\n'));
+});
+
 gitTest('tickets: a project in a sub-folder of its repository reads the branches too', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-'));
   const repo = path.join(tmp, 'repo');

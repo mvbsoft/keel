@@ -385,6 +385,10 @@ test('tasks drop: manual git gets the commands; an old handed-off task is offere
   assert.match(t, /Manual git mode: keel runs none of the git commands above/);
   assert.match(t, /offer\s+`\/keel:tasks drop <id>`, or `\/keel:start-task <id>` then `\/keel:end-task`/);
   assert.match(t, /`\/keel:cleanup restore <batch>` brings it back, with the batch from its `trash batch:` line/);
+  // No keel trace in the project's history, and no key: a commit with a ticket key reads as work on it.
+  assert.match(t, /`git-flow\.js commit` with the message "Remove the notes of a dropped task" \(no "keel", no id/);
+  assert.doesNotMatch(t, /keel: drop/);
+  for (const f of ['git.md', 'intake.md', 'handoff.md', 'planning.md']) assert.doesNotMatch(shared(f), /message "keel:|commit -m "keel:/, `${f}: no keel commit message`);
 });
 
 test('handoff notes: where the work is says only what is certain before git; files and tried-and-failed rules', () => {
