@@ -65,7 +65,7 @@ test('configure is user-only and every file the flow names exists in the plugin'
   }
 });
 
-const COMMANDS = ['start-task', 'start-session', 'end-task', 'end-session', 'cleanup', 'tasks'];
+const COMMANDS = ['start-task', 'start-session', 'end-task', 'end-session', 'start-planning', 'end-planning', 'cleanup', 'tasks'];
 
 test('the workflow commands and cleanup are user-only, check the config first and name only existing files', () => {
   const root = path.join(SKILLS, '..');
@@ -77,9 +77,9 @@ test('the workflow commands and cleanup are user-only, check the config first an
     assert.match(fields['allowed-tools'], /check-config\.js/);
     assert.match(body, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/check-config\.js" "\$\{CLAUDE_PROJECT_DIR\}" --profile`$/m, name);
     assert.match(body, /skills\/_shared\/preflight\.md/, `${name} reads the preflight`);
-    assert.ok(body.indexOf('preflight.md') < body.search(/intake\.md|handoff\.md|verify\.md|cleanup\.js|notes\.js/), `${name}: preflight comes first`);
+    assert.ok(body.indexOf('preflight.md') < body.search(/intake\.md|handoff\.md|verify\.md|planning\.md|cleanup\.js|notes\.js|plans\.js/), `${name}: preflight comes first`);
   }
-  for (const file of [...COMMANDS.map((c) => `skills/${c}/SKILL.md`), 'skills/_shared/intake.md', 'skills/_shared/handoff.md', 'skills/_shared/git.md', 'skills/_shared/delegate.md', 'skills/_shared/migrate.md', 'templates/keel/plan.md']) {
+  for (const file of [...COMMANDS.map((c) => `skills/${c}/SKILL.md`), 'skills/_shared/intake.md', 'skills/_shared/handoff.md', 'skills/_shared/planning.md', 'skills/_shared/git.md', 'skills/_shared/delegate.md', 'skills/_shared/migrate.md', 'templates/keel/plan.md']) {
     const body = fs.readFileSync(path.join(root, file), 'utf8');
     for (const [, ref] of body.matchAll(/<keel>\/([A-Za-z0-9_./-]+)/g)) {
       assert.ok(fs.existsSync(path.join(root, ref)), `${file} names <keel>/${ref}, which does not exist`);
@@ -232,8 +232,8 @@ test('usage-sync.md names only scripts and subcommands that exist', () => {
   }
 });
 
-test('end-task and end-session hand the costs step to usage-sync.md with the session id', () => {
-  for (const name of ['end-task', 'end-session']) {
+test('end-task, end-session and end-planning hand the costs step to usage-sync.md with the session id', () => {
+  for (const name of ['end-task', 'end-session', 'end-planning']) {
     const text = read('skills', name, 'SKILL.md');
     assert.match(text, /_shared\/usage-sync\.md/, name);
     assert.ok(text.includes('${CLAUDE_SESSION_ID}'), `${name} passes the session id`);
