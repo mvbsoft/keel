@@ -87,8 +87,10 @@ Current state of this project:
      `tickets: none ...` → not a ticket, go on; else warn that the ticket's file is not in this working
      tree, so its status is not written, put the task back
      (`node "<keel>/scripts/notes.js" "<project>" task restore <id> --session <sid>`) and stop before git
-     (ask what to do). Red verification or a
-     hand off → no `plans.js done` call.
+     (ask what to do). `plans: done refused (invalid key ...)` → the id is no key, not a ticket: go
+     on. Any other `plans: done refused (...)` (e.g. two files with the key) → warn with its reason,
+     put the task back the same way and stop before git. Red verification or a hand off → no
+     `plans.js done` call.
 8. Git: read `<keel>/skills/_shared/git.md` and follow it: **finish** or **handoff**, with the actions
    from the instruction. On a hand off, after any `start` of git.md (a branch the instruction names
    or one git.md makes) → set the task file's `branch:` to the `branch:` that `start` printed, before

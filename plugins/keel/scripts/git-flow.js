@@ -14,7 +14,8 @@
 //                                     a session marked done), as the finished task's own does with --finish
 //   sync [--from <base>]              merge the updated base into the current branch; on the base itself
 //                                     (a feature branch shared with others), merge its remote copy: the
-//                                     others' pushes (the main branch: only when it moves forward)
+//                                     others' pushes (the main branch: only when it moves forward); none
+//                                     yet: nothing to pull
 //   push                              push the current branch with upstream tracking
 //   merge [--into <target>]           merge the current branch into target with --no-ff, push target;
 //                                     when the push is refused, target is reset to where it was
@@ -283,13 +284,14 @@ const commands = {
     const base = typeof opts.from === 'string' ? opts.from : ctx.main;
     // On the base itself (a feature branch several people work on) its remote copy holds the others' pushes.
     const onBase = sameBranch(ctx.branch, base);
-    const noCopy = () => new Stop(`already on ${base}, with no ${ctx.remote ? `${ctx.remote}/${ctx.branch}` : 'remote'} to pull; sync merges ${base} into a task branch`);
-    if (onBase && !ctx.remote) throw noCopy();
+    // A branch never pushed (or no remote) has nothing to pull: the finish goes on with the push.
+    const noCopy = () => [`sync: nothing to pull (no ${ctx.remote ? `${ctx.remote}/${ctx.branch}` : 'remote'})`];
+    if (onBase && !ctx.remote) return noCopy();
     fetch(ctx);
     let from;
     if (onBase) {
       from = exists(ctx.root, `refs/remotes/${ctx.remote}/${ctx.branch}`) ? `${ctx.remote}/${ctx.branch}` : null;
-      if (!from) throw noCopy();
+      if (!from) return noCopy();
       // keel never commits on the main branch: there the pull may only move it forward.
       if (sameBranch(ctx.branch, ctx.main) && Number(git(ctx.root, ['rev-list', '--count', `${from}..HEAD`]).out) > 0) throw new Stop(`local ${ctx.branch} has commits that ${from} does not have; sort that out by hand first`);
     } else {
@@ -298,7 +300,8 @@ const commands = {
     }
     const count = Number(git(ctx.root, ['rev-list', '--count', `HEAD..${from}`]).out) || 0;
     if (!count) return [`sync: up to date with ${from}`];
-    const r = git(ctx.root, ['merge', '--no-edit', from]);
+    // --ff-only on the main branch, whatever merge.ff the user's git config sets.
+    const r = git(ctx.root, ['merge', '--no-edit', ...(onBase && sameBranch(ctx.branch, ctx.main) ? ['--ff-only'] : []), from]);
     if (!r.ok) {
       if (gitOk(ctx.root, ['rev-parse', '-q', '--verify', 'MERGE_HEAD'])) throw conflictStop(ctx, `merging ${from} into ${ctx.branch}`, ['merge', '--abort']);
       throw new Stop(`merge of ${from} failed: ${firstLines(r.err || r.out)}`);

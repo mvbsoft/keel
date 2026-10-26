@@ -154,7 +154,7 @@ function namedFolders(root, feature, paths) {
   const rels = [...new Set(paths.filter((p) => named.test(p)).map((p) => p.slice(0, p.lastIndexOf('/'))))].sort();
   return rels.map((r) => path.join(root, ...r.split('/')));
 }
-const gitPaths = (root, args) => (readGit(root, [...args, '-z']) || '').split('\0').filter(Boolean);
+const gitPaths = (root, [command, ...args]) => (readGit(root, [command, '-z', ...args]) || '').split('\0').filter(Boolean);
 
 // The feature's exported tickets in the working tree: <export_dir>/<feature>/, this machine's
 // <base>/<feature>/tickets/, else any folder of the project named after the feature with a ticket-named
@@ -184,10 +184,15 @@ function branchWith(root, feature) {
     .map((m) => ({ sha: m[1], name: m[4], remote: m[3] === 'remotes' }))
     .map((r) => ({ ...r, rank: ((r.remote ? r.name.slice(r.name.indexOf('/') + 1) : r.name) === feature ? 0 : 2) + (r.remote ? 1 : 0) }))
     .sort((a, b) => a.rank - b.rank);
+  if (!refs.length) return null;
+  // Only the .md files directly in a folder named after the feature, from the project folder: a diff
+  // against the empty tree takes the glob pathspec ls-tree does not.
+  const empty = readGit(root, ['hash-object', '-t', 'tree', '--stdin'], '');
+  if (!empty) return null;
   const has = new Map();
   for (const r of refs) {
     // The same commit is read once.
-    if (!has.has(r.sha)) has.set(r.sha, namedFolders(root, feature, gitPaths(root, ['ls-tree', '-r', '--name-only', r.sha])).length > 0);
+    if (!has.has(r.sha)) has.set(r.sha, namedFolders(root, feature, gitPaths(root, ['diff', '--relative', '--name-only', '--no-renames', empty, r.sha, '--', `:(glob)**/${feature}/*.md`])).length > 0);
     if (has.get(r.sha)) return r.name;
   }
   return null;
@@ -216,7 +221,10 @@ function exportedTicket(root, feature, f, { title, slug, deps }) {
   if (unknown.length) return refuse(what, `--depends: no ticket ${unknown.map((x) => clean(x)).join(', ')}`);
   const sibling = f.list[0];
   const prefix = prefixOfKey(sibling.fm.key);
-  const key = `${prefix}-${highestKey(root, prefix, plans.settings(root), git.repo, git.notes) + 1}`;
+  // The folder's own keys too: found by its name, it may be outside the folders highestKey reads, and a
+  // new ticket there is not in git yet.
+  const own = f.list.filter((t) => prefixOfKey(t.fm.key) === prefix).map((t) => numberOfKey(t.fm.key));
+  const key = `${prefix}-${Math.max(highestKey(root, prefix, plans.settings(root), git.repo, git.notes), ...own) + 1}`;
   const file = path.join(f.folder, `${key}-${slug}.md`);
   if (fs.existsSync(file)) return refuse(what, `${rel(root, file)} exists`);
   const t = plans.fromTemplate('ticket.md', {
@@ -233,6 +241,9 @@ function exportedProblems(root, f) {
   const out = [];
   const list = f.list.map((t) => ({ ...t, id: t.fm.key.toUpperCase(), deps: plans.ticketIds(t.fm.depends_on).map((x) => x.toUpperCase()) }));
   const missing = new Set(missingKeys(root, list.flatMap((t) => t.deps.filter((x) => x !== t.id)), f));
+  const twins = new Map();
+  for (const t of list) twins.set(t.id, [...(twins.get(t.id) || []), t.name]);
+  for (const [id, names] of twins) if (names.length > 1) out.push(`${id}: duplicate key (${names.length} files: ${names.sort().map((n) => clean(n)).join(', ')})`);
   for (const t of list) {
     const upper = t.name.toUpperCase();
     if (!upper.startsWith(`${t.id}-`) && upper !== `${t.id}.MD`) out.push(`${t.id}: the file name ${clean(t.name)} does not start with the key`);
@@ -503,7 +514,7 @@ function commitFeature(root, feature) {
   if (!flow.git(root, ['diff', '--cached', '--name-only', '--', ...paths]).out) return done('commit: nothing to commit');
   // No keys in the message: a commit with a key reads as work on that ticket. Tickets HEAD already has
   // in the folder (a reopened feature) are updated; a draft committed there before does not count.
-  const inHead = c.exported && (readGit(root, ['ls-tree', '--name-only', 'HEAD', '--', `${rel(root, c.folder)}/`]) || '').split('\n')
+  const inHead = c.exported && gitPaths(root, ['ls-tree', '--name-only', 'HEAD', '--', `${rel(root, c.folder)}/`])
     .some((p) => /^[A-Za-z][A-Za-z0-9]+-\d+(?:-[^/]*)?\.md$/.test(p.slice(p.lastIndexOf('/') + 1)));
   const message = c.removed ? `Remove the ${feature} tickets` : inHead ? `Update the ${feature} tickets` : c.exported ? `Add the ${feature} tickets` : `Plan ${feature}`;
   // Only these paths: changes staged before stay staged and out of this commit.

@@ -11,9 +11,10 @@ the main branch. A planned ticket works on its feature branch, not from the main
 a **finish** when `git.ask_before_merge` is false; otherwise the branch stays pushed and the report
 says "merge it when ready". Claude Code confirms each merge keel was told to do, except when
 `git.ask_before_merge` is false in a confirmed autonomous mode.
-**A planned ticket on its feature branch** (the task's `branch` is its `base`, the feature branch;
-`plans.js tickets <id>` knows the key): no `start`, `sync` pulls the shared branch, then `push`. Its
-feature branch is never merged, also when `git.ask_before_merge` is false or the instruction asks
+**A planned ticket on its feature branch** (a task or a session over a feature: the task file's or
+the note's `branch` equals its `base`, and `plans.js tickets <the task id or a key of the note>`
+prints `branch: <that branch> -> <merge_into>`): no `start`, `sync` pulls the shared branch, then
+`push`. Its feature branch is never merged, also when `git.ask_before_merge` is false or the instruction asks
 (say why in one line: other tickets of the feature are not done): only "End of feature" below merges
 it, after `done: feature <f> complete` and a yes. A ticket branch
 (`base` = `merge_into` = the feature branch) merges into the feature branch like any task.
@@ -55,8 +56,6 @@ steps to take (except the question above): the instruction only adds or changes 
 Follow the style of `git log --oneline -10`; with no clear style use Conventional Commits. Subject at
 most 72 characters, imperative, with the task id when it is a tracker key; a short body says why.
 Language: `repo_language`. No mention of AI, assistants or generated code; no co-author trailers for tools.
-Keys inside ticket files (front matter `type: ticket` or `type: feature`) are allowed: they are the
-tickets' own names, not references in code.
 
 ## Manual mode
 Run no git step the user did not ask for. When the instruction or the user's answer to a keel question
@@ -120,22 +119,30 @@ the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<proj
 7. Report: commit, branch, pushed or not, merged or not, PR link.
 
 ## End of feature
-After `done: feature <f> complete (<n> tickets)` and the push (both git modes: each step runs only on
-its own yes, as the user's instruction): say "Feature <f> is complete: all <n> tickets done." Then one
-question at a time, on the feature branch:
+After `done: feature <f> complete (<n> tickets)` and the push, or offered by `/keel:tasks` (both git
+modes: each step runs only on its own yes, as the user's instruction): say "Feature <f> is complete:
+all <n> tickets done." `<branch>` and `<merge_into>` come from the `branch: <b> -> <m>` line of
+`node "<keel>/scripts/plans.js" "<project>" tickets <f>`, never from the task file. Then one question
+at a time:
+0. Onto `<branch>`. Already on it → nothing. On the ticket branch the last ticket finished on → first
+   its usual merge into `<branch>` (step 6; it leaves you on `<branch>`); declined or refused → say the
+   feature waits for that merge and stop here. Anywhere else (e.g. the main branch) → "Switch to
+   `<branch>`?" → `switch --name <branch>` (a clean tree); no → stop here.
 1. The tickets: keep them (default) or delete them. Delete →
    `node "<keel>/scripts/plans.js" "<project>" drop <f>` → `drop: <folder> -> trash <batch>`; a
    folder in the repository then leaves in its own commit on the feature branch, before the merge
    (keel never commits on the main branch): "Claude Code will now ask you to allow it.", then
    `node "<keel>/scripts/plans.js" "<project>" commit <f>`, then step 5 (`push`).
 2. "Merge `<branch>` into `<merge_into>`?" → step 6 (Merge) with that target.
-3. "Delete the branch `<branch>`?" → `switch --name <merge_into>`, then
+3. Only after step 2 printed `merge: <branch> -> <merge_into> (<sha>)` (it leaves you on
+   `<merge_into>`): "Delete the branch `<branch>`?" →
    `node "<keel>/scripts/git-flow.js" "<project>" delete-branch --name <branch>`, with `--remote` when
-   it was pushed (Claude Code confirms).
-A no to any step: say what stays and go on with the next question.
+   it was pushed (Claude Code confirms). A declined or refused merge, or a pull request instead →
+   no step 3: say the branch stays.
+A no to step 1: the tickets stay; go on with the next question.
 
 ## Never
 Force-push, rebase pushed work, delete branches (only `/keel:tasks drop` does, with
 `git-flow.js delete-branch`, which Claude Code confirms), except the feature branch in "End of
-feature" above, on its yes; commit secret files, or commit to the main branch directly in autonomous
-mode.
+feature" above and the task's own branch in intake.md "Task to planning", each on its yes; commit
+secret files, or commit to the main branch directly in autonomous mode.
