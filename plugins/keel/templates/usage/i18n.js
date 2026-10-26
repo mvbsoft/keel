@@ -35,7 +35,7 @@
     'common.rows': '{n} rows',
     'common.language': 'Language',
 
-    'empty.state': 'No data yet. Data arrives after the first /keel:end-task or /keel:end-session on any machine.',
+    'empty.state': 'No data yet. Data arrives after the first /keel:end-task, /keel:end-session or /keel:end-planning on any machine.',
     'empty.filtered': 'Nothing matches these filters.',
     'empty.chart': 'No data for this chart.',
 

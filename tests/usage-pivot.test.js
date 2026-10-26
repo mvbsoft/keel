@@ -403,8 +403,8 @@ test('i18n: t falls back to en, then to the key; substitutes variables', () => {
   assert.equal(I18N.t('uk', 'tab.dashboard'), 'Дашборд');
   assert.equal(I18N.t('uk', 'tab.analysis'), 'Аналіз');
   assert.equal(I18N.t('uk', 'tab.calibration'), 'Калібрування');
-  assert.equal(I18N.t('en', 'empty.state'), 'No data yet. Data arrives after the first /keel:end-task or /keel:end-session on any machine.');
-  assert.match(I18N.t('uk', 'empty.state'), /^Даних ще немає\..*\/keel:end-task.*\/keel:end-session/);
+  assert.equal(I18N.t('en', 'empty.state'), 'No data yet. Data arrives after the first /keel:end-task, /keel:end-session or /keel:end-planning on any machine.');
+  assert.match(I18N.t('uk', 'empty.state'), /^Даних ще немає\..*\/keel:end-task.*\/keel:end-session.*\/keel:end-planning/);
   assert.equal(I18N.t('de', 'tab.sessions'), 'Sessions'); // unknown language -> en
   assert.equal(I18N.t('uk', 'no.such.key'), 'no.such.key');
   assert.equal(I18N.t('en', 'tile.rate', { usd: '$18' }), '1 % ≈ $18');

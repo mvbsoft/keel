@@ -28,8 +28,8 @@ written; never read the saved files, and never paste document contents into the 
 4. **Warn and ask.** From `summary`, in plain words: what will be deleted (the day documents from
    `first_day` to `last_day`, `days_with_data` days; `sessions` sessions for `sessions_usd` $; all usage in
    them `all_usd` $; the machines; the calibration; `kilobytes` KB), and what it affects:
-   - the page is empty until the next `/keel:end-task` or `/keel:end-session`; its charts, sessions and
-     calibration start over from then;
+   - the page is empty until the next `/keel:end-task`, `/keel:end-session` or
+     `/keel:end-planning`; its charts, sessions and calibration start over from then;
    - it is deleted for every machine listed and for everyone the page is shared with; those machines
      keep sending only new days;
    - it cannot be undone: keel keeps no copy of the page, and does not send data from before the clear again;

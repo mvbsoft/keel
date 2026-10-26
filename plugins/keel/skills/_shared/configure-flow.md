@@ -363,12 +363,12 @@ regressions and handled more edge cases.
 Asked once per machine: when `show` says `not configured on this machine yet`, or when the user asks
 for `usage` or `prices` (`/keel:configure prices` runs only step 6). Run
 `node "<keel>/scripts/usage-setup.js" "<project>" show`.
-Explain first: at the end of every `/keel:end-task` and `/keel:end-session` keel shows what the
-session cost: each participant (the main session, each agent run), its model, tokens and dollars at
-list price; on a subscription also about how many percent of the weekly and 5-hour limits that is.
-A private page "keel usage" in the user's claude.ai account collects this from every machine (charts,
-filters, every keel session with its agents and the cost of each request; other conversations count
-only in the hourly totals the limit calibration needs). Everything is read from Claude
+Explain first: at the end of every `/keel:end-task`, `/keel:end-session` and `/keel:end-planning` keel
+shows what the session cost: each participant (the main session, each agent run), its model, tokens
+and dollars at list price; on a subscription also about how many percent of the weekly and 5-hour
+limits that is. A private page "keel usage" in the user's claude.ai account collects this from every
+machine (charts, filters, every keel session with its agents and the cost of each request; other
+conversations count only in the hourly totals the limit calibration needs). Everything is read from Claude
 Code's own local logs; nothing leaves the machine except into that private page.
 Then, in one question group:
 1. **How this machine pays** (`wallet_default`): subscription (Pro/Max/Team; recommended when `show`
@@ -427,8 +427,8 @@ Then, in one question group:
      Then write the page language with ArtifactData `set` to collection `meta`, doc `settings`,
      `{ "language": "<conversation language code>", "schema": 1 }`. Then save its URL on this machine:
      `{ "artifact_url": "<page url>" }` through the same `apply`.
-   - The first sync happens at the next `/keel:end-task` or `/keel:end-session` (the last 30 days of
-     logs on this machine).
+   - The first sync happens at the next `/keel:end-task`, `/keel:end-session` or
+     `/keel:end-planning` (the last 30 days of logs on this machine).
 
 ## 12. Write and summary
 1. Build `.keel/config.json` (all required fields; defaults for anything not asked) and

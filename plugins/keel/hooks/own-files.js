@@ -202,6 +202,9 @@ function ownScript(name, argText, projectDir, bash) {
     if (['prepare', 'report'].includes(pos[0]) && opts.project === undefined) return null;
     const under = { out: local && path.join(local, 'usage'), keel: local };
     for (const k of ['out', 'keel']) if (opts[k] !== undefined && !(local && typeof opts[k] === 'string' && inside(opts[k], under[k]))) return null;
+    // No usage.js step is confirmed, and --feature takes a feature name (empty-trash is one), so
+    // CONFIRMED_WORDS are not refused here.
+    return allow('keel runs its own usage.js');
   }
   // plans.js confirms only commit and push: its `drop` (a done feature's folder to keel's trash) runs
   // without a window, and its search takes free words ("drop old users"), so CONFIRMED_WORDS are not

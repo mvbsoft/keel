@@ -148,9 +148,9 @@ findings must/should/nice, gates, lines, files, plan steps) and the cache.
 (kept, dropped or waiting for sync, with the reason), and the machines with their last sync and whether
 the calibration waits for them.
 
-An empty page says that data arrives after the first `/keel:end-task` or `/keel:end-session` on any
-machine. Adding `?demo=1` to the page address shows sample data for a layout check, but only when the page
-is opened without its data connection (outside claude.ai).
+An empty page says that data arrives after the first `/keel:end-task`, `/keel:end-session` or
+`/keel:end-planning` on any machine. Adding `?demo=1` to the page address shows sample data for a layout
+check, but only when the page is opened without its data connection (outside claude.ai).
 
 ## Where the data comes from
 

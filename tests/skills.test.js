@@ -241,6 +241,8 @@ test('usage-sync.md names only scripts and subcommands that exist', () => {
 test('usage-sync.md passes the planning feature and names only flags usage.js documents', () => {
   const text = read('skills', '_shared', 'usage-sync.md');
   assert.match(text, /from `\/keel:end-planning`, `--feature <feature>`/);
+  // A retry that dropped --feature would record an earlier task's changes on the planning chat.
+  assert.match(text, /the same `prepare` again, plus `--version/);
   const lines = read('scripts', 'usage.js').split(/\r?\n/);
   const header = lines.slice(1, lines.findIndex((l, i) => i > 0 && !l.startsWith('//'))).join('\n');
   const flags = new Set(text.match(/--[a-z][\w-]*/g));
