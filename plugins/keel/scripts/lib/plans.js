@@ -12,6 +12,8 @@
 //   after `ready` (its ready_hash no longer matches) is a draft again.
 // - Settings: .keel/local/plans/keel/settings.json. The planning chat marks:
 //   .keel/local/plans/keel/sessions/<session id>.json = { "feature": "<name>" }.
+// - An exported feature is edited in its feature folder: mark set, ticket and check take it when no
+//   draft of that name is here or the draft is exported (lib/plans-export.js).
 // Nothing here prints a draft's text beyond its name, state, counts and the problems check finds.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -175,6 +177,14 @@ function needDraft(root, feature, what) {
   return { d: found[0] };
 }
 
+// Whether a command edits the exported feature instead of a draft: no draft of that name here, or an
+// exported one.
+const reopens = (root, feature, d) => (d ? stateOf(d) === 'exported' : validFeature(feature) && !listDrafts(root).some((x) => x.feature === feature));
+
+// The exported feature's tickets in the working tree (lib/plans-export.js) when the command edits it,
+// or null.
+const exportedHere = (root, feature, d) => (reopens(root, feature, d) ? require('./plans-export.js').featureFolder(root, feature) : null);
+
 // The draft's tickets, by T-number. A file whose name is not T<n>-<slug>.md is not a ticket.
 function tickets(d) {
   let names = [];
@@ -333,15 +343,18 @@ function draftNew(root, feature, now = new Date()) {
 
 const slugOf = (text) => String(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, SLUG_MAX).replace(/-+$/, '');
 
+// A draft's ticket is T<n>; an exported feature's one takes the next key (lib/plans-export.js).
 function ticketNew(root, feature, o) {
   const { d: found, why } = needDraft(root, feature, 'ticket');
-  if (!found) return why;
-  const d = settle(root, found);
-  if (!['draft', 'ready'].includes(d.fm.status)) return refuse('ticket', `the plan is ${d.fm.status}`);
+  const ex = exportedHere(root, feature, found);
+  if (!found && !ex) return why;
+  const d = ex ? null : settle(root, found);
+  if (d && !['draft', 'ready'].includes(d.fm.status)) return refuse('ticket', `the plan is ${d.fm.status}`);
   if (typeof o.title !== 'string' || !oneLine(o.title)) return refuse('ticket', 'needs --title');
   const slug = slugOf(typeof o.slug === 'string' ? o.slug : o.title);
   if (!slug) return refuse('ticket', 'the title has no English words for the file name: add --slug <english-words>');
   const deps = typeof o.depends === 'string' ? ticketIds(o.depends) : [];
+  if (ex) return require('./plans-export.js').exportedTicket(root, feature, ex, { title: oneLine(o.title), slug, deps });
   const all = tickets(d);
   const unknown = deps.filter((x) => !all.some((t) => t.id === x));
   if (unknown.length) return refuse('ticket', `--depends: no ticket ${unknown.join(', ')}`);
@@ -441,6 +454,22 @@ function cycles(list) {
   return out;
 }
 
+// One ticket's text, a draft's or an exported one: its sections, acceptance criteria, no placeholders,
+// the files Where to look names exist.
+function ticketProblems(root, label, text) {
+  const out = [];
+  const secs = sections(text);
+  for (const name of TICKET_SECTIONS) if (!(name in secs)) out.push(`${label}: no section "## ${name}"`);
+  if ('Acceptance criteria' in secs && !secs['Acceptance criteria'].trim()) out.push(`${label}: acceptance criteria are empty`);
+  for (const p of placeholders(text)) out.push(`${label}: placeholder ${p}`);
+  for (const f of mentionedFiles(secs['Where to look'] || '')) {
+    const outside = path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..');
+    if (outside) out.push(`${label}: ${clean(f)} in Where to look is outside the project`);
+    else if (!fs.existsSync(path.join(root, f))) out.push(`${label}: ${clean(f)} in Where to look does not exist`);
+  }
+  return out;
+}
+
 function problems(root, d) {
   const out = [];
   const plan = sections(d.text);
@@ -449,16 +478,8 @@ function problems(root, d) {
   const list = tickets(d);
   const ids = new Set(list.map((t) => t.id));
   for (const t of list) {
-    const secs = sections(t.text);
     if (t.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(t.fm.id || '')}", the file name says ${t.id}`);
-    for (const name of TICKET_SECTIONS) if (!(name in secs)) out.push(`${t.id}: no section "## ${name}"`);
-    if ('Acceptance criteria' in secs && !secs['Acceptance criteria'].trim()) out.push(`${t.id}: acceptance criteria are empty`);
-    for (const p of placeholders(t.text)) out.push(`${t.id}: placeholder ${p}`);
-    for (const f of mentionedFiles(secs['Where to look'] || '')) {
-      const outside = path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..');
-      if (outside) out.push(`${t.id}: ${clean(f)} in Where to look is outside the project`);
-      else if (!fs.existsSync(path.join(root, f))) out.push(`${t.id}: ${clean(f)} in Where to look does not exist`);
-    }
+    out.push(...ticketProblems(root, t.id, t.text));
     for (const dep of ticketIds(t.fm.depends_on)) {
       if (dep === t.id) out.push(`${t.id}: depends on itself`);
       else if (!ids.has(dep)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist`);
@@ -468,8 +489,15 @@ function problems(root, d) {
   return { out, count: list.length };
 }
 
+// A draft: plan.md and its tickets. An exported feature: its tickets, whose depends_on are keys.
 function draftCheck(root, feature) {
   const { d: found, why } = needDraft(root, feature, 'check');
+  const ex = exportedHere(root, feature, found);
+  if (ex) {
+    const { out, count } = require('./plans-export.js').exportedProblems(root, ex);
+    if (!out.length) return [`check: clean (${count} tickets in ${rel(root, ex.folder)}/)`];
+    return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`)];
+  }
   if (!found) return why;
   let d;
   try { d = settle(root, found); } catch (e) { return refuse('check', e.message); }
@@ -583,7 +611,10 @@ function marks(root) {
   try { names = fs.readdirSync(marksDir(root)).filter((n) => n.endsWith('.json')); } catch { /* none */ }
   const out = [];
   for (const name of names) {
-    try { out.push({ session: name.slice(0, -5), feature: JSON.parse(fs.readFileSync(path.join(marksDir(root), name), 'utf8')).feature }); } catch { /* unreadable mark: ignored */ }
+    try {
+      const m = JSON.parse(fs.readFileSync(path.join(marksDir(root), name), 'utf8'));
+      out.push({ session: name.slice(0, -5), feature: m.feature, folder: m.folder });
+    } catch { /* unreadable mark: ignored */ }
   }
   return out;
 }
@@ -593,6 +624,17 @@ function planningMark(root, sid) {
   if (!validSid(sid)) return null;
   const m = marks(root).find((x) => x.session === sid);
   return m && validFeature(m.feature) ? m.feature : null;
+}
+
+// The exported feature's folder mark set recorded for this chat (hooks/planning-guard.js lets the chat
+// write there, wherever export_dir points): an absolute path inside the project whose way passes the
+// feature's name, or null.
+function markedFolder(root, sid) {
+  if (!validSid(sid)) return null;
+  const m = marks(root).find((x) => x.session === sid);
+  if (!m || !validFeature(m.feature) || typeof m.folder !== 'string' || unsafeRel(root, m.folder)) return null;
+  const parts = m.folder.split('/');
+  return parts.includes(m.feature) ? path.join(root, ...parts) : null;
 }
 
 function clearMarks(root, match) {
@@ -605,19 +647,28 @@ function markCommand(root, sub, feature, sid) {
   if (sub === 'get') { const f = planningMark(root, sid); return [`planning: ${f || 'none'}`]; }
   try {
     if (sub === 'clear') { clearMarks(root, (m) => m.session === sid); return ['planning: none']; }
+    // A draft, or an exported feature whose tickets are in the working tree; one only another branch
+    // has is named, so the chat can switch to it.
     const { d, why } = needDraft(root, feature, 'mark set');
-    if (!d) return why;
-    if (['exported', 'abandoned'].includes(stateOf(d))) return refuse('mark set', `the plan is ${stateOf(d)}`);
-    safeLocalWrite(root, ['plans', 'keel', 'sessions', `${sid}.json`], JSON.stringify({ feature: d.feature }) + '\n');
-    return [`planning: ${d.feature}`];
+    const reopen = reopens(root, feature, d);
+    const ex = reopen ? require('./plans-export.js').featureFolder(root, feature) : null;
+    if (reopen && !ex) {
+      const b = require('./plans-export.js').branchWith(root, feature);
+      if (b) return refuse('mark set', `the tickets of ${feature} are not in this working tree; branch ${b} has them: switch to it first`);
+    }
+    if (!ex && !d) return why;
+    if (!ex && ['exported', 'abandoned'].includes(stateOf(d))) return refuse('mark set', `the plan is ${stateOf(d)}`);
+    // An exported feature's folder is recorded for the write guard.
+    safeLocalWrite(root, ['plans', 'keel', 'sessions', `${sid}.json`], JSON.stringify(ex ? { feature, folder: rel(root, ex.folder) } : { feature }) + '\n');
+    return [ex ? `planning: ${feature} (exported: ${rel(root, ex.folder)}/)` : `planning: ${feature}`];
   } catch (e) { return refuse(`mark ${sub}`, e.message); }
 }
 
 module.exports = {
   validFeature, settings, settingsShow, settingsSet, listDrafts, draftList, draftFind, draftNew, ticketNew,
-  draftCheck, draftReview, draftReviewed, draftState, planningMark, markCommand, ticketHash, draftDirs,
+  draftCheck, draftReview, draftReviewed, draftState, planningMark, markedFolder, markCommand, ticketHash, draftDirs,
   draftSet, exportDir, draftStale,
   // for lib/plans-export.js
   base, badFolder, SETTING_CHECKS, needDraft, settle, stateOf, problems, tickets, ticketIds, writePlan, writeFile,
-  branchesOf, mainBranch, PLAN_FILE, TICKET_FILE,
+  branchesOf, mainBranch, PLAN_FILE, TICKET_FILE, fromTemplate, ticketProblems, cycles,
 };

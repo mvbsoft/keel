@@ -419,7 +419,7 @@ gitTest('commit: refused on main, detached, during a merge, without a draft; a d
   write(work, 'src/app.js', 'staged change\n');
   git(work, 'add', 'src/app.js');
   const out = run(work, 'commit', 's3-storage');
-  assert.match(out[0], /^committed: [0-9a-f]{7,} PROJ-1, PROJ-2: add the s3-storage tickets$/);
+  assert.match(out[0], /^committed: [0-9a-f]{7,} Add the s3-storage tickets$/);
   assert.equal(out[1], 'fetch: no remote, skipped; keys from this clone only');
   const files = git(work, 'show', '--name-status', '--no-renames', '--format=', 'HEAD').split('\n').sort();
   assert.deepEqual(files, [
@@ -427,7 +427,7 @@ gitTest('commit: refused on main, detached, during a merge, without a draft; a d
     'D\ttickets/s3-storage/plan.md', 'D\ttickets/s3-storage/tickets/T1-ticket-1.md', 'D\ttickets/s3-storage/tickets/T2-ticket-2.md',
   ]);
   assert.equal(git(work, 'diff', '--cached', '--name-only'), 'src/app.js', 'the staged change stays staged, outside the commit');
-  assert.equal(git(work, 'log', '-1', '--format=%B'), 'PROJ-1, PROJ-2: add the s3-storage tickets');
+  assert.equal(git(work, 'log', '-1', '--format=%B'), 'Add the s3-storage tickets');
   assert.ok(trashed(work).length === 1, 'the draft files are in keel\'s trash');
   assert.deepEqual(run(work, 'commit', 's3-storage'), ['commit: nothing to commit', 'fetch: no remote, skipped; keys from this clone only'], 'an export checks its keys before every commit');
   assert.deepEqual(run(work, 'push', 's3-storage'), ['push: no remote, nothing pushed']);
@@ -452,7 +452,7 @@ gitTest('commit and push: a key taken on another branch since the export is renu
   assert.equal(stopped[1], 'renumbered: PROJ-2 -> PROJ-11');
   fs.rmSync(hook);
   const out = run(work, 'commit', 's3-storage');
-  assert.match(out[0], /^committed: [0-9a-f]{7,} PROJ-1, PROJ-11: add the s3-storage tickets$/);
+  assert.match(out[0], /^committed: [0-9a-f]{7,} Add the s3-storage tickets$/);
   assert.ok(!exists(work, 'tickets/s3-storage/PROJ-2-ticket-2.md'));
   const t = readRel(work, 'tickets/s3-storage/PROJ-11-ticket-2.md');
   assert.match(t, /^key: PROJ-11$/m);
@@ -505,7 +505,7 @@ gitTest('commit: a draft in its own repository folder; "Plan" leaves other files
   assert.equal(git(work, 'status', '--porcelain', '--', 'tickets'), '?? tickets/');
   fs.rmSync(path.join(work, 'tickets'), { recursive: true });
   assert.equal(run(work, 'export', 's3-storage')[0], 'exported: tickets/s3-storage/ (2 tickets)');
-  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} PROJ-1, PROJ-2: add the s3-storage tickets$/);
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Add the s3-storage tickets$/);
   assert.deepEqual(git(work, 'show', '--name-status', '--no-renames', '--format=', 'HEAD').split('\n').sort(), [
     'A\ttickets/s3-storage/PROJ-1-ticket-1.md', 'A\ttickets/s3-storage/PROJ-2-ticket-2.md', 'A\ttickets/s3-storage/README.md',
     'D\tplans/s3-storage/plan.md', 'D\tplans/s3-storage/tickets/T1-ticket-1.md', 'D\tplans/s3-storage/tickets/T2-ticket-2.md',
@@ -598,6 +598,130 @@ gitTest('push: a remote ahead of the branch is refused and explained; on main re
   assert.match(run(work, 'push', 's3-storage')[0], /^plans: push refused \(origin\/plan-s3 has commits this branch does not have; look at them before pushing: /);
 });
 
+// --- an exported feature, reopened ---
+
+// The write guard's answer for a Write of `file` in the chat `sid`.
+const guard = (dir, sid, file) => {
+  const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_')));
+  const r = spawnSync(process.execPath, [path.join(PLUGIN, 'hooks', 'planning-guard.js')], { input: JSON.stringify({ session_id: sid, tool_name: 'Write', tool_input: { file_path: path.join(dir, file) }, cwd: dir }), env: { ...clean, CLAUDE_PROJECT_DIR: dir }, encoding: 'utf8' });
+  return r.stdout ? JSON.parse(r.stdout).hookSpecificOutput.permissionDecision : 'allow';
+};
+
+gitTest('mark set on an exported feature: its folder in the working tree, also while plan.md says exported; one only a branch has is refused naming that branch', () => {
+  const { work } = setup();
+  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo');
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  ready(work, 's3-storage', 2, 'tickets/s3-storage');
+  run(work, 'export', 's3-storage');
+  const marked = ['planning: s3-storage (exported: tickets/s3-storage/)'];
+  assert.match(readRel(work, 'tickets/s3-storage/plan.md'), /^status: exported$/m);
+  assert.deepEqual(run(work, 'mark', 'set', 's3-storage', '--session', 'chat-1'), marked, 'plan.md still says exported');
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: /);
+  assert.ok(!exists(work, 'tickets/s3-storage/plan.md'));
+  assert.deepEqual(run(work, 'mark', 'set', 's3-storage', '--session', 'chat-2'), marked, 'no draft any more');
+  assert.deepEqual(run(work, 'mark', 'get', '--session', 'chat-2'), ['planning: s3-storage']);
+  run(work, 'push', 's3-storage');
+  git(work, 'checkout', '-q', 'main');
+  assert.ok(!exists(work, 'tickets/s3-storage'));
+  assert.deepEqual(run(work, 'mark', 'set', 's3-storage', '--session', 'chat-3'), ['plans: mark set refused (the tickets of s3-storage are not in this working tree; branch s3-storage has them: switch to it first)']);
+  git(work, 'branch', '-q', '-D', 's3-storage');
+  assert.deepEqual(run(work, 'mark', 'set', 's3-storage', '--session', 'chat-3'), ['plans: mark set refused (the tickets of s3-storage are not in this working tree; branch origin/s3-storage has them: switch to it first)']);
+  assert.equal(plans.planningMark(work, 'chat-3'), null);
+  assert.match(run(work, 'mark', 'set', 'csv-export', '--session', 'chat-3')[0], /refused \(no draft "csv-export"/, 'no branch has it');
+});
+
+gitTest('ticket on an exported feature: the next key after a fetch, beside the others with the feature\'s front matter; check reads keys; the exported feature alone commits ("Update" once HEAD has its tickets) and pushes', () => {
+  const { tmp, work, server } = setup();
+  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ');
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  ready(work, 's3-storage');
+  run(work, 'export', 's3-storage');
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Add the s3-storage tickets$/, 'the first commit of the tickets');
+  assert.deepEqual(run(work, 'push', 's3-storage'), ['pushed: s3-storage -> origin/s3-storage']);
+  // A colleague took PROJ-7 on a branch this clone has not fetched yet.
+  otherPush(server, tmp, 'payments', 'tickets/payments/PROJ-7-pay.md', '---\ntype: ticket\nkey: PROJ-7\n---\n');
+  assert.deepEqual(run(work, 'ticket', 's3-storage', '--title', 'Delete files', '--depends', 'proj-2,PROJ-7'), ['created: tickets/s3-storage/PROJ-8-delete-files.md', 'ticket: PROJ-8']);
+  const t = readRel(work, 'tickets/s3-storage/PROJ-8-delete-files.md');
+  assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-8\nstatus: todo\nfeature: s3-storage\nbranch: s3-storage\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-7]\n---\n\n# [PROJ-8] Delete files\n'), t);
+  assert.deepEqual(run(work, 'ticket', 's3-storage', '--title', 'X', '--depends', 'PROJ-70'), ['plans: ticket refused (--depends: no ticket PROJ-70)']);
+  assert.ok(run(work, 'check', 's3-storage').some((l) => /^- PROJ-8: placeholder /.test(l)));
+  body(work, 'tickets/s3-storage/PROJ-8-delete-files.md', TICKET_BODY('PROJ-8'));
+  assert.deepEqual(run(work, 'check', 's3-storage'), ['check: clean (3 tickets in tickets/s3-storage/)'], 'PROJ-7 of another feature is a key that exists');
+  front(work, 'tickets/s3-storage/PROJ-8-delete-files.md', 'depends_on', '[PROJ-8, PROJ-70]');
+  assert.deepEqual(run(work, 'check', 's3-storage'), ['check: 2 problems', '- PROJ-8: depends on itself', '- PROJ-8: depends on PROJ-70, which does not exist']);
+  front(work, 'tickets/s3-storage/PROJ-8-delete-files.md', 'depends_on', '[PROJ-2]');
+  const out = run(work, 'commit', 's3-storage');
+  assert.match(out[0], /^committed: [0-9a-f]{7,} Update the s3-storage tickets$/, 'HEAD already has the feature\'s tickets');
+  assert.equal(git(work, 'show', '--name-status', '--format=', 'HEAD'), 'A\ttickets/s3-storage/PROJ-8-delete-files.md');
+  assert.deepEqual(run(work, 'push', 's3-storage'), ['pushed: s3-storage -> origin/s3-storage']);
+  assert.equal(git(server, 'rev-parse', 'refs/heads/s3-storage'), git(work, 'rev-parse', 'HEAD'));
+});
+
+gitTest('commit: a ticket folder HEAD has and the working tree no longer has is committed as its removal on the feature branch; refused on main', () => {
+  const { work } = setup({ remote: false });
+  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ');
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  ready(work, 's3-storage');
+  run(work, 'export', 's3-storage');
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: /);
+  write(work, 'tickets/payments/PROJ-9-pay.md', '---\ntype: ticket\nkey: PROJ-9\n---\n');
+  git(work, 'add', '-A');
+  git(work, 'commit', '-q', '-m', 'payments');
+  git(work, 'checkout', '-q', 'main');
+  git(work, 'merge', '-q', '--ff-only', 's3-storage');
+  fs.rmSync(path.join(work, 'tickets', 's3-storage'), { recursive: true });
+  assert.deepEqual(run(work, 'commit', 's3-storage'), ['plans: commit refused (on the main branch main; planning files go to a feature branch first)']);
+  git(work, 'checkout', '-q', '--', 'tickets');
+  git(work, 'checkout', '-q', 's3-storage');
+  const head = git(work, 'rev-parse', 'HEAD');
+  fs.rmSync(path.join(work, 'tickets', 's3-storage'), { recursive: true });
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Remove the s3-storage tickets$/);
+  assert.equal(git(work, 'rev-parse', 'HEAD~1'), head);
+  assert.deepEqual(git(work, 'show', '--name-status', '--format=', 'HEAD').split('\n').sort(), [
+    'D\ttickets/s3-storage/PROJ-1-ticket-1.md', 'D\ttickets/s3-storage/PROJ-2-ticket-2.md', 'D\ttickets/s3-storage/README.md',
+  ]);
+  assert.ok(exists(work, 'tickets/payments/PROJ-9-pay.md'), 'another feature\'s folder stays');
+  assert.equal(git(work, 'status', '--porcelain'), '');
+  assert.deepEqual(run(work, 'commit', 's3-storage'), ['plans: commit refused (no draft or exported tickets "s3-storage" in the repository)']);
+});
+
+gitTest('a teammate\'s clone with no planning settings finds the exported feature by its folder: mark set, the write guard, ticket, check, commit; a branch at HEAD is never named', () => {
+  const { tmp, work, server } = setup();
+  run(work, 'settings', 'set', '--export', 'repo', '--export-dir', 'features', '--prefix', 'PROJ');
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  ready(work, 's3-storage');
+  run(work, 'export', 's3-storage');
+  run(work, 'commit', 's3-storage');
+  run(work, 'push', 's3-storage');
+  const mate = path.join(tmp, 'mate');
+  execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', server, mate]);
+  git(mate, 'config', 'user.name', 'Mate');
+  git(mate, 'config', 'user.email', 'mate@example.com');
+  git(mate, 'checkout', '-q', 's3-storage');
+  assert.ok(!exists(mate, `${LOCAL}/settings.json`), 'export_dir is the default tickets here');
+
+  assert.deepEqual(run(mate, 'mark', 'set', 's3-storage', '--session', 'chat-1'), ['planning: s3-storage (exported: features/s3-storage/)']);
+  assert.deepEqual(JSON.parse(readRel(mate, `${LOCAL}/sessions/chat-1.json`)), { feature: 's3-storage', folder: 'features/s3-storage' });
+  assert.equal(guard(mate, 'chat-1', 'features/s3-storage/PROJ-3-x.md'), 'allow', 'the folder recorded in the mark');
+  assert.equal(guard(mate, 'chat-1', 'features/payments/PROJ-9-x.md'), 'deny');
+  assert.equal(guard(mate, 'chat-1', 'src/app.js'), 'deny');
+  assert.deepEqual(run(mate, 'ticket', 's3-storage', '--title', 'Delete files'), ['created: features/s3-storage/PROJ-3-delete-files.md', 'ticket: PROJ-3'], 'the feature\'s own prefix; none is set here');
+  body(mate, 'features/s3-storage/PROJ-3-delete-files.md', TICKET_BODY('PROJ-3'));
+  assert.deepEqual(run(mate, 'check', 's3-storage'), ['check: clean (3 tickets in features/s3-storage/)']);
+  assert.match(run(mate, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Update the s3-storage tickets$/);
+  assert.equal(git(mate, 'show', '--name-status', '--format=', 'HEAD'), 'A\tfeatures/s3-storage/PROJ-3-delete-files.md');
+  assert.deepEqual(run(mate, 'push', 's3-storage'), ['pushed: s3-storage -> origin/s3-storage']);
+
+  // The folder removed by hand: only HEAD's commit has it, so no branch is named.
+  fs.rmSync(path.join(mate, 'features', 's3-storage'), { recursive: true });
+  assert.match(run(mate, 'mark', 'set', 's3-storage', '--session', 'chat-2')[0], /^plans: mark set refused \(no draft "s3-storage"/);
+  assert.match(run(mate, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Remove the s3-storage tickets$/);
+  assert.deepEqual(git(mate, 'show', '--name-status', '--format=', 'HEAD').split('\n').sort(), [
+    'D\tfeatures/s3-storage/PROJ-1-ticket-1.md', 'D\tfeatures/s3-storage/PROJ-2-ticket-2.md', 'D\tfeatures/s3-storage/PROJ-3-delete-files.md', 'D\tfeatures/s3-storage/README.md',
+  ]);
+  assert.deepEqual(run(mate, 'mark', 'set', 's3-storage', '--session', 'chat-2'), ['plans: mark set refused (the tickets of s3-storage are not in this working tree; branch origin/s3-storage has them: switch to it first)']);
+});
+
 // --- the write guard ---
 
 test('planning-guard: the exported feature folder in the repository is writable for the chat that plans it; other project files stay blocked', () => {
@@ -606,14 +730,25 @@ test('planning-guard: the exported feature folder in the repository is writable 
   run(dir, 'settings', 'set', '--export', 'repo', '--export-dir', 'features');
   run(dir, 'new', 's3-storage');
   run(dir, 'mark', 'set', 's3-storage', '--session', 'chat-plan');
-  const guard = (file) => {
-    const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_')));
-    const r = spawnSync(process.execPath, [path.join(PLUGIN, 'hooks', 'planning-guard.js')], { input: JSON.stringify({ session_id: 'chat-plan', tool_name: 'Write', tool_input: { file_path: path.join(dir, file) }, cwd: dir }), env: { ...clean, CLAUDE_PROJECT_DIR: dir }, encoding: 'utf8' });
-    return r.stdout ? JSON.parse(r.stdout).hookSpecificOutput.permissionDecision : 'allow';
-  };
-  assert.equal(guard('features/s3-storage/PROJ-1-client.md'), 'allow');
-  assert.equal(guard('features/s3-storage/README.md'), 'allow');
-  assert.equal(guard('features/payments/PROJ-9-pay.md'), 'deny');
-  assert.equal(guard('features/README.md'), 'deny');
-  assert.equal(guard('src/app.js'), 'deny');
+  assert.equal(guard(dir, 'chat-plan', 'features/s3-storage/PROJ-1-client.md'), 'allow');
+  assert.equal(guard(dir, 'chat-plan', 'features/s3-storage/README.md'), 'allow');
+  assert.equal(guard(dir, 'chat-plan', 'features/payments/PROJ-9-pay.md'), 'deny');
+  assert.equal(guard(dir, 'chat-plan', 'features/README.md'), 'deny');
+  assert.equal(guard(dir, 'chat-plan', 'src/app.js'), 'deny');
+});
+
+test('planning-guard: an exported feature reopened with mark set (no draft) is writable in its folder, in the repository and on this machine', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-export-guard-'));
+  write(dir, '.keel/config.json', '{}');
+  run(dir, 'settings', 'set', '--export-dir', 'features');
+  const ticket = (key, feature) => `---\ntype: ticket\nkey: ${key}\nstatus: todo\nfeature: ${feature}\n---\n`;
+  write(dir, 'features/s3-storage/PROJ-1-client.md', ticket('PROJ-1', 's3-storage'));
+  write(dir, `${LOCAL}/csv-export/tickets/PROJ-3-rows.md`, ticket('PROJ-3', 'csv-export'));
+  assert.deepEqual(run(dir, 'mark', 'set', 's3-storage', '--session', 'chat-repo'), ['planning: s3-storage (exported: features/s3-storage/)']);
+  assert.deepEqual(run(dir, 'mark', 'set', 'csv-export', '--session', 'chat-pc'), [`planning: csv-export (exported: ${LOCAL}/csv-export/tickets/)`]);
+  assert.equal(guard(dir, 'chat-repo', 'features/s3-storage/PROJ-2-upload.md'), 'allow');
+  assert.equal(guard(dir, 'chat-repo', `${LOCAL}/csv-export/tickets/PROJ-4-x.md`), 'deny');
+  assert.equal(guard(dir, 'chat-pc', `${LOCAL}/csv-export/tickets/PROJ-4-x.md`), 'allow');
+  assert.equal(guard(dir, 'chat-pc', 'features/s3-storage/PROJ-2-upload.md'), 'deny');
+  assert.equal(guard(dir, 'chat-pc', 'src/app.js'), 'deny');
 });

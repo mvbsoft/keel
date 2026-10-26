@@ -337,6 +337,50 @@ test('mark: set, get and clear this chat\'s planning mark', () => {
   assert.equal(plans.planningMark(dir, '../x'), null);
 });
 
+// An exported ticket as export writes it.
+const EXPORTED = (key, deps = '', status = 'todo') => `---\ntype: ticket\nkey: ${key}\nstatus: ${status}\nfeature: s3-connection\nbranch: feat/s3\nmerge_into: main\ndepends_on: [${deps}]\n---\n\n${TICKET_BODY(key)}`;
+
+test('an exported feature on this machine: mark set, ticket with the next key and check work in its folder', () => {
+  const dir = project();
+  const folder = `${LOCAL}/s3-connection/tickets`;
+  write(dir, `${folder}/PROJ-1-client.md`, EXPORTED('PROJ-1'));
+  write(dir, `${folder}/PROJ-2-upload.md`, EXPORTED('PROJ-2', 'PROJ-1'));
+  write(dir, `${folder}/README.md`, '---\ntype: feature\n---\n\n# S3\n');
+  write(dir, `${LOCAL}/other-thing/tickets/PROJ-5-x.md`, EXPORTED('PROJ-5'));
+  assert.deepEqual(run(dir, 'mark', 'set', 's3-connection', '--session', 'chat-1'), [`planning: s3-connection (exported: ${folder}/)`]);
+  assert.equal(plans.planningMark(dir, 'chat-1'), 's3-connection');
+  assert.deepEqual(run(dir, 'check', 's3-connection'), [`check: clean (2 tickets in ${folder}/)`]);
+
+  assert.match(run(dir, 'ticket', 's3-connection')[0], /refused \(needs --title\)/);
+  assert.deepEqual(run(dir, 'ticket', 's3-connection', '--title', 'X', '--depends', 'PROJ-9,T1'), ['plans: ticket refused (--depends: no ticket PROJ-9, T1)']);
+  // The next key after every key here (PROJ-5 of another feature); depends_on are keys, any case.
+  assert.deepEqual(run(dir, 'ticket', 's3-connection', '--title', 'Delete files', '--depends', 'proj-2,PROJ-5'), [
+    `created: ${folder}/PROJ-6-delete-files.md`, 'ticket: PROJ-6', 'fetch: not a git repository; keys from the files here only',
+  ]);
+  const t = readRel(dir, `${folder}/PROJ-6-delete-files.md`);
+  assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-6\nstatus: todo\nfeature: s3-connection\nbranch: feat/s3\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-5]\n---\n\n# [PROJ-6] Delete files\n\n## Goal\n'), t);
+  const unfilled = run(dir, 'check', 's3-connection');
+  assert.match(unfilled[0], /^check: \d+ problems$/);
+  assert.ok(unfilled.some((l) => /^- PROJ-6: placeholder /.test(l)), 'the template\'s placeholders are problems, as in a draft');
+
+  write(dir, `${folder}/PROJ-1-client.md`, EXPORTED('PROJ-1', 'PROJ-2'));
+  write(dir, `${folder}/PROJ-2-upload.md`, EXPORTED('PROJ-2', 'PROJ-1', 'started').replace('## Out of scope\n', ''));
+  write(dir, `${folder}/PROJ-3-renamed.md`, EXPORTED('PROJ-4'));
+  write(dir, `${folder}/PROJ-6-delete-files.md`, EXPORTED('PROJ-6', 'PROJ-6, PROJ-9'));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), [
+    'check: 6 problems',
+    '- PROJ-2: status is "started"; todo or done',
+    '- PROJ-2: no section "## Out of scope"',
+    '- PROJ-4: the file name PROJ-3-renamed.md does not start with the key',
+    '- PROJ-6: depends on itself',
+    '- PROJ-6: depends on PROJ-9, which does not exist',
+    '- dependency cycle: PROJ-1 -> PROJ-2 -> PROJ-1',
+  ]);
+  // Not exported, no draft: refused as before.
+  assert.match(run(dir, 'mark', 'set', 'csv-export', '--session', 'chat-2')[0], /refused \(no draft "csv-export"/);
+  assert.match(run(dir, 'ticket', 'csv-export', '--title', 'X')[0], /refused \(no draft "csv-export"/);
+});
+
 test('plans.js: unknown commands are named, never thrown', () => {
   const dir = project();
   assert.match(run(dir, 'import')[0], /^plans: unknown command "import" \(list, find, new, .*set, stale, report, export, commit, push/);
