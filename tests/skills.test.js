@@ -153,7 +153,8 @@ test('templates: the note and the task carry the fields notes.js reads', () => {
   const { frontmatter } = require(path.join(SKILLS, '..', 'scripts', 'notes.js'));
   const tpl = (f) => fs.readFileSync(path.join(SKILLS, '..', 'templates', 'keel', f), 'utf8');
   assert.deepEqual(Object.keys(frontmatter(tpl('next-session.md'))), ['status', 'branch', 'base', 'merge_into', 'execution', 'keys', 'after_commit', 'date']);
-  assert.deepEqual(Object.keys(frontmatter(tpl('task.md'))), ['id', 'title', 'source', 'link', 'status', 'branch', 'base', 'merge_into', 'execution', 'plan', 'created', 'updated', 'after_commit']);
+  // started: the commit the task began at, so a ticket on its shared feature branch is verified from there.
+  assert.deepEqual(Object.keys(frontmatter(tpl('task.md'))), ['id', 'title', 'source', 'link', 'status', 'branch', 'base', 'merge_into', 'execution', 'plan', 'created', 'updated', 'after_commit', 'started']);
   const headings = [...tpl('task.md').matchAll(/^## (.+)$/gm)].map((m) => m[1]);
   assert.deepEqual(headings, ['Goal', 'Next action', 'Acceptance criteria', 'Out of scope', 'State', 'Files', 'Decisions and why', 'Tried and did not work', 'Open questions', 'How to check', "User's changes"]);
   assert.match(tpl('task.md'), /^status: <active \| handed-off>$/m);

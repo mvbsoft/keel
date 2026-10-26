@@ -12,6 +12,7 @@ plan: <inline | plan.md (in this folder) | absolute path of the plan file>
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>
 after_commit: <git rev-parse --short HEAD while writing; this file's own commit follows it; or ->
+started: <HEAD when the task was created (notes.js task new); git diff from it shows the task's work; or ->
 ---
 <!-- One task = one folder .keel/tasks/<id>/: this file (ticket, state and handoff) and plan.md when
 the plan is big (notes.js task new/delete/drop). A fresh session knows nothing but this file, the git

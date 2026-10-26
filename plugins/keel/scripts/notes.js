@@ -19,8 +19,9 @@
 //   tasks [--session <id>]             the unfinished tasks (this working tree and every branch), one block each
 //   lane <key or link>                 which lane leads a key: a task (start-task), the note (start-session),
 //                                      both (conflict) or none; a link counts with the tracker key in it
-//   task new <id> --title <t> --source <s> [--link <l>] [--session <id>]   the folder and task.md, status active;
-//                                      refused for a key the note names (that lane is the session's)
+//   task new <id> --title <t> --source <s> [--link <l>] [--session <id>]   the folder and task.md, status active,
+//                                      started: the HEAD commit; refused for a key the note names (that lane
+//                                      is the session's)
 //   task active --session <id>         the session's active task
 //   task activate <id> --session <id>  mark a task active for the session (status active)
 //   task deactivate --session <id>     the session works on no task
@@ -256,4 +257,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { check, lane, laneConflicts, frontmatter, LIMIT, TRACKER };
+module.exports = { check, lane, laneConflicts, frontmatter, noteKeys, LIMIT, TRACKER };

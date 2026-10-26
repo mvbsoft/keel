@@ -62,17 +62,17 @@ function setup({ mode = 'autonomous', remote = true } = {}) {
   return { tmp, work, server };
 }
 
-// A second clone that pushes to main behind our back.
-function otherPush(server, tmp, rel, text, message) {
+// A second clone that pushes to main (or another branch) behind our back.
+function otherPush(server, tmp, rel, text, message, branch = 'main') {
   const other = path.join(tmp, `other-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', server, other]);
+  execFileSync('git', ['clone', '-q', '-b', branch, '-c', 'core.autocrlf=false', server, other]);
   git(other, 'config', 'user.name', 'Other');
   git(other, 'config', 'user.email', 'other@example.com');
   git(other, 'config', 'core.autocrlf', 'false');
   write(other, rel, text);
   git(other, 'add', '-A');
   git(other, 'commit', '-q', '-m', message);
-  git(other, 'push', '-q', 'origin', 'main');
+  git(other, 'push', '-q', 'origin', branch);
 }
 
 function protectMain(server) {
@@ -241,6 +241,86 @@ gitTest('sync: up to date, merges new main commits, and stops cleanly on a confl
 
   write(work, 'src/app.js', 'dirty\n');
   assert.match(line(flow(work, 'sync'), 'reason:'), /uncommitted/);
+});
+
+gitTest('sync on the base itself: pulls the shared branch, stops cleanly on a conflict, stops without a remote copy', () => {
+  const { tmp, work, server } = setup();
+  git(work, 'switch', '-q', '-c', 's3-storage');
+  git(work, 'push', '-q', '-u', 'origin', 's3-storage');
+  write(work, 'src/app.js', 'one\nmine\nthree\n');
+  commitWork(work);
+  assert.equal(flow(work, 'sync', '--from', 's3-storage')[1], 'sync: up to date with origin/s3-storage');
+
+  otherPush(server, tmp, 'docs/a.md', 'a\n', 'docs', 's3-storage');
+  let out = flow(work, 'sync', '--from', 's3-storage');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.match(out[1], /^sync: merged 1 new commits from origin\/s3-storage into s3-storage \([0-9a-f]+\)$/);
+  assert.equal(fs.readFileSync(path.join(work, 'docs/a.md'), 'utf8'), 'a\n', "the other's push is here");
+  assert.equal(fs.readFileSync(path.join(work, 'src/app.js'), 'utf8'), 'one\nmine\nthree\n', 'our commit stays');
+
+  otherPush(server, tmp, 'src/app.js', 'one\ntheirs\nthree\n', 'conflicting', 's3-storage');
+  const before = git(work, 'rev-parse', 'HEAD');
+  out = flow(work, 'sync', '--from', 's3-storage');
+  assert.equal(out[0], 'git-flow: stopped');
+  assert.equal(line(out, 'reason:'), 'reason: conflict while merging origin/s3-storage into s3-storage; the merge was aborted, the tree is as before');
+  assert.equal(line(out, 'conflicts:'), 'conflicts: src/app.js');
+  assert.equal(git(work, 'rev-parse', 'HEAD'), before, 'nothing merged');
+  assert.equal(git(work, 'status', '--porcelain'), '', 'the tree is clean again');
+
+  git(work, 'switch', '-q', '-c', 'not-pushed');
+  out = flow(work, 'sync', '--from', 'not-pushed');
+  assert.equal(out[0], 'git-flow: stopped');
+  assert.equal(line(out, 'reason:'), 'reason: already on not-pushed, with no origin/not-pushed to pull; sync merges not-pushed into a task branch');
+
+  const local = setup({ remote: false }).work;
+  assert.equal(line(flow(local, 'sync'), 'reason:'), 'reason: already on main, with no remote to pull; sync merges main into a task branch');
+});
+
+gitTest('sync on the main branch pulls it only forward: local commits there stop it', () => {
+  const { tmp, work, server } = setup();
+  otherPush(server, tmp, 'docs/a.md', 'a\n', 'docs');
+  let out = flow(work, 'sync');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.match(out[1], /^sync: merged 1 new commits from origin\/main into main/);
+  assert.equal(git(work, 'rev-parse', 'HEAD'), git(work, 'rev-parse', 'origin/main'), 'a fast-forward, no merge commit');
+
+  write(work, 'src/app.js', 'local\n');
+  git(work, 'commit', '-q', '-am', 'local on main');
+  otherPush(server, tmp, 'docs/b.md', 'b\n', 'more docs');
+  const before = git(work, 'rev-parse', 'HEAD');
+  out = flow(work, 'sync');
+  assert.equal(out[0], 'git-flow: stopped');
+  assert.equal(line(out, 'reason:'), 'reason: local main has commits that origin/main does not have; sort that out by hand first');
+  assert.equal(git(work, 'rev-parse', 'HEAD'), before);
+});
+
+gitTest('commit --tickets lets exactly those tickets in (keys without case); --finish compares without case too', () => {
+  const { work } = setup();
+  const ticket = (key, status) => `---\ntype: ticket\nkey: ${key}\nstatus: ${status}\nfeature: s3-storage\nbranch: s3-storage\nmerge_into: main\ndepends_on: []\n---\n# [${key}] Part\n`;
+  for (const k of ['PROJ-101', 'PROJ-102', 'PROJ-103']) write(work, `tickets/s3-storage/${k}-part.md`, ticket(k, 'todo'));
+  write(work, 'tickets/billing/plan.md', '---\ntype: plan\nstatus: draft\nlanguage: en\n---\n# Billing\n');
+  git(work, 'add', '-A');
+  git(work, 'commit', '-q', '-m', 'tickets');
+  git(work, 'switch', '-q', '-c', 's3-storage');
+
+  for (const k of ['PROJ-101', 'PROJ-102', 'PROJ-103']) write(work, `tickets/s3-storage/${k}-part.md`, ticket(k, 'done'));
+  write(work, 'tickets/billing/plan.md', '---\ntype: plan\nstatus: draft\nlanguage: en\n---\n# Billing, more\n');
+  write(work, 'src/app.js', 'one\nsession\nthree\n');
+  write(work, '.keel/local/tmp/commit-message.txt', 'feat: session work\n');
+  const msg = path.join(work, '.keel/local/tmp/commit-message.txt');
+  let out = flow(work, 'commit', '--message-file', msg, '--tickets', 'proj-101,PROJ-102');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.ok(out.includes('not committed (planning files): tickets/billing/plan.md, tickets/s3-storage/PROJ-103-part.md'), out.join('\n'));
+  assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['src/app.js', 'tickets/s3-storage/PROJ-101-part.md', 'tickets/s3-storage/PROJ-102-part.md']);
+
+  out = flow(work, 'commit', '--message-file', msg, '--tickets');
+  assert.equal(line(out, 'reason:'), 'reason: --tickets needs the keys: --tickets <K1,K2>');
+
+  write(work, 'src/app.js', 'one\nfinish\nthree\n');
+  out = flow(work, 'commit', '--message-file', msg, '--finish', 'proj-103', '--session', 's1');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.ok(out.includes('not committed (planning files): tickets/billing/plan.md'), out.join('\n'));
+  assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['src/app.js', 'tickets/s3-storage/PROJ-103-part.md']);
 });
 
 gitTest('push and merge --no-ff into main; the merge question is the last step', () => {

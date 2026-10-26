@@ -412,9 +412,12 @@ function taskNew(root, id, o, now = new Date()) {
   const { main } = settings(root);
   const today = dateOf(now);
   const title = oneLine(o.title);
+  // The commit the task started from: `git diff <started>` is the task's work, also on a branch shared
+  // with others, whose commits come in by sync.
+  const started = git(root, ['rev-parse', '-q', '--verify', 'HEAD^{commit}']) || '-';
   const front = {
     id, title, source: o.source, link: typeof o.link === 'string' && oneLine(o.link) ? oneLine(o.link) : '-', status: 'active',
-    branch: '-', base: main || '-', merge_into: main || '-', execution: 'here', plan: 'inline', created: today, updated: today, after_commit: '-',
+    branch: '-', base: main || '-', merge_into: main || '-', execution: 'here', plan: 'inline', created: today, updated: today, after_commit: '-', started,
   };
   const template = fs.readFileSync(TEMPLATE, 'utf8').replace(/\r\n/g, '\n').replace(/<!--[\s\S]*?-->\s*/g, '');
   const body = template.replace(/^---\n[\s\S]*?\n---\n/, '').trimStart().replace(/^# .*$/m, () => `# ${id}: ${title}`);
@@ -628,6 +631,6 @@ function taskInventory(root, id) {
 }
 
 module.exports = {
-  validId, listTasks, treeTasks, findTask, activeTask, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
+  validId, readBlobs, listTasks, treeTasks, findTask, activeTask, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
   taskDelete, taskRestore, taskDrop, taskInventory, sections, setFront, stepCounts, planText, readClosed, dateOf,
 };

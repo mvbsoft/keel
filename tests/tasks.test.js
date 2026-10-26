@@ -88,7 +88,8 @@ test('task new: a folder with task.md from the template, status active; bad inpu
   assert.deepEqual(out, ['created: .keel/tasks/PROJ-1/task.md', 'folder: .keel/tasks/PROJ-1/ (a big plan goes into plan.md here)', 'status: active', 'active task: PROJ-1']);
   const text = fs.readFileSync(path.join(dir, taskPath('PROJ-1')), 'utf8');
   const front = /^---\n([\s\S]*?)\n---\n/.exec(text)[1].split('\n').map((l) => l.split(': ')[0]);
-  assert.deepEqual(front, ['id', 'title', 'source', 'link', 'status', 'branch', 'base', 'merge_into', 'execution', 'plan', 'created', 'updated', 'after_commit']);
+  assert.deepEqual(front, ['id', 'title', 'source', 'link', 'status', 'branch', 'base', 'merge_into', 'execution', 'plan', 'created', 'updated', 'after_commit', 'started']);
+  assert.match(text, /^started: -$/m, 'not a git repository: no start commit');
   assert.match(text, /^id: PROJ-1$/m);
   assert.match(text, /^title: Fix the export$/m);
   assert.match(text, /^link: https:\/\/tracker\.example\/PROJ-1$/m);
@@ -701,6 +702,25 @@ gitTest('after_commit: the handoff commit of a task file', () => {
     commitAll(dir, 'main moves on');
     assert.ok(block(notes(dir, 'tasks'), 'H-1').includes('  Base moved: 1 commits on main since the handoff (git-flow.js sync brings them in)'), field);
   }
+});
+
+gitTest('started: task new records HEAD; check, activate and a handoff edit keep it', () => {
+  const dir = repo();
+  const head = git(dir, 'rev-parse', 'HEAD');
+  assert.equal(notes(dir, 'task', 'new', 'S-1', '--title', 'Start', '--source', 'text', '--session', 's1')[0], 'created: .keel/tasks/S-1/task.md');
+  const file = path.join(dir, taskPath('S-1'));
+  assert.match(fs.readFileSync(file, 'utf8'), new RegExp(`^started: ${head}$`, 'm'));
+  write(dir, 'src/app.js', 'two\n');
+  commitAll(dir, 'work');
+  const out = notes(dir, 'check', '--session', 's1');
+  assert.equal(line(out, 'task files:'), 'task files: 1 in this working tree; over the limit of 150 lines: none', out.join('\n'));
+  assert.equal(line(out, 'active task:'), 'active task: S-1');
+  // A handoff edits its own fields; resuming activates the task again.
+  fs.writeFileSync(file, tasks.setFront(fs.readFileSync(file, 'utf8'), { status: 'handed-off', after_commit: git(dir, 'rev-parse', '--short', 'HEAD') }));
+  assert.equal(notes(dir, 'task', 'activate', 'S-1', '--session', 's2')[0], 'active task: S-1');
+  const text = fs.readFileSync(file, 'utf8');
+  assert.match(text, new RegExp(`^started: ${head}$`, 'm'), 'the start commit stays');
+  assert.match(text, /^status: active$/m);
 });
 
 test('task new and activate never write through a link', () => {
