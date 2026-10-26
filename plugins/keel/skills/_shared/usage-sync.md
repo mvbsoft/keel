@@ -1,8 +1,8 @@
 # keel usage: sync and cost report
 
-Used by `/keel:end-task` and `/keel:end-session`. Costs about $0.01–0.04: the data goes
-through files, never through the conversation. `<session>` is this session's id (the calling command
-gives it). Run each command exactly as written (preflight.md).
+Used by `/keel:end-task`, `/keel:end-session` and `/keel:end-planning`. Costs about $0.01–0.04:
+the data goes through files, never through the conversation. `<session>` is this session's id (the
+calling command gives it). Run each command exactly as written (preflight.md).
 
 1. **Limits snapshot, desktop app only.** When a tool named `mcp__ccd_session_mgmt__get_usage`
    exists (load it with ToolSearch if it is deferred), call it once and run

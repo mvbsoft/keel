@@ -1,4 +1,4 @@
 ---
 type: regex
-pattern: '^(?=[\s\S]*/keel:start-task)(?=[\s\S]*/keel:end-task)(?=[\s\S]*/keel:tasks)(?=[\s\S]*/keel:start-session)(?=[\s\S]*/keel:end-session)(?=[\s\S]*/keel:configure)(?=[\s\S]*/keel:cleanup)(?=[\s\S]*/keel:usage)(?=[\s\S]*/keel:usage-clear)(?=[\s\S]*/keel:help)'
+pattern: '^(?=[\s\S]*/keel:start-task)(?=[\s\S]*/keel:end-task)(?=[\s\S]*/keel:tasks)(?=[\s\S]*/keel:start-session)(?=[\s\S]*/keel:end-session)(?=[\s\S]*/keel:start-planning)(?=[\s\S]*/keel:end-planning)(?=[\s\S]*/keel:configure)(?=[\s\S]*/keel:cleanup)(?=[\s\S]*/keel:usage)(?=[\s\S]*/keel:usage-clear)(?=[\s\S]*/keel:help)'
 ---
