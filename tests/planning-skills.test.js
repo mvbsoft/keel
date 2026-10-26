@@ -72,7 +72,7 @@ test('planning work: one question per message, 2-3 approaches, D and Q records, 
   assert.match(work, /The first question gets no answer \(no\s+one is there\) → stop/, 'the fallback when the hooks cannot tell there is no person');
   assert.match(work, /Decisions \(`D1\. decision - why`\)/);
   assert.match(work, /Open questions \(`Q1\. question - what depends on it`; an answered\s+Q leaves the list and becomes a D\)/);
-  assert.match(work, /plans\.js ticket <f> --title "<title>" \[--slug <english-words>\] \[--depends T1,T2\]/);
+  assert.match(work, /plans\.js ticket <f> --title "<title>" \[--slug <english-words>\] \[--depends "T1,T2"\]/);
   for (const heading of ['Goal', 'Why', 'Acceptance criteria', 'Where to look', 'Out of scope', 'Dependencies', 'How to check']) assert.ok(work.includes(heading), heading);
   assert.match(work, /no implementation steps/);
   assert.match(work, /More than about 15 tickets → offer to split the feature/);
@@ -133,7 +133,7 @@ test('exported feature: its tickets\' state first, a switch to the branch that h
   before(ex, '`plans.js check <f>`', 'a ticket review of the changed tickets', 'no reviewer runs on a broken structure');
   assert.match(ex, /"Reviews" steps 3, 5 and 6 with\s+the feature folder/);
   assert.match(ex, /A ticket `in progress`, `waiting for \.\.\.` or `done` is never changed: offer a new ticket, or leave it\s+as it is; name whom it concerns \(the branch and author of its hint\)/);
-  assert.match(ex, /`plans\.js ticket <f> --title "<title>" \[--slug <english-words>\] \[--depends K1,K2\]` →\s+`created: <path>` and `ticket: <KEY>`/);
+  assert.match(ex, /`plans\.js ticket <f> --title "<title>" \[--slug <english-words>\] \[--depends "K1,K2"\]` →\s+`created: <path>` and `ticket: <KEY>`/);
   assert.match(ex, /`\/keel:end-planning` checks the folder and offers the commit and push/);
   assert.ok(flow().indexOf('## Exported feature') > flow().indexOf('## Work'), 'after the rules and the work it builds on');
 });

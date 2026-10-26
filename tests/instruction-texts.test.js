@@ -615,7 +615,7 @@ test('end-session: a passed full verification marks the finished planned tickets
   const text = skill('end-session');
   const six = part(text, '6. Git:', '7. Costs');
   assert.match(six, /a passed full verification \(not gates only, not red\) → for each key in the\s+note's `keys:` whose Plan items are all ✅, `node "<keel>\/scripts\/plans\.js" "<project>" done <KEY>`/);
-  order(six, 'done <KEY>`', '`--tickets <those keys>`', 'the keys marked done are the ones committed');
+  order(six, 'done <KEY>`', '`--tickets "<those keys>"`', 'the keys marked done are the ones committed');
   assert.match(six, /so their ticket files go into the commit/, 'git-flow.js commit leaves planning files out unless named');
   assert.match(six, /Gates only or red → no `plans\.js done` call/);
   // A session commits without --finish: after its commit HEAD holds done, so only a stop before it undoes.

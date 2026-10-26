@@ -45,8 +45,8 @@ Current state of this project:
    Planned tickets first: a passed full verification (not gates only, not red) → for each key in the
    note's `keys:` whose Plan items are all ✅, `node "<keel>/scripts/plans.js" "<project>" done <KEY>`
    (`done: <KEY> (<path>)`; `done: none (no ticket <KEY> here)` for a key `plans.js tickets <KEY>`
-   knows → warn that its status is not written). git.md's `commit` then adds `--tickets <those keys>`
-   (comma-separated), so their ticket files go into the commit; `done: feature <f> complete (<n> tickets)`
+   knows → warn that its status is not written). git.md's `commit` then adds `--tickets "<those keys>"`
+   (comma-separated, quoted), so their ticket files go into the commit; `done: feature <f> complete (<n> tickets)`
    → git.md "End of feature" after the push. Gates only or red → no `plans.js done` call. git stops
    before the commit holds them (`commit` stopped or never ran) → `plans.js done <KEY> --undo` for
    each (the tickets are `todo` again); a stop after the commit (sync, push) → no undo: the commit

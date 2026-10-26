@@ -29,12 +29,13 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   Out of scope, Design sketch, Terms, Open questions (`Q1. question - what depends on it`; an answered
   Q leaves the list and becomes a D), Tickets (one line per ticket: `T3 title`), Next action. Sections
   stay, empty when there is nothing to say; no TBD and no `<...>`.
-- **Tickets** at once in the short template: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends T1,T2]`
-  (a plain title: double or curly quotes, `$` or a backquote are refused; `--slug` in English when the title is
-  not), then fill the file it names (Edit): Goal (1-2 sentences, how to tell it is done), Why (the D it
-  follows), Acceptance criteria (behaviour an action checks; no "fast" or "easy" without a measure),
-  Where to look (`file:line` you checked), Out of scope, Dependencies, How to check (a command and the
-  manual steps). 150-400 words, one goal, no implementation steps. T-numbers are never reused.
+- **Tickets** at once in the short template: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "T1,T2"]`
+  (a plain title: double or curly quotes, `$`, a backquote or a backslash before a quote are refused;
+  `--slug` in English when the title is not), then fill the file it names (Edit): Goal (1-2 sentences,
+  how to tell it is done), Why (the D it follows), Acceptance criteria (behaviour an action checks; no
+  "fast" or "easy" without a measure), Where to look (`file:line` you checked), Out of scope,
+  Dependencies, How to check (a command and the manual steps). 150-400 words, one goal,
+  no implementation steps. T-numbers are never reused.
 - More than about 15 tickets → offer to split the feature in two.
 - The user abandons the plan → confirm, then `plans.js state <f> abandoned` and say what its lines say.
 
@@ -53,7 +54,7 @@ Its tickets live in the feature folder; work there continues while others may al
    finding in the chat).
 4. A ticket `in progress`, `waiting for ...` or `done` is never changed: offer a new ticket, or leave it
    as it is; name whom it concerns (the branch and author of its hint).
-5. A new ticket: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends K1,K2]` →
+5. A new ticket: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "K1,K2"]` →
    `created: <path>` and `ticket: <KEY>` (the next key shared across the repository); fill it as
    "Work" says, then step 3's check and review.
 6. Done → `/keel:end-planning` checks the folder and offers the commit and push.
