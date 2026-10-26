@@ -34,7 +34,7 @@
     'common.rows': 'Рядків: {n}',
     'common.language': 'Мова',
 
-    'empty.state': 'Даних ще немає. Дані з’являться після першого /keel:end-task або /keel:end-session на будь-якій машині.',
+    'empty.state': 'Даних ще немає. Дані з’являться після першого /keel:end-task, /keel:end-session або /keel:end-planning на будь-якій машині.',
     'empty.filtered': 'За цими фільтрами нічого немає.',
     'empty.chart': 'Для цього графіка даних немає.',
 

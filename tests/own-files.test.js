@@ -142,6 +142,9 @@ test('the project argument must be the current project; usage.js writes only und
   // --project names the current project; --keel is read only from its .keel/local/
   const home = os.homedir().split(path.sep).join('/');
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project "${proj}" --keel "${proj}/.keel/local/tmp/keel.json"`, 'Bash', env), 'allow');
+  for (const feature of ['empty-trash', 'delete-branch']) {
+    for (const tool of ['Bash', 'PowerShell']) assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project "${proj}" --session abc --feature ${feature}`, tool, env), 'allow', `a feature named ${feature}`);
+  }
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project "${home}"`, 'Bash', env), null);
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project .`, 'Bash', env, proj), null, 'a relative --project');
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project "${proj}" --keel "${proj}/credentials.json"`, 'Bash', env), null);
