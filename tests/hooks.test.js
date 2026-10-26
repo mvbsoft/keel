@@ -545,6 +545,12 @@ test('ledger: in a planning conversation keel agents\' replies go to its own fol
   assert.deepEqual(fs.readdirSync(local('tmp', 'agents')).sort(), ['context-b2.md', 'ticket-reviewer-b1.md']);
   assert.ok(fs.existsSync(local('tmp', 'context-map.md')));
   assert.equal(fs.readdirSync(local('plans', 'keel', 'samples')).length, 3, 'no sample outside planning');
+
+  // A session id that is not one never points the saved-reply check outside the planning folder.
+  fs.writeFileSync(local('tmp', 'ticket-reviewer-c1.md'), report);
+  stop('..', 'keel:ticket-reviewer', 'c1', 'Report delivered.');
+  assert.equal(fs.readFileSync(local('tmp', 'agents', 'ticket-reviewer-c1.md'), 'utf8'), 'Report delivered.');
+  assert.equal(fs.readdirSync(local('plans', 'keel', 'samples')).length, 3);
 });
 
 test('a project keel is not set up in: the hooks add nothing, keel\'s agents and skills are refused', () => {
