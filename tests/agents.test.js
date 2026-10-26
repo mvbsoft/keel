@@ -136,11 +136,14 @@ test('the planning reviewers check what the plan-findings schema names, with evi
     assert.match(body, /<keel>\/schemas\/plan-findings\.schema\.json/);
     assert.ok(body.includes(limit), limit);
     assert.match(body, /Every "no" has a finding/);
+    assert.match(body, /`status: "incomplete"`[^\n]*the top-level `note`/);
     assert.match(body, /decisions already made on earlier findings[^]*do not raise them\s+again/);
     assert.match(body, /Never open secret files: the list\s+is\s+under\s+"Scope"\s+in\s+`<keel>\/protocols\/_search\.md`/);
     assert.match(body, /never change files and never run commands/);
   }
   assert.match(ticket, /up to 4\)/);
+  // 10 checks, at most 5 findings: a "no" beyond the cap is explained in its check.
+  assert.match(ticket, /a "no"\s+left without one is explained in its check's `note`/);
   assert.match(ticket, /`file:line`/, 'what a ticket relies on is checked in the code');
   for (const example of [ticket, plan]) {
     const json = JSON.parse(/```json\n([\s\S]*?)\n```/.exec(example)[1]);

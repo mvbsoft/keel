@@ -74,6 +74,6 @@ Reply with one JSON object and nothing else (a ```json fence around it is fine).
 
 - `checks`: one entry per checklist item, `place` is `plan`.
 - Ids are `plan-reviewer-1`, `plan-reviewer-2`, ...
-- `status: "incomplete"` if you ran out of turns; say what is left in a `note`.
+- `status: "incomplete"` if you ran out of turns; say what is left in the top-level `note`.
 - Write `what`, `problem`, `fix` and `evidence` in the language the plan is written in, in plain
   words; field names and check names stay as above. Paths relative to the project root.

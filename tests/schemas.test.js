@@ -231,6 +231,9 @@ test('plan-findings.schema.json: a finding names a ticket or part of the plan, w
   expectInvalid(s, ok, (d) => { d.agent = 'reviewer'; }, /agent: must be one of/);
   expectInvalid(s, ok, (d) => { d.findings = Array(21).fill(ok.findings[0]); }, /more than 20 items/);
   assert.deepEqual(validate({ ...ok, agent: 'plan-reviewer', checks: [{ place: 'plan', check: 'premortem', answer: 'yes' }], findings: [{ ...ok.findings[0], id: 'plan-reviewer-1', place: 'Decisions', check: 'consistency' }] }, s), []);
+  // An agent out of turns says what is left in the top-level note.
+  assert.deepEqual(validate({ ...ok, status: 'incomplete', note: 'T3 and T4 not reviewed' }, s), []);
+  expectInvalid(s, ok, (d) => { d.status = 'incomplete'; d.note = ''; }, /note/);
 
   // Every section of the plan template is a place.
   const template = fs.readFileSync(path.join(__dirname, '..', 'plugins', 'keel', 'templates', 'keel', 'planning', 'plan.md'), 'utf8');

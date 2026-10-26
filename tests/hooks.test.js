@@ -535,11 +535,16 @@ test('ledger: in a planning conversation keel agents\' replies go to its own fol
 
   // Another conversation, or this one once planning ends: replies go where the verification reads them.
   stop('chat-task', 'keel:ticket-reviewer', 'b1', report);
+  // A report handed back before end-planning cleared the mark stays the reply; the closing words do not
+  // reach the verification folder.
+  runHook('handback.js', { session_id: 'chat-plan', tool_name: 'SubagentHandback', tool_input: { message: report }, agent_id: 'a6', agent_type: 'keel:ticket-reviewer', cwd: dir }, env);
   plans('mark', 'clear', '--session', 'chat-plan');
+  stop('chat-plan', 'keel:ticket-reviewer', 'a6', 'Report delivered.');
+  assert.equal(fs.readFileSync(local('tmp', 'planning', 'chat-plan', 'ticket-reviewer-a6.md'), 'utf8'), report);
   stop('chat-plan', 'keel:context', 'b2', '# Context map\n- y');
   assert.deepEqual(fs.readdirSync(local('tmp', 'agents')).sort(), ['context-b2.md', 'ticket-reviewer-b1.md']);
   assert.ok(fs.existsSync(local('tmp', 'context-map.md')));
-  assert.equal(fs.readdirSync(local('plans', 'keel', 'samples')).length, 2, 'no sample outside planning');
+  assert.equal(fs.readdirSync(local('plans', 'keel', 'samples')).length, 3, 'no sample outside planning');
 });
 
 test('a project keel is not set up in: the hooks add nothing, keel\'s agents and skills are refused', () => {
