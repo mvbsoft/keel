@@ -149,8 +149,8 @@ folders and the note move with git: [two ways of working](workflows.md#where-the
     would not pass them on as written);
   - a keel script command that holds the words of a step Claude Code must confirm (`delete`, `drop`,
     `empty-trash`, `merge`, `delete-branch`, `trust`) but does not read as that step; `plans.js`
-    confirms only its own `commit` and `push` (its search takes free words such as `drop`) and asks
-    when either word stands anywhere else in its command;
+    confirms only its own `commit` and `push` (its search takes free words such as `drop`), and
+    when either word stands anywhere else in its command, Claude Code asks instead of refusing;
   - a keel script run with `node`, `nodejs`, `bun` or `deno` in any other form (node options, `env`,
     `bash -c`, a wrapper), which the hook cannot judge, so a broad allow rule cannot run a step that
     must be confirmed. A command that only reads a script (`grep`, `sed`, `cat`) runs nothing and is
