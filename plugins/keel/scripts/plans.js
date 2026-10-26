@@ -13,10 +13,10 @@
 //                                         several, or none (then all drafts)
 //   new <feature>                         a draft folder with plan.md (status draft); refused for an invalid
 //                                         or taken name
-//   ticket <feature> --title <t> [--slug <english-words>] [--depends T1,T2]
+//   ticket <feature> --title <t> [--slug <english-words>] [--depends "T1,T2"]
 //                                         tickets/T<n>-<slug>.md; T-numbers are never reused. An exported
 //                                         feature: <KEY>-<slug>.md in its folder with the next key (as
-//                                         export gives them), status todo, --depends K1,K2
+//                                         export gives them), status todo, --depends "K1,K2"
 //   check <feature>                       the structure: sections, acceptance criteria, no TBD or <...>, the
 //                                         files Where to look names exist, depends_on valid, no cycles; an
 //                                         exported feature: its tickets, depends_on are keys

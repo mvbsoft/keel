@@ -169,11 +169,11 @@ lands on the main branch:
 2. `node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source <jira|linear|asana|github|file|text> [--link <url or path>] --session <sid>`
    (any other page or document link, e.g. Google Docs or Notion: `--source text --link <url>`; a
    planned ticket: `--source file --link <its file path>`; a title with double or curly quotes, `$`, a
-   backquote or a backslash before a quote is refused by keel (nothing runs): keep `--title` plain and
-   fix it in the file). A line starting `notes:` is a refusal: read it, fix the argument;
-   `the note ... names <key>` → that key is led by /keel:start-session: say so and stop. Then fill the
-   `task.md` it names (Edit): front matter `branch`, `base`, `merge_into` (a planned ticket: as
-   "Planned ticket" says), `execution`, `plan`, and the
+   backquote or a backslash before a quote or a space is refused by keel (nothing runs): keep
+   `--title` plain and fix it in the file). A line starting `notes:` is a refusal: read it, fix the
+   argument; `the note ... names <key>` → that key is led by /keel:start-session: say so and stop.
+   Then fill the `task.md` it names (Edit): front matter `branch`, `base`, `merge_into` (a planned
+   ticket: as "Planned ticket" says), `execution`, `plan`, and the
    sections Goal, Next action, Acceptance criteria, Out of scope, State (a simple task: its steps as
    `- ⬜ step` lines), How to check, User's changes. A complex plan: save it as `plan.md` in the task
    folder, `plan: plan.md`, and State says "see plan.md". Both files in the language "Languages" gives

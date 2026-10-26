@@ -6,7 +6,7 @@
 // Usage: node config-check.js <projectDir>
 //          the check lines, then the config-check block. No record on this machine → it is rebuilt once
 //          from the commit of keel's settings files (a temporary git worktree, removed again)
-//        node config-check.js <projectDir> save [--sections <s1,s2,...>]
+//        node config-check.js <projectDir> save [--sections "<s1,s2,...>"]
 //          configure step 12: record the basis of the sections that ran (names or numbers; default
 //          all), keeping the earlier record of the others, then the check lines
 // Always exits 0; a failure prints one line starting with `config-check: error:`.
@@ -25,7 +25,7 @@ function main(argv) {
     drift.saveSnapshot(root, { scanResult: scanned(), sections: drift.sectionList(opts.sections) });
     return report(root, true, scanned);
   }
-  if (pos[1] !== undefined) return ['usage: node config-check.js <projectDir> [save [--sections <s1,s2,...>]]'];
+  if (pos[1] !== undefined) return ['usage: node config-check.js <projectDir> [save [--sections "<s1,s2,...>"]]'];
   // First, so the profile line already compares with that record.
   let snapshot = null;
   if (config) { try { snapshot = drift.ensureSnapshot(root); } catch { /* compared with the profile below */ } }

@@ -440,9 +440,10 @@ Then, in one question group:
    `sessions/` to it.
 3. Run `node "<keel>/scripts/config-check.js" "<project>" save` (it records what the sections that ran
    were based on, for `/keel:configure check`, then checks the files). When not every section ran, add
-   `--sections` with those that did, comma-separated: a run of chosen sections → those; quick setup →
-   `1,2,3,4,5,6,8,9,10,11` (every section but 7, which it skips); a repair → the sections it asked about. Anything but `keel-config: ok`
-   and `profile: ok` → fix it before saying the setup is done.
+   `--sections "<those that did>"`, comma-separated in quotes: a run of chosen sections → those; quick
+   setup → `"1,2,3,4,5,6,8,9,10,11"` (every section but 7, which it skips); a repair → the sections it
+   asked about. Anything but `keel-config: ok` and `profile: ok` → fix it before saying the setup is
+   done.
 4. **Write the manual setup down for the next developer.** The plugin commands and programs of
    section 7 live only in this conversation, so propose a short section for the project's README (or
    its existing setup or getting-started doc, when it has one; in `repo_language`), titled like
