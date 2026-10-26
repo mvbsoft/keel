@@ -133,7 +133,9 @@ const UNSAFE_BARE = /[(){}@*?[\]#;&|<>]/;
 const PS_PARAMETER = /^[-\u2013-\u2015](?![-\u2013-\u2015])/;
 // -> { words, bare } (bare: the words written without quotes), or null.
 function splitWords(text, bash) {
-  if (UNSAFE.test(text) || /[\u0000-\u0008\u000a-\u001f\u007f-\u009f\u2028\u2029]/.test(text)) return null;
+  // Claude Code's Bash tool and bash fold a double backslash into one, even inside quotes, so a network
+  // path such as \\server\share reaches the script as another folder; written //server/share it runs.
+  if (UNSAFE.test(text) || /[\u0000-\u0008\u000a-\u001f\u007f-\u009f\u2028\u2029]/.test(text) || (bash && text.includes('\\\\'))) return null;
   const token = /[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"']+))(?=[ \t]|$)/y;
   const out = [];
   const bare = [];
@@ -196,7 +198,7 @@ function gitFlow(pos, opts) {
   return null;
 }
 
-const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, a backslash before a quote or a space, curly quotes, control characters, double quotes inside single quotes or a bare word starting with one dash that holds a dot or ends with a colon, a comma only between numbers (quote a list), and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
+const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, a backslash before a quote or a space, curly quotes, control characters, double quotes inside single quotes or a bare word starting with one dash that holds a dot or ends with a colon, a comma only between numbers (quote a list), no double backslash in Bash (write a network path as //server/share), and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
 
 // The decision for `node <keel>/scripts/<name> <args>`. Arguments are read with the scripts' own
 // parseArgs, so the step the hook judges is the step the script runs.
