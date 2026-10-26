@@ -238,6 +238,16 @@ test('usage-sync.md names only scripts and subcommands that exist', () => {
   }
 });
 
+test('usage-sync.md passes the planning feature and names only flags usage.js documents', () => {
+  const text = read('skills', '_shared', 'usage-sync.md');
+  assert.match(text, /from `\/keel:end-planning`, `--feature <feature>`/);
+  const lines = read('scripts', 'usage.js').split(/\r?\n/);
+  const header = lines.slice(1, lines.findIndex((l, i) => i > 0 && !l.startsWith('//'))).join('\n');
+  const flags = new Set(text.match(/--[a-z][\w-]*/g));
+  assert.ok(flags.size > 0);
+  for (const f of flags) assert.match(header, new RegExp(`${f}(?![\\w-])`), `the usage.js header documents no ${f}`);
+});
+
 test('end-task, end-session and end-planning hand the costs step to usage-sync.md with the session id', () => {
   for (const name of ['end-task', 'end-session', 'end-planning']) {
     const text = read('skills', name, 'SKILL.md');
