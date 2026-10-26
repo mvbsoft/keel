@@ -8,9 +8,13 @@
 //   start --name <b> [--from <base>]  create the task branch: from the updated base when the tree is
 //                                     clean; from HEAD, carrying the changes, when it is not
 //   switch --name <b>                 switch to an existing branch (clean tree only)
-//   commit --message-file <f>         stage every changed file except secret and planning ones, drop AI
-//                                     trailers from the message, commit (never on the main branch)
-//   sync [--from <base>]              merge the updated base into the current branch
+//   commit --message-file <f> [--tickets <K1,K2>]   stage every changed file except secret and planning
+//                                     ones, drop AI trailers from the message, commit (never on the main
+//                                     branch); the ticket files of the keys --tickets names go in (tickets
+//                                     a session marked done), as the finished task's own does with --finish
+//   sync [--from <base>]              merge the updated base into the current branch; on the base itself
+//                                     (a feature branch shared with others), merge its remote copy: the
+//                                     others' pushes (the main branch: only when it moves forward)
 //   push                              push the current branch with upstream tracking
 //   merge [--into <target>]           merge the current branch into target with --no-ff, push target;
 //                                     when the push is refused, target is reset to where it was
@@ -34,7 +38,7 @@ const { stripAttribution } = require('./lib/attribution.js');
 const { untrackedRecord, fileStamp } = require('./lib/diff.js');
 const { planningFiles } = require('./lib/planning.js');
 
-const ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C', LANG: 'C', GIT_EDITOR: 'true', GIT_MERGE_AUTOEDIT: 'no' };
+const ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', LC_ALL: 'C', LANG: 'C', GIT_EDITOR: 'true', GIT_MERGE_AUTOEDIT: 'no' };
 
 function git(root, args, input) {
   const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', env: ENV, input, maxBuffer: 64 * 1024 * 1024 });
@@ -99,7 +103,8 @@ function notTaskWork(ctx, f) {
 }
 
 // Planning's files (lib/planning.js) are not a task's work: its commit leaves them out and they do not
-// block a step. Only the ticket of the task being finished goes in, so its `done` lands with the code.
+// block a step. Only the tickets a commit names go in (the finished task's own, a session's --tickets),
+// so their `done` lands with the code. Keys compare without case.
 function planningOf(ctx) {
   if (!ctx.planning) ctx.planning = planningFiles(ctx.root);
   return ctx.planning;
@@ -219,6 +224,10 @@ const commands = {
     try { message = stripAttribution(fs.readFileSync(messageFile, 'utf8')); } catch (e) { throw new Stop(`cannot read the message file: ${e.message}`); }
     if (!message) throw new Stop('the commit message is empty');
 
+    if (opts.tickets === true) throw new Stop('--tickets needs the keys: --tickets <K1,K2>');
+    const carried = new Set([opts.finish, ...(typeof opts.tickets === 'string' ? opts.tickets.split(',') : [])]
+      .filter((k) => typeof k === 'string' && k.trim()).map((k) => k.trim().toLowerCase()));
+
     const files = changedFiles(ctx.root);
     const paths = new Set();
     const secret = [];
@@ -226,7 +235,7 @@ const commands = {
     const planning = [];
     const planned = (p) => {
       const kind = planningOf(ctx)(p);
-      return Boolean(kind) && !(kind.kind === 'ticket' && kind.key === opts.finish);
+      return Boolean(kind) && !(kind.kind === 'ticket' && carried.has(String(kind.key).toLowerCase()));
     };
     for (const f of files) {
       if (notTaskWork(ctx, f)) { notTask.push(f.path); continue; }
@@ -272,10 +281,21 @@ const commands = {
   sync(ctx, opts) {
     requireReady(ctx, { clean: true });
     const base = typeof opts.from === 'string' ? opts.from : ctx.main;
-    if (sameBranch(ctx.branch, base)) throw new Stop(`already on ${base}; sync merges ${base} into a task branch`);
+    // On the base itself (a feature branch several people work on) its remote copy holds the others' pushes.
+    const onBase = sameBranch(ctx.branch, base);
+    const noCopy = () => new Stop(`already on ${base}, with no ${ctx.remote ? `${ctx.remote}/${ctx.branch}` : 'remote'} to pull; sync merges ${base} into a task branch`);
+    if (onBase && !ctx.remote) throw noCopy();
     fetch(ctx);
-    const from = freshRef(ctx, base);
-    if (!from) throw new Stop(`base branch ${base} not found`);
+    let from;
+    if (onBase) {
+      from = exists(ctx.root, `refs/remotes/${ctx.remote}/${ctx.branch}`) ? `${ctx.remote}/${ctx.branch}` : null;
+      if (!from) throw noCopy();
+      // keel never commits on the main branch: there the pull may only move it forward.
+      if (sameBranch(ctx.branch, ctx.main) && Number(git(ctx.root, ['rev-list', '--count', `${from}..HEAD`]).out) > 0) throw new Stop(`local ${ctx.branch} has commits that ${from} does not have; sort that out by hand first`);
+    } else {
+      from = freshRef(ctx, base);
+      if (!from) throw new Stop(`base branch ${base} not found`);
+    }
     const count = Number(git(ctx.root, ['rev-list', '--count', `HEAD..${from}`]).out) || 0;
     if (!count) return [`sync: up to date with ${from}`];
     const r = git(ctx.root, ['merge', '--no-edit', from]);
