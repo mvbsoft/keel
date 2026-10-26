@@ -66,5 +66,6 @@
   "lane.task": "keel: this conversation works on task {id}, so /keel:{command} does not run here. Planning runs in its own conversation: finish the task with /keel:end-task, or start a new conversation.",
   "lane.unattended": "keel: planning is a conversation with a person. Run /keel:start-planning in a regular chat.",
   "confirm.plans_commit": "keel: commit the planning files?",
-  "confirm.plans_push": "keel: push the branch with the planning files to the remote?"
+  "confirm.plans_push": "keel: push the branch with the planning files to the remote?",
+  "confirm.plans_word": "keel: this plans.js command holds the word commit or push and may run that step. Run it?"
 }

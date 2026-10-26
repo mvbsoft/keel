@@ -94,7 +94,7 @@ const readSnapshot = (root) => {
   return s && s.schema === 2 && validSections(s.sections) ? s : null;
 };
 
-// The section names a configure run passes (`--sections gates,git` or numbers), as recorded sections.
+// The section names a configure run passes (`--sections "gates,git"` or numbers), as recorded sections.
 function sectionList(arg) {
   if (arg === undefined || arg === true) return RECORDED;
   return sorted(String(arg).split(/[\s,]+/).filter(Boolean).map((x) => (/^\d+$/.test(x) ? SECTIONS[Number(x) - 1] : x)).filter((x) => RECORDED.includes(x)));

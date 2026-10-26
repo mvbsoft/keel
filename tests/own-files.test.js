@@ -340,3 +340,45 @@ test('plans.js is keel\'s own: its steps run silently (drop and done too), commi
     `node "$CLAUDE_PLUGIN_ROOT/scripts/notes.js" "${proj}" tasks && node "$CLAUDE_PLUGIN_ROOT/scripts/plans.js" "${proj}" commit`,
   ]) assert.equal(shell(cmd, 'Bash', env), 'deny', cmd);
 });
+
+test('PowerShell reads the en dash, em dash and horizontal bar as a dash too, and a bare -a: splits the -b:c after it', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  for (const d of ['\u2013', '\u2014', '\u2015']) {
+    // PowerShell passes `<dash>a.` as `<dash>a` and `.`: node reads the project "." and runs commit unconfirmed.
+    for (const tool of ['Bash', 'PowerShell']) assert.equal(shell(`node "${SCRIPTS}/plans.js" --x ${d}a. commit f1`, tool, env), 'deny', `${tool}: ${d}a. before commit`);
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find ${d}a.b`, 'PowerShell', env), 'deny', `PowerShell: ${d}a.b`);
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find ${d}a.b`, 'Bash', env), 'allow', `Bash: ${d}a.b`);
+  }
+  // Two dashes of any kind: PowerShell passes the word whole.
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find \u2013\u2013a.b -\u2013a.b`, 'PowerShell', env), 'allow');
+  // `-a: -b:commit` reaches node as -a:, -b: and commit.
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find -a: x`, 'PowerShell', env), 'deny', 'PowerShell: -a:');
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find -a: x`, 'Bash', env), 'allow', 'Bash: -a:');
+});
+
+test('plans.js commit or push anywhere in its command is never silent: refused off the current project, asked on it', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  for (const tool of ['Bash', 'PowerShell']) {
+    for (const cmd of [`node "${SCRIPTS}/plans.js" "/elsewhere" find commit`, `node "${SCRIPTS}/plans.js" --x y "push" f1`, `node "${SCRIPTS}/plans.js" "${proj}/sub" new push`]) {
+      const out = hook(tool, { command: cmd }, env);
+      assert.equal(out?.permissionDecision, 'deny', `${tool}: ${cmd}`);
+      assert.match(out.permissionDecisionReason, /exact absolute path/, `${tool}: ${cmd}`);
+    }
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find commit history`, tool, env), 'ask', `${tool}: find commit history`);
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" new push`, tool, env), 'ask', `${tool}: new push`);
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find "commit history"`, tool, env), 'allow', `${tool}: quoted search`);
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" ticket f1 --title "Push notifications"`, tool, env), 'allow', `${tool}: title`);
+  }
+});
+
+test('a confirmed step word with a project path that is not the current one\'s exact path asks for that path', () => {
+  const proj = project({ mode: 'autonomous' });
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  for (const tool of ['Bash', 'PowerShell']) {
+    const out = hook(tool, { command: `node "${SCRIPTS}/git-flow.js" "${proj}/sub" start --name drop --from main` }, env);
+    assert.equal(out?.permissionDecision, 'deny', tool);
+    assert.match(out.permissionDecisionReason, /exact absolute path/, tool);
+  }
+});

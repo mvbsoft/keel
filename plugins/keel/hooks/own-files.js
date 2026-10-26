@@ -118,10 +118,15 @@ function destructive(name, pos, opts) {
 // (PowerShell splits on it). Control characters other than tab are refused anywhere (Windows
 // PowerShell 5.1 splits words on U+0085); U+2028 and U+2029 count as control characters here. A double
 // quote inside single quotes is refused: Windows PowerShell 5.1 passes it to node unescaped. So is a
-// bare word that starts with one - and holds a dot: Windows PowerShell 5.1 splits it at the dot.
+// bare word that starts with one dash and holds a dot or ends with a colon: Windows PowerShell 5.1
+// reads -, the en dash, em dash and horizontal bar as a parameter dash, splits such a word at a dot,
+// and splits the word after one that ends with a colon.
 const CURLY_QUOTES = /[‘-„]/;
 const UNSAFE = /[$`‘-„]|\\["' ]/;
 const UNSAFE_BARE = /[(){}@*?[\]#;&|<>]/;
+// A word PowerShell reads as a parameter: one dash (it counts the en dash, em dash and horizontal bar as
+// dashes too) not followed by another.
+const PS_PARAMETER = /^[-\u2013-\u2015](?![-\u2013-\u2015])/;
 function splitWords(text, bash) {
   if (UNSAFE.test(text) || /[\u0000-\u0008\u000a-\u001f\u007f-\u009f\u2028\u2029]/.test(text)) return null;
   const token = /[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"']+))(?=[ \t]|$)/y;
@@ -131,7 +136,7 @@ function splitWords(text, bash) {
     const m = token.exec(text);
     // A shell expands ~ only in a bare word, at its start or after = or :; inside a word, as in a
     // Windows short name such as RUNNER~1, and inside quotes it is plain text.
-    if (!m || (m[2] !== undefined && m[2].includes('"')) || (m[3] && UNSAFE_BARE.test(m[3])) || (m[3] && m[3].includes(',') && !/^\d+(,\d+)*$/.test(m[3])) || (m[3] && /(^|[=:])~/.test(m[3])) || (bash && m[3] && m[3].includes('\\')) || (!bash && m[3] && /^-[^-]/.test(m[3]) && m[3].includes('.'))) return null;
+    if (!m || (m[2] !== undefined && m[2].includes('"')) || (m[3] && UNSAFE_BARE.test(m[3])) || (m[3] && m[3].includes(',') && !/^\d+(,\d+)*$/.test(m[3])) || (m[3] && /(^|[=:])~/.test(m[3])) || (bash && m[3] && m[3].includes('\\')) || (!bash && m[3] && PS_PARAMETER.test(m[3]) && (m[3].includes('.') || m[3].endsWith(':')))) return null;
     out.push(m[1] ?? m[2] ?? m[3]);
   }
   // PowerShell drops `--%` (stop-parsing) and, in Windows PowerShell 5.1, an empty argument before node
@@ -183,7 +188,7 @@ function gitFlow(pos, opts) {
   return null;
 }
 
-const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, a backslash before a quote or a space, curly quotes, control characters, double quotes inside single quotes or a bare word starting with one - that holds a dot, a comma only between numbers (quote a list), and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
+const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, a backslash before a quote or a space, curly quotes, control characters, double quotes inside single quotes or a bare word starting with one dash that holds a dot or ends with a colon, a comma only between numbers (quote a list), and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
 
 // The decision for `node <keel>/scripts/<name> <args>`. Arguments are read with the scripts' own
 // parseArgs, so the step the hook judges is the step the script runs.
@@ -196,10 +201,11 @@ function ownScript(name, argText, projectDir, bash) {
   const { opts, pos } = require('../scripts/lib/project.js').parseArgs(argv);
   // Every listed script but usage.js takes the project folder first; none is called on a sub-folder.
   if (name !== 'usage.js' && !(projectDir && pos[0] && path.isAbsolute(pos[0]) && sameFs(norm(pos[0]), norm(projectDir)))) {
-    if (alwaysAsks(name, pos)) return decide('deny', 'keel: this step is confirmed by the user each time, and only on the current project named by its exact absolute path. Nothing ran; send it again with that path.');
-    // A confirmed step word where the project should be may be a step the shell passes in another
-    // order. plans.js is left out: its search takes free words ("drop old users").
-    if (name !== 'plans.js' && argv.some((w) => CONFIRMED_WORDS.has(w))) return decide('deny', PLAIN_FORM);
+    // A split the hook cannot see may hide the project, so a confirmed step's word anywhere is refused
+    // too; for plans.js only its own commit and push, since its search takes free words ("drop old
+    // users").
+    const words = name === 'plans.js' ? PLANS_ASK : CONFIRMED_WORDS;
+    if (alwaysAsks(name, pos) || argv.some((w) => words.has(w))) return decide('deny', 'keel: a step the user confirms each time runs only on the current project, named by its exact absolute path. Nothing ran; send it again with that path.');
     return null;
   }
   if (name === 'usage.js') {
@@ -217,8 +223,12 @@ function ownScript(name, argText, projectDir, bash) {
   }
   // plans.js confirms only commit and push: its `drop` (a done feature's folder to keel's trash) runs
   // without a window, and its search takes free words ("drop old users"), so CONFIRMED_WORDS are not
-  // refused here.
-  if (name === 'plans.js') return alwaysAsks(name, pos) ? decide('ask', say(pos[0], `confirm.plans_${pos[1]}`)) : allow('keel runs its own plans.js');
+  // refused here. commit or push elsewhere in the command may be that step, passed by the shell in
+  // another order, so it asks.
+  if (name === 'plans.js') {
+    if (alwaysAsks(name, pos)) return decide('ask', say(pos[0], `confirm.plans_${pos[1]}`));
+    return argv.some((w) => PLANS_ASK.has(w)) ? decide('ask', say(pos[0], 'confirm.plans_word')) : allow('keel runs its own plans.js');
+  }
   if (name === 'git-flow.js') {
     if (!alwaysAsks(name, pos) && argv.some((w) => CONFIRMED_WORDS.has(w))) return decide('deny', PLAIN_FORM);
     return gitFlow(pos, opts);
