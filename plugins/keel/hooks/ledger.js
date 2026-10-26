@@ -12,9 +12,9 @@
 //    the verification scripts read findings and verdicts; a context map also goes to
 //    .keel/local/tmp/context-map.md for the other agents. A reply handed back through SubagentHandback
 //    (auto mode) is saved by hooks/handback.js first and kept. In a conversation that plans a feature
-//    (its chat mark) replies go to .keel/local/tmp/planning/<session id>/ instead, and a ticket
-//    review's task and reply are also kept in .keel/local/plans/keel/samples/. A subagent's session id
-//    is its conversation's.
+//    (its chat mark, or the agent's reply already saved there) replies go to
+//    .keel/local/tmp/planning/<session id>/ instead, and a ticket review's task and reply are also kept
+//    in .keel/local/plans/keel/samples/. A subagent's session id is its conversation's.
 // Never blocks the agent, prints nothing, fails soft (the transcript format is undocumented).
 const fs = require('node:fs');
 const os = require('node:os');
