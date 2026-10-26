@@ -46,8 +46,8 @@ Current state of this project:
      `/keel:cleanup restore <batch>` brings it back, with the batch from its `trash batch:` line). A refusal `... switch to it first` → switch to its branch
      (as `<keel>/skills/_shared/intake.md` "Before any branch change" says), then drop it. The folder
      was in git and its branch stays → commit the removal on that branch (autonomous:
-     `git-flow.js commit` with the message "Remove the notes of a dropped task" (no "keel", no id: a
-     key in the message reads as work on that ticket), then `push` when the branch was pushed;
+     `git-flow.js commit` with the message "Remove the notes of a dropped task" (in `repo_language`;
+     no "keel", no id: a key in the message reads as work on that ticket), then `push` when the branch was pushed;
      manual: give the commands), else the task is still listed from that branch; the user also
      removes that branch → no commit (the folder goes with it). Then switch back to the branch the
      user was on;

@@ -373,12 +373,62 @@ gitTest('tickets: a dependency found done in history counts only for dependents 
 gitTest('tickets: a revert of a commit that is not a merge is passed over for the older deletion', () => {
   const work = droppedDependency('done', (w, folder) => {
     dropThenMerge(w, folder);
-    commit(w, 'Restore old notes', { [`${folder}/PROJ-1-t1.md`]: ticket('PROJ-1', { status: 'done' }) });
+    // Restored as todo: read as an ordinary deletion, this revert would make the key not done.
+    commit(w, 'Restore old notes', { [`${folder}/PROJ-1-t1.md`]: ticket('PROJ-1') });
     git(w, 'revert', '--no-edit', 'HEAD');
   });
   const out = run(work, 'tickets', 'PROJ-9');
   assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — next');
   assert.ok(out.includes('  depends: PROJ-1 done'), out.join('\n'));
+});
+
+gitTest('tickets: tickets dropped, merged, then the merge reverted on merge_into are not done', () => {
+  const revert = (w, folder) => {
+    // A ticket branch left at the done commit: the ticket is read from it.
+    git(w, 'branch', '-q', 'PROJ-1-client');
+    dropThenMerge(w, folder);
+    git(w, 'revert', '-m', '1', '--no-edit', 'HEAD');
+  };
+  const work = droppedDependency('done', revert);
+  assert.equal(line(run(work, 'tickets', 'PROJ-1'), 'PROJ-1'), '  PROJ-1 Ticket PROJ-1 — waiting for the feature merge · branch PROJ-1-client, Test, today · reverted');
+  assert.equal(line(run(work, 'tickets', 'PROJ-9'), 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — to do');
+  git(work, 'branch', '-q', '-D', 'PROJ-1-client');
+  const out = run(work, 'tickets', 'PROJ-9');
+  assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — to do', 'found in history only');
+  assert.ok(out.includes('  depends: PROJ-1 not found'), out.join('\n'));
+});
+
+gitTest('tickets: a deleted file that is not the ticket does not hide the ticket\'s drop', () => {
+  const work = droppedDependency('done', (w, folder) => {
+    dropThenMerge(w, folder);
+    commit(w, 'notes', { 'docs/notes/PROJ-1-design.md': '# PROJ-1 design\n' });
+    git(w, 'rm', '-q', 'docs/notes/PROJ-1-design.md');
+    git(w, 'commit', '-q', '-m', 'Remove old notes');
+  });
+  assert.ok(run(work, 'tickets', 'PROJ-9').includes('  depends: PROJ-1 done'));
+});
+
+gitTest('tickets: a dropped dependency with a key commit on merge_into\'s own line is in progress', () => {
+  const work = droppedDependency('todo', (w, folder) => {
+    git(w, 'rm', '-r', '-q', folder);
+    git(w, 'commit', '-q', '-m', 'Remove the s3-storage tickets');
+    git(w, 'checkout', '-q', 'main');
+    git(w, 'merge', '-q', '--squash', 's3-storage');
+    git(w, 'commit', '-q', '-m', 'PROJ-1: S3 storage (#4)');
+  });
+  const out = run(work, 'tickets', 'PROJ-9');
+  assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — to do');
+  assert.ok(out.includes('  depends: PROJ-1 in progress'), out.join('\n'));
+});
+
+gitTest('tickets: a commit with the key that changes only .keel/ is no work, also in a sub-folder project', () => {
+  const { work } = setup({ sub: 'app' });
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  commit(work, 'Add the s3-storage tickets', { [file(1)]: ticket('PROJ-1') });
+  commit(work, 'PROJ-1: hand off', { '.keel/tasks/PROJ-1/task.md': '---\nid: PROJ-1\n---\n' });
+  git(work, 'rm', '-r', '-q', '.keel/tasks');
+  git(work, 'commit', '-q', '-m', 'Remove the notes of a dropped task');
+  assert.equal(line(run(work, 'tickets'), 'PROJ-1'), '  PROJ-1 Ticket PROJ-1 — next');
 });
 
 gitTest('tickets: a project in a sub-folder of its repository reads the branches too', () => {

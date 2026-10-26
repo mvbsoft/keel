@@ -386,7 +386,7 @@ test('tasks drop: manual git gets the commands; an old handed-off task is offere
   assert.match(t, /offer\s+`\/keel:tasks drop <id>`, or `\/keel:start-task <id>` then `\/keel:end-task`/);
   assert.match(t, /`\/keel:cleanup restore <batch>` brings it back, with the batch from its `trash batch:` line/);
   // No keel trace in the project's history, and no key: a commit with a ticket key reads as work on it.
-  assert.match(t, /`git-flow\.js commit` with the message "Remove the notes of a dropped task" \(no "keel", no id/);
+  assert.match(t, /`git-flow\.js commit` with the message "Remove the notes of a dropped task" \(in `repo_language`;\s+no "keel", no id/);
   assert.doesNotMatch(t, /keel: drop/);
   for (const f of ['git.md', 'intake.md', 'handoff.md', 'planning.md']) assert.doesNotMatch(shared(f), /message "keel:|commit -m "keel:/, `${f}: no keel commit message`);
 });
@@ -538,11 +538,11 @@ test('start-task: each ticket state has its answer; waiting is never free, done 
   assert.match(p, /`in progress` or `waiting for \.\.\.` → say the branch, author and date of its hint and ask: continue\s+it \(on that branch\) \/ start over \/ take another ticket/);
   assert.match(p, /A waiting ticket is never offered as free;\s+with `stale` ask "Nobody touched it for 30 days: treat it as free\?"/);
   assert.match(p, /`reverted` → say "The branch\s+was merged once and that merge was reverted; merging it again brings nothing back: it needs a\s+revert of that revert, or new commits\."/);
-  assert.match(p, /a `depends:` ticket `waiting for merge into the feature branch`, or one of another feature that is\s+not done → ask: start from that ticket's branch \/ wait for its merge \/ start anyway/);
+  assert.match(p, /a `depends:` ticket `waiting for merge into the feature branch`, or one of another feature that is\s+not done \(not `not found`\) → ask: start from that ticket's branch \/ wait for its merge \/ start\s+anyway/);
   assert.match(p, /`done` → say so; start it again only on a yes/);
   assert.match(p, /a `depends:` ticket of the same feature `to do` or `in progress`, or any `not found` → say which,\s+and ask: start anyway \/ take the next ticket/);
   // A squash merge after the tickets were removed leaves no ticket file in merge_into's history.
-  assert.match(p, /A `not found` may be a finished feature merged\s+with squash after its tickets were removed/);
+  assert.match(p, /A `not found` may be a finished feature merged\s+with squash after its tickets were removed \(no ticket file ever reached `merge_into`\): say so;\s+the user checks its code there/);
 });
 
 test('start-task: a ticket\'s task id is its key exactly; its feature branch comes first; the task file names the right base', () => {
