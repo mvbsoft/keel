@@ -1,8 +1,10 @@
 'use strict';
 // keel's planning drafts (/keel:start-planning, /keel:end-planning): one folder per feature, on this
 // machine (.keel/local/plans/keel/<feature>/) or in the repository (<draft_dir>/<feature>/), as the
-// planning settings say (lib/plans.js). Writes only the draft files, the settings and the chat marks;
-// an abandoned draft on this machine goes to keel's trash. Never runs git beyond reading HEAD.
+// planning settings say (lib/plans.js). Writes only the draft files, the exported tickets, the settings
+// and the chat marks; an abandoned or exported draft on this machine goes to keel's trash. git beyond
+// reading runs only in export (fetch), commit and push (lib/plans-export.js), which Claude Code confirms.
+// The result is the first output line; a refusal is `plans: <command> refused (<why>)`. Exit code 0.
 // Usage: node plans.js <projectDir> <command>
 //   list                                  the drafts: feature, state, open questions, tickets, last change
 //   find <words...>                       the drafts whose folder name or Summary has the words: one match,
@@ -17,6 +19,19 @@
 //   reviewed <feature> <T1> [T2...]       record the tickets' review hashes after their review
 //   state <feature> <draft|ready|exported|abandoned>   move the plan; ready needs a clean check, no open
 //                                         questions and every ticket reviewed as it is
+//   set <feature> [--branch <b>] [--merge-into <b>]   the feature branch and where it merges (plan.md
+//                                         branch, merge_into); a ready plan becomes a draft again
+//   stale <feature>                       which files the tickets name in Where to look changed since
+//                                         plan.md after_commit (commits and uncommitted changes)
+//   report <file>                         a planning reviewer's reply under .keel/local/tmp/planning/
+//                                         (absolute, or relative to the project): its
+//                                         findings, or `report: failed` and why (never "no findings")
+//   export <feature>                      a ready plan's tickets into the feature folder with keys shared
+//                                         across the repository (export, export_dir, prefix settings); all
+//                                         or nothing
+//   commit <feature>                      the feature's planning files into git on the current branch (keys
+//                                         checked again, taken ones renumbered); never on the main branch
+//   push <feature>                        the current branch to the remote after the same key check
 //   settings                              the planning settings (.keel/local/plans/keel/settings.json)
 //   settings set [--language <l>] [--draft pc|repo] [--draft-dir <dir>] [--export pc|repo]
 //                [--export-dir <dir>] [--prefix <PROJ>]
@@ -27,7 +42,7 @@ const path = require('node:path');
 const { parseArgs } = require('./lib/project.js');
 const plans = require('./lib/plans.js');
 
-const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, settings, mark';
+const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, set, stale, report, export, commit, push, settings, mark';
 
 function run(root, pos, opts) {
   const command = pos[1] || 'list';
@@ -40,6 +55,12 @@ function run(root, pos, opts) {
   if (command === 'review') return plans.draftReview(root, feature);
   if (command === 'reviewed') return plans.draftReviewed(root, feature, pos.slice(3).map((x) => x.toUpperCase()));
   if (command === 'state') return plans.draftState(root, feature, pos[3]);
+  if (command === 'set') return plans.draftSet(root, feature, opts);
+  if (command === 'stale') return plans.draftStale(root, feature);
+  if (command === 'report') return require('./lib/plans-report.js').reportCheck(root, pos[2]);
+  if (command === 'export') return require('./lib/plans-export.js').exportFeature(root, feature);
+  if (command === 'commit') return require('./lib/plans-export.js').commitFeature(root, feature);
+  if (command === 'push') return require('./lib/plans-export.js').pushFeature(root, feature);
   if (command === 'settings') {
     if (!pos[2]) return plans.settingsShow(root);
     if (pos[2] !== 'set') return [`plans: unknown settings command "${pos[2]}" (set)`];
