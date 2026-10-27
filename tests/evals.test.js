@@ -111,15 +111,20 @@ const STATE = {
   },
 };
 
-test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
+test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, (t) => {
+  const tmp = (prefix) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    return dir;
+  };
   const expect = { base: ['main', 0, ''], tasks: ['main', 0, ''], finish: ['CAN-200-free-shipping', 1, ''], session: ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
     planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'],
     planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {
-    const work = fs.mkdtempSync(path.join(os.tmpdir(), `keel-eval-${variant}-`));
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-eval-home-'));
+    const work = tmp(`keel-eval-${variant}-`);
+    const home = tmp('keel-eval-home-');
     const r = spawnSync(process.execPath, [SHOP, variant], { cwd: work, env: { ...process.env, HOME: home }, encoding: 'utf8' });
     assert.equal(r.status, 0, `${variant}: ${r.stderr}`);
     const git = (...a) => execFileSync('git', ['-C', work, ...a], { encoding: 'utf8' }).trim();
@@ -133,8 +138,8 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     assert.match(check, /^keel-config: ok/, variant);
     if (STATE[variant]) STATE[variant](work, git);
   }
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-eval-tasks-'));
-  execFileSync(process.execPath, [SHOP, 'tasks'], { cwd: work, env: { ...process.env, HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'keel-eval-home-')) } });
+  const work = tmp('keel-eval-tasks-');
+  execFileSync(process.execPath, [SHOP, 'tasks'], { cwd: work, env: { ...process.env, HOME: tmp('keel-eval-home-') } });
   const listed = spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', 'notes.js'), work, 'tasks'], { encoding: 'utf8' }).stdout;
   assert.match(listed, /^tasks: 2 unfinished \((CAN-123, fix-reset-500|fix-reset-500, CAN-123)\)/);
 });
