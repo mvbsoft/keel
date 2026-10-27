@@ -96,13 +96,13 @@ test('apply: writes the allowed keys, merges with the existing usage.json, keeps
   const w = world({ usage: { pc: 'old', user: 'a@b.c', custom_note: 'kept' } });
   const r = w.run('apply', w.file('c.json', {
     pc: 'new-pc', wallet_default: 'api', cloud_wallet: 'subscription', also_api: true, prompt_preview: false,
-    history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', approved_artifact_urls: ['https://claude.ai/artifact/team'], statusline: { mode: 'keel' },
+    history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', approved_artifact_urls: ['https://claude.ai/artifact/team'], page_template: '0123456789ab', statusline: { mode: 'keel' },
   }));
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /^written .*usage\.json$/);
   assert.deepEqual(readJson(path.join(w.dir, 'usage.json')), {
     pc: 'new-pc', user: 'a@b.c', custom_note: 'kept', wallet_default: 'api', cloud_wallet: 'subscription', also_api: true,
-    prompt_preview: false, history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', approved_artifact_urls: ['https://claude.ai/artifact/team'], statusline: { mode: 'keel' },
+    prompt_preview: false, history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', approved_artifact_urls: ['https://claude.ai/artifact/team'], page_template: '0123456789ab', statusline: { mode: 'keel' },
   });
   // A second apply changes only its own keys; artifact_url may be cleared with null.
   assert.equal(w.run('apply', w.file('d.json', { user: 'z@x.y', artifact_url: null })).code, 0);
@@ -171,6 +171,10 @@ test('apply: an unknown key or a bad value is refused and nothing is written', (
     [{ approved_artifact_urls: 'https://claude.ai/artifact/x' }, 'approved_artifact_urls'],
     [{ approved_artifact_urls: ['https://evil.example/claude.ai/'] }, 'approved_artifact_urls'],
     [{ approved_artifact_urls: ['https://claude.ai/artifact/x', 5] }, 'approved_artifact_urls'],
+    [{ page_template: '0123456789AB' }, 'page_template'],
+    [{ page_template: '0123456789a' }, 'page_template'],
+    [{ page_template: '0123456789abc' }, 'page_template'],
+    [{ page_template: null }, 'page_template'],
     [{ statusline: { mode: 'both' } }, 'statusline'],
     [{ statusline: 'keel' }, 'statusline'],
   ]) {
@@ -433,3 +437,50 @@ test('page: copies the dashboard files to <project>/.keel/local/tmp/usage-page',
     assert.equal(w.run('page').code, 0);
     assert.notEqual(fs.readFileSync(path.join(to, 'pivot.js'), 'utf8'), 'stale');
   });
+
+// --- page template: tells a published page that runs an older keel's page ---
+
+const { pageTemplate } = require(CLI);
+const copyTemplates = (edit = (s) => s) => {
+  const dir = tmp('keel-us-tpl-');
+  for (const name of PAGE_FILES) fs.writeFileSync(path.join(dir, name), edit(fs.readFileSync(path.join(TEMPLATES, name), 'utf8'), name));
+  return dir;
+};
+
+test('page: prints the template fingerprint that configure saves as page_template', () => {
+  const r = world({ usage: { pc: 'p' } }).run('page');
+  assert.equal(r.code, 0, r.out);
+  const m = r.out.match(/^page_template: ([0-9a-f]{12})$/m);
+  assert.ok(m, r.out);
+  assert.equal(m[1], pageTemplate());
+  // apply takes the printed value as it is.
+  const w = world({ usage: { pc: 'p' } });
+  assert.equal(w.run('apply', w.file('c.json', { page_template: m[1] })).code, 0);
+});
+
+test('page template: changes when any page file changes, not when only its line endings do', () => {
+  const now = pageTemplate();
+  assert.equal(pageTemplate(copyTemplates()), now);
+  assert.equal(pageTemplate(copyTemplates((s) => s.replace(/\r?\n/g, '\r\n'))), now, 'a CRLF checkout');
+  for (const changed of PAGE_FILES) {
+    assert.notEqual(pageTemplate(copyTemplates((s, name) => (name === changed ? `${s} ` : s))), now, changed);
+  }
+  // Text moved from one file to the next is another page.
+  const split = (first, second) => pageTemplate(copyTemplates((s, name) => (name === 'i18n.js' ? first : name === 'i18n.uk.js' ? second : s)));
+  assert.notEqual(split('ab', ''), split('a', 'b'));
+  assert.notEqual(split('a\nb', ''), split('a', 'b\n'));
+});
+
+test('show: a page with an older or unknown template → offer: update; the current one → no offer', () => {
+  const now = pageTemplate();
+  const line = (usage) => world({ usage: { pc: 'p', ...usage }, settings: {} }).run('show').out.split('\n').find((l) => l.startsWith('page template:'));
+  const url = 'https://claude.ai/artifact/x';
+  assert.equal(line({ artifact_url: url }), `page template: unknown, this keel's: ${now} | offer: update`);
+  assert.equal(line({ artifact_url: url, page_template: 'aaaaaaaaaaaa' }), `page template: aaaaaaaaaaaa, this keel's: ${now} | offer: update`);
+  assert.equal(line({ artifact_url: url, page_template: now }), `page template: ${now} (this keel's)`);
+  // A team page approved on this machine is a page too.
+  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'] }), `page template: unknown, this keel's: ${now} | offer: update`);
+  // No page → nothing to update.
+  assert.equal(line({}), undefined);
+  assert.equal(line({ page_template: 'aaaaaaaaaaaa' }), undefined);
+});

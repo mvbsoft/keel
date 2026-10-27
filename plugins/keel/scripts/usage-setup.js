@@ -6,9 +6,12 @@
 //        node usage-setup.js <projectDir> prices-apply <prices.json> writes the machine price override
 //        node usage-setup.js <projectDir> install-statusline        writes the stable shim, prints the statusLine command
 //        node usage-setup.js <projectDir> page                      copies the dashboard page to .keel/local/tmp/usage-page
-//          (the Artifact tool publishes only files under the project or the scratchpad)
-// `show` also says what the status line is now: keel's runner, a command keel could wrap, or none.
+//          (the Artifact tool publishes only files under the project or the scratchpad) and prints the
+//          template fingerprint that configure saves as page_template once the page is published
+// `show` also says what the status line is now: keel's runner, a command keel could wrap, or none,
+// and whether the published page still runs an older template than this keel's.
 // The status line itself is written by claude-settings.js (key statusLine), which keeps a backup.
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -50,6 +53,7 @@ const KEYS = {
   history_days: (v) => Number.isInteger(v) && v >= 0 && v <= 3650,
   artifact_url: (v) => v === null || (typeof v === 'string' && /^https:\/\/claude\.ai\//.test(v)),
   approved_artifact_urls: (v) => Array.isArray(v) && v.length <= 20 && v.every((u) => typeof u === 'string' && /^https:\/\/claude\.ai\//.test(u)),
+  page_template: (v) => typeof v === 'string' && /^[0-9a-f]{12}$/.test(v),
   statusline: (v) => v && typeof v === 'object' && ['keel', 'wrap', 'none'].includes(v.mode),
 };
 
@@ -79,6 +83,7 @@ function show(root = process.cwd()) {
     `pc: ${m.pc} | user: ${m.user || 'unknown'} | wallet of this session: ${detectWallet({ projectDir: root, machine: m })}`,
     `wallet_default: ${m.wallet_default} | cloud_wallet: ${m.cloud_wallet} | also_api: ${m.also_api} | prompt_preview: ${m.prompt_preview}`,
     `artifact_url: ${m.artifact_url || 'not set'}${m.approved_artifact_urls.length ? ` | approved project urls: ${m.approved_artifact_urls.join(', ')}` : ''}`,
+    ...(m.artifact_url || m.approved_artifact_urls.length ? [pageTemplateLine(m.page_template)] : []),
     `status line now: ${sl.now}${sl.command ? ` (${sl.command})` : ''}${sl.offer ? ` | offer: ${sl.offer}` : ''}`,
     ...(sl.original ? [`status line setting to keep as statusline.original when wrapping: ${JSON.stringify(sl.original)}`] : []),
     `prices: ${table.source}, ${table.models.length} models${prices.validate(table).length ? ` | notes: ${prices.validate(table).join('; ')}` : ''}`,
@@ -112,11 +117,24 @@ function installStatusline() {
 }
 
 const PAGE_FILES = ['index.html', 'pivot.js', 'i18n.js', 'i18n.uk.js'];
+const TEMPLATE = path.join(__dirname, '..', 'templates', 'usage');
+// Line endings do not count: a checkout with CRLF publishes the same page.
+function pageTemplate(dir = TEMPLATE) {
+  const h = crypto.createHash('sha256');
+  for (const name of PAGE_FILES) h.update(`${name}\n${fs.readFileSync(path.join(dir, name), 'utf8').replace(/\r\n/g, '\n')}\n`);
+  return h.digest('hex').slice(0, 12);
+}
+
+// A page published before keel recorded the fingerprint has none, and is offered the update too.
+function pageTemplateLine(saved) {
+  const now = pageTemplate();
+  return saved === now ? `page template: ${now} (this keel's)` : `page template: ${saved || 'unknown'}, this keel's: ${now} | offer: update`;
+}
+
 function page(root) {
-  const from = path.join(__dirname, '..', 'templates', 'usage');
   const to = require('./lib/safe-path.js').safeLocalPath(root, 'tmp', 'usage-page');
   fs.mkdirSync(to, { recursive: true });
-  for (const name of PAGE_FILES) fs.copyFileSync(path.join(from, name), path.join(to, name));
+  for (const name of PAGE_FILES) fs.copyFileSync(path.join(TEMPLATE, name), path.join(to, name));
   return to;
 }
 
@@ -153,7 +171,7 @@ if (require.main === module) {
     else if (pos[0] === 'apply' && pos[1]) process.stdout.write(`written ${apply(path.resolve(pos[1]))}\n`);
     else if (pos[0] === 'prices-diff' && pos[1]) process.stdout.write(`${pricesDiff(path.resolve(pos[1]))}\n`);
     else if (pos[0] === 'prices-apply' && pos[1]) process.stdout.write(`written ${pricesApply(path.resolve(pos[1]))} (previous kept as prices.json.bak)\n`);
-    else if (pos[0] === 'page') process.stdout.write(`page files in ${page(root)}: ${PAGE_FILES.join(', ')}\n`);
+    else if (pos[0] === 'page') process.stdout.write(`page files in ${page(root)}: ${PAGE_FILES.join(', ')}\npage_template: ${pageTemplate()}\n`);
     else if (pos[0] === 'install-statusline') process.stdout.write(`${JSON.stringify(installStatusline())}\n`);
     else process.stdout.write('usage: usage-setup.js <projectDir> show | apply <changes.json> | prices-diff <prices.json> | prices-apply <prices.json> | install-statusline | page\n');
   } catch (e) {
@@ -162,4 +180,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { show, apply, statusLineState, installStatusline, page, pricesDiff, pricesApply, RUNNER };
+module.exports = { show, apply, statusLineState, installStatusline, page, pageTemplate, pricesDiff, pricesApply, RUNNER };

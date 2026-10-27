@@ -387,7 +387,9 @@ Then, in one question group:
    limits); `offer: wrap` → the user's line stays exactly as it is and keel only records the
    percentages; `now: keel` → nothing to ask. Options: the offer (recommended) / skip (no percentages
    in the terminal).
-5. **Dashboard page**: `artifact_url` in `show` → keep it. Otherwise look with the Artifact tool
+5. **Dashboard page**: `artifact_url` in `show` → keep it; when `show` also says
+   `page template: ... | offer: update`, the page still runs an older keel's page, so offer to update it
+   (step 7; its data stays). Otherwise look with the Artifact tool
    (`action: list`, mine, then shared) for one titled "keel usage"; found → use it. None → offer to
    create it (step 7). When the user says the team shares one page, its URL can also go to the project
    config (`usage.artifact_url`, committed). A machine uses that URL only after its user approves it
@@ -427,8 +429,18 @@ Then, in one question group:
      `files` `{ "pivot.js": ".../usage-page/pivot.js", "i18n.js": ".../usage-page/i18n.js", "i18n.uk.js": ".../usage-page/i18n.uk.js" }`,
      `title` "keel usage", `icon` "chart", `capabilities` `{ "db": {}, "user": {}, "downloads": true }`.
      Then write the page language with ArtifactData `set` to collection `meta`, doc `settings`,
-     `{ "language": "<conversation language code>", "schema": 1 }`. Then save its URL on this machine:
-     `{ "artifact_url": "<page url>" }` through the same `apply`.
+     `{ "language": "<conversation language code>", "schema": 1 }`. Then save its URL and the
+     `page_template` that `page` printed on this machine:
+     `{ "artifact_url": "<page url>", "page_template": "<printed value>" }` through the same `apply`.
+   - Update the page (only after a yes): the page is the `artifact_url` from `show`, else the first
+     approved project url. Read it with the Artifact tool (`action: read`, that `url`; the tool
+     publishes over a page only after a read, and it costs about $0.1-0.3). Its title is not "keel
+     usage" or the read does not say "writer" → stop and say why (a team page is updated by its
+     owner). Otherwise run `node "<keel>/scripts/usage-setup.js" "<project>" page` and publish with the
+     Artifact tool: that `url`, the same `file_path` and `files` as when creating it, no `title`,
+     `icon` or `capabilities` (the page keeps its own). Its data and language setting stay: they live
+     in the page's database, not in the published files. Then save `{ "page_template": "<printed
+     value>" }` through the same `apply`.
    - The first sync happens at the next `/keel:end-task`, `/keel:end-session` or
      `/keel:end-planning` (the last 30 days of logs on this machine).
 
