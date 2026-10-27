@@ -533,7 +533,7 @@ Blocked by T3.
 ` },
 ];
 
-function planText(list, openq) {
+function planText(list, openq, next) {
   const later = list.length > 2 ? '- PDF invoices' : '- Filters by date or customer\n- PDF invoices\n- Sending the file by e-mail';
   const decisions = list.length > 2 ? '\nD3. A from/to date range on the same route - one route to keep, and the accountants close one month at a time.\nD4. A monthly job in the shop process sends the file - no new service to run for one mail a month.' : '';
   return `# csv-export
@@ -568,24 +568,27 @@ ${openq ? 'Q1. Should the file use a semicolon, as Excel with a Ukrainian locale
 ${list.map((t, i) => `T${i + 1} ${t.title}`).join('\n')}
 
 ## Next action
-${list.length > 2 ? 'Export the tickets.' : 'Final review of the tickets, then export them.'}
+${next || (list.length > 2 ? 'Export the tickets.' : 'Final review of the tickets, then export them.')}
 `;
 }
 
 // A draft csv-export as start-planning leaves it: settings, plan.md and the tickets written in full, each
 // ticket reviewed as it is (last, so the review hashes match).
-function draft({ where = 'pc', list = TICKETS.slice(0, 2), openq = false } = {}) {
+function draft({ where = 'pc', list = TICKETS.slice(0, 2), openq = false, next } = {}) {
   plans('settings', 'set', '--language', 'en', '--draft', where);
   const plan = /^created: (.+)$/m.exec(plans('new', 'csv-export'))[1];
   const files = list.map((t) => /^created: (.+)$/m.exec(plans('ticket', 'csv-export', '--title', t.title, '--slug', t.slug, ...(t.depends ? ['--depends', t.depends] : [])))[1]);
-  body(plan, planText(list, openq));
+  body(plan, planText(list, openq, next));
   list.forEach((t, i) => body(files[i], `# [T${i + 1}] ${t.title}\n\n${t.text}`));
   plans('reviewed', 'csv-export', ...list.map((t, i) => `T${i + 1}`));
+  return plan;
 }
 
-function planning({ openq = false, where = 'pc' } = {}) {
+function planning({ openq = false, where = 'pc', next } = {}) {
   invoices();
-  draft({ where, openq });
+  const plan = draft({ where, openq, next });
+  // Written before the invoices: a hand-over has its after_commit to bring up to date.
+  write(plan, fs.readFileSync(path.join(root, plan), 'utf8').replace(/^after_commit: .*$/m, `after_commit: ${git('rev-parse', '--short', 'HEAD~1')}`));
   plans('mark', 'set', 'csv-export', '--session', SID);
 }
 
@@ -593,7 +596,7 @@ function planningReady() {
   write('AGENTS.md', '# Agents\n\nNo ticket or backlog files in this repository: tickets live in Jira.\nRun `npm test` before every commit.\nAmounts are in UAH.\n');
   commitAll('Add AGENTS.md');
   git('push', '-q', 'origin', 'main');
-  planning();
+  planning({ next: 'Export the tickets.' });
   plans('state', 'csv-export', 'ready');
   plans('settings', 'set', '--prefix', 'INV');
 }
