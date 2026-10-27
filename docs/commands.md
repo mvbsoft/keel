@@ -5,7 +5,7 @@
 Every keel command, how to call it and what happens in each case. Only you start these commands; the
 model never runs them on its own.
 
-**How instructions work.** After the task and session commands you write what you want in plain
+**How instructions work.** After the task, session and planning commands you write what you want in plain
 words; there are no keyword arguments. `/keel:tasks` (`drop`), `/keel:cleanup` (`restore`,
 `empty-trash`) and `/keel:configure` (`machine`, a section name) take the words shown below. keel works out what you mean, asks when it is not sure, and says in one line what
 each action will do before it runs. A level word (`gates`, `basic`, `standard`, `maximum`,
@@ -20,6 +20,8 @@ levels: [verification](verification.md).
 | [`/keel:tasks`](#keeltasks) | list, show or drop tasks |
 | [`/keel:start-session`](#keelstart-session) | continue or start a long line of work |
 | [`/keel:end-session`](#keelend-session) | end a session: verify, write the note, git |
+| [`/keel:start-planning`](#keelstart-planning) | plan a feature: questions, decisions and short tickets, no code |
+| [`/keel:end-planning`](#keelend-planning) | hand the plan over, or review it and export the tickets |
 | [`/keel:cleanup`](#keelcleanup) | move leftovers to keel's trash, put them back, empty old trash |
 | [`/keel:usage`](#keelusage) | the link to your private usage page, opened |
 | [`/keel:usage-clear`](#keelusage-clear) | deletes all data on the usage page, after a warning and your yes |
@@ -83,16 +85,18 @@ checks it could not run.
 | You give | keel does |
 |---|---|
 | a link (Jira, Linear, Asana, GitHub, Google Docs, any page) | reads it from outside (a connector, `gh` or a web fetch); cannot → asks you to paste the text |
-| a key or number (`CAN-123`, `#123`) | looks in keel's tasks, then in the repository, and asks "Is this it?"; `#123` alone is never read from GitHub: give the issue link |
+| a key or number (`CAN-123`, `#123`) | looks in keel's tasks, then in the planned tickets, then in the repository, and asks "Is this it?"; `#123` alone is never read from GitHub: give the issue link |
+| `next ticket` (any words for it) | takes the planned ticket `/keel:tasks` names next, after a fetch |
 | a file path | reads the file |
 | your own words | takes them as the task and looks for similar unfinished tasks |
-| nothing | shows the unfinished tasks and asks which to continue or what the new task is |
+| nothing | shows the unfinished tasks, then the next planned ticket, and asks which to continue or what the new task is |
 
 Then one combined question (the retell, "continuation of X?" or "new, right?", and a proposed name),
 questions or a brainstorm offer, a plan with the branch to work in (a new branch from the current one,
 recommended; the current branch; or your own git steps, which keel runs in both git modes), the task
-folder, and the code. Every case,
-including continuing a task: [two ways of working](workflows.md#start-a-task-keelstart-task).
+folder, and the code. A task that turns out too big: keel offers to plan it as a feature instead,
+while no code changed. Every case, including continuing a task and a planned ticket:
+[ways of working](workflows.md#start-a-task-keelstart-task).
 
 ## `/keel:end-task`
 
@@ -106,7 +110,7 @@ including continuing a task: [two ways of working](workflows.md#start-a-task-kee
 | `/keel:end-task finish and merge into main` | as finish, then the [merge](workflows.md#merging-into-the-main-branch) (Claude Code asks first, unless you confirmed autonomous git on this machine and set `git.ask_before_merge: false`) |
 | `/keel:end-task push` | asks: finish or hand off? |
 
-Every case: [two ways of working](workflows.md#end-a-task-keelend-task).
+Every case: [ways of working](workflows.md#end-a-task-keelend-task).
 
 ## `/keel:tasks`
 
@@ -114,24 +118,25 @@ Every case: [two ways of working](workflows.md#end-a-task-keelend-task).
 
 | You type | keel does |
 |---|---|
-| `/keel:tasks` | Lists the unfinished tasks of this working tree and of every branch (as of the last fetch): `<id> · <title>`, then Source, State (active or handed off, how long ago, steps done of total, branch), Next and Files; a "Base moved" line when the base branch got new commits since the handoff. A task handed off 30 days ago or more: keel offers to finish it or drop it. It ends with "Continue one with `/keel:start-task <id>`". |
+| `/keel:tasks` | Lists the unfinished tasks of this working tree and of every branch (as of the last fetch): `<id> · <title>`, then Source, State (active or handed off, how long ago, steps done of total, branch), Next and Files; a "Base moved" line when the base branch got new commits since the handoff. A task handed off 30 days ago or more: keel offers to finish it or drop it. It ends with "Continue one with `/keel:start-task <id>`". Then a "Planned" block: each feature with planned tickets not done, every ticket's state, when the server data was fetched, and "Start the next one with `/keel:start-task <KEY>`"; a feature whose tickets are all done gets the offer of its end. |
 | `/keel:tasks CAN-123` | Shows that task: goal, state, open questions and the next action, in 3-6 lines. It reads the task file also from another branch. |
 | `/keel:tasks drop CAN-123` | Explains everything the task left: its folder, its branch (local, pushed), the commits not in the base branch, the changed files and the docs among them. Asks what to remove: everything or which parts. Then each removal on its own, the folder first, and Claude Code itself asks you to confirm the folder and the branch. The folder goes to keel's trash (`/keel:cleanup restore` brings it back); when its branch stays, the removal is committed on that branch. The branch is deleted locally (`git branch -D`) and, if it was pushed, on the remote; after a local delete keel prints the `git branch <name> <commit>` command that brings it back, and after a remote delete the remote branch's last commit and `git push <remote> <commit>:refs/heads/<name>`, which brings it back while that commit is still in your repository. The main branch and the current one are refused (switch away first). Changes already in the base branch are only reverted (`git revert`), never rewritten. In manual git keel gives the commit, branch and revert commands instead of running them. |
 
-An example of the list: [two ways of working](workflows.md#see-and-drop-tasks-keeltasks).
+An example of the list: [ways of working](workflows.md#see-and-drop-tasks-keeltasks).
 
 ## `/keel:start-session`
 
-`/keel:start-session [plan file | link | description | how to continue]`
+`/keel:start-session [plan file | feature | link | description | how to continue]`
 
 | You type | keel does |
 |---|---|
 | `/keel:start-session` with a note | a summary of where things stand and the first action |
 | `/keel:start-session` with no note | looks for plans and TODOs and proposes what to take; with unfinished tasks it points to `/keel:tasks` and `/keel:start-task` |
 | `/keel:start-session docs/plan.md` (or a link, or a description) | starts a new line of work: writes the note, shows it and asks "Start?", then creates the line's branch (manual git: gives `git switch -c <name>` and waits); when a note is open and this is about a different line of work, it first asks "continue the written line or start a new one?" |
+| `/keel:start-session csv-export` (a feature with planned tickets) | starts a new line whose plan is the feature's open tickets, the next one first, on the feature branch |
 | `/keel:start-session only write the tests today` | continues, following your instruction |
 
-Every case: [two ways of working](workflows.md#start-a-session-keelstart-session).
+Every case: [ways of working](workflows.md#start-a-session-keelstart-session).
 
 ## `/keel:end-session`
 
@@ -144,7 +149,34 @@ Every case: [two ways of working](workflows.md#start-a-session-keelstart-session
 | `/keel:end-session push and merge into main` | verification, the note, then the push and the merge |
 | `/keel:end-session the line is finished` | verification, the note marked done, then git as a finish: commit, update from the main branch, push (autonomous); a merge only when you ask for it or `git.ask_before_merge` is off |
 
-Every case: [two ways of working](workflows.md#end-a-session-keelend-session).
+Every case: [ways of working](workflows.md#end-a-session-keelend-session).
+
+## `/keel:start-planning`
+
+`/keel:start-planning [idea | link | file | feature name | what to continue, in your words]`
+
+| You type | keel does |
+|---|---|
+| `/keel:start-planning` | lists the drafts (feature, state, open questions, tickets, last change, where) and asks which to continue or what the new feature is |
+| `/keel:start-planning CSV export of invoices` (or a link, or a file) | a new feature: the retell, its size, a name, where its tasks merge, then one question at a time |
+| `/keel:start-planning csv-export` (or "continue the CSV export") | continues that draft from its Next action; an exported feature reopens its tickets for editing |
+
+The first run in a project asks the tickets' language and where the draft lives (this machine or the
+repository). No code: the conversation writes only the draft. Every case:
+[ways of working](workflows.md#planning).
+
+## `/keel:end-planning`
+
+`/keel:end-planning [instruction]`
+
+| You type | keel does |
+|---|---|
+| `/keel:end-planning we continue tomorrow` | hand over: reviews of the changed tickets, then the open questions and the Next action written for the next conversation |
+| `/keel:end-planning final review and export` | the gates, the ticket reviews and one plan review, then, after your yes, the export of the tickets into the feature folder |
+| `/keel:end-planning` | open questions → hand over, with the reason; otherwise asks "Final review and export, or hand over?" |
+
+Planning files are committed and pushed only after your yes and Claude Code's own prompt. The report:
+Done, Reviews, Git, What next, Costs. Every case: [ways of working](workflows.md#end-keelend-planning).
 
 ## `/keel:cleanup`
 
@@ -182,4 +214,5 @@ reads and one write per 50 documents. [More](usage-dashboard.md#clearing-the-pag
 ## `/keel:help`
 
 `/keel:help` shows a short table of the commands (what each does, how to run it, one example) in the
-conversation language, and one line on the two lanes. It runs and reads nothing.
+conversation language, then two lines: what tasks, sessions and planning are, and that one conversation
+keeps to one of them. It runs and reads nothing.
