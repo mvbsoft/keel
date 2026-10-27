@@ -295,7 +295,9 @@ test('configure-flow.md updates a published page in place: the page says its tem
   assert.match(step, /no `title`, `icon` or `capabilities`/, 'the page keeps its capabilities');
   assert.match(step, /Its data stays/);
   // The update writes the template into the page (merging, so language and schema stay), then saves it here.
-  assert.match(step, /ArtifactData `update` collection `meta`, doc `settings`,\s+`\{ "template": "<page_template printed by page>" \}` \(it keeps `language` and `schema`; no such\s+document → `set` it/);
+  assert.match(step, /ArtifactData `update` collection `meta`, doc `settings`,\s+`\{ "template": "<page_template printed by page>" \}`, `if_version` = the `version` that step 5's\s+`get` of that document returned/, 'an existing document is written only with its version');
+  assert.match(step, /it keeps\s+`language` and `schema`/);
+  assert.match(step, /The `get` found no such document → `set` it, without `if_version`/);
   assert.match(step, /save `\{ "page_template": "<printed value>" \}` through the same `apply`/);
   // Creating the page writes the template into the page and here, or it would be offered an update at once.
   const create = text.slice(text.indexOf('- Create the page (only after a yes)'), text.indexOf('- Update the page'));
