@@ -14,24 +14,25 @@ installed plugin ([install](install.md#what-keel-changes-on-your-machine-and-in-
 
 This page shows the whole system in short; each section ends with a link to the detailed page.
 
-## 1. Two lanes of work
+## 1. Three lanes of work
 
-keel has two lanes, and they never mix: what started as a task is led through tasks; what started in a
-session, through sessions.
+keel has three lanes, and they never mix in one conversation: what started as a task is led through
+tasks; what started in a session, through sessions. Planning writes no code: it ends in a feature folder
+of short tickets that tasks or a session then build.
 
-| | Tasks | Sessions |
-|---|---|---|
-| What | point changes: a bug, a ticket, a small feature; many at once | one big job from a plan, day after day |
-| Commands | `/keel:start-task <anything>`, `/keel:end-task [instruction]`, `/keel:tasks` | `/keel:start-session [plan \| description \| link \| nothing]`, `/keel:end-session [instruction]` |
-| Lives in | `.keel/tasks/<id>/`, on the task's branch | `.keel/next-session.md` |
+| | Tasks | Sessions | Planning |
+|---|---|---|---|
+| What | point changes: a bug, a ticket, a small feature; many at once | one big job from a plan, day after day | a feature thought through before code, in one conversation or several: decisions and short tickets |
+| Commands | `/keel:start-task <anything>`, `/keel:end-task [instruction]`, `/keel:tasks` | `/keel:start-session [plan \| description \| link \| nothing]`, `/keel:end-session [instruction]` | `/keel:start-planning [idea \| link \| file \| feature \| nothing]`, `/keel:end-planning [instruction]` |
+| Lives in | `.keel/tasks/<id>/`, on the task's branch | `.keel/next-session.md` | a draft in `.keel/local/plans/keel/<feature>/` or in the repository; then the feature folder |
 
 **How to choose:** "done" within 1-3 sittings → a task; a plan for weeks with items for "later" → a
-session.
+session; a feature that needs several tasks → plan it first.
 
-**Common to both:** the start and end commands take instructions in plain words, with no keyword
+**Common to all three:** the start and end commands take instructions in plain words, with no keyword
 arguments; unclear → keel asks; before each action it says what it will do.
 
-More: [two ways of working](workflows.md).
+More: [ways of working](workflows.md).
 
 ## 2. Starting a task
 
@@ -47,6 +48,9 @@ with your yes.
 - **A continuation:** branch, task file, freshness (did main move on? was it handed off 7 days ago or
   more?), the check command, a summary and the next action.
 - **A key led by a session:** "this is led by /keel:start-session".
+- **A planned ticket** (`next ticket` or its key): keel shows its state and offers its feature branch;
+  then it goes on as a new task. A task that turns out too big can become planning while no code has
+  changed.
 
 More: [start a task](workflows.md#start-a-task-keelstart-task).
 
@@ -68,8 +72,8 @@ More: [end a task](workflows.md#end-a-task-keelend-task); what guarantees each s
 
 ## 4. The task list
 
-`/keel:tasks` lists the unfinished tasks of every branch; `/keel:tasks <id>` shows one;
-`/keel:tasks drop <id>` removes what a task left, each part after its own yes.
+`/keel:tasks` lists the unfinished tasks of every branch and the planned tickets; `/keel:tasks <id>`
+shows one; `/keel:tasks drop <id>` removes what a task left, each part after its own yes.
 More: [the /keel:tasks command](commands.md#keeltasks).
 
 ## 5. Sessions
@@ -81,20 +85,33 @@ only the gates; `/keel:end-session push and merge into main` also merges.
 More: [start a session](workflows.md#start-a-session-keelstart-session),
 [end a session](workflows.md#end-a-session-keelend-session).
 
-## 6. The report at the end
+## 6. Planning
 
-One for both lanes: **Done** → **Verification** (a found / fixed / left table, the gates) → **Git** →
-**What next** → **Costs** (a table, one row per participant: requests, tokens, $ and its share of the
-total; on a subscription, the share of the plan limits).
+`/keel:start-planning` plans a feature in its own conversation: it retells the feature, checks it
+against the code, then asks one question at a time and writes the decisions and short tickets into a
+draft; no code changes here. With no argument it lists the drafts. `/keel:end-planning we continue
+tomorrow` reviews the changed tickets and saves where planning stands; `/keel:end-planning final review
+and export` has reviewer agents check every ticket and then the whole plan, and exports the tickets into
+the feature folder with real keys. Then `/keel:start-task next ticket` builds them one by one.
+More: [planning](workflows.md#planning), [start-planning](commands.md#keelstart-planning),
+[end-planning](commands.md#keelend-planning).
+
+## 7. The report at the end
+
+One for tasks and sessions: **Done** → **Verification** (a found / fixed / left table, the gates) →
+**Git** → **What next** → **Costs** (a table, one row per participant: requests, tokens, $ and its
+share of the total; on a subscription, the share of the plan limits). Planning ends with its own short
+report: **Done** → **Reviews** → **Git** → **What next** → **Costs**.
 More: [the final report](workflows.md#the-final-report) and [usage dashboard](usage-dashboard.md).
 
-## 7. The handoff note
+## 8. The handoff note
 
-One format for both lanes: goal, next action, state (✅ / ◐ / ⚠ / ⬜), files, decisions and why, what did
-not work, open questions, how to check. At most 150 lines; updated, not rewritten.
+One format for tasks and sessions: goal, next action, state (✅ / ◐ / ⚠ / ⬜), files, decisions and why,
+what did not work, open questions, how to check. At most 150 lines; updated, not rewritten. Planning has
+no handoff: the plan's Next action says where the next conversation starts.
 More: [what is in a handoff](workflows.md#what-is-in-a-handoff).
 
-## 8. Verification
+## 9. Verification
 
 | Level | Who checks | Price |
 |---|---|---|
@@ -117,32 +134,34 @@ only the fixed items are checked again.
 
 More: [verification](verification.md).
 
-## 9. Delegation
+## 10. Delegation
 
 For a large plan, keel offers to hand its steps to implementer agents, one per step, each on the model
 the step needs (Haiku, Sonnet or Opus). The main conversation accepts each step after its tests.
 More: [cost optimization](cost-optimization.md#5-delegation-thresholds) and
 [under the hood](under-the-hood.md#delegation).
 
-## 10. Git
+## 11. Git
 
 Manual mode: keel runs no git step nobody asked for; it gives ready commands and a commit message.
 Autonomous: branches, commits, updates, push; confirmed once per project on each machine. In both, the
 branch you choose at a task's start and your own git steps are run. Secret files left out of keel's commits, no AI attribution, no force-push, never
-a commit on main directly; a protected main → a pull request.
+a commit on main directly; a protected main → a pull request. Planning commits and pushes its files
+only after your yes, in both modes.
 More: [git in each mode](workflows.md#git-in-each-mode).
 
-## 11. Other commands
+## 12. Other commands
 
 `/keel:configure` sets up a project (quick or detailed) or this machine; `/keel:cleanup` moves
 leftovers to keel's trash and back; `/keel:help` shows a table of the commands.
 More: [commands](commands.md) and [settings](settings.md).
 
-## 12. What runs in the background
+## 13. What runs in the background
 
 In a set-up project: working standards in every conversation, a warning before Claude Code compacts the
-conversation on its own, hints for the advisory skills, and a check that blocks AI attribution in
-commits and pull requests. While keel works: the model of every keel agent, keel's own scripts without a permission
+conversation on its own, hints for the advisory skills, a check that blocks AI attribution in
+commits and pull requests, and the checks that keep the lanes apart (while a conversation plans, its
+changes stay in the draft). While keel works: the model of every keel agent, keel's own scripts without a permission
 prompt, Claude Code's confirmation for the steps that are hard to undo, and the agents' cost ledger.
 On the whole machine: the usage recording and the status line.
 More: [under the hood](under-the-hood.md).

@@ -2,13 +2,14 @@
 
 [Українська](getting-started.uk.md)
 
-This walkthrough takes you from install to a finished task and a task that continues the next day.
+This walkthrough takes you from install to a finished task, a task that continues the next day and a
+feature planned before any code.
 keel is a Claude Code plugin (Claude Code is the platform today; other coding agents are planned). You
 type a few commands, and keel does the planning, the checks and the bookkeeping around your work.
 
 After a command you write what you want in plain words (`/keel:end-task hand off`); keel asks when it
-is not sure. keel has two ways of working, tasks and sessions, and they never mix in one conversation:
-see [two ways of working](workflows.md). Every command and its variants: [commands](commands.md).
+is not sure. keel has three ways of working, tasks, sessions and planning, and they never mix in one
+conversation: see [ways of working](workflows.md). Every command and its variants: [commands](commands.md).
 
 ## 1. Requirements
 
@@ -233,7 +234,7 @@ less than a long one, because every request re-reads the whole conversation.
 
 ## 6. Work that does not fit in one day
 
-There are two ways, for two kinds of work. The page [two ways of working](workflows.md) lists every
+Tasks and sessions suit two kinds of such work. The page [ways of working](workflows.md) lists every
 case.
 
 **A task you put down** (an interruption, another ticket came first). When you stop before the task is
@@ -298,7 +299,31 @@ marks the line done and runs git as a finish (autonomous: commit, update from th
 a merge only when you ask for it or `git.ask_before_merge` is off). With no note, `/keel:start-session`
 looks for plans and TODOs and proposes what to take; it never starts a task by itself.
 
-## 7. Clean up: `/keel:cleanup`
+## 7. Plan a feature first: `/keel:start-planning`
+
+A feature that needs several tasks is worth thinking through before any code. Planning is a
+conversation of its own, and it writes no code:
+
+```
+/keel:start-planning CSV export of invoices
+```
+
+The first time in a project keel asks two things: the language of the tickets, and where the draft
+lives (on this machine, outside git, or in the repository, where colleagues see it). Then it retells
+the feature, checks in the code what it relies on, proposes a name and asks one question at a time.
+Your answers become decisions; the work becomes short tickets (T1, T2…) in the draft. With no argument,
+keel lists the drafts to continue. While a conversation plans, the task and session commands wait.
+
+`/keel:end-planning we continue tomorrow` reviews the changed tickets and writes where planning stopped;
+`/keel:start-planning <feature>` picks up from there. `/keel:end-planning final review and export` has
+reviewer agents check every ticket and then the whole plan; once you decide each finding, keel exports
+the tickets into the feature folder with real keys such as `PROJ-101`. Git steps wait for your yes.
+
+Then build the tickets, each in a fresh conversation (`/clear`): `/keel:start-task next ticket` takes
+the next free ticket and offers its feature branch; from there it is an ordinary task. `/keel:tasks`
+shows the planned tickets too. Every case: [planning](workflows.md#planning).
+
+## 8. Clean up: `/keel:cleanup`
 
 ```
 /keel:cleanup
@@ -310,7 +335,7 @@ Every variant: [commands](commands.md#keelcleanup).
 
 ## Next
 
-- [Two ways of working](workflows.md): what to type in each situation.
+- [Ways of working](workflows.md): what to type in each situation.
 - [Verification](verification.md): which level to choose.
 - [Cost optimization](cost-optimization.md): how to spend less.
 - [Settings](settings.md): change keel's defaults.
