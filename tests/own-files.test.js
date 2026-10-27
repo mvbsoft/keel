@@ -333,8 +333,13 @@ test('in Bash a double backslash is refused: a network path is written //server/
   // Claude Code's Bash tool folds \\ into \, so the script would run on another folder.
   assert.equal(shell(`node "${SCRIPTS}/notes.js" "\\\\srv\\share\\p" tasks`, 'Bash', env), 'deny');
   assert.equal(shell(`node "${SCRIPTS}/notes.js" '\\\\srv\\share\\p' tasks`, 'Bash', env), 'deny', 'in single quotes too');
-  assert.equal(shell(`node "${SCRIPTS}/notes.js" "//srv/share/p" tasks`, 'Bash', env), 'allow');
-  assert.equal(shell(`node "${SCRIPTS}/notes.js" "\\\\srv\\share\\p" tasks`, 'PowerShell', env), 'allow', 'PowerShell passes it as written');
+  // Only Windows reads //srv/share/p and \\srv\share\p as one folder.
+  if (process.platform === 'win32') {
+    assert.equal(shell(`node "${SCRIPTS}/notes.js" "//srv/share/p" tasks`, 'Bash', env), 'allow');
+    assert.equal(shell(`node "${SCRIPTS}/notes.js" "\\\\srv\\share\\p" tasks`, 'PowerShell', env), 'allow', 'PowerShell passes it as written');
+  } else {
+    assert.notEqual(shell(`node "${SCRIPTS}/notes.js" "//srv/share/p" tasks`, 'Bash', env), 'allow', 'another folder outside Windows');
+  }
 });
 
 test('on Windows only A-Z fold: a path with the Kelvin sign for k is another folder, for the hook and for trust', { skip: process.platform !== 'win32' }, () => {
