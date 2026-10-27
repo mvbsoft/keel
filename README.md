@@ -143,7 +143,7 @@ Code chat; *sessions* is the name of keel's long-work lane, which runs across ma
 |---|---|---|---|
 | For | point changes: a bug, a ticket, a small feature; many at once | one big job from a plan, day after day | a feature thought through before any code: decisions and short tickets |
 | Like | a stack of cards | a book with a bookmark | a blueprint before the build |
-| Start | `/keel:start-task <link, key or your words>` | `/keel:start-session [plan, link, description or feature]` | `/keel:start-planning [idea, link, file or feature]` |
+| Start | `/keel:start-task <link, key or your words>` | `/keel:start-session [plan file \| feature \| link \| description \| how to continue]` | `/keel:start-planning [idea, link, file or feature]` |
 | End | `/keel:end-task [instruction]` | `/keel:end-session [instruction]` | `/keel:end-planning [instruction]` |
 | Lives in | `.keel/tasks/<id>/`, on the task's branch | `.keel/next-session.md` | a draft in `.keel/local/plans/keel/<feature>/` or in the repository; the result is a feature folder of tickets |
 
@@ -194,7 +194,7 @@ The full walkthrough: [Getting started](docs/getting-started.md).
 | `/keel:start-task <link, key or words>` | start a task, continue one or take the next planned ticket: retell, plan, code | `/keel:start-task password reset returns 500` |
 | `/keel:end-task [instruction]` | finish the task (verification, git) or hand it off; no instruction: a menu | `/keel:end-task finish and merge into main` |
 | `/keel:tasks [id \| drop id]` | list the unfinished tasks and the planned tickets, show one, or drop one with what it left | `/keel:tasks drop fix-reset-500` |
-| `/keel:start-session [instruction]` | continue the long line of work from its note, or start one | `/keel:start-session only write the tests today` |
+| `/keel:start-session [plan file \| feature \| link \| description \| how to continue]` | continue the long line of work from its note, or start one | `/keel:start-session only write the tests today` |
 | `/keel:end-session [instruction]` | verify the session, write the note for next time, git | `/keel:end-session we continue tomorrow, prepare` |
 | `/keel:start-planning [idea, link, file or feature]` | plan a feature in its own conversation: one question at a time, decisions and short tickets, no code | `/keel:start-planning CSV export of invoices` |
 | `/keel:end-planning [instruction]` | hand the plan over for later, or review it and export the tickets into the feature folder | `/keel:end-planning final review and export` |
