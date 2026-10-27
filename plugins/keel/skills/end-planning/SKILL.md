@@ -63,7 +63,7 @@ Current state of this project:
       `reviews/` and T-files leave with that commit; without it they stay).
 7. **Always**, whatever happened above (also after a stop or a no):
    `plans.js mark clear --session <sid>` → `planning: none`. A question waiting for the user's answer
-   is not the end: the mark stays until the answer is handled.
+   ends the turn, not the command: steps 7-9 run once the answer is handled.
 8. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-4 with session id
    `${CLAUDE_SESSION_ID}` and `--feature <f>` (`<f>` of step 2; no level: planning has no
    verification); its step 5 runs in step 9.
