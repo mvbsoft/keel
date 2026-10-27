@@ -143,7 +143,7 @@ Code chat; *sessions* is the name of keel's long-work lane, which runs across ma
 |---|---|---|---|
 | For | point changes: a bug, a ticket, a small feature; many at once | one big job from a plan, day after day | a feature thought through before any code: decisions and short tickets |
 | Like | a stack of cards | a book with a bookmark | a blueprint before the build |
-| Start | `/keel:start-task <link, key or your words>` | `/keel:start-session [plan, link or description]` | `/keel:start-planning [idea, link, file or feature]` |
+| Start | `/keel:start-task <link, key or your words>` | `/keel:start-session [plan, link, description or feature]` | `/keel:start-planning [idea, link, file or feature]` |
 | End | `/keel:end-task [instruction]` | `/keel:end-session [instruction]` | `/keel:end-planning [instruction]` |
 | Lives in | `.keel/tasks/<id>/`, on the task's branch | `.keel/next-session.md` | a draft in `.keel/local/plans/keel/<feature>/` or in the repository; the result is a feature folder of tickets |
 

@@ -10,8 +10,9 @@ All notable changes to keel are listed here. The format follows
 - A third lane, planning: `/keel:start-planning` plans a feature in its own conversation, one question
   at a time, with decisions and short tickets in a draft kept on this machine or in the repository;
   `/keel:end-planning` hands it over to continue later, or runs the final review and exports the
-  tickets. A planning conversation changes no code and runs no task or session commands, a task
-  conversation does not plan, and planning needs a person (`claude -p` is refused).
+  tickets. A planning conversation changes no code and runs no task, session, setup or cleanup
+  commands (`/keel:configure`, `/keel:cleanup`), a task conversation does not plan, and planning
+  needs a person (`claude -p` is refused).
 - Two reviewers for planning on Sonnet: `ticket-reviewer` checks each ticket and what it relies on in
   the code, `plan-reviewer` checks the whole plan once at the final end.
 - Export puts the tickets into a feature folder with keys shared across the repository (`PROJ-12`),
@@ -32,9 +33,9 @@ All notable changes to keel are listed here. The format follows
   offers to move the old plans.
 
 ### Fixed
-- keel's own commands could run a step Claude Code must confirm without the confirmation through
-  PowerShell 5.1's quoting, special spaces or a double backslash in Bash; such commands are now
-  refused.
+- keel's own commands could run a step Claude Code must confirm without the confirmation (PowerShell
+  5.1's quoting, special spaces), or run a step on another folder than the one keel checked (special
+  spaces, a double backslash in Bash); such commands are now refused.
 
 ## [1.2.1] - 2026-10-20
 

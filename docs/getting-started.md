@@ -316,11 +316,13 @@ keel lists the drafts to continue. While a conversation plans, the task and sess
 
 `/keel:end-planning we continue tomorrow` reviews the changed tickets and writes where planning stopped;
 `/keel:start-planning <feature>` picks up from there. `/keel:end-planning final review and export` has
-reviewer agents check every ticket and then the whole plan; once you decide each finding, keel exports
-the tickets into the feature folder with real keys such as `PROJ-101`. Git steps wait for your yes.
+reviewer agents check the tickets not yet reviewed as they are now, and then the whole plan; once you
+decide each finding, keel exports the tickets into the feature folder with real keys such as
+`PROJ-101`. Git steps wait for your yes.
 
 Then build the tickets, each in a fresh conversation (`/clear`): `/keel:start-task next ticket` takes
-the next free ticket and offers its feature branch; from there it is an ordinary task. `/keel:tasks`
+the next free ticket and offers its feature branch; from there it is an ordinary task. Or
+`/keel:start-session <feature>` takes them one by one in a session. `/keel:tasks`
 shows the planned tickets too. Every case: [planning](workflows.md#planning).
 
 ## 8. Clean up: `/keel:cleanup`
