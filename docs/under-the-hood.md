@@ -70,7 +70,7 @@ keel has 16 agents. Read-only agents cannot write; the ones that run code are ch
 | verifier | tries to prove or refute a serious finding, with `file:line` evidence | Sonnet; Opus for some findings at Standard and all at Maximum |
 | judge | merges the findings into one ranked list, adds none of its own | Sonnet; Opus at Maximum |
 | implementer | does one planned step when the work is delegated | the step's model: Haiku, Sonnet or Opus |
-| ticket-reviewer | in planning: reviews up to 4 draft tickets each against a checklist and checks in the code what they rely on | Sonnet |
+| ticket-reviewer | in planning: reviews up to 4 tickets (draft or exported) each against a checklist and checks in the code what they rely on | Sonnet |
 | plan-reviewer | in planning: reviews the whole plan once at its final end (coverage, contradictions, order) | Sonnet |
 
 With `allow_opus` off every Opus agent above runs on Sonnet. keel never switches your conversation's model;
