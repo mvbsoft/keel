@@ -2,9 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -41,7 +41,7 @@ function step(n, { files = [`src/m${n}.js`, `test/m${n}.test.js`], model = 'sonn
 const plan = (...steps) => `# KEY: title\n\n## Files\n- x\n\n## Steps\n<intro>\n\n${steps.join('\n')}\n## Execution\n1. something: here\n`;
 
 function project(config = CONFIG) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-plan-'));
+  const dir = tempDir('keel-plan-');
   fs.mkdirSync(path.join(dir, '.keel', 'local'), { recursive: true });
   if (config) fs.writeFileSync(path.join(dir, '.keel', 'config.json'), JSON.stringify(config));
   return dir;
@@ -178,8 +178,8 @@ test('plan-steps: keel defaults without a delegation section; a missing file is 
 
 test('plan-steps: reads plans only in the project or Claude Code\'s plans folder; table cells are cleaned', () => {
   const root = project();
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-claude-'));
-  const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-else-'));
+  const home = tempDir('keel-claude-');
+  const elsewhere = tempDir('keel-else-');
   const text = plan(step(1, { title: 'a | b \u001b[31mred' }));
   fs.writeFileSync(path.join(elsewhere, 'secret.md'), text);
   fs.mkdirSync(path.join(home, 'plans'));

@@ -4,9 +4,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -90,7 +90,7 @@ ${where}
 
 // A project with keel's config, src/app.js, one commit on main and, when asked, a remote with main pushed.
 function setup({ remote = true, config = {} } = {}) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-export-'));
+  const tmp = tempDir('keel-export-');
   const work = path.join(tmp, 'work');
   fs.mkdirSync(work);
   git(work, 'init', '-q', '-b', 'main');
@@ -192,7 +192,7 @@ const FINDING = (id, place, o = {}) => ({ id, place, check: 'testable-criteria',
 const CHECK = (place, check = 'one-goal') => ({ place, check, answer: 'yes' });
 
 test('report: a valid reply lists its findings; each rule the schema cannot hold fails the report, never "no findings"', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-report-'));
+  const dir = tempDir('keel-report-');
   const put = (name, json) => { const rel = `.keel/local/tmp/planning/s1/${name}`; write(dir, rel, typeof json === 'string' ? json : `Done.\n\`\`\`json\n${JSON.stringify(json)}\n\`\`\`\n`); return rel; };
   const ticket = { agent: 'ticket-reviewer', status: 'complete', checks: [CHECK('T1'), CHECK('T2')], findings: [FINDING('ticket-reviewer-1', 'T1'), FINDING('ticket-reviewer-2', 'T2', { severity: 'minor', check: 'size' })] };
   assert.deepEqual(run(dir, 'report', put('ticket-reviewer-a1.md', ticket)), [
@@ -768,7 +768,7 @@ gitTest('a feature folder under a non-ASCII folder commits as "Update" once HEAD
 // --- the write guard ---
 
 test('planning-guard: the exported feature folder in the repository is writable for the chat that plans it; other project files stay blocked', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-export-guard-'));
+  const dir = tempDir('keel-export-guard-');
   write(dir, '.keel/config.json', '{}');
   run(dir, 'settings', 'set', '--export', 'repo', '--export-dir', 'features');
   run(dir, 'new', 's3-storage');
@@ -781,7 +781,7 @@ test('planning-guard: the exported feature folder in the repository is writable 
 });
 
 test('planning-guard: an exported feature reopened with mark set (no draft) is writable in its folder, in the repository and on this machine', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-export-guard-'));
+  const dir = tempDir('keel-export-guard-');
   write(dir, '.keel/config.json', '{}');
   run(dir, 'settings', 'set', '--export-dir', 'features');
   const ticket = (key, feature) => `---\ntype: ticket\nkey: ${key}\nstatus: todo\nfeature: ${feature}\n---\n`;
@@ -797,7 +797,7 @@ test('planning-guard: an exported feature reopened with mark set (no draft) is w
 });
 
 gitTest('featureFolder: the feature name is matched as written, not as a pattern', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-export-name-'));
+  const dir = tempDir('keel-export-name-');
   git(dir, 'init', '-q');
   write(dir, '.keel/config.json', JSON.stringify(CONFIG()));
   write(dir, 'work/axc/PROJ-1-client.md', '---\ntype: ticket\nkey: PROJ-1\nstatus: todo\n---\n# [PROJ-1] Client\n');

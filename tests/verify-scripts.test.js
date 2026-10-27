@@ -2,9 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -126,7 +126,7 @@ test('fan-in: JS/TS, Python and PHP imports are counted per changed file; tests 
   assert.ok(pointsAt('App\\Models\\User', 'app/Http/C.php', 'app/Models/User.php', 'php'));
   assert.ok(pointsAt('../lib/db.php', 'public/index.php', 'lib/db.php', 'php'));
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-fanin-'));
+  const dir = tempDir('keel-fanin-');
   const put = (p, text) => { fs.mkdirSync(path.dirname(path.join(dir, p)), { recursive: true }); fs.writeFileSync(path.join(dir, p), text); };
   put('src/core/db.js', 'module.exports = {};\n');
   for (const n of ['a', 'b', 'c']) put(`src/${n}.js`, "const db = require('./core/db');\n");
@@ -332,7 +332,7 @@ test('tally: 2 of 3 decides on Maximum, single verdicts count as given, missing 
 });
 
 test('ledger: last usage row per message id; output estimated when the transcript under-records it', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-ledger-'));
+  const dir = tempDir('keel-ledger-');
   const t = path.join(dir, 'agent.jsonl');
   const row = (id, usage, content) => JSON.stringify({ type: 'assistant', message: { id, role: 'assistant', model: 'claude-sonnet-5-5', usage, content } });
   fs.writeFileSync(t, [
@@ -356,7 +356,7 @@ function runLedgerHook(input, env) {
 }
 
 test('ledger hook: writes a valid ledger line and saves keel agent replies; silent outside keel projects', () => {
-  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-proj-'));
+  const project = tempDir('keel-proj-');
   const transcript = path.join(project, 't.jsonl');
   fs.writeFileSync(transcript, JSON.stringify({ message: { id: 'm', role: 'assistant', model: 'claude-haiku-5-5', usage: { input_tokens: 1, output_tokens: 2, cache_read_input_tokens: 3, cache_creation_input_tokens: 4 }, content: [] } }));
   const input = { session_id: 's', agent_id: 'abc', agent_type: 'keel:context', agent_transcript_path: transcript, last_assistant_message: '# Context map\n- src/a.js', effort: { level: 'high' }, cwd: project };
@@ -388,7 +388,7 @@ test('ledger report: list-price estimate per agent and total', () => {
 });
 
 test('ledger report re-sums a transcript that grew after the hook ran', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-refresh-'));
+  const dir = tempDir('keel-refresh-');
   const t = path.join(dir, 'agent.jsonl');
   const row = (id, out) => JSON.stringify({ message: { id, role: 'assistant', model: 'claude-sonnet-5-5', usage: { input_tokens: 1, output_tokens: out, cache_read_input_tokens: 10, cache_creation_input_tokens: 0 }, content: [] } });
   fs.writeFileSync(t, [row('m1', 5), row('m2', 900)].join('\n'));
@@ -408,7 +408,7 @@ test('hooks.json registers the ledger on SubagentStop for every agent type', () 
 });
 
 function gitProject() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-verify-'));
+  const dir = tempDir('keel-verify-');
   const g = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' });
   g('init', '-q');
   g('config', 'user.email', 't@example.com');
@@ -478,7 +478,7 @@ test('changes.js: a scanner given as a path is found from the project folder, no
 });
 
 test('changes.js without a config or outside git explains and exits 0', (t) => {
-  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-empty-'));
+  const empty = tempDir('keel-empty-');
   assert.match(node('changes.js', empty), /changes: unavailable \(keel is not configured here/);
   if (!hasGit) { t.skip('git is not installed'); return; }
   fs.mkdirSync(path.join(empty, '.keel'));

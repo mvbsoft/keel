@@ -2,16 +2,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { buildSession } = require('./fixtures/transcripts.js');
 const { writeSession } = require('./fixtures/usage.js');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const CLEAR = path.join(PLUGIN, 'scripts', 'usage-clear.js');
 const USAGE = path.join(PLUGIN, 'scripts', 'usage.js');
-const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p));
+const tmp = tempDir;
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const write = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(value)); };
 

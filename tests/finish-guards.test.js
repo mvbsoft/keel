@@ -5,9 +5,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -42,7 +42,7 @@ const message = (dir, text = 'Finish the task') => { write(dir, '.keel/local/tmp
 
 // A working clone with a keel config and one commit on main, pushed to a bare server.
 function setup(mode = 'autonomous') {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-finish-'));
+  const tmp = tempDir('keel-finish-');
   const work = path.join(tmp, 'work');
   fs.mkdirSync(work);
   git(work, 'init', '-q', '-b', 'main');
@@ -87,7 +87,7 @@ gitTest('a task is finished only after a recorded verification of the work as it
 });
 
 test('outside git a recorded choice is enough; save needs a level; a "none" record is no verification for changes.js', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-finish-nogit-'));
+  const dir = tempDir('keel-finish-nogit-');
   write(dir, '.keel/config.json', JSON.stringify(CONFIG('manual')));
   assert.match(notes(dir, 'task', 'new', 'N-1', '--title', 'Plain', '--source', 'text')[0], /^created: /);
   assert.match(notes(dir, 'task', 'delete', 'N-1')[0], /no verification is recorded/);
@@ -187,7 +187,7 @@ gitTest('delete-branch never deletes the main or the current branch; deletes a t
 });
 
 test('lanes: a task cannot take a key the note leads; check names a key both lanes claim', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-lanes-'));
+  const dir = tempDir('keel-lanes-');
   write(dir, '.keel/config.json', JSON.stringify(CONFIG('manual')));
   assert.match(notes(dir, 'task', 'new', 'CAN-5', '--title', 'Older task', '--source', 'jira')[0], /^created: /);
   write(dir, '.keel/next-session.md', '---\nstatus: in-progress\nkeys: CAN-7, https://jira.example.com/browse/CAN-9, can-5\n---\n\n# Next session\n');
@@ -208,14 +208,14 @@ function hook(command, project) {
   const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_') && k !== 'KEEL_USAGE_DIR'));
   const r = spawnSync(process.execPath, [path.join(PLUGIN, 'hooks', 'own-files.js')], {
     input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
-    env: { ...clean, KEEL_USAGE_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'keel-usage-')), CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: project },
+    env: { ...clean, KEEL_USAGE_DIR: tempDir('keel-usage-'), CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: project },
     encoding: 'utf8',
   });
   return r.stdout ? JSON.parse(r.stdout).hookSpecificOutput : null;
 }
 
 test('own-files: finishing, dropping, emptying the trash and deleting a branch go through Claude Code\'s confirmation, in the conversation language', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-confirm-')).split(path.sep).join('/');
+  const dir = tempDir('keel-confirm-').split(path.sep).join('/');
   write(dir, '.keel/config.json', JSON.stringify(CONFIG('manual')));
   notes(dir, 'task', 'new', 'T-1', '--title', 'x', '--source', 'text');
   const s = SCRIPTS.split(path.sep).join('/');
@@ -272,7 +272,7 @@ test('own-files: finishing, dropping, emptying the trash and deleting a branch g
 
 test('finish-check runs as a Stop hook: no output unless it blocks, fails soft on bad input', () => {
   const runStop = (input, env = {}) => spawnSync(process.execPath, [path.join(PLUGIN, 'hooks', 'finish-check.js')], { input, encoding: 'utf8', env: { ...process.env, ...env } });
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-stop-'));
+  const dir = tempDir('keel-stop-');
   write(dir, '.keel/local/finish/s9.json', JSON.stringify({ id: 'T-7', state: 'deleted', at: new Date().toISOString() }));
   write(dir, '.keel/local/trash/20261001-100000/manifest.json', JSON.stringify({ batch: '20261001-100000', at: new Date().toISOString(), by: 'task', items: [{ path: '.keel/tasks/T-7', kind: 'folder', bytes: 1 }] }));
   const blocked = runStop(JSON.stringify({ session_id: 's9', cwd: dir, last_assistant_message: 'All done.' }), { CLAUDE_PROJECT_DIR: dir });
@@ -320,7 +320,7 @@ gitTest('push --finish ends the finish only after a commit holds it', () => {
 });
 
 test('task delete writes the finish record first: when it cannot be written nothing moves', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-record-'));
+  const dir = tempDir('keel-record-');
   write(dir, '.keel/config.json', JSON.stringify(CONFIG()));
   assert.match(notes(dir, 'task', 'new', 'R-1', '--title', 'x', '--source', 'text')[0], /^created: /);
   save(dir);
@@ -334,7 +334,7 @@ test('task delete writes the finish record first: when it cannot be written noth
 });
 
 test('lanes read keys in any wrapping on both sides', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-lanes2-'));
+  const dir = tempDir('keel-lanes2-');
   write(dir, '.keel/config.json', JSON.stringify(CONFIG('manual')));
   write(dir, '.keel/tasks/CAN-5/task.md', '---\nid: CAN-5\ntitle: x\nsource: jira\nlink: -\nstatus: active\nupdated: 2026-10-01\n---\n');
   write(dir, '.keel/tasks/ENG-4/task.md', '---\nid: ENG-4\ntitle: x\nsource: linear\nlink: https://linear.app/acme/issue/ENG-4-fix-login\nstatus: active\nupdated: 2026-10-01\n---\n');
@@ -353,7 +353,7 @@ test('lanes read keys in any wrapping on both sides', () => {
 });
 
 test('finish-check ignores a record with an invalid id, older than a day, or whose task left keel\'s trash', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-stale-'));
+  const dir = tempDir('keel-stale-');
   const input = { session_id: 's1', last_assistant_message: 'Done.' };
   const record = (id, at) => write(dir, '.keel/local/finish/s1.json', JSON.stringify({ id, state: 'deleted', at }));
   const batch = '.keel/local/trash/20261001-100000/manifest.json';

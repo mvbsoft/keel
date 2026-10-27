@@ -2,14 +2,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const HOOKS = path.join(__dirname, '..', 'plugins', 'keel', 'hooks');
 
 function sandbox() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-ctx-'));
+  const dir = tempDir('keel-ctx-');
   const project = path.join(dir, 'project');
   fs.mkdirSync(path.join(project, '.claude'), { recursive: true });
   fs.mkdirSync(path.join(project, '.keel'));

@@ -2,10 +2,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
+const { tempDir } = require('./fixtures/tmp.js');
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-ledger-prices-'));
+const dir = tempDir('keel-ledger-prices-');
 process.env.KEEL_USAGE_DIR = dir;
 const { cost, report, priceFor } = require(path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'ledger-report.js'));
 
@@ -42,7 +42,7 @@ test('ledger report: the long-context surcharge is per request, never on an agen
 
 test('ledger report re-reads each request from the transcript and keeps only the given session', () => {
   const { main } = require(path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'ledger-report.js'));
-  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-ledger-session-'));
+  const project = tempDir('keel-ledger-session-');
   fs.mkdirSync(path.join(project, '.keel', 'local'), { recursive: true });
   const transcript = path.join(project, 't.jsonl');
   const row = (id) => JSON.stringify({ message: { id, role: 'assistant', model: 'claude-haiku-5-5', usage: { input_tokens: 20000, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, content: [] } });

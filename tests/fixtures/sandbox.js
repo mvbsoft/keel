@@ -10,9 +10,9 @@
 // Usage as a script: node sandbox.js <targetDir> <variant> [--keel]  (--keel adds keel's config,
 // the profile from scan.js and the task as .keel/tasks/<id>/task.md)
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { tempDir } = require('./tmp.js');
 
 const SRC = path.join(__dirname, 'sandbox');
 const SCAN = path.join(__dirname, '..', '..', 'plugins', 'keel', 'scripts', 'scan.js');
@@ -139,7 +139,7 @@ function build(dir, variant, { keel = false } = {}) {
 }
 
 function makeSandbox(variant, opts) {
-  return build(fs.mkdtempSync(path.join(os.tmpdir(), `keel-tasker-${variant}-`)), variant, opts);
+  return build(tempDir(`keel-tasker-${variant}-`), variant, opts);
 }
 
 if (require.main === module) {

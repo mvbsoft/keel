@@ -2,13 +2,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const { scan } = require('../plugins/keel/scripts/scan.js');
 
 function project(files) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-scan-mono-'));
+  const dir = tempDir('keel-scan-mono-');
   for (const [rel, text] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
     fs.writeFileSync(path.join(dir, rel), text);

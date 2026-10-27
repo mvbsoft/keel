@@ -4,9 +4,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const SCRIPTS = path.join(__dirname, '..', 'plugins', 'keel', 'scripts');
 const { planningFiles } = require(path.join(SCRIPTS, 'lib', 'planning.js'));
@@ -38,7 +38,7 @@ const overview = '---\ntype: feature\n---\n# S3 storage\n';
 
 // A repository on a task branch with code, a draft folder and an exported feature, all committed.
 function project() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-planning-'));
+  const dir = tempDir('keel-planning-');
   git(dir, 'init', '-q', '-b', 'main');
   git(dir, 'config', 'user.name', 'Test');
   git(dir, 'config', 'user.email', 'test@example.com');

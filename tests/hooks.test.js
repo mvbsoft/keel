@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const HOOKS = path.join(PLUGIN, 'hooks');
@@ -13,25 +14,28 @@ const HOOKS = path.join(PLUGIN, 'hooks');
 // keel's hooks act only in a project keel is set up in: a call that names no project runs in one.
 const KEEL_PROJECT = tempProjectSetUp();
 function tempProjectSetUp() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-hook-set-up-'));
+  const dir = tempDir('keel-hook-set-up-');
   fs.mkdirSync(path.join(dir, '.keel'));
   fs.writeFileSync(path.join(dir, '.keel', 'config.json'), '{}');
   return dir;
 }
+
+// The hooks keep once-per-session notes in the system temp folder; here that is a folder of the test's own.
+const HOOK_TMP = tempDir('keel-hook-tmp-');
 
 function runHook(script, stdin, env = {}) {
   const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_')));
   if (!('CLAUDE_PROJECT_DIR' in env) && !(stdin && typeof stdin === 'object' && stdin.cwd)) env = { CLAUDE_PROJECT_DIR: KEEL_PROJECT, ...env };
   const r = spawnSync(process.execPath, [path.join(HOOKS, script)], {
     input: typeof stdin === 'string' ? stdin : JSON.stringify(stdin),
-    env: { ...clean, ...env },
+    env: { ...clean, TEMP: HOOK_TMP, TMP: HOOK_TMP, TMPDIR: HOOK_TMP, ...env },
     encoding: 'utf8',
   });
   return { code: r.status, out: r.stdout ? JSON.parse(r.stdout) : null, raw: r.stdout, err: r.stderr };
 }
 
 function tempProject(config) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-hook-'));
+  const dir = tempDir('keel-hook-');
   if (config !== undefined) {
     fs.mkdirSync(path.join(dir, '.keel'));
     fs.writeFileSync(path.join(dir, '.keel', 'config.json'), typeof config === 'string' ? config : JSON.stringify(config));
@@ -145,7 +149,7 @@ test('agent-model: keel never runs Fable, whatever the session runs on', () => {
 });
 
 test('agent-model: a keel agent without its own model never inherits the session model', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-root-'));
+  const root = tempDir('keel-root-');
   fs.mkdirSync(path.join(root, 'agents'));
   const agent = (name, text) => fs.writeFileSync(path.join(root, 'agents', `${name}.md`), text);
   agent('judge', '---\nname: judge\nmodel: opus\n---\nbody\n');
@@ -295,7 +299,7 @@ test('own-files: notes.js is keel\'s own; git-flow.js runs silently only in conf
   const untrusted = tempProject({ git: git('autonomous', { ask_before_merge: false }) }).split(path.sep).join('/');
   // Autonomous mode now needs the user's confirmation on this machine (git-flow.js trust), because the
   // mode itself comes from the committed config.
-  const usageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-trust-'));
+  const usageDir = tempDir('keel-trust-');
   const env = { CLAUDE_PLUGIN_ROOT: PLUGIN, KEEL_USAGE_DIR: usageDir };
   const { trust } = require(path.join(PLUGIN, 'scripts', 'lib', 'trust.js'));
   for (const p of [auto, noAsk]) trust(p, env);
@@ -427,7 +431,7 @@ test('own-files: usage.js and usage-setup.js read-only steps run silently; apply
 });
 
 test('session-wallet: notes the wallet per start; plugin-root.txt is written only when the status-line shim exists', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-wallet-'));
+  const dir = tempDir('keel-wallet-');
   const env = { KEEL_USAGE_DIR: dir, CLAUDE_CONFIG_DIR: dir, CLAUDE_PLUGIN_ROOT: PLUGIN };
   const root = path.join(dir, 'plugin-root.txt');
   const start = (extra = {}, e = env) => runHook('session-wallet.js', { hook_event_name: 'SessionStart', source: 'startup', session_id: 's1', cwd: dir, ...extra }, e);
@@ -455,7 +459,7 @@ test('session-wallet: notes the wallet per start; plugin-root.txt is written onl
 });
 
 test('session-wallet: compact starts, and starts without a session id, write nothing; bad input never fails', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-wallet-'));
+  const dir = tempDir('keel-wallet-');
   const env = { KEEL_USAGE_DIR: dir, CLAUDE_CONFIG_DIR: dir, CLAUDE_PLUGIN_ROOT: PLUGIN };
   fs.writeFileSync(path.join(dir, 'statusline.js'), '// shim');
   for (const input of [{ source: 'compact', session_id: 's' }, { source: 'startup' }, 'not json', '']) {
@@ -467,7 +471,7 @@ test('session-wallet: compact starts, and starts without a session id, write not
 });
 
 test('handback: in auto mode a keel agent\'s report arrives through SubagentHandback and is the one kept', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-handback-'));
+  const dir = tempDir('keel-handback-');
   fs.mkdirSync(path.join(dir, '.keel'));
   const agents = path.join(dir, '.keel', 'local', 'tmp', 'agents');
   const env = { CLAUDE_PROJECT_DIR: dir };
@@ -485,7 +489,7 @@ test('handback: in auto mode a keel agent\'s report arrives through SubagentHand
   // Other agents and projects without .keel are left alone.
   runHook('handback.js', { tool_name: 'SubagentHandback', tool_input: { message: 'x' }, agent_id: 'b1', agent_type: 'Explore', cwd: dir }, env);
   assert.ok(!fs.readdirSync(agents).some((f) => f.includes('b1')));
-  const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-handback-bare-'));
+  const bare = tempDir('keel-handback-bare-');
   runHook('handback.js', { tool_name: 'SubagentHandback', tool_input: { message: 'x' }, agent_id: 'c1', agent_type: 'keel:qa', cwd: bare }, { CLAUDE_PROJECT_DIR: bare });
   assert.ok(!fs.existsSync(path.join(bare, '.keel')));
   const pre = JSON.parse(fs.readFileSync(path.join(HOOKS, 'hooks.json'), 'utf8')).hooks.PreToolUse;
@@ -554,7 +558,7 @@ test('ledger: in a planning conversation keel agents\' replies go to its own fol
 });
 
 test('a project keel is not set up in: the hooks add nothing, keel\'s agents and skills are refused', () => {
-  const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-bare-'));
+  const bare = tempDir('keel-bare-');
   const env = { CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: bare };
   assert.equal(runHook('session-start.js', { source: 'startup', session_id: 's1' }, env).raw, '', 'no standards, no language line');
   assert.equal(runHook('no-ai-attribution.js', { tool_name: 'Bash', tool_input: { command: 'git commit -m "x" -m "Co-Authored-By: Claude <noreply@anthropic.com>"' } }, env).raw, '', 'the user\'s own commit rules apply');

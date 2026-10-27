@@ -4,10 +4,10 @@
 // It has a note, memory over the 150-line limit, session logs, a config, a secret, project data,
 // one-off scripts, and leftovers for cleanup. Written to a temporary folder on demand.
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { CANARY } = require('./projects.js');
+const { tempDir, tempPath } = require('./tmp.js');
 
 const lines = (n, f) => Array.from({ length: n }, (_, i) => f(i + 1)).join('\n') + '\n';
 
@@ -59,7 +59,7 @@ function hasGit() {
 
 // Returns { root, userSettings }. With git: one commit of the tracked files, then the note names it.
 function makeOldSystem() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-orbit-'));
+  const root = tempDir('keel-orbit-');
   const write = (all) => {
     for (const [rel, content] of Object.entries(all)) {
       fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
@@ -85,7 +85,7 @@ function makeOldSystem() {
   // The temporary file is two days old, so cleanup counts it as safe.
   const old = new Date(Date.now() - 2 * 24 * 3600 * 1000);
   fs.utimesSync(path.join(root, '.keel/local/tmp/old-scan.json'), old, old);
-  const userSettings = path.join(root, '..', `${path.basename(root)}-user-settings.json`);
+  const userSettings = tempPath(path.join(root, '..', `${path.basename(root)}-user-settings.json`));
   fs.writeFileSync(userSettings, JSON.stringify({ enabledPlugins: { 'orbit@orbit-tools': true, 'keel@keel': true, 'other@market': false } }));
   return { root, userSettings, git: commit !== null };
 }

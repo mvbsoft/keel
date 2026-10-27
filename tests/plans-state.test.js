@@ -4,9 +4,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -52,7 +52,7 @@ function commit(dir, message, files = {}, env = {}) {
 // A project with keel's config and one commit on main; when asked, a remote with main pushed. `sub`: the
 // project is that sub-folder of the repository (`work` is the project).
 function setup({ remote = true, sub = '' } = {}) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-'));
+  const tmp = tempDir('keel-state-');
   const repo = path.join(tmp, 'work');
   const work = path.join(repo, sub);
   fs.mkdirSync(work, { recursive: true });
@@ -432,7 +432,7 @@ gitTest('tickets: a commit with the key that changes only .keel/ is no work, als
 });
 
 gitTest('tickets: a project in a sub-folder of its repository reads the branches too', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-'));
+  const tmp = tempDir('keel-state-');
   const repo = path.join(tmp, 'repo');
   fs.mkdirSync(repo);
   git(repo, 'init', '-q', '-b', 'main');

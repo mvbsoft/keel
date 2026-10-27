@@ -4,9 +4,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -24,7 +24,7 @@ const notes = (dir, ...args) => run('notes.js', dir, ...args);
 // A finish: the verification is recorded first (here: the user chose none), then the task is deleted.
 const finish = (dir, ...args) => { run('fingerprint.js', dir, 'save', '--tier', 'none'); return notes(dir, 'task', 'delete', ...args); };
 const link = (target, at) => fs.symlinkSync(target, at, 'junction');
-const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p));
+const tmp = tempDir;
 
 const CONFIG = { schema_version: 1, repo_language: 'en', gates: { checks: [], security_scanners: [] }, git: { mode: 'autonomous', main_branch: 'main', ask_before_merge: true, state_in_git: true }, verification: { tier_rules: { gates_only_max_files: 1, basic_max_modules: 1, large_change_lines: 400, very_large_change_lines: 1000 }, verifier_caps: { basic: 3, standard: 5, maximum: 8 } }, architecture: { file_lines_warn: 700, file_lines_max: 1000 }, docs: { profile: 1, pattern: 'none' } };
 const TASK = (id, extra = {}) => {

@@ -4,9 +4,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -40,7 +40,7 @@ const line = (out, prefix) => out.find((l) => l.startsWith(prefix)) || '';
 
 // A server (bare) and a working clone with a keel config and one commit on main, pushed.
 function setup({ mode = 'autonomous', remote = true } = {}) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-git-'));
+  const tmp = tempDir('keel-git-');
   const work = path.join(tmp, 'work');
   fs.mkdirSync(work);
   git(work, 'init', '-q', '-b', 'main');
@@ -494,7 +494,7 @@ gitTest('commit: the message file must be inside .keel/local/tmp/; .keel/local/ 
 });
 
 gitTest('trust: only for the autonomous mode; status says whether this machine confirmed it', () => {
-  const usageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-trust-'));
+  const usageDir = tempDir('keel-trust-');
   const run = (dir, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'git-flow.js'), dir, ...args], { encoding: 'utf8', env: { ...process.env, KEEL_USAGE_DIR: usageDir } }).stdout.trim().split('\n');
   const manual = setup({ mode: 'manual', remote: false }).work;
   assert.equal(run(manual, 'trust')[0], 'git-flow: stopped');
@@ -506,7 +506,7 @@ gitTest('trust: only for the autonomous mode; status says whether this machine c
 });
 
 gitTest('trust covers the git settings it was given: a branch that changes them gets no silent step; a push on main is never silent', () => {
-  const usageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-trust-'));
+  const usageDir = tempDir('keel-trust-');
   const env = { ...process.env, KEEL_USAGE_DIR: usageDir };
   const run = (dir, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'git-flow.js'), dir, ...args], { encoding: 'utf8', env }).stdout.trim().split('\n');
   const PLUGIN = path.join(SCRIPTS, '..');

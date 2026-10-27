@@ -2,15 +2,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const T = require('../plugins/keel/scripts/lib/transcripts.js');
 const { summarize } = require('../plugins/keel/hooks/ledger.js');
 const { buildSession, price, REQ, T0, at, SESSION_ID, writeJsonl, user, asst } = require('./fixtures/transcripts.js');
 
 function tempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'keel-transcripts-'));
+  return tempDir('keel-transcripts-');
 }
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} is not ${b}`);

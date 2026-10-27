@@ -3,9 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -50,7 +50,7 @@ const has = (out, id, text) => block(out, id).some((l) => l.includes(text));
 const taskPath = (id) => `.keel/tasks/${id}/task.md`;
 
 function project(config = CONFIG()) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-tasks-'));
+  const dir = tempDir('keel-tasks-');
   write(dir, '.keel/config.json', JSON.stringify(config));
   write(dir, '.keel/.gitignore', 'local/\n');
   return dir;
@@ -269,7 +269,7 @@ test('delete: only the finished task\'s folder goes, into keel\'s trash; out of 
 });
 
 test('delete refuses links: a linked tasks folder, a linked task folder or a link inside never lead outside', () => {
-  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-outside-'));
+  const outside = tempDir('keel-outside-');
   write(outside, 'X-1/task.md', TASK('X-1'));
   write(outside, 'keep.txt', 'precious\n');
   const link = (target, at) => fs.symlinkSync(target, at, 'junction');
@@ -724,7 +724,7 @@ gitTest('started: task new records HEAD; check, activate and a handoff edit keep
 });
 
 test('task new and activate never write through a link', () => {
-  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-outside-'));
+  const outside = tempDir('keel-outside-');
   write(outside, 'X-1/task.md', TASK('X-1'));
   const before = fs.readFileSync(path.join(outside, 'X-1', 'task.md'), 'utf8');
   const dir = project();
@@ -789,7 +789,7 @@ test('restore: a deleted task comes back by itself when the finish\'s git step d
 
 test('a task\'s plan: field is read only where plan-steps.js reads plans: the project or Claude Code\'s plans folder', () => {
   const dir = project();
-  const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-plan-out-'));
+  const elsewhere = tempDir('keel-plan-out-');
   const plan = '### Step 1: SECRET-HEADING\n- files: a.js\n- model: sonnet\n- effort: low\n- do: x\n- done when: y\n- status: ⬜\n';
   write(elsewhere, 'plan.md', plan);
   write(dir, 'docs/plan.md', plan);

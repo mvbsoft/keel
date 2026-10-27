@@ -2,8 +2,8 @@
 // Small sample projects for the scan tests, written to a temporary folder on demand so that
 // fake secret files never live in the repository. CANARY marks content that must never be read.
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
+const { tempDir } = require('./tmp.js');
 
 const CANARY = 'KEEL-CANARY-not-a-real-secret-7f3a';
 
@@ -91,7 +91,7 @@ const PROJECTS = {
 };
 
 function makeProject(name) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `keel-${name}-`));
+  const dir = tempDir(`keel-${name}-`);
   for (const [rel, content] of Object.entries(PROJECTS[name])) {
     fs.mkdirSync(path.join(dir, path.dirname(rel)), { recursive: true });
     fs.writeFileSync(path.join(dir, rel), content);

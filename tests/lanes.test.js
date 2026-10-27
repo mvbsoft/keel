@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync, execFileSync } = require('node:child_process');
+const { tempDir, tempPath } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const HOOKS = path.join(PLUGIN, 'hooks');
@@ -26,7 +27,7 @@ function runHook(script, stdin, env = {}) {
 const script = (dir, name, ...args) => execFileSync(process.execPath, [path.join(SCRIPTS, name), dir, ...args], { encoding: 'utf8' }).trim();
 
 function project() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-lanes-'));
+  const dir = tempDir('keel-lanes-');
   fs.mkdirSync(path.join(dir, '.keel'));
   fs.writeFileSync(path.join(dir, '.keel', 'config.json'), '{}');
   return dir;
@@ -69,7 +70,7 @@ test('skill-gate: a planning conversation refuses the task, session, configure a
   assert.equal(skill(dir, 'chat-plan', 'git'), undefined);
   script(dir, 'plans.js', 'mark', 'clear', '--session', 'chat-plan');
   assert.equal(skill(dir, 'chat-plan', 'keel:start-task'), undefined);
-  const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-lanes-bare-'));
+  const bare = tempDir('keel-lanes-bare-');
   assert.equal(skill(bare, 's1', 'start-task'), undefined, 'a bare name is not refused as keel\'s in a project keel is not set up in');
 });
 
@@ -106,7 +107,7 @@ test('lane-gate: a typed command of the other lane is blocked, full or bare name
 });
 
 test('lane-gate and skill-gate: an unset project, garbage input or an unreadable mark never block', () => {
-  const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-lanes-bare-'));
+  const bare = tempDir('keel-lanes-bare-');
   assert.equal(typed(bare, 's1', '/keel:start-task'), null, 'keel is not set up');
   assert.equal(runHook('lane-gate.js', 'not json', { CLAUDE_PROJECT_DIR: bare }), null);
   const dir = project();
@@ -120,7 +121,7 @@ const guard = (dir, session, tool, toolInput, cwd = dir) => runHook('planning-gu
 
 test('planning-guard: while a conversation plans, project files stay unchanged; its draft, settings, tmp, Plan Mode files and outside files are free', () => {
   const dir = lanes();
-  const outside = path.join(os.tmpdir(), 'keel-lanes-memory.md');
+  const outside = tempPath(path.join(os.tmpdir(), 'keel-lanes-memory.md'));
   const at = (...p) => path.join(dir, ...p);
   for (const [tool, toolInput] of [
     ['Edit', { file_path: at('src', 'app.js') }],

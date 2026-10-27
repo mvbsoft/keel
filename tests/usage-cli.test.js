@@ -2,9 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const CLI = path.join(PLUGIN, 'scripts', 'usage.js');
@@ -17,7 +17,7 @@ const { writeSession, appendRequest } = require('./fixtures/usage.js');
 
 const MIN = 60000;
 const HOUR = 3600000;
-const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p));
+const tmp = tempDir;
 const iso = (ms) => new Date(ms).toISOString();
 
 // A private world: usage dir, transcripts root, home (no price override), project folder.

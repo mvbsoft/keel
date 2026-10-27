@@ -2,11 +2,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { judge } = require('../plugins/keel/scripts/safe-command.js');
 const { makeProject } = require('./fixtures/projects.js');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const SCRIPT = path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'safe-command.js');
 const js = makeProject('js-monorepo');
@@ -94,7 +94,7 @@ test('a harmless-looking alias is judged by what it really runs', () => {
   assert.match(judge(js, '.', 'pnpm run deploy').reasons.join(' '), /vercel --prod/);
   assert.match(judge(go, '.', 'make deploy').reasons.join(' '), /kubectl apply/);
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-alias-'));
+  const dir = tempDir('keel-alias-');
   fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ scripts: { check: 'npm run sync && vitest', sync: 'rsync -a out/ host:/srv', posttest: 'gh release create v1' } }));
   fs.writeFileSync(path.join(dir, 'composer.json'), JSON.stringify({ scripts: { qa: ['@phpunit', 'php bin/console doctrine:migrations:migrate'], phpunit: 'phpunit' } }));
   fs.writeFileSync(path.join(dir, 'Makefile'), 'ci: lint deploy\n\techo ok\nlint:\n\teslint .\ndeploy:\n\tfly deploy\n');
@@ -108,7 +108,7 @@ test('a harmless-looking alias is judged by what it really runs', () => {
 });
 
 test('options, wrappers and workspaces do not hide what a script or recipe runs', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-wrap-'));
+  const dir = tempDir('keel-wrap-');
   fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ scripts: { test: 'vercel deploy --prod', lint: 'eslint .' } }));
   fs.mkdirSync(path.join(dir, 'packages', 'web'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'packages', 'web', 'package.json'), JSON.stringify({ scripts: { check: 'git push origin main' } }));

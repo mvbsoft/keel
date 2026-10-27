@@ -2,9 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const rules = require(path.join(PLUGIN, 'hooks', 'comment-rules.js'));
@@ -15,7 +15,7 @@ const schema = require(path.join(PLUGIN, 'schemas', 'config.schema.json'));
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 
 function repo(files, config) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-comments-'));
+  const dir = tempDir('keel-comments-');
   const g = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' });
   g('init', '-q');
   fs.writeFileSync(path.join(dir, 'README.md'), 'x\n');
@@ -47,7 +47,7 @@ test('comment rules: every level renders its own sections, no placeholder left, 
 });
 
 test('comment rules: the level comes from .keel/config.json; missing or unknown means short', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-level-'));
+  const dir = tempDir('keel-level-');
   assert.equal(rules.projectLevel(dir), 'short');
   fs.mkdirSync(path.join(dir, '.keel'));
   fs.writeFileSync(path.join(dir, '.keel', 'config.json'), '{"comments":{"level":"detailed"}}');
@@ -222,14 +222,14 @@ test('comments.js --project: ticket prefixes seen in commit subjects and branch 
 });
 
 test('comments.js: never fails a command; outside git it says it did not measure', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-nogit-'));
+  const dir = tempDir('keel-nogit-');
   const out = execFileSync(process.execPath, [path.join(PLUGIN, 'scripts', 'comments.js'), dir], { encoding: 'utf8' });
   assert.match(out, /^comments: level short; 0 of 0 new lines|^comments: not measured/);
 });
 
 test('comments.js: a staged file in a repository with no commits is measured', (t) => {
   if (!hasGit) { t.skip('git is not installed'); return; }
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-comments-nocommit-'));
+  const dir = tempDir('keel-comments-nocommit-');
   const g = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' });
   g('init', '-q');
   fs.writeFileSync(path.join(dir, 'a.js'), 'const SECONDS = 86400;\n');
@@ -274,7 +274,7 @@ test('comments.js: secret paths from the profile are never read', (t) => {
 });
 
 test('comments.js: when git cannot give the change it says so instead of reporting ok', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-nogit-'));
+  const dir = tempDir('keel-nogit-');
   assert.throws(() => comments.run(dir, {}), /not a git repository/);
   const out = execFileSync(process.execPath, [path.join(PLUGIN, 'scripts', 'comments.js'), dir], { encoding: 'utf8' });
   assert.match(out, /^comments: not measured \(not a git repository\)/);

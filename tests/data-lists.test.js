@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -60,7 +61,7 @@ test('level proposal: a security-path file is recognised whatever its case', () 
 });
 
 test('secret files are found whatever their case', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-secret-'));
+  const dir = tempDir('keel-secret-');
   const { isSecret } = secretCheck(dir);
   for (const name of ['.ENV', '.Env.Local', 'Credentials.json', 'server.PEM', 'id_RSA', 'Secrets.yml', 'config/Prod.TFVARS']) {
     assert.equal(isSecret(name), true, name);
@@ -70,7 +71,7 @@ test('secret files are found whatever their case', () => {
 });
 
 test('a path from the profile counts as a secret too', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-secret-'));
+  const dir = tempDir('keel-secret-');
   fs.mkdirSync(path.join(dir, '.keel'));
   fs.writeFileSync(path.join(dir, '.keel', 'profile.json'), JSON.stringify({ secret_paths: ['config/prod.js'] }));
   assert.equal(secretCheck(dir).isSecret('config/prod.js'), true);
@@ -92,7 +93,7 @@ const SECRET_SAMPLES = {
 
 test('secret patterns: every pattern has a name that matches it; public and example files are not secrets', () => {
   assert.deepEqual(Object.keys(SECRET_SAMPLES).sort(), [...catalog.secrets.patterns].sort(), 'the table covers exactly the catalog');
-  const { isSecret } = secretCheck(fs.mkdtempSync(path.join(os.tmpdir(), 'keel-secret-')));
+  const { isSecret } = secretCheck(tempDir('keel-secret-'));
   for (const [pattern, name] of Object.entries(SECRET_SAMPLES)) {
     assert.ok(matches(name, pattern), `${name} matches ${pattern}`);
     assert.equal(isSecret(name), true, name);
@@ -233,7 +234,7 @@ test('fan-in: TypeScript NodeNext imports ./a.js for a.ts', () => {
   assert.ok(!pointsAt('./a.js', 'src/b.ts', 'src/other.ts', 'js'));
   assert.ok(!pointsAt('./a.js', 'src/b.ts', 'src/a.css', 'js'));
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-fanin-'));
+  const dir = tempDir('keel-fanin-');
   const put = (p, text) => { fs.mkdirSync(path.dirname(path.join(dir, p)), { recursive: true }); fs.writeFileSync(path.join(dir, p), text); };
   put('src/core.ts', 'export const a = 1;\n');
   put('src/x.ts', "import { a } from './core.js';\n");
@@ -248,7 +249,7 @@ test('fan-in: TypeScript NodeNext imports ./a.js for a.ts', () => {
 
 test('changes.js says when the fan-in scan stopped early', (t) => {
   if (!hasGit) { t.skip('git is not installed'); return; }
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-fanin-note-'));
+  const dir = tempDir('keel-fanin-note-');
   const g = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' });
   g('init', '-q');
   g('config', 'user.email', 't@example.com');

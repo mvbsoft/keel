@@ -5,11 +5,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const { recordSnapshot, snapshotFromPercents, readSnapshots } = require(path.join(PLUGIN, 'scripts', 'lib', 'limits.js'));
 
-function tmp(prefix = 'keel-limits-') { return fs.mkdtempSync(path.join(os.tmpdir(), prefix)); }
+const tmp = (prefix = 'keel-limits-') => tempDir(prefix);
 function lines(file) { return fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)); }
 function input(five, seven, extra = {}) {
   return {

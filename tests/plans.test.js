@@ -3,9 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -36,7 +36,7 @@ const run = (dir, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'p
 const line = (out, prefix) => out.find((l) => l.startsWith(prefix)) || '';
 
 function project() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-plans-'));
+  const dir = tempDir('keel-plans-');
   write(dir, '.keel/config.json', JSON.stringify(CONFIG));
   write(dir, 'src/app.js', 'module.exports = 1;\n');
   return dir;

@@ -2,9 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'tools', 'release-notes.awk');
@@ -16,7 +16,7 @@ function notes(version, file) {
 
 test('release notes: the version section only, wrapped list items joined into one line', (t) => {
   if (!hasAwk) { t.skip('awk is not installed'); return; }
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'release-notes-'));
+  const dir = tempDir('release-notes-');
   const file = path.join(dir, 'CHANGELOG.md');
   fs.writeFileSync(file, [
     '# Changelog',

@@ -7,6 +7,7 @@ const { spawnSync, execFileSync } = require('node:child_process');
 const { makeProject, CANARY, NAMES } = require('./fixtures/projects.js');
 const { scan } = require('../plugins/keel/scripts/scan.js');
 const { validate } = require('../plugins/keel/scripts/lib/schema.js');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PROFILE_SCHEMA = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugins', 'keel', 'schemas', 'profile.schema.json'), 'utf8'));
 const results = Object.fromEntries(NAMES.map((n) => [n, scan(makeProject(n))]));
@@ -139,7 +140,7 @@ test('--out writes the full result only inside .keel/local/tmp and prints a shor
 });
 
 test('installed scanners are found on PATH without running anything', () => {
-  const bin = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'keel-bin-'));
+  const bin = tempDir('keel-bin-');
   const exe = process.platform === 'win32' ? 'gitleaks.exe' : 'gitleaks';
   fs.writeFileSync(path.join(bin, exe), 'not a real program');
   const saved = process.env.PATH;
@@ -154,10 +155,9 @@ test('installed scanners are found on PATH without running anything', () => {
 });
 
 test('other instructions: counted in the project and ~/.claude; the audit is advised from 50 lines or 3 folder entries', () => {
-  const os = require('node:os');
   const { describe } = require('../plugins/keel/scripts/lib/instructions.js');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-ins-'));
-  const user = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-user-'));
+  const root = tempDir('keel-ins-');
+  const user = tempDir('keel-user-');
   fs.writeFileSync(path.join(root, 'CLAUDE.md'), 'one\ntwo\nthree\n');
   fs.mkdirSync(path.join(root, '.claude', 'rules'), { recursive: true });
   fs.writeFileSync(path.join(root, '.claude', 'rules', 'style.md'), 'Use tabs.\n');
@@ -174,8 +174,8 @@ test('other instructions: counted in the project and ~/.claude; the audit is adv
     fs.rmSync(path.join(user, 'agents'), { recursive: true });
     fs.writeFileSync(path.join(root, 'AGENTS.md'), 'line\n'.repeat(45));
     assert.equal(ins().advise_audit, true, '50 lines in all');
-    process.env.KEEL_USER_SETTINGS = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'keel-user-')), 'settings.json');
-    assert.equal(describe(scan(fs.mkdtempSync(path.join(os.tmpdir(), 'keel-bare-'))).findings.other_instructions), 'other instructions: none; audit: not needed');
+    process.env.KEEL_USER_SETTINGS = path.join(tempDir('keel-user-'), 'settings.json');
+    assert.equal(describe(scan(tempDir('keel-bare-')).findings.other_instructions), 'other instructions: none; audit: not needed');
   } finally {
     if (before === undefined) delete process.env.KEEL_USER_SETTINGS; else process.env.KEEL_USER_SETTINGS = before;
   }

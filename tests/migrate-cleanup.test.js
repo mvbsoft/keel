@@ -2,12 +2,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { makeOldSystem, hasGit } = require('./fixtures/old-system.js');
 const { CANARY } = require('./fixtures/projects.js');
 const { folderPattern, prefixPattern } = require('../plugins/keel/scripts/migrate.js');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const SCRIPTS = path.join(__dirname, '..', 'plugins', 'keel', 'scripts');
 const git = hasGit();
@@ -328,7 +328,7 @@ test('cleanup: a moved file from git shows as deleted and comes back with restor
 });
 
 test('cleanup trash: listing, empty-trash by age (config or default 30 days), --batch and --all', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-trash-'));
+  const root = tempDir('keel-trash-');
   const trash = require('../plugins/keel/scripts/lib/trash.js');
   for (const f of ['a.bak', 'b.bak', 'c.bak']) fs.writeFileSync(path.join(root, f), 'x');
   const old = trash.moveToTrash(root, ['a.bak'], 'cleanup', {}, new Date(Date.now() - 40 * 86400000));
@@ -354,7 +354,7 @@ test('cleanup reminder: silent below 20 safe files and 100 MB, one line above', 
 });
 
 test('cleanup without git: system files and backups by name, caches as checks', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-nogit-'));
+  const root = tempDir('keel-nogit-');
   for (const [rel, text] of Object.entries({ 'Thumbs.db': 'x', 'src/app.js': '1', 'src/app.js.orig': '1', '.mypy_cache/x': '1', 'node_modules/a/x.bak': '1' })) {
     fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
     fs.writeFileSync(path.join(root, rel), text);
@@ -366,7 +366,7 @@ test('cleanup without git: system files and backups by name, caches as checks', 
 });
 
 test('cleanup find: a large backup or system file is a check, not a safe delete', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-big-'));
+  const root = tempDir('keel-big-');
   fs.writeFileSync(path.join(root, 'Thumbs.db'), Buffer.alloc(6 * 1024 * 1024));
   fs.writeFileSync(path.join(root, '.DS_Store'), 'x');
   run('cleanup.js', root, ['find']);

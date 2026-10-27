@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const store = require(path.join(PLUGIN, 'scripts', 'lib', 'usage-store.js'));
@@ -26,8 +27,8 @@ const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-5, `${a} is not ${b}`);
 const sum = (xs) => xs.reduce((s, x) => s + x, 0);
 
 function env() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-store-proj-'));
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-store-usage-'));
+  const root = tempDir('keel-store-proj-');
+  const dir = tempDir('keel-store-usage-');
   const build = (extra = {}) => store.buildDays({ projectsRoot: root, machine: MACHINE, usageDir: dir, prices: TABLE, sinceMs: 0, ...extra });
   return { root, dir, build };
 }
@@ -241,7 +242,7 @@ test('limit snapshots of the day go into the document; cost_cc is the last cost 
 const fake = (key, v, extra = {}) => ({ id: key, key, hash: `h-${key}-${v}`, doc: { date: key, pc: 'p', part: 1, parts: 1, hours: [], snapshots: [], sessions: [], ...extra } });
 
 test('stage and ack: only changed documents are written; versions go up by one and become if_version', () => {
-  const state = store.readState(fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-')));
+  const state = store.readState(tempDir('keel-state-'));
   assert.equal(state.synced_until, null);
   const w1 = store.stage(state, [fake('d1', 1), fake('d2', 1)], { nowIso: '2026-03-03T10:00:00Z' });
   assert.deepEqual(w1.map((w) => [w.key, w.if_version]), [['d1', null], ['d2', null]]);
@@ -263,7 +264,7 @@ test('stage and ack: only changed documents are written; versions go up by one a
 });
 
 test('ack with failed documents keeps them pending and does not move synced_until', () => {
-  const state = store.readState(fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-')));
+  const state = store.readState(tempDir('keel-state-'));
   store.stage(state, [fake('d1', 1), fake('d2', 1), fake('machines/pc', 1)], { nowIso: '2026-03-03T10:00:00Z' });
   const r = store.ack(state, { failed: ['d2', 'pc', 'nope'] });
   assert.equal(r.committed, 1);
@@ -277,7 +278,7 @@ test('ack with failed documents keeps them pending and does not move synced_unti
 });
 
 test('a day that shrinks from three parts to two gets an empty replacement for the missing part', () => {
-  const state = store.readState(fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-')));
+  const state = store.readState(tempDir('keel-state-'));
   const three = [fake('2026-03-03_pc', 1), fake('2026-03-03_pc_p2', 1), fake('2026-03-03_pc_p3', 1)];
   store.stage(state, three, { nowIso: 'a' });
   store.ack(state);
@@ -442,7 +443,7 @@ test('privacy: only the folder name of the cwd goes out; with previews off no ta
 });
 
 test('ack of one batch records only that batch and keeps synced_until back', () => {
-  const state = store.readState(fs.mkdtempSync(path.join(os.tmpdir(), 'keel-state-')));
+  const state = store.readState(tempDir('keel-state-'));
   store.stage(state, [fake('d1', 1), fake('d2', 1), fake('d3', 1)], { nowIso: '2026-03-03T10:00:00Z' });
   state.pending.d1.batch = 1; state.pending.d2.batch = 1; state.pending.d3.batch = 2;
   const r = store.ack(state, { batch: 1 });
@@ -458,7 +459,7 @@ test('ack of one batch records only that batch and keeps synced_until back', () 
 
 test('a project can turn prompt previews off for itself while the machine sends them', () => {
   const e = env();
-  const quiet = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-quiet-'));
+  const quiet = tempDir('keel-quiet-');
   fs.mkdirSync(path.join(quiet, '.keel', 'local'), { recursive: true });
   fs.writeFileSync(path.join(quiet, '.keel', 'local', 'options.json'), JSON.stringify({ prompt_preview: false }));
   writeIds(e.root, 'loud', [{ t: DAY, prompt: 'loud words' }, { t: DAY + MIN, id: 'l1' }], { cwd: path.join(os.tmpdir(), 'loud-project') });

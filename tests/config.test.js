@@ -2,12 +2,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { checkConfig } = require('../plugins/keel/scripts/lib/config.js');
+const { tempDir } = require('./fixtures/tmp.js');
 
 function project(content) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-config-'));
+  const dir = tempDir('keel-config-');
   if (content !== undefined) {
     fs.mkdirSync(path.join(dir, '.keel'));
     fs.writeFileSync(path.join(dir, '.keel', 'config.json'), content);

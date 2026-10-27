@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -14,7 +15,7 @@ const settings = require(path.join(SCRIPTS, 'claude-settings.js'));
 const { scan } = require(path.join(SCRIPTS, 'scan.js'));
 
 function project(files) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-cfg-'));
+  const dir = tempDir('keel-cfg-');
   for (const [rel, text] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
     fs.writeFileSync(path.join(dir, rel), text);
@@ -106,7 +107,7 @@ test('scan: documentation shape, files loaded every session with line counts, su
 });
 
 function withUserFile(content, fn) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-user-'));
+  const dir = tempDir('keel-user-');
   const file = path.join(dir, 'settings.json');
   if (content !== undefined) fs.writeFileSync(file, JSON.stringify(content));
   const before = process.env.KEEL_USER_SETTINGS;

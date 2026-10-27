@@ -5,9 +5,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -18,7 +18,7 @@ const exists = (dir, rel) => fs.existsSync(path.join(dir, rel));
 const run = (script, dir, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, script), dir, ...args], { encoding: 'utf8' }).stdout.trim().split('\n');
 const notes = (dir, ...args) => run('notes.js', dir, ...args);
 const link = (target, at) => { fs.mkdirSync(path.dirname(at), { recursive: true }); fs.symlinkSync(target, at, 'junction'); };
-const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p));
+const tmp = tempDir;
 // A file link needs Developer Mode or admin rights on Windows.
 const fileLink = (target, at) => { try { fs.symlinkSync(target, at, 'file'); return true; } catch { return false; } };
 const listed = (dir) => fs.readdirSync(dir, { recursive: true }).map((f) => String(f).split(path.sep).join('/')).sort();

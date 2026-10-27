@@ -2,14 +2,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const { loadPrices, priceFor, costOf, validate, diff } = require(path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'lib', 'prices.js'));
 
 const entry = (match, input, extra = {}) => ({ match, input, cache_write_5m: input * 1.25, cache_write_1h: input * 2, cache_read: input * 0.1, output: input * 5, ...extra });
 const TABLE = { models: [entry('claude-opus-5', 5), entry('claude-opus-5-5', 4), entry('claude-haiku-4', 1)] };
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'keel-prices-'));
+const tmp = () => tempDir('keel-prices-');
 
 test('priceFor: longest matching prefix wins, in any table order', () => {
   assert.equal(priceFor('claude-opus-5-5', TABLE).input, 4);

@@ -2,9 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const SCRIPTS = path.join(__dirname, '..', 'plugins', 'keel', 'scripts');
 const { collectChanges, baseLineCounts, parseDiff } = require(path.join(SCRIPTS, 'lib', 'diff.js'));
@@ -34,7 +34,7 @@ function put(dir, files) {
 }
 // A repository with one commit of `files`; `gitConfig` pairs are set in the repository's config.
 function repo(files, { gitConfig = [], keel = false, commit = true } = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-diff-'));
+  const dir = tempDir('keel-diff-');
   const g = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' });
   g('init', '-q');
   g('config', 'user.email', 't@example.com');

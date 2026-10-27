@@ -2,15 +2,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { scan } = require('../plugins/keel/scripts/scan.js');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPT = path.join(PLUGIN, 'scripts', 'config-check.js');
 const CHECK_CONFIG = path.join(PLUGIN, 'scripts', 'check-config.js');
-const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p));
+const tmp = tempDir;
 const write = (file, text) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
 const CONFIG = {
   schema_version: 1,

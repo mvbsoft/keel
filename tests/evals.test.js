@@ -4,9 +4,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const EVALS = path.join(PLUGIN, 'evals');
@@ -111,20 +111,15 @@ const STATE = {
   },
 };
 
-test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, (t) => {
-  const tmp = (prefix) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-    return dir;
-  };
+test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
   const expect = { base: ['main', 0, ''], tasks: ['main', 0, ''], finish: ['CAN-200-free-shipping', 1, ''], session: ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
     planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'],
     planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {
-    const work = tmp(`keel-eval-${variant}-`);
-    const home = tmp('keel-eval-home-');
+    const work = tempDir(`keel-eval-${variant}-`);
+    const home = tempDir('keel-eval-home-');
     const r = spawnSync(process.execPath, [SHOP, variant], { cwd: work, env: { ...process.env, HOME: home }, encoding: 'utf8' });
     assert.equal(r.status, 0, `${variant}: ${r.stderr}`);
     const git = (...a) => execFileSync('git', ['-C', work, ...a], { encoding: 'utf8' }).trim();
@@ -138,8 +133,8 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     assert.match(check, /^keel-config: ok/, variant);
     if (STATE[variant]) STATE[variant](work, git);
   }
-  const work = tmp('keel-eval-tasks-');
-  execFileSync(process.execPath, [SHOP, 'tasks'], { cwd: work, env: { ...process.env, HOME: tmp('keel-eval-home-') } });
+  const work = tempDir('keel-eval-tasks-');
+  execFileSync(process.execPath, [SHOP, 'tasks'], { cwd: work, env: { ...process.env, HOME: tempDir('keel-eval-home-') } });
   const listed = spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', 'notes.js'), work, 'tasks'], { encoding: 'utf8' }).stdout;
   assert.match(listed, /^tasks: 2 unfinished \((CAN-123, fix-reset-500|fix-reset-500, CAN-123)\)/);
 });

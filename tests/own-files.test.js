@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts').split(path.sep).join('/');
@@ -15,7 +16,7 @@ function hook(tool, toolInput, env = {}, cwd = undefined) {
   const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_') && k !== 'KEEL_USAGE_DIR'));
   const r = spawnSync(process.execPath, [path.join(PLUGIN, 'hooks', 'own-files.js')], {
     input: JSON.stringify({ tool_name: tool, tool_input: toolInput }),
-    env: { ...clean, KEEL_USAGE_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'keel-usage-')), CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: '/p', ...env },
+    env: { ...clean, KEEL_USAGE_DIR: tempDir('keel-usage-'), CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: '/p', ...env },
     encoding: 'utf8',
     cwd,
   });
@@ -25,7 +26,7 @@ const decide = (...args) => hook(...args)?.permissionDecision ?? null;
 const shell = (command, tool = 'Bash', env, cwd) => decide(tool, { command }, env, cwd);
 
 function project(git) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-own-'));
+  const dir = tempDir('keel-own-');
   fs.mkdirSync(path.join(dir, '.keel'));
   fs.writeFileSync(path.join(dir, '.keel', 'config.json'), JSON.stringify({ git: { main_branch: 'main', ask_before_merge: true, ...git } }));
   return dir.split(path.sep).join('/');
@@ -78,7 +79,7 @@ test('a config saved with a byte order mark still decides the git mode', () => {
   fs.writeFileSync(file, '\uFEFF' + fs.readFileSync(file, 'utf8'));
   assert.equal(shell(`node "${SCRIPTS}/git-flow.js" "${proj}" merge`, 'Bash', { CLAUDE_PROJECT_DIR: proj }), 'ask', 'not trusted here: the merge asks');
   const { trust } = require(path.join(PLUGIN, 'scripts', 'lib', 'trust.js'));
-  const usage = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-usage-'));
+  const usage = tempDir('keel-usage-');
   trust(proj, { KEEL_USAGE_DIR: usage });
   assert.equal(shell(`node "${SCRIPTS}/git-flow.js" "${proj}" merge`, 'Bash', { CLAUDE_PROJECT_DIR: proj, KEEL_USAGE_DIR: usage }), 'allow', 'trusted, with ask_before_merge off');
 });
@@ -89,7 +90,7 @@ test('trust always gets Claude Code\'s own prompt, whatever the permission rules
 });
 
 test('only scripts in keel\'s own scripts folder', () => {
-  const evil = fs.mkdtempSync(path.join(os.tmpdir(), 'evil-')).split(path.sep).join('/');
+  const evil = tempDir('evil-').split(path.sep).join('/');
   for (const cmd of [
     `node "${evil}/scan.js" "/p"`,
     `node "${SCRIPTS}/../scan.js" "/p"`,
@@ -223,7 +224,7 @@ test('keel\'s QA agents write only under the project\'s .keel/local/tmp/qa/', ()
     const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_') && k !== 'KEEL_USAGE_DIR'));
     const r = spawnSync(process.execPath, [path.join(PLUGIN, 'hooks', 'own-files.js')], {
       input: JSON.stringify({ tool_name: 'Write', tool_input: { file_path: file, content: 'x' }, ...(agent && { agent_id: 'a1', agent_type: agent }) }),
-      env: { ...clean, KEEL_USAGE_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'keel-usage-')), CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: proj },
+      env: { ...clean, KEEL_USAGE_DIR: tempDir('keel-usage-'), CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: proj },
       encoding: 'utf8',
     });
     return r.stdout ? JSON.parse(r.stdout).hookSpecificOutput.permissionDecision : null;
@@ -380,7 +381,7 @@ test('on Windows only A-Z fold: a path with the Kelvin sign for k is another fol
   assert.equal(shell(`node "${SCRIPTS}/plans.js" "${other}" drop f1`, 'Bash', env), null, 'the Kelvin sign names another folder');
   assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj.replace(/[a-z]/g, (c) => c.toUpperCase())}" drop f1`, 'Bash', env), 'allow', 'A-Z case does not matter');
   const { trust, isTrusted, trustState } = require(path.join(PLUGIN, 'scripts', 'lib', 'trust.js'));
-  const tenv = { KEEL_USAGE_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'keel-usage-')) };
+  const tenv = { KEEL_USAGE_DIR: tempDir('keel-usage-') };
   trust(proj, tenv);
   assert.equal(isTrusted(proj.replace(/[a-z]/g, (c) => c.toUpperCase()), tenv), true);
   assert.equal(trustState(other, tenv), 'none', 'no confirmation is found for the other folder');

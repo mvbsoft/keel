@@ -2,14 +2,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const CLI = path.join(PLUGIN, 'scripts', 'usage-setup.js');
 const TEMPLATES = path.join(PLUGIN, 'templates', 'usage');
-const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p));
+const tmp = tempDir;
 const readJson = (f) => JSON.parse(fs.readFileSync(f, 'utf8'));
 
 // A private world: usage folder, user settings, config dir, home and project, so nothing touches ~/.claude.

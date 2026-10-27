@@ -4,15 +4,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const options = require(path.join(PLUGIN, 'scripts', 'lib', 'options.js'));
 const settings = require(path.join(PLUGIN, 'scripts', 'claude-settings.js'));
 
-const tmp = (prefix) => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+const tmp = tempDir;
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
 function withUserFile(content, fn) {
