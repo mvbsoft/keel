@@ -569,6 +569,8 @@ test('start-task: a task turns into planning only while no code changed; the use
   assert.match(t, /No `task new` yet \(step 7 item 2\) → on yes, ask the user to type `\/keel:start-planning`/);
   assert.match(t, /only while no code changed: `git diff --name-only <started>` \(the task file's\s+`started:`\) and `git ls-files --others --exclude-standard` list nothing outside `\.keel\/`/);
   order(t, 'task drop <id>', 'switch --name <base>', 'the task ends first');
+  // The yes may be the user's own request: the drop is said, not left implied.
+  assert.match(t, /On yes, say "<id> goes to keel's trash" and run\s+`node "<keel>\/scripts\/notes\.js" "<project>" task drop <id>`/);
   order(t, 'switch --name <base>', 'delete-branch --name <branch>', 'git-flow.js refuses to delete the current branch');
   assert.match(t, /A branch of\s+its own \(`branch` differs from `base`\) is deleted only on its own yes/, 'a ticket\'s shared feature branch is never deleted here');
   order(t, 'delete-branch --name <branch>', 'Then ask the user to type `/keel:start-planning`');
