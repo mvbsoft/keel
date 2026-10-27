@@ -1,7 +1,7 @@
 ---
 type: tool_used
 tool: Bash
-input_match: 'task new'
+input_match: '"command"\s*:\s*"(?:[^"\\]|\\.)*?(?:task new)'
 min: 0
 max: 0
 ---
