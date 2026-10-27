@@ -446,9 +446,10 @@ Then, in one question group:
      `url`, the same `file_path` and `files` as when creating it, no `title`, `icon` or `capabilities`
      (the page keeps its own). Its data stays: it lives in the page's database, not in the published
      files. Then ArtifactData `update` collection `meta`, doc `settings`,
-     `{ "template": "<page_template printed by page>" }` (it keeps `language` and `schema`; no such
-     document → `set` it with `"language": "<conversation language code>", "schema": 1` too), and
-     save `{ "page_template": "<printed value>" }` through the same `apply`.
+     `{ "template": "<page_template printed by page>" }`, `if_version` = the `version` that step 5's
+     `get` of that document returned (a write to an existing document without it is refused); it keeps
+     `language` and `schema`. The `get` found no such document → `set` it, without `if_version`, with
+     `"language": "<conversation language code>", "schema": 1` too. Then save `{ "page_template": "<printed value>" }` through the same `apply`.
    - The first sync happens at the next `/keel:end-task`, `/keel:end-session` or
      `/keel:end-planning` (the last 30 days of logs on this machine).
 
