@@ -12,10 +12,10 @@
     {
       "name": "keel",
       "source": "./plugins/keel",
-      "description": "Task and multi-session workflows, project setup and independent multi-agent verification for Claude Code.",
+      "description": "Task, session and feature-planning workflows, project setup and independent multi-agent verification for Claude Code.",
       "homepage": "https://github.com/mvbsoft/keel",
       "category": "development",
-      "tags": ["code-review", "verification", "workflow", "multi-agent", "cost-tracking"]
+      "tags": ["code-review", "verification", "workflow", "multi-agent", "cost-tracking", "planning"]
     }
   ]
 }

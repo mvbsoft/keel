@@ -133,7 +133,7 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 | ★ `docs.pattern` | where new docs go (profiles 3-4). Existing docs are not moved as a side effect: when detailed setup picks a pattern your docs do not follow yet, keel offers to prepare the move as its own task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)) | `none` / `diataxis` / `arc42` / `arc42-c4` | `none` |
 | `delegation.min_plan_steps`, `min_plan_files` | from this plan size keel offers to hand the steps to implementer agents | steps, files | 8, 15 |
 | `cleanup.trash_max_age_days` | `/keel:cleanup empty-trash` deletes batches this many days old or more by default | days | 30 |
-| `tasks.in_git` | where unfinished task folders live: `true` in `.keel/tasks/<id>/`, committed on the task's branch so the team sees them; `false` in `.keel/local/tasks/<id>/`, this machine only. See [two ways of working](workflows.md#where-the-files-live) | on / off | on |
+| `tasks.in_git` | where unfinished task folders live: `true` in `.keel/tasks/<id>/`, committed on the task's branch so the team sees them; `false` in `.keel/local/tasks/<id>/`, this machine only. See [ways of working](workflows.md#where-the-files-live) | on / off | on |
 | `stack_skills` | the stack plugins you chose (for information) | names | none |
 | `usage.artifact_url` | a usage page the team shares. A machine sends to it only after its user approves it, and only while the machine has no `artifact_url` of its own. It then receives that machine's usage from **all** its projects (project folder names, branches, request previews unless turned off), not only from this one | a claude.ai link | none |
 
@@ -149,6 +149,21 @@ git does not ignore that file yet, `/keel:configure` offers to add it to `.gitig
 |---|---|---|
 | `plansDirectory` | where Plan Mode keeps plan files | `./.keel/local/plans/claude` (before keel 1.3: `./.keel/local/plans`; `/keel:configure` offers to move the old plans) |
 | `permissions.allow` | commands that run without a permission prompt | your confirmed gate commands |
+
+### Planning settings
+
+Planning keeps its own settings in `.keel/local/plans/keel/settings.json` (outside git, this machine
+only). `/keel:configure` does not ask them: the first `/keel:start-planning` asks the language and
+where drafts live, the first export where tickets go and their prefix, and a change you name at any
+start ("draft in the repo") is saved too.
+
+| Setting | What it does | Values | Default |
+|---|---|---|---|
+| `language`, `draft`, `draft_dir` | the language of `plan.md` and the tickets; where a draft lives; its folder in the repository | a language code; `pc` (this machine) or `repo`; a folder | `repo_language`; `pc`; `tickets` |
+| `export`, `export_dir`, `prefix` | where exported tickets go; their folder in the repository; the start of each ticket key (`PROJ` in `PROJ-12`) | `pc` or `repo`; a folder; 2-10 capital letters and digits, starting with a letter | none; `tickets`; none |
+
+A folder is never a hidden one, `handoff/`, `handoffs/` or `docs/plans`. How they are used:
+[ways of working](workflows.md#planning).
 
 ## Examples
 

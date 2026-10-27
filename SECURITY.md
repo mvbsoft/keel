@@ -22,10 +22,10 @@ keel runs hooks and Node scripts with your user's rights inside Claude Code. In 
   refused or left to your normal permissions. Steps that change your Claude Code settings, move files
   in a migration or set up usage always go through your normal permissions.
 - **Confirmations keel forces.** Moving a task folder to keel's trash, deleting a task branch,
-  emptying the trash, confirming autonomous git and merging get Claude Code's own confirmation, even
-  when your allow rules would let them run (a merge runs without one only in autonomous mode you
-  confirmed on this machine, with `git.ask_before_merge` off). In a non-interactive run these steps
-  are denied.
+  emptying the trash, confirming autonomous git, committing and pushing planning files, and merging
+  get Claude Code's own confirmation, even when your allow rules would let them run (a merge runs
+  without one only in autonomous mode you confirmed on this machine, with `git.ask_before_merge` off).
+  In a non-interactive run these steps are denied.
 - **Git.** In manual mode keel runs no git step nobody asked for; the branch you choose at a task's
   start and your own git instructions are run. Autonomous git runs without a prompt only after you
   confirm it on this machine; it never force-pushes, and a push from the main branch is left to your
