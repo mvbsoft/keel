@@ -23,7 +23,7 @@ of short tickets that tasks or a session then build.
 | | Tasks | Sessions | Planning |
 |---|---|---|---|
 | What | point changes: a bug, a ticket, a small feature; many at once | one big job from a plan, day after day | a feature thought through before code, in one conversation or several: decisions and short tickets |
-| Commands | `/keel:start-task <anything>`, `/keel:end-task [instruction]`, `/keel:tasks` | `/keel:start-session [plan \| description \| link \| feature \| nothing]`, `/keel:end-session [instruction]` | `/keel:start-planning [idea \| link \| file \| feature \| nothing]`, `/keel:end-planning [instruction]` |
+| Commands | `/keel:start-task <anything>`, `/keel:end-task [instruction]`, `/keel:tasks` | `/keel:start-session [plan file \| feature \| link \| description \| how to continue]`, `/keel:end-session [instruction]` | `/keel:start-planning [idea \| link \| file \| feature \| nothing]`, `/keel:end-planning [instruction]` |
 | Lives in | `.keel/tasks/<id>/`, on the task's branch | `.keel/next-session.md` | a draft in `.keel/local/plans/keel/<feature>/` or in the repository; then the feature folder |
 
 **How to choose:** "done" within 1-3 sittings → a task; a plan for weeks with items for "later" → a

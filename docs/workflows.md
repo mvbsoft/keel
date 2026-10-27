@@ -38,7 +38,7 @@ ask for is run: the branch you choose when a task starts, or your own git instru
 |---|---|---|---|
 | Example | Monday you fix login bug CAN-12. On Tuesday a review request interrupts, so you hand CAN-12 off and take CAN-15, an export button. On Wednesday you return to CAN-12. | You build an invoicing module from a plan of 30 steps, two weeks, a few steps each day. | You plan a CSV export of invoices over two conversations; it ends as 4 tickets, PROJ-101 to PROJ-104, each then done as a task. |
 | What carries the work over | one folder per task, `.keel/tasks/<id>/`, on the task's own branch | one note, `.keel/next-session.md` | the draft `plan.md` with its tickets, on this machine or in the repository; then the feature folder |
-| Start or continue | `/keel:start-task <link, key or your words>` | `/keel:start-session [plan file, feature, link, description or how to continue]` | `/keel:start-planning [idea, link, file or feature]` |
+| Start or continue | `/keel:start-task <link, key or your words>` | `/keel:start-session [plan file \| feature \| link \| description \| how to continue]` | `/keel:start-planning [idea, link, file or feature]` |
 | Stop for now | `/keel:end-task hand off` | `/keel:end-session we continue tomorrow, prepare` | `/keel:end-planning we continue tomorrow` |
 | Finish | `/keel:end-task finish` | `/keel:end-session the line is finished` | `/keel:end-planning final review and export` |
 
