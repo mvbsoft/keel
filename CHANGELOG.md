@@ -6,6 +6,8 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-27
+
 ### Added
 - `/keel:configure usage` updates an already published "keel usage" page to the current keel's page,
   at the same address and with all its data, after a yes. The page keeps a fingerprint of its page
@@ -151,7 +153,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/mvbsoft/keel/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/mvbsoft/keel/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/mvbsoft/keel/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/mvbsoft/keel/compare/v1.1.2...v1.2.0
