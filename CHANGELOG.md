@@ -6,6 +6,8 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-27
+
 ### Added
 - A third lane, planning: `/keel:start-planning` plans a feature in its own conversation, one question
   at a time, with decisions and short tickets in a draft kept on this machine or in the repository;
@@ -135,7 +137,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/mvbsoft/keel/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/mvbsoft/keel/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/mvbsoft/keel/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/mvbsoft/keel/compare/v1.1.1...v1.1.2
