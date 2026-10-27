@@ -565,6 +565,7 @@ test('start-task: a task turns into planning only while no code changed; the use
   assert.match(intake, /Too big for one task \(the user says so in any words, or the Plan Mode plan is very big\) → "Task to\s+planning" below/);
   const t = part(intake, '## Task to planning');
   assert.match(t, /Lanes never mix: the task ends completely before planning starts/);
+  assert.match(t, /The user\s+asking to plan it as a feature is the yes to this question\./, 'no second question when the user asked for it');
   assert.match(t, /No `task new` yet \(step 7 item 2\) → on yes, ask the user to type `\/keel:start-planning`/);
   assert.match(t, /only while no code changed: `git diff --name-only <started>` \(the task file's\s+`started:`\) and `git ls-files --others --exclude-standard` list nothing outside `\.keel\/`/);
   order(t, 'task drop <id>', 'switch --name <base>', 'the task ends first');
