@@ -6,8 +6,10 @@
 //   operators or characters a shell would expand (~ included; inside quotes only $ and ` count), on
 //   the current project: the first argument must be the project folder itself, as an absolute path
 //   (a relative one is resolved from the shell's folder, a sub-folder may hold another project's
-//   .keel), and for Bash no unquoted backslash (bash drops it, so the script would get another path)
-//   and no double backslash (the Bash tool folds it into one; a network path is written //server/share).
+//   .keel), and for Bash no unquoted backslash (bash drops it, so the script would get another path),
+//   no double backslash (the Bash tool folds it into one; a network path is written //server/share)
+//   and no word starting with // that holds a backslash or no further / (Git Bash turns it into /...),
+//   in the arguments and in the script's own path alike.
 //   These scripts only read the project; some write their results under .keel/local/ (tmp/, last-verify.json, session-start.json)
 //   and nowhere else; notes.js `task` writes keel's task folders (.keel/tasks/, .keel/local/); the
 //   script touches only `.keel/tasks/<id>/` or `.keel/local/tasks/<id>/` for a validated id and refuses
@@ -132,6 +134,10 @@ const UNSAFE_BARE = /[(){}@*?[\]#;&|<>]/;
 // A word PowerShell reads as a parameter: one dash (it counts the en dash, em dash and horizontal bar as
 // dashes too) not followed by another.
 const PS_PARAMETER = /^[-\u2013-\u2015](?![-\u2013-\u2015])/;
+// Git Bash leaves a word starting with // as it is only in the form //server/share; with a backslash
+// (//srv\share\p) or no further slash (//srv) it hands node /srv/..., a folder on the current drive.
+const bashRewrites = (word) => word.startsWith('//') && (word.includes('\\') || !word.slice(2).includes('/'));
+
 // -> { words, bare } (bare: the words written without quotes), or null.
 function splitWords(text, bash) {
   // Claude Code's Bash tool folds a double backslash into one, even inside single quotes, so a network
@@ -146,7 +152,9 @@ function splitWords(text, bash) {
     // A shell expands ~ only in a bare word, at its start or after = or :; inside a word, as in a
     // Windows short name such as RUNNER~1, and inside quotes it is plain text.
     if (!m || (m[2] !== undefined && m[2].includes('"')) || (m[3] && UNSAFE_BARE.test(m[3])) || (m[3] && m[3].includes(',') && !/^\d+(,\d+)*$/.test(m[3])) || (m[3] && /(^|[=:])~/.test(m[3])) || (bash && m[3] && m[3].includes('\\')) || (!bash && m[3] && PS_PARAMETER.test(m[3]) && (m[3].includes('.') || m[3].endsWith(':')))) return null;
-    out.push(m[1] ?? m[2] ?? m[3]);
+    const word = m[1] ?? m[2] ?? m[3];
+    if (bash && bashRewrites(word)) return null;
+    out.push(word);
     if (m[3]) bare.push(m[3]);
   }
   // PowerShell drops `--%` (stop-parsing) and, in Windows PowerShell 5.1, an empty argument before node
@@ -199,7 +207,7 @@ function gitFlow(pos, opts) {
   return null;
 }
 
-const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, a backslash before a quote or a space, curly quotes, control characters, double quotes inside single quotes or a bare word starting with one dash that holds a dot or ends with a colon, a comma only between numbers (quote a list), no double backslash in Bash (write a network path as //server/share), and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
+const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, a backslash before a quote or a space, curly quotes, control characters, double quotes inside single quotes or a bare word starting with one dash that holds a dot or ends with a colon, a comma only between numbers (quote a list), no double backslash in Bash and no word starting with // that holds a backslash (write a network path as //server/share, the script\'s path too), and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
 
 // The decision for `node <keel>/scripts/<name> <args>`. Arguments are read with the scripts' own
 // parseArgs, so the step the hook judges is the step the script runs.
@@ -292,7 +300,10 @@ function main() {
     const bash = tool === 'Bash';
     const script = m && (m[2] || m[3] || m[4]);
     const name = script && script.replace(/\\/g, '/').split('/').pop();
-    if (m && !(bash && m[4] && m[4].includes('\\')) && SCRIPTS.has(name) && inside(script, path.join(root, 'scripts')) && sameFs(norm(path.dirname(script)), norm(path.join(root, 'scripts')))) {
+    if (m && SCRIPTS.has(name) && inside(script, path.join(root, 'scripts')) && sameFs(norm(path.dirname(script)), norm(path.join(root, 'scripts')))) {
+      // The script's path reaches node changed in the same ways as its arguments: with keel on a
+      // network share, \\srv\plug or //srv\plug would run a script in another folder.
+      if (bash && ((m[4] && m[4].includes('\\')) || script.includes('\\\\') || bashRewrites(script))) return decide('deny', PLAIN_FORM);
       return ownScript(name, m[5] || '', process.env.CLAUDE_PROJECT_DIR || input.cwd, bash);
     }
     if (runsLib(cmd, root)) return decide('deny', LIB);

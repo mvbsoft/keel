@@ -342,6 +342,36 @@ test('in Bash a double backslash is refused: a network path is written //server/
   }
 });
 
+// Only Windows reads \\srv\plug as keel's folder, so only there does this test fail without the fix.
+test('in Bash keel\'s own script path is refused with a double backslash too: keel on a network share would run another folder\'s script', () => {
+  const env = { CLAUDE_PLUGIN_ROOT: '\\\\srv\\plug' };
+  // The Bash tool folds \\ into \, so node gets \srv\plug\..., a folder on the current drive.
+  for (const cmd of ['node "\\\\srv\\plug\\scripts\\notes.js" "/p" tasks', 'node \'\\\\srv\\plug\\scripts\\notes.js\' "/p" tasks']) {
+    assert.notEqual(shell(cmd, 'Bash', env), 'allow', cmd);
+    if (process.platform === 'win32') assert.equal(shell(cmd, 'Bash', env), 'deny', cmd);
+  }
+  if (process.platform === 'win32') {
+    assert.equal(shell('node "//srv/plug/scripts/notes.js" "/p" tasks', 'Bash', env), 'allow');
+    assert.equal(shell('node "\\\\srv\\plug\\scripts\\notes.js" "/p" tasks', 'PowerShell', env), 'allow', 'PowerShell passes it as written');
+  }
+});
+
+test('in Bash a word starting with // that holds a backslash or no further slash is refused: Git Bash hands node /srv/...', () => {
+  const env = { CLAUDE_PROJECT_DIR: '//srv/share/p' };
+  for (const p of ['"//srv\\share\\p"', '\'//srv\\share\\p\'', '"//srv/share\\p"']) {
+    assert.equal(shell(`node "${SCRIPTS}/notes.js" ${p} tasks`, 'Bash', env), 'deny', p);
+  }
+  assert.equal(shell(`node "${SCRIPTS}/notes.js" "//srv" tasks`, 'Bash', { CLAUDE_PROJECT_DIR: '//srv' }), 'deny', 'no further slash');
+  assert.equal(shell(`node "${SCRIPTS}/plans.js" "//srv/share/p" search "//srv"`, 'Bash', env), 'deny', 'any word, not only the project');
+  // Only Windows reads keel's folder as //srv\plug; there its script path is refused the same way.
+  if (process.platform === 'win32') {
+    const plug = { ...env, CLAUDE_PLUGIN_ROOT: '\\\\srv\\plug' };
+    assert.equal(shell('node "//srv\\plug\\scripts\\notes.js" "//srv/share/p" tasks', 'Bash', plug), 'deny', 'the script path');
+    assert.equal(shell('node "//srv\\plug\\scripts\\notes.js" "//srv\\share\\p" tasks', 'PowerShell', plug), 'allow', 'PowerShell passes it as written');
+    assert.equal(shell(`node "${SCRIPTS}/notes.js" "//srv/share/p" tasks`, 'Bash', env), 'allow', '//server/share runs');
+  }
+});
+
 test('on Windows only A-Z fold: a path with the Kelvin sign for k is another folder, for the hook and for trust', { skip: process.platform !== 'win32' }, () => {
   const proj = project({ mode: 'autonomous' });
   const env = { CLAUDE_PROJECT_DIR: proj };

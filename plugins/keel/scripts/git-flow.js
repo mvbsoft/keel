@@ -47,9 +47,11 @@ function git(root, args, input) {
   return { ok: r.status === 0, out: (r.stdout || '').trim(), raw: r.stdout || '', err: (r.stderr || '').trim() };
 }
 const gitOk = (root, args) => git(root, args).ok;
-// Branch names compare without case where the file system does (Main and main are one ref file).
-const FOLD = process.platform === 'win32' || process.platform === 'darwin';
-const sameBranch = (a, b) => typeof a === 'string' && typeof b === 'string' && (FOLD ? a.toLowerCase() === b.toLowerCase() : a === b);
+// Branch names compare without case where the file system does (Main and main are one ref file): on
+// Windows only A-Z, since toLowerCase also folds the Kelvin sign into k, another ref file there; macOS
+// folds that sign too.
+const foldBranch = { win32: (s) => s.replace(/[A-Z]/g, (c) => c.toLowerCase()), darwin: (s) => s.toLowerCase() }[process.platform] || ((s) => s);
+const sameBranch = (a, b) => typeof a === 'string' && typeof b === 'string' && foldBranch(a) === foldBranch(b);
 const TRUST_TEXT = {
   confirmed: 'confirmed',
   changed: 'settings changed since you confirmed — run trust again (Claude Code asks before each git step until then)',
