@@ -203,7 +203,8 @@ Each end step (`/keel:end-task`, `/keel:end-session`, `/keel:end-planning`) prep
 that changed since the last sync and writes them to the page through files, never through the conversation.
 It costs about $0.01-0.04 (an estimate). The first sync reaches back 30 days (`history_days`). A session
 that cannot write to the page (for example, an API-key session without the page tool) leaves the backlog for
-the next one that can. Then keel reads the other machines' data back to calibrate the limits.
+the next one that can. Then keel reads the other machines' data back to calibrate the limits, and the page's
+settings to know whether it runs this keel's page ([updating the page](#updating-the-page)).
 
 A team can share one page: put its address in the project config as `usage.artifact_url`. Each machine
 sends to it only after its user approves that address, so a cloned repository cannot choose where your
@@ -219,12 +220,17 @@ planning chats of 1.3.0) does not reach it by itself. When this machine's page w
 (the Artifact tool publishes over a page only after a read; about $0.1-0.3, an estimate) and publishes
 keel's current page files to the same address. The data stays: every machine's days, the calibration and
 the page's language live in the page's database, not in its files. keel stops and changes nothing when the
-page is not titled "keel usage" or you cannot edit it; a team page is updated by its owner.
+page is not titled "keel usage" or you cannot edit it.
 
-keel tells an older page by a fingerprint of the page files, which it saves on this machine
-(`page_template`) when it creates or updates the page. A page made before keel saved it has none, so it is
-offered the update once. Each machine keeps its own: after an update from one machine, another may offer
-it once more, which only publishes the same files again.
+The page itself says which keel page it runs: creating or updating it writes a fingerprint of the page
+files into the page's settings (next to its language). Each end step reads the settings back with the
+other machines' data and keeps this machine's copy (`page_template`), so after an update from one machine
+every other machine stops offering it at its next end step. Before it offers the update,
+`/keel:configure usage` checks the page's settings once more (one call). A page made before keel wrote the
+fingerprint has none and is offered the update.
+
+Only your own page is offered the update. A team page from the project config, or a page shared with you
+from another account, is updated by its owner: `/keel:usage` only says that the owner can update it.
 
 ## Clearing the page
 

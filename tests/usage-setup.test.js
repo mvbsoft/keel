@@ -471,16 +471,36 @@ test('page template: changes when any page file changes, not when only its line 
   assert.notEqual(split('a\nb', ''), split('a', 'b\n'));
 });
 
-test('show: a page with an older or unknown template → offer: update; the current one → no offer', () => {
+test('show: an own page with an older or unknown template → offer: update; the current one → no offer', () => {
   const now = pageTemplate();
   const line = (usage) => world({ usage: { pc: 'p', ...usage }, settings: {} }).run('show').out.split('\n').find((l) => l.startsWith('page template:'));
   const url = 'https://claude.ai/artifact/x';
   assert.equal(line({ artifact_url: url }), `page template: unknown, this keel's: ${now} | offer: update`);
-  assert.equal(line({ artifact_url: url, page_template: 'aaaaaaaaaaaa' }), `page template: aaaaaaaaaaaa, this keel's: ${now} | offer: update`);
+  assert.equal(line({ artifact_url: url, page_shared: false, page_template: 'aaaaaaaaaaaa' }), `page template: aaaaaaaaaaaa, this keel's: ${now} | offer: update`);
   assert.equal(line({ artifact_url: url, page_template: now }), `page template: ${now} (this keel's)`);
-  // A team page approved on this machine is a page too.
-  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'] }), `page template: unknown, this keel's: ${now} | offer: update`);
   // No page → nothing to update.
   assert.equal(line({}), undefined);
   assert.equal(line({ page_template: 'aaaaaaaaaaaa' }), undefined);
+});
+
+test("show: a page this machine cannot write (shared from another account, or a team page) is never offered the update", () => {
+  const now = pageTemplate();
+  const line = (usage) => world({ usage: { pc: 'p', ...usage }, settings: {} }).run('show').out.split('\n').find((l) => l.startsWith('page template:'));
+  const owner = `page template: unknown, this keel's: ${now} | another account's page: its owner updates it`;
+  assert.equal(line({ artifact_url: 'https://claude.ai/artifact/x', page_shared: true }), owner);
+  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'] }), owner);
+  // page_shared belongs to artifact_url: a team page stays its owner's even when it is false.
+  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'], page_shared: false }), owner);
+  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'], page_template: now }), `page template: ${now} (this keel's)`);
+});
+
+test('apply: page_shared is true or false', () => {
+  const w = world({ usage: { pc: 'p' } });
+  assert.equal(w.run('apply', w.file('c.json', { page_shared: true })).code, 0);
+  assert.equal(readJson(path.join(w.dir, 'usage.json')).page_shared, true);
+  for (const v of ['yes', 1, null]) {
+    const r = w.run('apply', w.file('c.json', { page_shared: v }));
+    assert.equal(r.code, 1, String(v));
+    assert.ok(r.out.includes('page_shared'), r.out);
+  }
 });

@@ -7,7 +7,7 @@
 //        node usage-setup.js <projectDir> install-statusline        writes the stable shim, prints the statusLine command
 //        node usage-setup.js <projectDir> page                      copies the dashboard page to .keel/local/tmp/usage-page
 //          (the Artifact tool publishes only files under the project or the scratchpad) and prints the
-//          template fingerprint that configure saves as page_template once the page is published
+//          template fingerprint that configure writes to the page (meta/settings `template`) and to page_template
 // `show` also says what the status line is now: keel's runner, a command keel could wrap, or none,
 // and whether the published page still runs an older template than this keel's.
 // The status line itself is written by claude-settings.js (key statusLine), which keeps a backup.
@@ -54,6 +54,7 @@ const KEYS = {
   artifact_url: (v) => v === null || (typeof v === 'string' && /^https:\/\/claude\.ai\//.test(v)),
   approved_artifact_urls: (v) => Array.isArray(v) && v.length <= 20 && v.every((u) => typeof u === 'string' && /^https:\/\/claude\.ai\//.test(u)),
   page_template: (v) => typeof v === 'string' && /^[0-9a-f]{12}$/.test(v),
+  page_shared: (v) => typeof v === 'boolean',
   statusline: (v) => v && typeof v === 'object' && ['keel', 'wrap', 'none'].includes(v.mode),
 };
 
@@ -83,7 +84,7 @@ function show(root = process.cwd()) {
     `pc: ${m.pc} | user: ${m.user || 'unknown'} | wallet of this session: ${detectWallet({ projectDir: root, machine: m })}`,
     `wallet_default: ${m.wallet_default} | cloud_wallet: ${m.cloud_wallet} | also_api: ${m.also_api} | prompt_preview: ${m.prompt_preview}`,
     `artifact_url: ${m.artifact_url || 'not set'}${m.approved_artifact_urls.length ? ` | approved project urls: ${m.approved_artifact_urls.join(', ')}` : ''}`,
-    ...(m.artifact_url || m.approved_artifact_urls.length ? [pageTemplateLine(m.page_template)] : []),
+    ...(m.artifact_url || m.approved_artifact_urls.length ? [pageTemplateLine(m)] : []),
     `status line now: ${sl.now}${sl.command ? ` (${sl.command})` : ''}${sl.offer ? ` | offer: ${sl.offer}` : ''}`,
     ...(sl.original ? [`status line setting to keep as statusline.original when wrapping: ${JSON.stringify(sl.original)}`] : []),
     `prices: ${table.source}, ${table.models.length} models${prices.validate(table).length ? ` | notes: ${prices.validate(table).join('; ')}` : ''}`,
@@ -125,10 +126,14 @@ function pageTemplate(dir = TEMPLATE) {
   return h.digest('hex').slice(0, 12);
 }
 
-// A page published before keel recorded the fingerprint has none, and is offered the update too.
-function pageTemplateLine(saved) {
+// page_template is what the page's meta/settings said at the last sync or configure. A page published before
+// keel recorded the fingerprint has none. Only this account's own page (artifact_url, not page_shared) is
+// offered the update: a team page or one shared from another account is updated by its owner.
+function pageTemplateLine(m) {
   const now = pageTemplate();
-  return saved === now ? `page template: ${now} (this keel's)` : `page template: ${saved || 'unknown'}, this keel's: ${now} | offer: update`;
+  if (m.page_template === now) return `page template: ${now} (this keel's)`;
+  const own = !!m.artifact_url && !m.page_shared;
+  return `page template: ${m.page_template || 'unknown'}, this keel's: ${now} | ${own ? 'offer: update' : "another account's page: its owner updates it"}`;
 }
 
 function page(root) {

@@ -18,7 +18,8 @@ Use only the `artifact_url` and `page template` lines above; run nothing else an
   line, then one line: the page shows what every session cost, by participant, model and request,
   from every machine, and keel adds to it at each `/keel:end-task`, `/keel:end-session` and
   `/keel:end-planning`. `page template` says `offer: update` → one more line: the page was made by an
-  older keel, and `/keel:configure usage` updates it and keeps its data. Then open it with the
+  older keel, and `/keel:configure usage` updates it and keeps its data; says `its owner updates it` →
+  one line: the page was made by an older keel, and its owner can update it. Then open it with the
   Artifact tool (`action: open`, that `url`) when you have that tool; otherwise say to open the link in a browser (in the terminal, `/artifacts` lists it too).
 - `not set` and no approved urls → say this machine has no usage page yet and `/keel:configure usage`
   sets it up (it also finds a page made on another machine of the same account).
