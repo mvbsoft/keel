@@ -12,6 +12,9 @@ const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const EVALS = path.join(PLUGIN, 'evals');
 const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
+// The chat the planning cases resume: shop.js marks it, each case's history.jsonl keeps its id.
+const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(SHOP, 'utf8'))[1];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planned', 'task-active'];
 
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
 const front = (file) => {
@@ -29,9 +32,13 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
     for (const k of Object.keys(p.keys)) assert.ok(PROMPT_KEYS.has(k), `${name}: prompt.md key ${k}`);
     assert.equal(p.keys.model, 'sonnet', name);
     // A case tagged standards gives a plain request: it checks the coding standards keel adds to every
-    // conversation, not a command.
+    // conversation, not a command. One tagged lanes may also give a plain request or a bare /name: the
+    // lane guards stop both; a command it names is one of keel's.
     if (/\bstandards\b/.test(p.keys.tags || '')) assert.doesNotMatch(p.body, /^\/keel:/, `${name}: a plain request`);
-    else assert.match(p.body, /^\/keel:/, `${name}: the prompt is a keel command`);
+    else if (/\blanes\b/.test(p.keys.tags || '')) {
+      const command = /^\/(?:keel:)?([a-z][a-z-]*)/.exec(p.body);
+      if (p.body.startsWith('/')) assert.ok(command && fs.existsSync(path.join(PLUGIN, 'skills', command[1], 'SKILL.md')), `${name}: /${command ? command[1] : ''} is a keel command`);
+    } else assert.match(p.body, /^\/keel:/, `${name}: the prompt is a keel command`);
     const graders = fs.readdirSync(path.join(dir, 'graders'));
     assert.ok(graders.length, `${name}: graders`);
     for (const g of graders) {
@@ -44,14 +51,72 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
       assert.match(yaml, /^schema_version: "1\.1"$/m, name);
       assert.match(yaml, new RegExp(`^name: ${name}$`, 'm'), name);
       assert.match(yaml, /scaffold_script: fixture\.sh/, name);
-      assert.match(fs.readFileSync(path.join(dir, 'fixture.sh'), 'utf8'), /node "\$\(dirname "\$0"\)\/\.\.\/_fixtures\/shop\.js" (base|tasks|finish|session|messy|overbuilt)\n$/, name);
+      assert.match(fs.readFileSync(path.join(dir, 'fixture.sh'), 'utf8'), new RegExp(`node "\\$\\(dirname "\\$0"\\)/\\.\\./_fixtures/shop\\.js" (${VARIANTS.join('|')})\\n$`), name);
+      // A written conversation the run resumes: every line a JSON record of the chat shop.js marks.
+      const history = /^\s*history_file:\s*["']?([^"'\s]+)["']?\s*$/m.exec(yaml);
+      if (history) {
+        const file = path.join(dir, history[1]);
+        assert.ok(fs.existsSync(file), `${name}: ${history[1]} exists`);
+        const lines = fs.readFileSync(file, 'utf8').split('\n').filter((l) => l.trim());
+        assert.ok(lines.length, `${name}: ${history[1]} has lines`);
+        for (const [i, l] of lines.entries()) {
+          let r;
+          assert.doesNotThrow(() => { r = JSON.parse(l); }, `${name}: ${history[1]} line ${i + 1} is JSON`);
+          assert.equal(r.sessionId, SID, `${name}: ${history[1]} line ${i + 1} is the chat shop.js marks`);
+        }
+      }
     }
   }
 });
 
-test('the shop fixture builds each variant with git, a remote inside the workspace and trust only in the run\'s home', { skip: !hasGit && 'git is not installed' }, () => {
+const script = (name, work, ...a) => spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', name), work, ...a], { encoding: 'utf8' }).stdout;
+
+// A draft csv-export the chat SID plans, with nothing for /keel:end-planning to review again.
+const draftState = (state, where) => (work) => {
+  assert.match(script('plans.js', work, 'check', 'csv-export'), /^check: clean \(plan\.md and 2 tickets\)$/m, 'check');
+  assert.match(script('plans.js', work, 'review', 'csv-export'), /^review: 0 of 2 tickets to review$/m, 'review');
+  assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: csv-export$/m, 'the chat mark');
+  assert.match(script('plans.js', work, 'list'), new RegExp(`^- csv-export: ${state} · .* · ${where}$`, 'm'), 'the draft');
+};
+
+// What each variant beyond the branch, tasks and changes must give the scripts the skills run.
+const STATE = {
+  planning: draftState('draft · open Q 0', '\\.keel/local/plans/keel/csv-export/ \\(this machine only\\)'),
+  'planning-openq': draftState('draft · open Q 1', '\\.keel/local/plans/keel/csv-export/ \\(this machine only\\)'),
+  'planning-ready': (work, git) => {
+    draftState('ready · open Q 0', '\\.keel/local/plans/keel/csv-export/ \\(this machine only\\)')(work);
+    const settings = script('plans.js', work, 'settings');
+    assert.match(settings, /^export: -$/m);
+    assert.match(settings, /^prefix: INV$/m);
+    assert.match(git('show', 'HEAD:AGENTS.md'), /^No ticket or backlog files in this repository: tickets live in Jira\.$/m);
+  },
+  'planning-repo': draftState('draft · open Q 0', 'tickets/csv-export/'),
+  planned: (work) => {
+    const out = script('plans.js', work, 'tickets', '--fetch');
+    assert.match(out, /^ {2}INV-1 .* — done$/m, out);
+    assert.match(out, /^ {2}INV-2 .* — in progress · branch INV-2-[\w-]+, Dana Smith, /m, out);
+    assert.match(out, /^ {2}INV-3 .* — waiting for merge into the feature branch · /m, out);
+    assert.match(out, /^ {2}INV-4 .* — to do$/m, out);
+    assert.match(script('plans.js', work, 'tickets', 'INV-4', '--fetch'), /^ {2}depends: INV-3 waiting for merge into the feature branch$/m);
+  },
+  'task-active': (work, git) => {
+    assert.match(script('notes.js', work, 'task', 'active', '--session', SID), /^active task: CAN-123$/m);
+    const task = fs.readFileSync(path.join(work, '.keel', 'tasks', 'CAN-123', 'task.md'), 'utf8');
+    assert.match(task, /^status: active$/m);
+    // started: main before the task branch, so the task's code shows in git diff <started>.
+    const started = /^started: ([0-9a-f]{40})$/m.exec(task);
+    assert.ok(started, 'started');
+    assert.equal(started[1], git('rev-parse', 'main'));
+    assert.match(git('diff', '--name-only', started[1]), /^src\/cart\.js$/m);
+  },
+};
+
+test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
   const expect = { base: ['main', 0, ''], tasks: ['main', 0, ''], finish: ['CAN-200-free-shipping', 1, ''], session: ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
-    messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'] };
+    messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
+    planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'],
+    planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''] };
+  assert.deepEqual(Object.keys(expect), VARIANTS);
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {
     const work = fs.mkdtempSync(path.join(os.tmpdir(), `keel-eval-${variant}-`));
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-eval-home-'));
@@ -66,6 +131,7 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     assert.ok(fs.existsSync(path.join(home, '.claude', 'keel', 'trusted-git.json')), `${variant}: trust in the run's home`);
     const check = spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', 'check-config.js'), work], { encoding: 'utf8' }).stdout;
     assert.match(check, /^keel-config: ok/, variant);
+    if (STATE[variant]) STATE[variant](work, git);
   }
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-eval-tasks-'));
   execFileSync(process.execPath, [SHOP, 'tasks'], { cwd: work, env: { ...process.env, HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'keel-eval-home-')) } });
