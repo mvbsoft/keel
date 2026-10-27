@@ -601,3 +601,58 @@ test('prepare: day documents sent before only keel sessions were listed are rebu
   assert.equal(read(file).sessions_rule, 'keel');
   assert.deepEqual(writesOf(w.prepare()).map((x) => x.doc_id), ['testpc'], 'only once');
 });
+
+// --- the page's template: meta/settings read back by the sync ---
+
+const SETUP = path.join(PLUGIN, 'scripts', 'usage-setup.js');
+const { pageTemplate } = require(SETUP);
+const metaIn = (doc) => {
+  const inDir = tmp('keel-cli-in-');
+  if (doc !== undefined) {
+    fs.mkdirSync(path.join(inDir, 'meta'));
+    fs.writeFileSync(path.join(inDir, 'meta', 'settings.json'), JSON.stringify(doc));
+  }
+  return inDir;
+};
+const machineFile = (w) => read(path.join(w.dir, 'usage.json'));
+
+test("report --in: the page's template becomes this machine's page_template, and show then offers nothing", () => {
+  const now = pageTemplate();
+  const w = world({ artifact_url: 'https://claude.ai/artifact/x', page_template: 'aaaaaaaaaaaa' });
+  w.run(['report', '--project', w.project, '--in', metaIn({ language: 'uk', schema: 1, template: now })]);
+  assert.equal(machineFile(w).page_template, now);
+  assert.equal(machineFile(w).pc, 'testpc', 'the other settings stay');
+  const show = spawnSync(process.execPath, [SETUP, w.project, 'show'], { encoding: 'utf8', env: { ...process.env, KEEL_USAGE_DIR: w.dir, KEEL_USER_SETTINGS: path.join(w.home, 'settings.json'), HOME: w.home, USERPROFILE: w.home } });
+  assert.ok(show.stdout.split(/\r?\n/).includes(`page template: ${now} (this keel's)`), show.stdout);
+});
+
+test('report --in: the settings document may come wrapped, as the query saves it', () => {
+  for (const doc of [{ version: 2, data: { language: 'en', template: '0123456789ab' } }, { doc: { schema: 1, template: '0123456789ab' } }]) {
+    const w = world();
+    w.run(['report', '--project', w.project, '--in', metaIn(doc)]);
+    assert.equal(machineFile(w).page_template, '0123456789ab', JSON.stringify(doc));
+  }
+});
+
+test("report --in: a page without a template (or a bad one) runs an older keel's page, so page_template is cleared", () => {
+  for (const doc of [{ language: 'uk', schema: 1 }, { language: 'uk', template: 'not-a-print' }, { language: 'uk', template: 5 }]) {
+    const w = world({ page_template: '0123456789ab' });
+    w.run(['report', '--project', w.project, '--in', metaIn(doc)]);
+    assert.equal(machineFile(w).page_template, null, JSON.stringify(doc));
+  }
+});
+
+test('report: no settings document read, or no --in → page_template stays as it was', () => {
+  for (const args of [['--in', metaIn()], ['--in', metaIn('not an object')], []]) {
+    const w = world({ page_template: '0123456789ab' });
+    w.run(['report', '--project', w.project, ...args]);
+    assert.equal(machineFile(w).page_template, '0123456789ab', JSON.stringify(args));
+  }
+});
+
+test('report --in: a machine that was never configured gets no usage.json from the page template', () => {
+  const w = world();
+  fs.rmSync(path.join(w.dir, 'usage.json'));
+  w.run(['report', '--project', w.project, '--in', metaIn({ template: '0123456789ab' })]);
+  assert.equal(fs.existsSync(path.join(w.dir, 'usage.json')), false);
+});

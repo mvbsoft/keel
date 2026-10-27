@@ -40,8 +40,10 @@ function loadMachineConfig(env = process.env) {
     artifact_url: typeof c.artifact_url === 'string' && c.artifact_url ? c.artifact_url : null,
     // project artifact URLs (from the committed .keel/config.json) the user approved on this machine
     approved_artifact_urls: Array.isArray(c.approved_artifact_urls) ? c.approved_artifact_urls.filter((u) => typeof u === 'string' && u) : [],
-    // fingerprint of the page template this machine last published (usage-setup.js page prints it)
+    // the page's template fingerprint (its meta/settings `template`), as this machine last saw it
     page_template: typeof c.page_template === 'string' && c.page_template ? c.page_template : null,
+    // artifact_url is a page shared from another account: its owner updates it
+    page_shared: c.page_shared === true,
     statusline: c.statusline && typeof c.statusline === 'object' ? c.statusline : { mode: 'none' },
   };
 }

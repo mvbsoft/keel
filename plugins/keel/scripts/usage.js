@@ -6,7 +6,8 @@
 //             builds the day documents that changed since the last sync, writes them to <out> (a folder
 //             under <project>/.keel/local/usage/, default usage/out) and prints the ArtifactData batch spec as JSON
 //   ack       [--batch <n>] [--failed <docId>]...   marks the prepared writes (or those of batch n) as written (versions go up by one)
-//   report    [--session <id>] [--in <dir>] [--lang uk|en] [--project <dir>]   the end report for a session
+//   report    [--session <id>] [--in <dir>] [--lang uk|en] [--project <dir>]   the end report for a session; also
+//             keeps page_template in step with the page's meta/settings read into <in>
 //   snapshot  --src desktop --five-hour <n> --seven-day <n> [--five-hour-resets <iso>] [--seven-day-resets <iso>] [--session <id>]
 //   calibrate [--in <dir>]   the calibration table (points, rates, machines still to sync)
 // Files: <usageDir> = ~/.claude/keel (KEEL_USAGE_DIR); transcripts: ~/.claude/projects (KEEL_PROJECTS_DIR).
@@ -15,7 +16,7 @@ const os = require('node:os');
 const path = require('node:path');
 const store = require('./lib/usage-store.js');
 const { activeTask, planText } = require('./lib/tasks.js');
-const { usageDir, loadMachineConfig } = require('./lib/usage-config.js');
+const { usageDir, loadMachineConfig, writeMachineConfig } = require('./lib/usage-config.js');
 const { readSnapshots, snapshotFromPercents } = require('./lib/limits.js');
 const { calibrate, share } = require('./lib/calibrate.js');
 const { pickLanguage, translator } = require('./lib/i18n.js');
@@ -295,6 +296,28 @@ function unwrap(x, depth = 0) {
   return [];
 }
 
+// The page's meta/settings document as the query saved it (possibly wrapped), or null when it was not read.
+function pageSettings(inDir) {
+  let x = readJson(path.join(inDir, 'meta', 'settings.json'));
+  for (let depth = 0; x && typeof x === 'object' && !Array.isArray(x) && depth < 5; depth++) {
+    if ('template' in x || 'language' in x || 'schema' in x) return x;
+    const k = WRAPPERS.find((w) => x[w] && typeof x[w] === 'object');
+    x = k ? x[k] : null;
+  }
+  return null;
+}
+
+// The page says which keel page it runs (meta/settings `template`, written by configure). This machine keeps
+// a copy as page_template, so show and /keel:usage are right after the page was updated from another machine.
+// A page without the field runs an older keel's page. An unconfigured machine gets no usage.json from this.
+function notePageTemplate(inDir, machine) {
+  const s = inDir && pageSettings(inDir);
+  if (!s || !machine.configured) return;
+  const t = typeof s.template === 'string' && /^[0-9a-f]{12}$/.test(s.template) ? s.template : null;
+  if (t === machine.page_template) return;
+  try { writeMachineConfig({ page_template: t }); } catch {}
+}
+
 function jsonFiles(dir, depth = 0) {
   let entries = [];
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return []; }
@@ -454,6 +477,7 @@ function renderReport({ t, summary, wallet, cal, snapshots, cc }) {
 
 function report(opts) {
   const machine = loadMachineConfig();
+  notePageTemplate(inFolder(opts), machine);
   const t = textsFor(opts);
   const root = projectDir(opts);
   const base = projectsRoot();

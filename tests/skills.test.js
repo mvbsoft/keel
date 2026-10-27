@@ -271,21 +271,45 @@ test('configure-flow.md has the usage and write sections, and names only usage-s
   for (const sub of used) assert.ok(line.includes(sub), `usage-setup.js has no ${sub}`);
 });
 
-test('configure-flow.md updates a published page in place: offered from show, read first, same url, data kept', () => {
+test('configure-flow.md updates a published page in place: the page says its template, read first, same url, data kept', () => {
   const text = read('skills', '_shared', 'configure-flow.md');
-  assert.ok(text.includes('`page template: ... | offer: update`'), 'step 5 offers the update from the show line');
+  const offer = text.slice(text.indexOf('5. **Dashboard page**'), text.indexOf('6. **Price update**'));
+  assert.ok(offer.includes('`page template: ... | offer: update`'), 'step 5 starts from the show line');
+  // The page is the source of truth: one get of meta/settings before anything is offered.
+  assert.match(offer, /`ArtifactData`\s+`get`, that url, collection `meta`, doc `settings` \(one call\)/);
+  assert.match(offer, /`template` is this keel's .*→ save it as `page_template` \(step 7\) and offer nothing/s);
+  assert.ok(offer.indexOf('`get`, that url') < offer.indexOf('listed → offer to update it'), 'get first, offer last');
+  // A page this account does not own is never offered the update.
+  assert.match(offer, /`action: list`, mine, `limit` 200; the url is\s+not listed → save `page_shared: true` and say its owner updates it; listed → offer to update it/);
+  assert.match(offer, /`show` says `its owner updates it` → offer nothing/);
+  assert.match(offer, /`page_shared` true when it came from the shared list and false\s+from mine/);
+  const keys = text.slice(text.indexOf('7. **Write**'), text.indexOf('- Status line `install`'));
+  assert.match(keys, /`page_shared`, `page_template`/, 'apply writes both keys');
   const step = text.slice(text.indexOf('- Update the page (only after a yes)'), text.indexOf('- The first sync happens'));
   assert.ok(step.length > 100, 'step 7 has the update step');
   assert.match(step, /`action: read`, that `url`/, 'read first: the Artifact tool publishes over a page only after a read');
-  assert.match(step, /title is not "keel\s+usage" or the read does not say "writer" → stop/);
+  assert.match(step, /title is not "keel usage" → stop/);
+  assert.match(step, /The read does not say\s+"writer" → stop, save `\{ "page_shared": true \}` and say its owner updates it/);
   assert.match(step, /usage-setup\.js" "<project>" page`/);
-  assert.match(step, /that `url`, the same `file_path` and `files`/);
-  assert.match(step, /no `title`,\s+`icon` or `capabilities`/, 'the page keeps its capabilities');
-  assert.match(step, /data and language setting stay/);
-  assert.match(step, /\{ "page_template": "<printed\s+value>" \}` through the same `apply`/);
-  // Creating the page saves the fingerprint too, or the new page would be offered an update at once.
+  assert.match(step, /that\s+`url`, the same `file_path` and `files`/);
+  assert.match(step, /no `title`, `icon` or `capabilities`/, 'the page keeps its capabilities');
+  assert.match(step, /Its data stays/);
+  // The update writes the template into the page (merging, so language and schema stay), then saves it here.
+  assert.match(step, /ArtifactData `update` collection `meta`, doc `settings`,\s+`\{ "template": "<page_template printed by page>" \}` \(it keeps `language` and `schema`; no such\s+document → `set` it/);
+  assert.match(step, /save `\{ "page_template": "<printed value>" \}` through the same `apply`/);
+  // Creating the page writes the template into the page and here, or it would be offered an update at once.
   const create = text.slice(text.indexOf('- Create the page (only after a yes)'), text.indexOf('- Update the page'));
-  assert.match(create, /"page_template": "<printed value>"/);
+  assert.match(create, /`set` to collection `meta`, doc `settings`,\s+`\{ "language": "<conversation language code>", "schema": 1, "template": "<page_template printed by page>" \}`/);
+  assert.match(create, /"page_shared": false, "page_template": "<printed value>"/);
+});
+
+test('usage-sync.md step 4 reads the page settings too, into the same folder report reads', () => {
+  const text = read('skills', '_shared', 'usage-sync.md');
+  const step = text.slice(text.indexOf('4. **Read'), text.indexOf('5. **'));
+  assert.match(step, /three `ArtifactData` calls/);
+  assert.match(step, /`out_dir` = `<project>\/\.keel\/local\/usage\/in`/);
+  assert.match(step, /collection `meta` with `query: \{ limit: 10 \}`/);
+  assert.match(text, /usage\.js" report .*--in "<project>\/\.keel\/local\/usage\/in"/, 'report reads the same folder');
 });
 
 test('/keel:usage: user-only, reads only the usage settings and gives or opens the page link', () => {
@@ -296,6 +320,7 @@ test('/keel:usage: user-only, reads only the usage settings and gives or opens t
   assert.match(body, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/usage-setup\.js" "\$\{CLAUDE_PROJECT_DIR\}" show`$/m);
   assert.match(body, /`artifact_url`/);
   assert.match(body, /`page template` says `offer: update` → one more line: .*older\s+keel, and `\/keel:configure usage` updates it and keeps its data/s);
+  assert.match(body, /says `its owner updates it` →\s+one line: the page was made by an older keel, and its owner can update it/);
   assert.match(body, /Artifact tool \(`action: open`/);
   assert.match(body, /`\/keel:configure usage`/);
   assert.match(body, /the language in keel's session-start line/);

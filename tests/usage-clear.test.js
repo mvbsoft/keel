@@ -39,7 +39,7 @@ function savedPage(out) {
   write(path.join(out, 'days', '2026-01-05_office.json'), { ...day('2026-01-05', 1, []), pc: 'office' });
   write(path.join(out, 'machines', 'testpc.json'), { name: 'testpc', synced_until: '2026-01-03T00:00:00Z' });
   write(path.join(out, 'calib', 'testpc.json'), { pc: 'testpc', points: [] });
-  write(path.join(out, 'meta', 'settings.json'), { language: 'uk', schema: 1 });
+  write(path.join(out, 'meta', 'settings.json'), { language: 'uk', schema: 1, template: '0123456789ab' });
 }
 
 test('start: a fresh query folder under .keel/local/usage/clear, emptied each time', () => {
