@@ -198,7 +198,8 @@ a task or session keel reminds you of `/keel:cleanup` only when enough leftovers
 
 `/keel:usage` gives the link to this machine's private ["keel usage" page](usage-dashboard.md) and
 opens it. It works in any project, set up or not. No page on this machine yet → it says so and points
-to `/keel:configure usage`.
+to `/keel:configure usage`. A page made by an older keel → it also says that `/keel:configure usage`
+[updates it](usage-dashboard.md#updating-the-page) and keeps its data.
 
 ## `/keel:usage-clear`
 

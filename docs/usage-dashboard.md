@@ -94,7 +94,8 @@ session's share is its dollars divided by the rate.
 
 ## The "keel usage" page
 
-`/keel:configure usage` can create the page (it asks first). It is private: only you see it, unless you
+`/keel:configure usage` can create the page (it asks first), and later [update it](#updating-the-page) to a
+newer keel's page. It is private: only you see it, unless you
 share it. `/keel:usage` gives its link and opens it. Its tabs follow. The screenshots show sample data, not real numbers.
 
 ### Dashboard
@@ -209,6 +210,21 @@ sends to it only after its user approves that address, so a cloned repository ca
 usage goes. Once approved, the team page receives this machine's usage from **all** its projects, not only
 from this one: project folder names, branches and request previews (unless previews are off), as listed
 above. A machine's own `artifact_url` always wins: a machine that has one keeps sending there.
+
+## Updating the page
+
+A page is a copy of keel's page files made when it was created, so a newer keel's page (for example the
+planning chats of 1.3.0) does not reach it by itself. When this machine's page was made by an older keel,
+`/keel:usage` says so and `/keel:configure usage` offers to update it. After your yes keel reads the page
+(the Artifact tool publishes over a page only after a read; about $0.1-0.3, an estimate) and publishes
+keel's current page files to the same address. The data stays: every machine's days, the calibration and
+the page's language live in the page's database, not in its files. keel stops and changes nothing when the
+page is not titled "keel usage" or you cannot edit it; a team page is updated by its owner.
+
+keel tells an older page by a fingerprint of the page files, which it saves on this machine
+(`page_template`) when it creates or updates the page. A page made before keel saved it has none, so it is
+offered the update once. Each machine keeps its own: after an update from one machine, another may offer
+it once more, which only publishes the same files again.
 
 ## Clearing the page
 

@@ -271,6 +271,23 @@ test('configure-flow.md has the usage and write sections, and names only usage-s
   for (const sub of used) assert.ok(line.includes(sub), `usage-setup.js has no ${sub}`);
 });
 
+test('configure-flow.md updates a published page in place: offered from show, read first, same url, data kept', () => {
+  const text = read('skills', '_shared', 'configure-flow.md');
+  assert.ok(text.includes('`page template: ... | offer: update`'), 'step 5 offers the update from the show line');
+  const step = text.slice(text.indexOf('- Update the page (only after a yes)'), text.indexOf('- The first sync happens'));
+  assert.ok(step.length > 100, 'step 7 has the update step');
+  assert.match(step, /`action: read`, that `url`/, 'read first: the Artifact tool publishes over a page only after a read');
+  assert.match(step, /title is not "keel\s+usage" or the read does not say "writer" → stop/);
+  assert.match(step, /usage-setup\.js" "<project>" page`/);
+  assert.match(step, /that `url`, the same `file_path` and `files`/);
+  assert.match(step, /no `title`,\s+`icon` or `capabilities`/, 'the page keeps its capabilities');
+  assert.match(step, /data and language setting stay/);
+  assert.match(step, /\{ "page_template": "<printed\s+value>" \}` through the same `apply`/);
+  // Creating the page saves the fingerprint too, or the new page would be offered an update at once.
+  const create = text.slice(text.indexOf('- Create the page (only after a yes)'), text.indexOf('- Update the page'));
+  assert.match(create, /"page_template": "<printed value>"/);
+});
+
 test('/keel:usage: user-only, reads only the usage settings and gives or opens the page link', () => {
   const { fields, body } = parse('usage');
   assert.equal(fields.name, 'usage');
@@ -278,6 +295,7 @@ test('/keel:usage: user-only, reads only the usage settings and gives or opens t
   assert.match(fields['allowed-tools'], /^Bash\(node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/usage-setup\.js" \*\), PowerShell\(/);
   assert.match(body, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/usage-setup\.js" "\$\{CLAUDE_PROJECT_DIR\}" show`$/m);
   assert.match(body, /`artifact_url`/);
+  assert.match(body, /`page template` says `offer: update` → one more line: .*older\s+keel, and `\/keel:configure usage` updates it and keeps its data/s);
   assert.match(body, /Artifact tool \(`action: open`/);
   assert.match(body, /`\/keel:configure usage`/);
   assert.match(body, /the language in keel's session-start line/);

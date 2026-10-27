@@ -6,6 +6,12 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `/keel:configure usage` updates an already published "keel usage" page to the current keel's page,
+  at the same address and with all its data, after a yes. keel saves a fingerprint of the page files on
+  each machine (`page_template`), so `/keel:usage` and `/keel:configure usage` tell when the page was
+  made by an older keel.
+
 ### Fixed
 - keel's own commands in Bash could run on another folder than the one keel checked: a script path
   with a double backslash (keel on a network share) or a word such as `//srv\share\p`, which Git Bash

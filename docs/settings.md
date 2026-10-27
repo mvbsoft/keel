@@ -101,6 +101,7 @@ In `~/.claude/keel/usage.json` unless noted. Set in `/keel:configure` (section "
 | `history_days` | how far back the first sync to a usage page reaches (also the first sync after the page address changes); later syncs send what changed since the last one | days | 30 |
 | `artifact_url` | the address of your private "keel usage" page | a claude.ai link | none |
 | `approved_artifact_urls` | team page addresses from project configs that you allowed this machine to send to; used only while `artifact_url` is not set | claude.ai links | none |
+| `page_template` | the fingerprint of keel's page files this machine last published to the usage page; when this keel's files differ, `/keel:usage` and `/keel:configure usage` offer to [update the page](usage-dashboard.md#updating-the-page) | written by `/keel:configure usage` | none |
 | autonomous git (in `trusted-git.json`) | projects where you confirmed, in Claude Code's prompt, that keel may run its git steps (branch, commit, update from the main branch, push) without asking each time (a push from the main branch goes through your normal permissions; a merge still asks unless `git.ask_before_merge` is off), with a fingerprint of the project's `git` settings: when they change, keel asks again until you confirm once more | written by `git-flow.js trust` | none |
 | prices (in `prices.json`) | your own price table, written by `/keel:configure prices` | a price table | keel's bundled table |
 
