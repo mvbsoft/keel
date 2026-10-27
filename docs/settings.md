@@ -162,7 +162,7 @@ start ("draft in the repo") is saved too.
 | `language`, `draft`, `draft_dir` | the language of `plan.md` and the tickets; where a draft lives; its folder in the repository | a language code; `pc` (this machine) or `repo`; a folder | `repo_language`; `pc`; `tickets` |
 | `export`, `export_dir`, `prefix` | where exported tickets go; their folder in the repository; the start of each ticket key (`PROJ` in `PROJ-12`) | `pc` or `repo`; a folder; 2-10 capital letters and digits, starting with a letter | none; `tickets`; none |
 
-A folder is never a hidden one, `handoff/`, `handoffs/` or `docs/plans`. How they are used:
+Places keel never uses: [export](workflows.md#export). How they are used:
 [ways of working](workflows.md#planning).
 
 ## Examples

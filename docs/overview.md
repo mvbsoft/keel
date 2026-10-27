@@ -23,7 +23,7 @@ of short tickets that tasks or a session then build.
 | | Tasks | Sessions | Planning |
 |---|---|---|---|
 | What | point changes: a bug, a ticket, a small feature; many at once | one big job from a plan, day after day | a feature thought through before code, in one conversation or several: decisions and short tickets |
-| Commands | `/keel:start-task <anything>`, `/keel:end-task [instruction]`, `/keel:tasks` | `/keel:start-session [plan \| description \| link \| nothing]`, `/keel:end-session [instruction]` | `/keel:start-planning [idea \| link \| file \| feature \| nothing]`, `/keel:end-planning [instruction]` |
+| Commands | `/keel:start-task <anything>`, `/keel:end-task [instruction]`, `/keel:tasks` | `/keel:start-session [plan \| description \| link \| feature \| nothing]`, `/keel:end-session [instruction]` | `/keel:start-planning [idea \| link \| file \| feature \| nothing]`, `/keel:end-planning [instruction]` |
 | Lives in | `.keel/tasks/<id>/`, on the task's branch | `.keel/next-session.md` | a draft in `.keel/local/plans/keel/<feature>/` or in the repository; then the feature folder |
 
 **How to choose:** "done" within 1-3 sittings → a task; a plan for weeks with items for "later" → a
@@ -50,7 +50,7 @@ with your yes.
 - **A key led by a session:** "this is led by /keel:start-session".
 - **A planned ticket** (`next ticket` or its key): keel shows its state and offers its feature branch;
   then it goes on as a new task. A task that turns out too big can become planning while no code has
-  changed.
+  changed (after code changes: once it is handed off).
 
 More: [start a task](workflows.md#start-a-task-keelstart-task).
 
@@ -78,8 +78,8 @@ More: [the /keel:tasks command](commands.md#keeltasks).
 
 ## 5. Sessions
 
-`/keel:start-session` continues from the note, or starts a new line from a plan, a description or a
-link; with no note it proposes work and never starts a task itself. `/keel:end-session` verifies the
+`/keel:start-session` continues from the note, or starts a new line from a plan, a description, a
+link or a feature's planned tickets; with no note it proposes work and never starts a task itself. `/keel:end-session` verifies the
 session's work, updates the note and does git; `/keel:end-session we continue tomorrow, prepare` runs
 only the gates; `/keel:end-session push and merge into main` also merges.
 More: [start a session](workflows.md#start-a-session-keelstart-session),
@@ -91,8 +91,9 @@ More: [start a session](workflows.md#start-a-session-keelstart-session),
 against the code, then asks one question at a time and writes the decisions and short tickets into a
 draft; no code changes here. With no argument it lists the drafts. `/keel:end-planning we continue
 tomorrow` reviews the changed tickets and saves where planning stands; `/keel:end-planning final review
-and export` has reviewer agents check every ticket and then the whole plan, and exports the tickets into
-the feature folder with real keys. Then `/keel:start-task next ticket` builds them one by one.
+and export` has reviewer agents check the tickets not yet reviewed as they are now, and then the whole
+plan, and exports the tickets into the feature folder with real keys. Then `/keel:start-task next
+ticket` builds them one by one, or `/keel:start-session <feature>` takes them one by one in a session.
 More: [planning](workflows.md#planning), [start-planning](commands.md#keelstart-planning),
 [end-planning](commands.md#keelend-planning).
 

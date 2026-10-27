@@ -134,4 +134,4 @@ work, and every session with its agents.
 | compaction | `autoCompactWindow` | on Opus 5.5 about $0.12 of cache reads per request at 600k tokens, $0.06 at 300k | computed from the list price of cache reads ($0.20 per million tokens) |
 | `/clear` | between tasks | shorter conversation | — |
 | output limit | `bashOutputMaxChars` | 15,000 characters | keel's recommendation (Claude Code's default is 30,000) |
-| keel's overhead | — | about 3.5k tokens per request; the end-of-task sync about $0.01-0.04 | estimates from the size of what keel adds |
+| keel's overhead | — | what keel adds to every request, and the end-of-task sync: figures in [overhead](under-the-hood.md#overhead) | estimates from the size of what keel adds |
