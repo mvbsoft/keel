@@ -788,3 +788,13 @@ test('planning-guard: an exported feature reopened with mark set (no draft) is w
   assert.equal(guard(dir, 'chat-pc', 'features/s3-storage/PROJ-2-upload.md'), 'deny');
   assert.equal(guard(dir, 'chat-pc', 'src/app.js'), 'deny');
 });
+
+gitTest('featureFolder: the feature name is matched as written, not as a pattern', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keel-export-name-'));
+  git(dir, 'init', '-q');
+  write(dir, '.keel/config.json', JSON.stringify(CONFIG()));
+  write(dir, 'work/axc/PROJ-1-client.md', '---\ntype: ticket\nkey: PROJ-1\nstatus: todo\n---\n# [PROJ-1] Client\n');
+  const { featureFolder } = require(path.join(SCRIPTS, 'lib', 'plans-export.js'));
+  assert.equal(featureFolder(dir, 'axc')?.folder, path.join(dir, 'work', 'axc'), 'the control: the name itself');
+  assert.equal(featureFolder(dir, 'a.c'), null);
+});
