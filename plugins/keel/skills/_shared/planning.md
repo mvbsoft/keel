@@ -50,8 +50,8 @@ Its tickets live in the feature folder; work there continues while others may al
    then the mark again; no → stop. The mark set prints `planning: <f> (exported: <folder>)`.
 3. Only `to do` (or `next`) tickets are edited: show each change and write it only on a yes. Then
    `plans.js check <f>` and a ticket review of the changed tickets ("Reviews" steps 3, 5 and 6 with
-   the feature folder; no `plans.js review` or `reviewed`, no `reviews/` record: the user decides each
-   finding in the chat).
+   the feature folder: each reply goes through `plans.js report` too; no `plans.js review` or
+   `reviewed`, no `reviews/` record: the user decides each finding in the chat).
 4. A ticket `in progress`, `waiting for ...` or `done` is never changed: offer a new ticket, or leave it
    as it is; name whom it concerns (the branch and author of its hint).
 5. A new ticket: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "K1,K2"]` →

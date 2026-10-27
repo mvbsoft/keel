@@ -17,7 +17,8 @@ const SCHEMA = path.join(__dirname, '..', '..', 'schemas', 'plan-findings.schema
 const PLAN_MAX = 10;
 const TICKET_MAX = 5;
 const MAX_REASONS = 10;
-const TICKET = /^T[1-9][0-9]*$/;
+// A draft ticket (T3) or an exported one, reviewed by its key when its feature is reopened.
+const TICKET = /^(T[1-9][0-9]*|[A-Z][A-Z0-9]+-[0-9]+)$/;
 
 const refuse = (why) => [`plans: report refused (${why})`];
 const failed = (reasons) => ['report: failed', ...reasons.slice(0, MAX_REASONS).map((r) => `- ${clean(r, 200)}`), ...(reasons.length > MAX_REASONS ? [`- (+${reasons.length - MAX_REASONS} more)`] : [])];
@@ -32,8 +33,8 @@ function rules(r) {
     const per = new Map();
     for (const f of r.findings) per.set(f.place, (per.get(f.place) || 0) + 1);
     for (const [place, n] of per) if (TICKET.test(place) && n > TICKET_MAX) out.push(`${place} has ${n} findings; at most ${TICKET_MAX} per ticket`);
-    r.checks.forEach((c, i) => { if (!TICKET.test(c.place)) out.push(`checks[${i}] (${c.check}) is about ${c.place}; ticket-reviewer speaks only of tickets (T<n>)`); });
-    r.findings.forEach((f) => { if (!TICKET.test(f.place)) out.push(`finding ${f.id} is about ${f.place}; ticket-reviewer speaks only of tickets (T<n>)`); });
+    r.checks.forEach((c, i) => { if (!TICKET.test(c.place)) out.push(`checks[${i}] (${c.check}) is about ${c.place}; ticket-reviewer speaks only of tickets (T<n> or a key)`); });
+    r.findings.forEach((f) => { if (!TICKET.test(f.place)) out.push(`finding ${f.id} is about ${f.place}; ticket-reviewer speaks only of tickets (T<n> or a key)`); });
   }
   for (const f of r.findings) if (!f.id.startsWith(`${r.agent}-`)) out.push(`finding ${f.id} does not start with ${r.agent}`);
   if (r.status === 'incomplete' && !(typeof r.note === 'string' && r.note.trim())) out.push('status incomplete without a note of what is left');
