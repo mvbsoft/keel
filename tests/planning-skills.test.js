@@ -285,6 +285,8 @@ test('end-planning B: gates, ticket reviews then one plan review, at most 2 roun
 test('end-planning: the chat mark is cleared in every mode, then the costs, and the cost report comes last', () => {
   const text = end();
   assert.match(text, /\*\*Always\*\*, whatever happened above \(also after a stop or a no\):\s+`plans\.js mark clear --session <sid>`/);
+  // A turn that ends on a question keeps the lane and the hook for the answer.
+  assert.match(text, /A question waiting for the user's answer\s+is not the end: the mark stays until the answer is handled\./);
   before(text, '**B. Final.**', 'mark clear --session <sid>', 'the mark is cleared after both modes');
   before(text, 'mark clear --session <sid>', 'usage-sync.md');
   assert.match(text, /usage-sync\.md` and follow its steps 1-4 with session id\s+`\$\{CLAUDE_SESSION_ID\}`/);
