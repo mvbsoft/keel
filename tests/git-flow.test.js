@@ -10,7 +10,7 @@ const { execFileSync, spawnSync } = require('node:child_process');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
-const { pushRefusal } = require(path.join(SCRIPTS, 'git-flow.js'));
+const { pushRefusal, sameBranch } = require(path.join(SCRIPTS, 'git-flow.js'));
 const { stripAttribution, hasAttribution } = require(path.join(SCRIPTS, 'lib', 'attribution.js'));
 
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
@@ -110,6 +110,22 @@ test('refused pushes are classified', () => {
   assert.equal(pushRefusal('! [remote rejected] main -> main (pre-receive hook declined)'), 'protected');
   assert.equal(pushRefusal('! [rejected] x -> x (fetch first)'), 'behind');
   assert.equal(pushRefusal('fatal: Authentication failed'), 'failed');
+});
+
+// Windows folds only A-Z, so only there do these two tests fail without that rule.
+test('branch names fold like the file system: A-Z on Windows, the Kelvin sign for k too on macOS, nothing elsewhere', () => {
+  const fold = process.platform === 'win32' || process.platform === 'darwin';
+  assert.equal(sameBranch('Main', 'main'), fold);
+  assert.equal(sameBranch('Keep', 'keep'), process.platform === 'darwin', 'the Kelvin sign is another ref file on Windows');
+});
+
+test('delete-branch with the Kelvin sign for k does not delete keep where that sign is another name', { skip: (!hasGit && 'git is not installed') || (process.platform === 'darwin' && 'macOS folds the Kelvin sign into k') }, () => {
+  const { work } = setup({ remote: false });
+  git(work, 'branch', 'keep');
+  const out = flow(work, 'delete-branch', '--name', 'Keep');
+  assert.equal(out[0], 'git-flow: ok');
+  assert.equal(line(out, 'local:'), 'local: no branch Keep');
+  assert.ok(git(work, 'branch', '--list', 'keep'), 'keep is still there');
 });
 
 gitTest('status works in both modes; without a config it is unavailable', () => {

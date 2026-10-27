@@ -150,8 +150,10 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
   - a keel script with `$`, a backquote, `~`, curly quotes, control characters, an unquoted backslash
     (Bash), a backslash before a quote or a space, a special space (such as a non-breaking one) outside
     quotes, a double quote inside single quotes or an unquoted comma list of anything but numbers in its
-    arguments, in Bash an unquoted backslash path to the script or a double backslash (Claude Code's
-    Bash tool folds it into one, so a network path is written `//server/share`), or in PowerShell `--%`,
+    arguments, in Bash an unquoted backslash path to the script, a double backslash (Claude Code's
+    Bash tool folds it into one, so a network path is written `//server/share`) or a word starting with
+    `//` that holds a backslash or no further `/` (Git Bash turns it into another path), in the
+    arguments or in the script's own path, or in PowerShell `--%`,
     an empty argument or a bare word starting with one dash (`-`, or the en dash, em dash or horizontal
     bar PowerShell also reads as one) that holds a dot or ends with a colon (PowerShell would not pass
     them on as written);

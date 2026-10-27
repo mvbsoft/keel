@@ -6,6 +6,13 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- keel's own commands in Bash could run on another folder than the one keel checked: a script path
+  with a double backslash (keel on a network share) or a word such as `//srv\share\p`, which Git Bash
+  turns into `/srv/...`; such commands are now refused.
+- On Windows, `delete-branch` could resolve a name with a sign that only looks like a letter (the
+  Kelvin sign for k) to another local branch and delete it; branch names now fold only A-Z there.
+
 ## [1.3.0] - 2026-10-27
 
 ### Added
