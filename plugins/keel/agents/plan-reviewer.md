@@ -39,7 +39,9 @@ Read `plan.md` and every ticket first. Open code only to settle a question the p
   checklist does not name.
 - `place` is the ticket, the section of `plan.md` (`Decisions`, `Tickets`...) or `plan` for the whole.
 - Each finding has evidence: short quotes of the plan's or the tickets' words that show it, and
-  `file:line` in `code` when the code settles it.
+  `file:line` in `code` when the code settles it. Every `code` entry is `path:line` or
+  `path:start-end`; for a whole file write its first line (`docs/install.md:1`). An entry without a
+  line fails the whole report.
 - `fix` is the smallest change to the plan: a new ticket, a dependency, a decision, a line in Out of
   scope. Never code.
 - Severity: **critical**: the feature would ship wrong or cannot be built in this order (a goal

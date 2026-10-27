@@ -46,7 +46,9 @@ is under "Scope" in `<keel>/protocols/_search.md` (read only that part); mention
   left without one is explained in its check's `note`. Use `other` for a real problem the checklist
   does not name.
 - Each finding has evidence: a short quote of the ticket's words, and for code claims the `file:line`
-  you found in `code` (or where you looked and found nothing, in `evidence`).
+  you found in `code` (or where you looked and found nothing, in `evidence`). Every `code` entry is
+  `path:line` or `path:start-end`; for a whole file write its first line (`docs/install.md:1`). An
+  entry without a line fails the whole report.
 - `fix` is the smallest change to the ticket text: a sharper criterion, a split, a named dependency.
   Never code.
 - Severity: **critical**: the developer would build the wrong thing or cannot start (the goal
