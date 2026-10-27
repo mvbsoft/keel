@@ -10,10 +10,12 @@ const json = (p) => JSON.parse(read(p));
 
 // Directories that are never part of the published repository.
 const SKIP = new Set(['.git', '.design', 'node_modules', '.keel']);
+// An eval run's transcript beside a case's history.jsonl (git-ignored): it holds the run's context.
+const TRANSCRIPT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jsonl$/;
 
 function* walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (SKIP.has(e.name)) continue;
+    if (SKIP.has(e.name) || (e.isFile() && TRANSCRIPT.test(e.name))) continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) yield* walk(p);
     else yield p;
