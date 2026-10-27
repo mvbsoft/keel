@@ -12,6 +12,8 @@
 //                   mixed quotes, an unused helper, a stale comment), and an untidy src/report.js
 //   overbuilt       task avg-total on its branch, its start recorded; not committed: a correct but
 //                   over-engineered average() with its test, and an unexplained restyle of src/cart.js
+//   task-active     tasks, with CAN-123 active again for the chat SID (status active, started recorded,
+//                   committed), checked out on CAN-123-discount
 // The planning variants add the invoices (src/invoices.js, src/server.js, public/invoices.html) on main:
 //   planning        a draft csv-export on this machine (settings: language en, draft pc; no export, no
 //                   prefix): plan.md and tickets T1, T2 (T2 depends on T1) written, both reviewed as they
@@ -24,8 +26,6 @@
 //                   main) and merged into main: INV-1 done on origin/main, INV-2 in progress (branch
 //                   INV-2-download-button, its tip by Dana Smith), INV-3 done on its branch INV-3-date-range
 //                   only (waiting for merge into the feature branch), INV-4 to do (depends on INV-3); on main
-//   task-active     tasks, with CAN-123 active again for the chat SID (status active, started recorded,
-//                   committed), checked out on CAN-123-discount
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
