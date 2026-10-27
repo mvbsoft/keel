@@ -6,6 +6,36 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- A third lane, planning: `/keel:start-planning` plans a feature in its own conversation, one question
+  at a time, with decisions and short tickets in a draft kept on this machine or in the repository;
+  `/keel:end-planning` hands it over to continue later, or runs the final review and exports the
+  tickets. A planning conversation changes no code and runs no task or session commands, a task
+  conversation does not plan, and planning needs a person (`claude -p` is refused).
+- Two reviewers for planning on Sonnet: `ticket-reviewer` checks each ticket and what it relies on in
+  the code, `plan-reviewer` checks the whole plan once at the final end.
+- Export puts the tickets into a feature folder with keys shared across the repository (`PROJ-12`),
+  all or nothing; the keys are checked again before each commit and push, which keel always asks
+  about.
+- Ticket states (to do, next, in progress, waiting for a merge, done) read from git: `/keel:tasks`
+  shows them in a "Planned" block, and `/keel:start-task` with no words or "next ticket" offers the
+  ticket to take next.
+- `/keel:start-task <KEY>` starts a planned ticket on its feature branch, a task that turns out to be
+  a feature can become planning before any code, `/keel:start-session` takes a feature folder, and
+  `/keel:start-planning` reopens an exported feature to edit the tickets nobody started. A ticket is
+  marked done only after a passed verification, in the same commit as its code.
+- A task's commit, verification and checks leave planning files out, and the usage page lists
+  planning conversations with their feature name.
+
+### Changed
+- Plan Mode files go to `.keel/local/plans/claude` (was `.keel/local/plans`); `/keel:configure`
+  offers to move the old plans.
+
+### Fixed
+- keel's own commands could run a step Claude Code must confirm without the confirmation through
+  PowerShell 5.1's quoting, special spaces or a double backslash in Bash; such commands are now
+  refused.
+
 ## [1.2.1] - 2026-10-20
 
 ### Fixed

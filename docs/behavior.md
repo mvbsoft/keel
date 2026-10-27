@@ -6,10 +6,12 @@ This page lists what keel does in each situation and what makes sure it happens.
 
 **In short:**
 
-- **Enforced by code** while keel's hooks are on: Claude Code's confirmation before six steps that are
-  hard to undo, keel's script guards (for example: a task is finished only with a verification
+- **Enforced by code** while keel's hooks are on: Claude Code's confirmation before eight steps that
+  are hard to undo, keel's script guards (for example: a task is finished only with a verification
   recorded for the code as it is now; the main branch and the current branch are never deleted), one
-  narrow Stop hook for an autonomous finish, and keel staying out of projects that are not set up.
+  narrow Stop hook for an autonomous finish, the lane hooks (a conversation that plans a feature
+  changes no code and runs no task or session commands), and keel staying out of projects that are not
+  set up.
 - **Instructions** the model follows: everything else, such as how keel reads and retells the task,
   when it asks, which git steps it runs and what it writes. They usually hold, but no code makes them
   hold.
@@ -20,12 +22,12 @@ This page lists what keel does in each situation and what makes sure it happens.
 
 | Guarantee | What it means |
 |---|---|
-| **Claude Code's confirmation** | Six steps: moving a finished task's folder to keel's trash, dropping a task, emptying keel's trash, deleting a branch, merging, and turning on autonomous git. keel's hook makes Claude Code ask before each, even when your allow rules would let it run. It asks only for the plain form `node "<keel>/scripts/<name>.js" "<project>" ...` on the current project. A keel script run with keel's folder written out but in any other shape (shell variables, node options, `env`, `bash -c`, a wrapper, joined commands, in PowerShell `--%` or an empty argument) is refused, and so is one of these six steps named with another project's path, and any keel script command that holds such a step's words (`delete`, `drop`, `empty-trash`, `merge`, `delete-branch`, `trust`) but does not read as that step, and one of these steps with keel's script named through another path (`$CLAUDE_PLUGIN_ROOT`, `~`, another copy of keel), and any `node`, `bun` or `deno` command that names keel's library (`scripts/lib/`), which no keel step runs directly; the model then sends the plain form. So an allow rule such as `Bash(node *)` does not skip the question for keel's steps; the library guard is best effort (it catches the library named on the command line, not code in a file that loads it), and an allow rule for arbitrary code lets the model run any code, which no hook can judge. The one exception you can choose: a merge in autonomous git confirmed on this machine with `git.ask_before_merge: false`. The question is in your `conversation_language` setting of the project (else of this machine) when keel has a catalog for it (English and Ukrainian); other languages get English. With hooks switched off there is no confirmation ([below](#non-interactive-runs-and-bypass-mode)). |
+| **Claude Code's confirmation** | Eight steps: moving a finished task's folder to keel's trash, dropping a task, emptying keel's trash, deleting a branch, merging, turning on autonomous git, and committing and pushing planning files. keel's hook makes Claude Code ask before each, even when your allow rules would let it run. It asks only for the plain form `node "<keel>/scripts/<name>.js" "<project>" ...` on the current project. A keel script run with keel's folder written out but in any other shape (shell variables, node options, `env`, `bash -c`, a wrapper, joined commands, in PowerShell `--%` or an empty argument) is refused, and so is one of these eight steps named with another project's path, and any keel script command that holds such a step's words (`delete`, `drop`, `empty-trash`, `merge`, `delete-branch`, `trust`) but does not read as that step (a `plans.js` command that holds `commit` or `push` anywhere else is asked about instead), and one of these steps with keel's script named through another path (`$CLAUDE_PLUGIN_ROOT`, `~`, another copy of keel), and any `node`, `bun` or `deno` command that names keel's library (`scripts/lib/`), which no keel step runs directly; the model then sends the plain form. So an allow rule such as `Bash(node *)` does not skip the question for keel's steps; the library guard is best effort (it catches the library named on the command line, not code in a file that loads it), and an allow rule for arbitrary code lets the model run any code, which no hook can judge. The one exception you can choose: a merge in autonomous git confirmed on this machine with `git.ask_before_merge: false`. The question is in your `conversation_language` setting of the project (else of this machine) when keel has a catalog for it (English and Ukrainian); other languages get English. With hooks switched off there is no confirmation ([below](#non-interactive-runs-and-bypass-mode)). |
 | **Script guard** | keel's script refuses a step that comes in the wrong order or would do harm, and says what to do instead. The same change done another way (raw git, moving files by hand) is outside the guard: keel's instructions forbid it, and your Claude Code permission rules decide it. |
 | **Stop hook** | One case only: in autonomous git, when this conversation moved a finished task's folder to keel's trash and no commit holds it, Claude Code does not let keel end its answer and tells it to go on with git or put the task back. It pushes once: when keel stops again right after, the answer ends. It does not block when keel's last message ends with a question, and it ignores a finish older than a day or a task no longer in keel's trash. |
 | **Hook** | Another of keel's hooks, such as the one that keeps keel out of projects that are not set up. |
 | **Instruction** | The model follows keel's instructions; nothing checks it in code. |
-| **Instruction + eval** | The same, and a behaviour test suite (`npm run eval`, 18 cases) checks it. The suite is run by hand before each release, not on every change; it is not a guarantee for every run. |
+| **Instruction + eval** | The same, and a behaviour test suite (`npm run eval`, 33 cases) checks it. The suite is run by hand before each release, not on every change; it is not a guarantee for every run. |
 
 ## Before any command
 
@@ -99,11 +101,28 @@ keel adds its coding standards to every conversation in a set-up project (the fi
 | Situation | What keel does | Guaranteed by |
 |---|---|---|
 | `/keel:start-session` with a key an unfinished task owns | Stops: "tasks use /keel:start-task". | Instruction + eval |
-| A key both lanes claim (the note names an unfinished task) | `notes.js check` reports the conflict; keel shows it and asks which lane leads it before anything else. When it writes the note, a key a task owns is left out. | Script check + instruction |
+| A key both a task and the session note claim (the note names an unfinished task) | `notes.js check` reports the conflict; keel shows it and asks which lane leads it before anything else. When it writes the note, a key a task owns is left out. | Script check + instruction |
 | A new line while a note is open | Asks: continue the written line or start a new one. There is one note, so a new line asks next: end the old line, or carry its open steps into the new note's **Later**. | Instruction |
 | `/keel:end-session` with no level | Asks the verification level (with the gate results) before any review agent runs, before the note and before git. | Instruction + eval |
 | `/keel:end-session we continue tomorrow, prepare` | Gates only, no level question, then the note for the next session. | Instruction + eval |
 | An action in the instruction (push, merge) | Done after the verification and the note; merging as in [merging](workflows.md#merging-into-the-main-branch). | Instruction + Claude Code's confirmation (the merge) |
+
+## Planning
+
+How planning goes, the export and the ticket states: [ways of working](workflows.md#planning).
+
+| Situation | What keel does | Guaranteed by |
+|---|---|---|
+| A conversation that plans a feature runs `/keel:start-task`, `/keel:end-task`, `/keel:start-session`, `/keel:end-session`, `/keel:configure` or `/keel:cleanup`; one that works on a task runs `/keel:start-planning` or `/keel:end-planning` | Refused with the reason: end this lane first (`/keel:end-planning`, `/keel:end-task`) or use a new conversation. This holds for a command you type, one Claude runs by itself, and the bare name (`/start-task`). `/keel:start-planning` in a conversation that leads a long-work session says to end it with `/keel:end-session` or plan in a new conversation. | Hook (`lane-gate.js` for a typed command, `skill-gate.js` for the rest) + eval (`planning-chat-refuses-start-task`, `planning-chat-refuses-bare-start-task`, `task-chat-refuses-end-planning`); from a session: instruction |
+| `/keel:start-planning` with no person to answer (`claude -p`) | Refused: planning is a conversation with a person. | Hook (`lane-gate.js`, `skill-gate.js`) + eval (`start-planning-refuses-without-person`) |
+| A planning conversation would change a project file (an edit, a write, a shell command that writes) | Refused, the file stays as it is. Planning writes only its draft, the feature folder, the planning settings, keel's working files in `.keel/local/tmp/`, Plan Mode files and files outside the project; a code change waits for a task in a new conversation. | Hook (`planning-guard.js`) + eval (`planning-chat-blocks-code-edit`); not every shell command ([below](#what-is-not-guaranteed)) |
+| `/keel:end-planning` | Hands over or runs the final review and export, as you say; with no words it decides by the plan (open questions or structure problems → hand over) or asks. The final end needs no open questions, a clean structure check and every ticket reviewed as it is now; else keel shows what blocks and offers to hand over. | Instruction + script guard (`plans.js state ready`) + eval (`end-planning-asks-mode`, `end-planning-hand-over`, `end-planning-final-blocked-by-open-question`) |
+| A project rule says where tickets may not live (for example "no backlog in the repository") | keel quotes the rule next to the choice and offers: follow the project, keep the choice, or your own way. | Instruction + eval (`end-planning-export-meets-project-rule`) |
+| Exporting the tickets | Each ticket gets a key shared across the repository; the export is all or nothing. Before each commit and push the keys are checked again: a key another ticket took meanwhile gets a new number while the ticket is on no remote yet. | Script (`plans.js export`, `commit`, `push`) |
+| Committing or pushing planning files | Asks in the chat, then Claude Code asks too, in both git modes. Never on the main branch: keel offers a feature branch first. A no leaves them uncommitted or unpushed. | Claude Code's confirmation + script guard (`plans.js commit` and `push` refuse the main branch) + eval (`end-planning-repo-draft-on-main`) |
+| A task's commit and its checks | Planning files (a draft in the repository, exported tickets, a feature's overview, told by their front matter) stay out of a task's commit, its verification and the record of verified code, and do not stop a git step. Only the ticket a task or session finishes goes into its commit. | Script (`git-flow.js`, `changes.js`, `fingerprint.js`, `comments.js`) |
+| The task or session of a planned ticket ends | The ticket is marked done only after a passed verification (gates green, nothing "must fix" left), in the same commit as its code. A red verification or a hand off leaves it not done. | Instruction (`end-task`, `end-session`) |
+| `/keel:start-task` with a planned ticket that is done, in progress or waiting for a merge | Says its state and does not start it as a free ticket; asks what to do. A task that turns out to be a feature: before any code keel offers to drop it and plan instead; with code, hand it off first. | Instruction + eval (`start-task-ticket-done`, `start-task-ticket-in-progress`, `start-task-ticket-waiting-merge`, `start-task-too-big-offers-planning`, `start-task-too-big-after-code-hands-off`) |
 
 ## Dropping a task
 
@@ -148,6 +167,11 @@ Tested with Claude Code 2.1.296:
   still hold.
 - Interactive bypass mode was not tested.
 
+`/keel:start-planning` in `claude -p` is refused: planning is a conversation with a person, and
+nobody is there to answer its questions (the eval `start-planning-refuses-without-person` checks it;
+what the refusal rests on: [below](#what-is-not-guaranteed)). Commit and push of planning files are
+denied there like the other confirmed steps.
+
 ## What is not guaranteed
 
 - **Understanding the task**: the retell, the right question, new or continuation, when to offer a
@@ -160,5 +184,15 @@ Tested with Claude Code 2.1.296:
   write keel's own files or can be undone and, after you confirm autonomous git on this machine, its git steps (start, switch,
   commit, update from the base branch, and push except from the main branch). Everything else follows
   your Claude Code permission rules, and your deny and ask rules still apply to keel's steps too.
+- **Planning's write guard** is a safeguard against slips, not a wall: it sees edits, writes, shell
+  redirections, `sed -i`, `cp`, `mv` and PowerShell's write commands, but not `rm`, `git checkout`,
+  `node -e` and the like.
+- **Planning needs a person**: the refusal in `claude -p` rests on `CLAUDE_CODE_SESSION_ATTENDED=0`,
+  which Claude Code gives hooks there but does not document; when it is missing, nothing is refused.
+  A conversation that leads a long-work session refuses planning by instruction only, because a
+  session leaves no mark a hook could read.
+- **Ticket states** come from git: work nobody pushed, or pushed only to another fork, does not show
+  as in progress. Tickets kept on this machine are seen only on this machine, and there a ticket is in
+  progress only through a task or session on this machine.
 
 More: [Under the hood](under-the-hood.md), [Security policy](../SECURITY.md).

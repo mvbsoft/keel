@@ -13,7 +13,7 @@ a *session* is one Claude Code conversation, as the dashboard calls it, not keel
 ## The cost report
 
 The cost report is the last block of the final report at the end of a task or a session (the whole
-report: [two ways of working](workflows.md#the-final-report)). It is a table of every participant that
+report: [ways of working](workflows.md#the-final-report)). It is a table of every participant that
 actually ran: the main conversation and each agent run, with its model, requests, tokens by kind (input,
 cache write, cache read, output) and dollars at list price with the share of the total, then a total
 row. Below that: total time and active time, the number of your turns, and the three most expensive

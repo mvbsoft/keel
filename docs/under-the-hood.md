@@ -22,7 +22,7 @@ Code lists them. To turn keel on in one repository only, install it with `--scop
 
 ## What runs by itself
 
-keel has 12 hooks. They run at fixed moments of a Claude Code conversation, and every hook fails soft:
+keel has 14 hooks. They run at fixed moments of a Claude Code conversation, and every hook fails soft:
 if it breaks, the conversation goes on as if keel were not there. "Set-up project" below means a
 project with `.keel/config.json`.
 
@@ -31,14 +31,16 @@ project with `.keel/config.json`.
 | A conversation starts, resumes, after `/clear` and after compaction | `session-start` | Set-up projects only. Adds keel's **working standards** (ask instead of guessing, a source for every claim, a fix never breaks what worked, no secrets in git, merge only when you ask...), the language to talk in, and the project's **code-comment rules**. On a fresh start, warns once when Node is older than 22. |
 | A conversation starts, resumes and after `/clear` | `session-wallet` | Every project. Notes which **wallet** the conversation pays from (subscription, API or credit) for the cost report, and keeps the plugin folder that keel's status line runs from up to date. Adds nothing to the conversation. |
 | Every prompt you send | `context-warning` | Set-up projects only. **Context warning**: at 90 % of the point where Claude Code would compact the conversation on its own, Claude is told to start its reply with one warning line (also sent as a message for you), so you can run `/compact` with a focus or start a new conversation first. That point is `CLAUDE_CODE_AUTO_COMPACT_WINDOW` when it is set, else `autoCompactWindow` from the project's `.claude/settings.local.json`, its `.claude/settings.json` or `~/.claude/settings.json` (a per-model value wins), else Claude Code's own (about 967k with a 1M model, 200k with a model that has a 200k window). A value of your own counts only from 100k up and at most the model's own point above: the environment variable is raised to 100k, a settings value below 100k is ignored. Your prompt itself is not changed. |
+| Every prompt you send | `lane-gate` | Set-up projects only. **Lanes** for a command you type: in a conversation that plans a feature, `/keel:start-task`, `/keel:end-task`, `/keel:start-session`, `/keel:end-session`, `/keel:configure` and `/keel:cleanup` are blocked with the reason; in one that works on a task, `/keel:start-planning` and `/keel:end-planning`; `/keel:start-planning` also when nobody is there to answer (`claude -p`). The bare name (`/start-task`) counts too ([how keel behaves](behavior.md#planning)). |
 | Before an agent starts | `agent-model` | **Agent model**: keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on: an agent without an explicit model runs on Sonnet (not on your conversation's model), one asked to run on a Fable model runs on Opus; with `allow_opus` off, Sonnet takes Opus's place. In a project without a `.keel/` folder keel's agents are refused, so Claude uses another agent. Other plugins' agents and your own are left alone. |
-| Before Claude loads a skill | `skill-gate` | In a project without `.keel/config.json`, keel's skills are refused (the hook lets configure and help through; you type those two yourself), so Claude goes on without them. A command you type yourself does not pass this hook; keel's commands check the setup themselves. |
-| Before a read, search, write or shell command | `own-files` | Every project. **keel's own files**: reading keel's plugin folder and running keel's own scripts need no permission prompt, within strict rules ([safety](#safety)). The steps that remove something (a finished or dropped task's folder to keel's trash, a task branch, emptying the trash), confirming autonomous git, and a merge (unless autonomous mode is confirmed on this machine and `git.ask_before_merge` is off) get **Claude Code's own confirmation** with keel's reason, even when your allow rules would let them run ([how keel behaves](behavior.md)). Such a step named with any project but the current one's exact absolute path, a keel script command that holds such a step's words but does not read as that step, a keel script whose arguments the hook cannot read safely, and a keel script run in any form but the plain one (node options, `env`, `bash -c`, a wrapper) are refused with the plain form to use. keel's QA agents may write only in the project's `.keel/local/tmp/qa/` (there without a prompt). |
+| Before Claude loads a skill | `skill-gate` | In a project without `.keel/config.json`, keel's skills are refused (the hook lets configure and help through; you type those two yourself), so Claude goes on without them. The same lane refusals as `lane-gate`, for a command Claude runs by itself. A command you type yourself does not pass this hook; keel's commands check the setup themselves, and `lane-gate` checks the lane. |
+| Before a write, an edit or a shell command | `planning-guard` | Only in a conversation that plans a feature. **Planning guard**: a change to a project file is refused; the draft, the feature folder, the planning settings, `.keel/local/tmp/`, Plan Mode files and files outside the project stay writable. It reads shell commands for redirections, `sed -i`, `cp`, `mv` and PowerShell's write commands, not `rm`, `git checkout` or `node -e`: a safeguard against slips, not a wall. |
+| Before a read, search, write or shell command | `own-files` | Every project. **keel's own files**: reading keel's plugin folder and running keel's own scripts need no permission prompt, within strict rules ([safety](#safety)). The steps that remove something (a finished or dropped task's folder to keel's trash, a task branch, emptying the trash), confirming autonomous git, a commit or push of planning files, and a merge (unless autonomous mode is confirmed on this machine and `git.ask_before_merge` is off) get **Claude Code's own confirmation** with keel's reason, even when your allow rules would let them run ([how keel behaves](behavior.md)). Such a step named with any project but the current one's exact absolute path, a keel script command that holds such a step's words but does not read as that step, a keel script whose arguments the hook cannot read safely, and a keel script run in any form but the plain one (node options, `env`, `bash -c`, a wrapper) are refused with the plain form to use. keel's QA agents may write only in the project's `.keel/local/tmp/qa/` (there without a prompt). |
 | Before a `git commit` or `gh pr create/edit` | `no-ai-attribution` | Set-up projects only. **No AI attribution**: a commit or pull request whose text (the command, or a message file it names with `-F`, `--file` or `--body-file`) carries an AI co-author trailer or "Generated with ..." is refused with the reason, and Claude sends it again without. A co-author counts as AI when its address is a tool's or its name is a tool's name, alone or with model or version words (`Claude`, `Claude Opus 5.5`, `Claude Code`); a person such as `Claude Martin` is not refused. |
 | Before a file read, edit or command | `skill-hints` | Set-up projects only; the main conversation and keel's implementer. **Skill hints**: when the conversation touches something one of 6 advisory skills covers (reading or editing a database migration, editing Python code or docs, writing a new source file, editing a dependency manifest, a git command such as commit, merge, rebase, push, tag or `gh pr create`), one line reminds Claude to load that skill; each skill at most once per conversation. |
 | An agent hands back its report | `handback` | Projects with a `.keel/` folder. In auto mode an agent delivers its report through Claude Code's `SubagentHandback` tool instead of its last reply; keel saves that report to `.keel/local/tmp/agents/<name>-<id>.md`, where the verification scripts read it. |
 | keel's implementer agent starts | `subagent-start` | It gets the working standards, without the parts on talking to the user and on rules the user states, and the comment rules. |
-| An agent finishes | `ledger` | Projects with a `.keel/` folder. **Token ledger**: one line per agent in `.keel/local/ledger.jsonl` (the implementer's cost after delegated steps comes from it). Each keel agent's final reply is saved to `.keel/local/tmp/agents/` for the verification scripts, unless `handback` already saved its report there; then that report is kept. |
+| An agent finishes | `ledger` | Projects with a `.keel/` folder. **Token ledger**: one line per agent in `.keel/local/ledger.jsonl` (the implementer's cost after delegated steps comes from it). Each keel agent's final reply is saved to `.keel/local/tmp/agents/` for the verification scripts, unless `handback` already saved its report there; then that report is kept. In a conversation that plans a feature the replies go to `.keel/local/tmp/planning/<conversation id>/`, and each ticket review's task and reply are also kept in `.keel/local/plans/keel/samples/`. |
 | keel is about to end its answer | `finish-check` | **Finish check**: in autonomous git, when this conversation moved a finished task's folder to keel's trash (keel records it with the conversation's id) and nothing committed it or put it back, keel goes on working (git, or putting the task back) instead of stopping. Never while keel is asking you something. |
 
 Not a hook, but also automatic: on every status line refresh keel's status line (or yours, wrapped)
@@ -48,7 +50,7 @@ project.
 
 ## Agents and models
 
-keel has 14 agents. Read-only agents cannot write; the ones that run code are checked after each run
+keel has 16 agents. Read-only agents cannot write; the ones that run code are checked after each run
 (see [safety](#safety)). The level decides who runs and sometimes on which model:
 [verification](verification.md#the-four-levels).
 
@@ -68,6 +70,8 @@ keel has 14 agents. Read-only agents cannot write; the ones that run code are ch
 | verifier | tries to prove or refute a serious finding, with `file:line` evidence | Sonnet; Opus for some findings at Standard and all at Maximum |
 | judge | merges the findings into one ranked list, adds none of its own | Sonnet; Opus at Maximum |
 | implementer | does one planned step when the work is delegated | the step's model: Haiku, Sonnet or Opus |
+| ticket-reviewer | in planning: reviews up to 4 draft tickets each against a checklist and checks in the code what they rely on | Sonnet |
+| plan-reviewer | in planning: reviews the whole plan once at its final end (coverage, contradictions, order) | Sonnet |
 
 With `allow_opus` off every Opus agent above runs on Sonnet. keel never switches your conversation's model;
 which main model to use: [cost optimization](cost-optimization.md#1-choose-the-main-model).
@@ -90,7 +94,10 @@ accepts each step after running its tests. Why steps should not be cut too small
 | `.keel/next-session.md`, `.keel/memory/`, `.keel/sessions/` | the session note, project memory, session logs | yes (`git.state_in_git`) |
 | `.keel/tasks/<id>/` | one folder per unfinished task, on the task's own branch | yes, on the task branch only; with `tasks.in_git: false` the folder is `.keel/local/tasks/<id>/`, not in git |
 | `.keel/local/options.json` | this project's own values of `conversation_language`, `allow_opus` and `prompt_preview` (personal) | no |
-| `.keel/local/` | temporary agent files and saved agent reports, plans, the token ledger, backups, the trash | no |
+| `.keel/local/plans/claude/` | Claude Code's Plan Mode files | no |
+| `.keel/local/plans/keel/` | planning: drafts kept on this machine, the planning settings, which conversation plans which feature (`sessions/`), ticket review samples (`samples/`) | no |
+| `<draft_dir>/<feature>/`, `<export_dir>/<feature>/` | a feature's draft in the repository, and its exported tickets with their overview (`tickets/` by default) | when you commit them, on the feature's branch |
+| `.keel/local/` | temporary agent files and saved agent reports, the token ledger, backups, the trash | no |
 
 On each machine keel also keeps `~/.claude/keel/`:
 
@@ -107,7 +114,7 @@ comes only once; nothing is written into the project for them.
 
 The note, memory and each task file have a limit of 150 lines; a script measures them and reports a
 file over it. keel never writes passwords, keys, tokens or connection strings into them. How task
-folders and the note move with git: [two ways of working](workflows.md#where-the-files-live).
+folders and the note move with git: [ways of working](workflows.md#where-the-files-live).
 
 ## Safety
 
@@ -184,7 +191,8 @@ folders and the note move with git: [two ways of working](workflows.md#where-the
   as `git restore`, `git stash`, `git reset`, `git rm`, `git mv`, `git checkout --`, `git switch -f`,
   `find -delete`, `rm`, `mv`).
 - **Critical steps are scripts, not text**: config checks, secret scanning, vote counting, token
-  accounting, merge questions.
+  accounting, merge questions, and in planning the draft's structure check, ticket keys and ticket
+  states (`plans.js`).
 - **Data that leaves the machine.** Usage data goes only to the usage page you set up: your own
   private page, or a team page you approved
   ([what goes there and what never does](usage-dashboard.md#what-goes-to-the-page-and-what-never-does)).
@@ -199,8 +207,8 @@ Reporting a vulnerability: [SECURITY.md](../SECURITY.md).
 
 ## Overhead
 
-In a set-up project keel adds about 3.5k tokens to every conversation: its working standards and the
-project's comment rules (about 2.3k) and the skill and agent descriptions (about 1.2k). The standards
+In a set-up project keel adds about 3.6k tokens to every conversation: its working standards and the
+project's comment rules (about 2.3k) and the skill and agent descriptions (about 1.3k). The standards
 are added again after `/clear` and after compaction. In a project keel is not set up in, only the
 skill and agent descriptions remain, because Claude Code lists them wherever keel is installed.
 Each end of work syncs the cost data for about $0.01-0.04 when the dashboard is set up.
