@@ -259,7 +259,7 @@ from git (0 tokens). Each call is `node "<keel>/scripts/plans.js" "<project>" ti
 ## Task to planning
 Offered when the task is too big (step 3): "Plan this as a feature instead? This conversation then
 plans it, with no code." Lanes never mix: the task ends completely before planning starts. The user
-asking to plan it as a feature is the yes to this question.
+asking to plan it as a feature is the yes to this question: do not ask it then.
 - No `task new` yet (step 7 item 2) → on yes, ask the user to type `/keel:start-planning` (keel cannot
   start it for them); the plan in this chat is its source.
 - After `task new`, only while no code changed: `git diff --name-only <started>` (the task file's

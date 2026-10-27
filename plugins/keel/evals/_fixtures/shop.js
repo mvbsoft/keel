@@ -587,7 +587,7 @@ function draft({ where = 'pc', list = TICKETS.slice(0, 2), openq = false, next }
 function planning({ openq = false, where = 'pc', next } = {}) {
   invoices();
   const plan = draft({ where, openq, next });
-  // Written before the invoices: a hand-over has its after_commit to bring up to date.
+  // after_commit is the commit before the invoices: a hand-over has it to bring up to date.
   write(plan, fs.readFileSync(path.join(root, plan), 'utf8').replace(/^after_commit: .*$/m, `after_commit: ${git('rev-parse', '--short', 'HEAD~1')}`));
   plans('mark', 'set', 'csv-export', '--session', SID);
 }
