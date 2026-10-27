@@ -221,9 +221,13 @@ test('plan-findings.schema.json: a finding names a ticket or part of the plan, w
   for (const part of ['place', 'check', 'severity', 'what', 'problem', 'fix', 'evidence']) {
     expectInvalid(s, ok, (d) => { delete d.findings[0][part]; }, new RegExp(`missing "${part}"`));
   }
-  for (const place of ['src/export/csv.js:42', 'T0', 'PROJ-101', 'ticket 2', 'decisions']) {
+  for (const place of ['src/export/csv.js:42', 'T0', 'proj-101', 'ticket 2', 'decisions']) {
     expectInvalid(s, ok, (d) => { d.findings[0].place = place; }, /place: does not match/);
   }
+  // An exported ticket, reviewed when its feature is reopened, is named by its key.
+  const exported = structuredClone(ok);
+  exported.findings[0].place = 'PROJ-101';
+  assert.deepEqual(validate(exported, s), []);
   expectInvalid(s, ok, (d) => { d.findings[0].evidence = ''; }, /evidence/);
   expectInvalid(s, ok, (d) => { d.findings[0].code = ['src/export/csv.js']; }, /does not match/);
   expectInvalid(s, ok, (d) => { d.findings[0].check = 'style'; }, /check: must be one of/);

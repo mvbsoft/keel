@@ -200,6 +200,12 @@ test('report: a valid reply lists its findings; each rule the schema cannot hold
     '- ticket-reviewer-1 T1 important testable-criteria: What of ticket-reviewer-1',
     '- ticket-reviewer-2 T2 minor size: What of ticket-reviewer-2',
   ]);
+  // A reopened exported feature: its tickets are named by their keys.
+  const exported = { ...ticket, checks: [CHECK('KEEL-4')], findings: [FINDING('ticket-reviewer-1', 'KEEL-4')] };
+  assert.deepEqual(run(dir, 'report', put('ticket-reviewer-a5.md', exported)).slice(0, 2), [
+    'report: ok · ticket-reviewer · complete · findings 1',
+    '- ticket-reviewer-1 KEEL-4 important testable-criteria: What of ticket-reviewer-1',
+  ]);
   // The path the skill passes: absolute, inside the planning folder.
   assert.equal(run(dir, 'report', path.join(dir, put('ticket-reviewer-a2.md', ticket)))[0], 'report: ok · ticket-reviewer · complete · findings 2');
   const plan = { agent: 'plan-reviewer', status: 'incomplete', note: 'premortem not done', checks: [CHECK('plan', 'coverage')], findings: [FINDING('plan-reviewer-1', 'Decisions')] };
