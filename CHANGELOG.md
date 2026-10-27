@@ -6,6 +6,12 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `/keel:configure usage` updates an already published "keel usage" page to the current keel's page,
+  at the same address and with all its data, after a yes. keel saves a fingerprint of the page files on
+  each machine (`page_template`), so `/keel:usage` and `/keel:configure usage` tell when the page was
+  made by an older keel.
+
 ## [1.3.0] - 2026-10-27
 
 ### Added
