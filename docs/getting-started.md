@@ -312,7 +312,8 @@ The first time in a project keel asks two things: the language of the tickets, a
 lives (on this machine, outside git, or in the repository, where colleagues see it). Then it retells
 the feature, checks in the code what it relies on, proposes a name and asks one question at a time.
 Your answers become decisions; the work becomes short tickets (T1, T2…) in the draft. With no argument,
-keel lists the drafts to continue. While a conversation plans, the task and session commands wait.
+keel lists the drafts to continue. While a conversation plans, keel refuses the task, session, configure
+and cleanup commands.
 
 `/keel:end-planning we continue tomorrow` reviews the changed tickets and writes where planning stopped;
 `/keel:start-planning <feature>` picks up from there. `/keel:end-planning final review and export` has

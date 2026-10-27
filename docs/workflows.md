@@ -13,7 +13,7 @@ keel has three lanes of work:
   Commands: `/keel:start-session`, `/keel:end-session`.
 - **Planning comes before the code.** A feature that needs several tasks is first talked through in
   its own conversation: one question at a time, decisions and short tickets, no code. It ends in a
-  feature folder of tickets that tasks or a session then do. Think of a drawing before the build.
+  feature folder of tickets that tasks or a session then do. Think of a blueprint before the build.
   Commands: `/keel:start-planning`, `/keel:end-planning`.
 
 **How to choose:** "done" within 1-3 sittings → a task. A plan for weeks, with items for "later" → a
@@ -385,6 +385,10 @@ written at once and stay short (150-400 words, one goal, no implementation steps
 Acceptance criteria, Where to look (`file:line`), Out of scope, Dependencies, How to check. In the
 draft they are `T1`, `T2`...; a T-number is never reused. More than about 15 tickets → keel offers to
 split the feature. keel looks up code facts itself; a pricier model or web research only when you ask.
+
+**Abandon a draft**: say so in the planning conversation; after your yes the plan is `abandoned`. A
+draft on this machine goes to keel's trash (`/keel:cleanup` restores it); one in the repository stays
+until you remove it.
 
 ### End: `/keel:end-planning`
 

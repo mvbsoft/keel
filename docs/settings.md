@@ -14,6 +14,8 @@ Each setting has one of three homes:
 | **This project** | this project, for everyone who works on it | `.keel/config.json` | yes, shared with the team |
 | **Machine or project** | every project on this computer, unless a project sets its own value | machine: as above; project: `.claude/settings.local.json` or `.keel/local/options.json` | no, personal |
 
+Planning keeps a file of its own, this project on this machine ([planning settings](#planning-settings)).
+
 **Rule:** a project's own value wins over the machine value. Remove the project value and the machine
 value applies again. One exception: `prompt_preview` can only be turned off for a project. When the
 machine value is off, a project value of on has no effect.
