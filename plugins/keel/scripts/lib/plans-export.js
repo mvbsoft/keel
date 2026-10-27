@@ -152,7 +152,7 @@ const RECENT_DAYS = 30;
 // (<KEY>-<slug>.md) and are named after the feature, as absolute paths. The export_dir setting is this
 // machine's: a colleague's feature folder may be anywhere.
 function namedFolders(root, feature, paths) {
-  const named = new RegExp(`(?:^|/)${feature}/[A-Za-z][A-Za-z0-9]+-\\d+(?:-[^/]*)?\\.md$`);
+  const named = new RegExp(`(?:^|/)${feature.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[A-Za-z][A-Za-z0-9]+-\\d+(?:-[^/]*)?\\.md$`);
   const rels = [...new Set(paths.filter((p) => named.test(p)).map((p) => p.slice(0, p.lastIndexOf('/'))))].sort();
   return rels.map((r) => path.join(root, ...r.split('/')));
 }

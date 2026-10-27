@@ -305,7 +305,10 @@ function draftFind(root, query) {
 
 // A template without its comments, its front matter replaced by `front`.
 function fromTemplate(name, front) {
-  const body = lf(fs.readFileSync(path.join(TEMPLATES, name), 'utf8')).replace(/<!--[\s\S]*?-->\s*/g, '').replace(/^---\n[\s\S]*?\n---\n/, '').trimStart();
+  let body = lf(fs.readFileSync(path.join(TEMPLATES, name), 'utf8'));
+  // Until none is left: removing one comment must not join the halves of another.
+  for (let before; before !== body;) { before = body; body = body.replace(/<!--[\s\S]*?-->\s*/g, ''); }
+  body = body.replace(/^---\n[\s\S]*?\n---\n/, '').trimStart();
   return { body, text: (b) => `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n${b}` };
 }
 
