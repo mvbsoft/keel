@@ -1,7 +1,7 @@
 ---
 type: tool_used
 tool: Bash
-input_match: 'plans\.js[^,]*\smark clear\b'
+input_match: '"command"\s*:\s*"(?:[^"\\]|\\.)*?plans\.js(?:[^"\\]|\\.)*?\smark clear\b'
 min: 0
 max: 0
 ---
