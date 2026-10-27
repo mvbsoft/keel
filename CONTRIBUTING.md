@@ -20,8 +20,9 @@ Claude Code CLI (`claude plugin validate --strict .` checks the marketplace file
 
 `plugins/keel/evals/` holds a regression suite for what tests cannot check: how the model follows
 keel's instructions (the retell and the "new?" question, lanes, the end-task menu, the level question
-before any review agent, a recorded verification before a task folder moves, the session note) and
-the coding standards. 32 of the 33 cases build a small shop project with git (`evals/_fixtures/shop.js`;
+before any review agent, a recorded verification before a task folder moves, the session note, the
+planning lane: end-planning's modes and gates, ticket states on start-task, a task that turns into
+planning) and the coding standards. 32 of the 33 cases build a small shop project with git (`evals/_fixtures/shop.js`;
 `help-lists-every-command` needs none). Each case runs one keel command in Claude Code, or a plain
 request for the two cases tagged `standards`; a case tagged `lanes` may also give a plain request or a
 bare command (`/start-task`), which the lane guards must stop too. Each case grades the reply and the
@@ -34,8 +35,9 @@ npm run eval
 ```
 
 - **When:** before every release, and after changing a skill or a shared instruction file.
-- **Cost:** every case runs on Sonnet (`model: sonnet` in each `prompt.md`). A full pass of the first 18
-  cases, 3 runs per case, cost $6.70 at list price in October 2026, against your plan or API account. The script stops at $15 (`--max-cost-usd`). One case:
+- **Cost:** every case runs on Sonnet (`model: sonnet` in each `prompt.md`). A full pass, 3 runs per case,
+  cost about $11.50 at list price in October 2026 (the four cases a lane hook stops before the model
+  cost nothing and run once), against your plan or API account. The script stops at $15 (`--max-cost-usd`). One case:
   `npm run eval -- --case <name> --runs 1`.
 - **Where:** Linux, macOS or WSL2, with Claude Code's sandbox (`bubblewrap` and `socat` on Linux):
   the cases need the Bash tool, and on native Windows Claude Code refuses to grant it to an eval run.
