@@ -26,10 +26,11 @@ calling command gives it). Run each command exactly as written (preflight.md).
      `node "<keel>/scripts/usage.js" ack --batch <n> --failed <doc_id>` and say the sync is incomplete);
      refused because the document does not exist (the page was cleared from another machine) → the same,
      with `--version <collection>/<doc_id>=0` (it is created anew).
-4. **Read the other machines' data**: two `ArtifactData` calls with `action: "query"`,
-   `url` = `artifact_url`, `out_dir` = `<project>/.keel/local/usage/in` (never without `out_dir`):
+4. **Read the other machines' data and the page settings**: three `ArtifactData` calls with
+   `action: "query"`, `url` = `artifact_url`, `out_dir` = `<project>/.keel/local/usage/in` (never without `out_dir`):
    collection `days` with `query: { where: [["date", ">=", "<today minus 35 days, YYYY-MM-DD>"]], limit: 1000 }` (35 days: the calibration looks back that far),
-   and collection `machines` with `query: { limit: 100 }`.
+   collection `machines` with `query: { limit: 100 }`, and collection `meta` with `query: { limit: 10 }`
+   (it says which keel page the page runs; `report` keeps this machine's copy in step).
 5. **Not now: last, right before you write the final report** (after git and every other step, so
    the long output of those steps does not bury it), run
    `node "<keel>/scripts/usage.js" report --project "<project>" --session <session> --in "<project>/.keel/local/usage/in" --lang <the conversation language code>`

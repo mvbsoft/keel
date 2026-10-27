@@ -387,11 +387,16 @@ Then, in one question group:
    limits); `offer: wrap` → the user's line stays exactly as it is and keel only records the
    percentages; `now: keel` → nothing to ask. Options: the offer (recommended) / skip (no percentages
    in the terminal).
-5. **Dashboard page**: `artifact_url` in `show` → keep it; when `show` also says
-   `page template: ... | offer: update`, the page still runs an older keel's page, so offer to update it
-   (step 7; its data stays). Otherwise look with the Artifact tool
-   (`action: list`, mine, then shared) for one titled "keel usage"; found → use it. None → offer to
-   create it (step 7). When the user says the team shares one page, its URL can also go to the project
+5. **Dashboard page**: `artifact_url` in `show` → keep it. When `show` also says
+   `page template: ... | offer: update`, the page itself says which keel page it runs: `ArtifactData`
+   `get`, that url, collection `meta`, doc `settings` (one call). Its `template` is this keel's (the
+   `page template` line) → save it as `page_template` (step 7) and offer nothing. Otherwise look
+   whether the page is this account's: the Artifact tool, `action: list`, mine, `limit` 200; the url is
+   not listed → save `page_shared: true` and say its owner updates it; listed → offer to update it
+   (step 7; its data stays). `show` says `its owner updates it` → offer nothing.
+   No `artifact_url` → look with the Artifact tool (`action: list`, mine, then shared) for one titled
+   "keel usage"; found → use it, with `page_shared` true when it came from the shared list and false
+   from mine. None → offer to create it (step 7). When the user says the team shares one page, its URL can also go to the project
    config (`usage.artifact_url`, committed). A machine uses that URL only after its user approves it
    (`approved_artifact_urls`, step 7), so a cloned repository cannot choose where usage data goes; a
    machine `artifact_url` always wins.
@@ -410,8 +415,9 @@ Then, in one question group:
 7. **Write**, after showing it and the user's yes, in this order:
    - Machine settings first (`apply` accepts `statusline.original` only while it is still the status
      line in the user's settings): write the confirmed keys (`pc`, `user`, `wallet_default`,
-     `cloud_wallet`, `also_api`, `prompt_preview`, `artifact_url`, `approved_artifact_urls` (the team
-     page URL from the project config, when the user approves it), and `statusline`:
+     `cloud_wallet`, `also_api`, `prompt_preview`, `artifact_url`, `page_shared`, `page_template`,
+     `approved_artifact_urls` (the team page URL from the project config, when the user approves it),
+     and `statusline`:
      `{ "mode": "keel" }`, `{ "mode": "wrap", "original": <object> }` or `{ "mode": "none" }`) to
      `<project>/.keel/local/tmp/usage-setup.json` and run
      `node "<keel>/scripts/usage-setup.js" "<project>" apply "<project>/.keel/local/tmp/usage-setup.json"`.
@@ -428,19 +434,21 @@ Then, in one question group:
      then publish with the Artifact tool: `file_path` `<project>/.keel/local/tmp/usage-page/index.html`,
      `files` `{ "pivot.js": ".../usage-page/pivot.js", "i18n.js": ".../usage-page/i18n.js", "i18n.uk.js": ".../usage-page/i18n.uk.js" }`,
      `title` "keel usage", `icon` "chart", `capabilities` `{ "db": {}, "user": {}, "downloads": true }`.
-     Then write the page language with ArtifactData `set` to collection `meta`, doc `settings`,
-     `{ "language": "<conversation language code>", "schema": 1 }`. Then save its URL and the
-     `page_template` that `page` printed on this machine:
-     `{ "artifact_url": "<page url>", "page_template": "<printed value>" }` through the same `apply`.
-   - Update the page (only after a yes): the page is the `artifact_url` from `show`, else the first
-     approved project url. Read it with the Artifact tool (`action: read`, that `url`; the tool
-     publishes over a page only after a read, and it costs about $0.1-0.3). Its title is not "keel
-     usage" or the read does not say "writer" → stop and say why (a team page is updated by its
-     owner). Otherwise run `node "<keel>/scripts/usage-setup.js" "<project>" page` and publish with the
-     Artifact tool: that `url`, the same `file_path` and `files` as when creating it, no `title`,
-     `icon` or `capabilities` (the page keeps its own). Its data and language setting stay: they live
-     in the page's database, not in the published files. Then save `{ "page_template": "<printed
-     value>" }` through the same `apply`.
+     Then write the page settings with ArtifactData `set` to collection `meta`, doc `settings`,
+     `{ "language": "<conversation language code>", "schema": 1, "template": "<page_template printed by page>" }`.
+     Then save on this machine, through the same `apply`:
+     `{ "artifact_url": "<page url>", "page_shared": false, "page_template": "<printed value>" }`.
+   - Update the page (only after a yes): the page is the `artifact_url` from `show`. Read it with the
+     Artifact tool (`action: read`, that `url`; the tool publishes over a page only after a read, and
+     it costs about $0.1-0.3). Its title is not "keel usage" → stop and say why. The read does not say
+     "writer" → stop, save `{ "page_shared": true }` and say its owner updates it. Otherwise run
+     `node "<keel>/scripts/usage-setup.js" "<project>" page` and publish with the Artifact tool: that
+     `url`, the same `file_path` and `files` as when creating it, no `title`, `icon` or `capabilities`
+     (the page keeps its own). Its data stays: it lives in the page's database, not in the published
+     files. Then ArtifactData `update` collection `meta`, doc `settings`,
+     `{ "template": "<page_template printed by page>" }` (it keeps `language` and `schema`; no such
+     document → `set` it with `"language": "<conversation language code>", "schema": 1` too), and
+     save `{ "page_template": "<printed value>" }` through the same `apply`.
    - The first sync happens at the next `/keel:end-task`, `/keel:end-session` or
      `/keel:end-planning` (the last 30 days of logs on this machine).
 
