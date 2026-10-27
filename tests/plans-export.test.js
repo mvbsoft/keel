@@ -220,6 +220,7 @@ test('report: a valid reply lists its findings; each rule the schema cannot hold
   fails({ ...plan, findings: Array.from({ length: 11 }, (_, i) => FINDING(`plan-reviewer-${i + 1}`, 'plan')) }, /^- plan-reviewer has 11 findings; at most 10$/);
   fails({ ...plan, checks: [CHECK('T1', 'coverage')] }, /^- checks\[0\] \(coverage\) is about T1; plan-reviewer answers its checks for the plan$/);
   fails({ ...ticket, findings: Array.from({ length: 6 }, (_, i) => FINDING(`ticket-reviewer-${i + 1}`, 'T1')) }, /^- T1 has 6 findings; at most 5 per ticket$/);
+  fails({ ...ticket, findings: Array.from({ length: 6 }, (_, i) => FINDING(`ticket-reviewer-${i + 1}`, 'KEEL-4')) }, /^- KEEL-4 has 6 findings; at most 5 per ticket$/);
   fails({ ...ticket, checks: [CHECK('plan')] }, /^- checks\[0\] \(one-goal\) is about plan; ticket-reviewer speaks only of tickets/);
   fails({ ...ticket, findings: [FINDING('ticket-reviewer-1', 'Decisions')] }, /^- finding ticket-reviewer-1 is about Decisions; ticket-reviewer speaks only of tickets/);
   fails({ ...ticket, findings: [FINDING('plan-reviewer-1', 'T1')] }, /^- finding plan-reviewer-1 does not start with ticket-reviewer$/);
