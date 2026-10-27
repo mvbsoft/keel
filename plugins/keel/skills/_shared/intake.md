@@ -263,8 +263,8 @@ asking to plan it as a feature is the yes to this question: do not ask it then.
 - No `task new` yet (step 7 item 2) → on yes, ask the user to type `/keel:start-planning` (keel cannot
   start it for them); the plan in this chat is its source.
 - After `task new`, only while no code changed: `git diff --name-only <started>` (the task file's
-  `started:`) and `git ls-files --others --exclude-standard` list nothing outside `.keel/`. On yes:
-  `node "<keel>/scripts/notes.js" "<project>" task drop <id>` (its folder to keel's trash). A branch of
+  `started:`) and `git ls-files --others --exclude-standard` list nothing outside `.keel/`. On yes, say "<id> goes to keel's trash" and run
+  `node "<keel>/scripts/notes.js" "<project>" task drop <id>`. A branch of
   its own (`branch` differs from `base`) is deleted only on its own yes:
   `node "<keel>/scripts/git-flow.js" "<project>" switch --name <base>`, then
   `node "<keel>/scripts/git-flow.js" "<project>" delete-branch --name <branch>` (Claude Code confirms).
