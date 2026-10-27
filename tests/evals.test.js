@@ -147,4 +147,6 @@ test('npm run eval runs the suite once per release, never in CI by default', () 
     assert.doesNotMatch(fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', wf), 'utf8'), /plugin eval|npm run eval/, wf);
   }
   assert.match(fs.readFileSync(path.join(__dirname, '..', '.gitignore'), 'utf8'), /^plugins\/keel\/evals\/results\/$/m);
+  // A resumed history gets each run's transcript beside it, in the case folder.
+  assert.match(fs.readFileSync(path.join(__dirname, '..', '.gitignore'), 'utf8'), /^plugins\/keel\/evals\/\*\/\*-\*-\*-\*-\*\.jsonl$/m);
 });

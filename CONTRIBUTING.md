@@ -52,7 +52,8 @@ npm run eval
   `--security-opt` flags let the sandbox create its namespaces inside the container.
 - **Not in CI by default**, because it costs money. To add it, run the same command in a job with
   `ANTHROPIC_API_KEY` as a secret, `--json results.json` and a `--threshold`, on a release tag only.
-- Results go to `plugins/keel/evals/results/` (ignored by git).
+- Results go to `plugins/keel/evals/results/` (ignored by git). A case that resumes `history.jsonl`
+  also gets each run's transcript beside it (`<session id>.jsonl`, ignored by git too).
 
 ## Rules for changes
 

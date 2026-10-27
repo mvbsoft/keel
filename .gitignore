@@ -7,4 +7,6 @@ Thumbs.db
 .idea/
 .vscode/
 plugins/keel/evals/results/
+# A case that resumes history.jsonl: Claude Code writes each run's transcript beside it.
+plugins/keel/evals/*/*-*-*-*-*.jsonl
 .design/

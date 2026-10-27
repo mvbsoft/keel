@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: start-planning-refuses-without-person
+context:
+  scaffold_script: fixture.sh
