@@ -17,7 +17,8 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   to keel.
 - **No code.** Planning writes only the draft; while this conversation plans, keel's hook refuses
   changes to other project files. Facts about the code: a few searches yourself, or `keel:context` for
-  a wider look. A pricier model or web research only when the user asks.
+  a wider look (the gathering in "Work"). A pricier model or web research only when the user asks or
+  says yes to an offer of it.
 - **Git only with a yes.** Every branch, commit and push waits for the user's yes; a no → keel does
   nothing (the user may do it). Planning never opens or offers a pull request.
 
@@ -25,6 +26,19 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
 - **One question per message** (AskUserQuestion when it exists), answerable in a line. A design
   choice → 2-3 approaches with your recommendation and why. The first question gets no answer (no
   one is there) → stop: planning is a conversation with a person.
+- **Gather before the questions.** A new feature told in a line or two, or one sized large → before
+  its first question, one message offers what to look up first, each item with its price said as an
+  estimate (in words and the helper's model, such as "cheap: a Haiku helper"; never a dollar figure
+  nobody measured), all on one yes (the user may take only some, or none: then the questions at
+  once): the project map, one `keel:context` call (a Haiku helper, cheap) with numbered questions on
+  where the feature meets the code (the stack, the modules and data it touches, what it can reuse).
+  On a yes first write its answers, short and with `file:line`, into What was gathered (`plan.md`),
+  then ask. Each question then builds on what was found ("chat/ already has a WebSocket: send through it, or a channel of its
+  own?"), and none asks what the gathered facts or the project's docs already answer. The facts a
+  ticket needs go into its Where to look and Boundaries, the conclusions into Decisions: What was
+  gathered stays in the draft and is not exported.
+- **A draft continued** reads What was gathered first and never searches for it again; a fact it
+  lacks → look it up and add it there.
 - Keep `plan.md` true as you go: In plain words (the whole feature for a person: what and why, how it
   will work, an example, what is not done, how we know it is done), Level,
   Decisions (`D1. decision - why`), Contract (APIs, events and formats between repositories), Out of

@@ -9,4 +9,5 @@ Thumbs.db
 plugins/keel/evals/results/
 # A case that resumes history.jsonl: Claude Code writes each run's transcript beside it.
 plugins/keel/evals/*/*-*-*-*-*.jsonl
+plugins/keel/evals/*/*-*-*-*-*/
 .design/

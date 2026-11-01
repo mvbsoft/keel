@@ -2,7 +2,7 @@
 // Builds the eval project in the current folder: a small configured shop with git and a bare remote
 // in .git/eval-remote.git (inside the workspace, so the sandboxed run can push to it).
 // Usage: node shop.js <base | tasks | finish | session | messy | overbuilt | planning | planning-openq |
-//                      planning-ready | planning-repo | planned | task-active>
+//                      planning-ready | planning-repo | planning-new | planned | task-active>
 //   base            no tasks, no note
 //   tasks           handed-off tasks CAN-123 (discount, Jira link) and fix-reset-500 on their branches; on main
 //   finish          task CAN-200 done and committed on its branch, checked out there
@@ -23,6 +23,8 @@
 //   planning-ready  as planning, the plan ready, and a committed AGENTS.md
 //                   that says tickets live in Jira
 //   planning-repo   as planning, the draft in the repository (draft repo): tickets/csv-export/ not committed
+//   planning-new    a new draft notification-system on this machine, as plans.js new writes it, nothing
+//                   gathered or asked yet; the chat SID plans it; on main
 //   planned         csv-export exported into tickets/csv-export/ (INV-1..INV-4, branch csv-export, merge_into
 //                   main) and merged into main: INV-1 done on origin/main, INV-2 in progress (branch
 //                   INV-2-download-button, its tip by Dana Smith), INV-3 done on its branch INV-3-date-range
@@ -661,6 +663,14 @@ function planningReady() {
   plans('state', 'csv-export', 'ready');
 }
 
+// A feature just named: start-planning has made its draft and marked the chat, the work not begun.
+function planningNew() {
+  invoices();
+  plans('settings', 'set', '--draft', 'pc');
+  plans('new', 'notification-system');
+  plans('mark', 'set', 'notification-system', '--session', SID);
+}
+
 // Commits as another person: the in-progress hint names the branch tip's author.
 const commitAs = (name, email, msg) => { git('add', '-A'); git('-c', `user.name=${name}`, '-c', `user.email=${email}`, 'commit', '-q', '-m', msg); };
 
@@ -725,6 +735,7 @@ else if (variant === 'planning') planning();
 else if (variant === 'planning-openq') planning({ openq: true });
 else if (variant === 'planning-ready') planningReady();
 else if (variant === 'planning-repo') planning({ where: 'repo' });
+else if (variant === 'planning-new') planningNew();
 else if (variant === 'planned') planned();
 else if (variant === 'task-active') taskActive();
 else if (variant !== 'base') throw new Error(`unknown variant "${variant}"`);

@@ -86,6 +86,37 @@ test('planning work: one question per message, 2-3 approaches, D and Q records, 
   assert.match(work, /`plans\.js state <f> abandoned`/);
 });
 
+test('planning gathers before it asks: an offer with its price on one yes, the findings in What was gathered, read again instead of a new search', () => {
+  // Line breaks in the instructions are layout: compare the text with whitespace collapsed.
+  const flat = (text) => text.replace(/\s+/g, ' ');
+  const work = flat(section('Work'));
+  before(work, '**One question per message**', '**Gather before the questions.**');
+  assert.ok(work.includes('A new feature told in a line or two, or one sized large → before its first question, one message offers what to look up first, each item with its price said as an estimate'));
+  assert.ok(work.includes('never a dollar figure nobody measured'), 'no invented price');
+  assert.ok(work.includes('all on one yes'));
+  assert.ok(work.includes('the project map, one `keel:context` call (a Haiku helper, cheap)'));
+  assert.ok(work.includes('On a yes first write its answers, short and with `file:line`, into What was gathered (`plan.md`), then ask'));
+  assert.ok(work.includes('none asks what the gathered facts or the project\'s docs already answer'));
+  assert.ok(work.includes('What was gathered stays in the draft and is not exported'));
+  assert.ok(work.includes('**A draft continued** reads What was gathered first and never searches for it again'));
+  // The researcher and the neighbouring repositories join the gathering in later versions of these instructions.
+  for (const text of [flow(), start()]) assert.doesNotMatch(text, /keel:researcher|neighbou?ring repositor/i, 'only the project map is gathered');
+  // Research the planner offered and the user took is allowed, not only research the user asked for.
+  assert.ok(flat(section('Rules')).includes('A pricier model or web research only when the user asks or says yes to an offer of it'));
+  const text = flat(start());
+  assert.ok(text.includes('read `plan.md` only (not the tickets): the ticket list, open Q, What was gathered, Next action'));
+  assert.ok(text.includes('new: the gathering offer when it fits, else the first open question'));
+});
+
+test('start-planning: a new feature hears once that keel advises Opus, without a model check', () => {
+  const fresh = start().slice(start().indexOf('**New feature.**'), start().indexOf('**Continue a draft.**'));
+  assert.ok(fresh.replace(/\s+/g, ' ').includes('Say once, in one line: keel advises Opus for planning, since the plan shapes all the work after it; the model stays the user\'s choice (`/model`)'));
+  before(fresh, 'keel advises Opus', 'Source:', 'said at the start of the new feature');
+  // Advice only: the model is named once, in that line, and nothing checks, switches or blocks it.
+  assert.equal(start().match(/\bOpus\b|\/model\b|\bSonnet\b|\bHaiku\b/g).length, 2, 'Opus and /model, once each');
+  assert.doesNotMatch(start(), /check(s|ing)? the model|switch(es)? the model|not Opus|without Opus/i);
+});
+
 test('start-planning: preflight, the session-lane check, then notes.js check without --begin; the hooks keep the other refusals', () => {
   const text = start();
   before(text, 'preflight.md', 'ran `/keel:start-session` and no `/keel:end-session` since');

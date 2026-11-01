@@ -17,8 +17,15 @@ All notable changes to keel are listed here. The format follows
 - `comments.js` reports the planning ticket prefix in new comments and docs together with
   `comments.ticket_prefixes`, read at each check; `/keel:configure check` no longer proposes it as a
   tracker prefix.
+- Planning gathers before it asks: a new feature told in a line or two, or a large one, first gets an
+  offer of what to look up, with the price as an estimate, on one yes: the project map, a
+  `keel:context` helper on Haiku. Its findings go into `plan.md`, What was gathered, which a continued
+  draft reads instead of searching again; the questions after it build on what was found.
 
 ### Changed
+- `/keel:start-planning` says once on a new feature that keel advises Opus for planning; the model
+  stays the user's choice. A pricier model or web research also runs after a yes to an offer of it,
+  not only when the user asks.
 - `/keel:start-planning` stops before its first question while the project has no planning settings
   and names `/keel:configure planning`; export is refused the same way. The first planning on a
   machine asks only where the draft lives. The ticket prefix no longer falls back to the first of
