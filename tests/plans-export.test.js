@@ -40,6 +40,11 @@ const run = (dir, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'p
 const line = (out, prefix) => out.find((l) => l.startsWith(prefix)) || '';
 const body = (dir, rel, text) => write(dir, rel, readRel(dir, rel).replace(/^(---\n[\s\S]*?\n---\n)[\s\S]*$/, (m, fm) => `${fm}\n${text}`));
 const front = (dir, rel, key, value) => write(dir, rel, readRel(dir, rel).replace(new RegExp(`^${key}:.*$`, 'm'), `${key}: ${value}`));
+// The planning section of .keel/config.json, as /keel:configure planning writes it.
+const planning = (dir, fields) => {
+  const config = JSON.parse(readRel(dir, '.keel/config.json'));
+  write(dir, '.keel/config.json', JSON.stringify({ ...config, planning: { ...config.planning, ...fields } }));
+};
 
 const PLAN_BODY = `# S3 storage
 
@@ -259,7 +264,7 @@ test('report: a valid reply lists its findings; each rule the schema cannot hold
 
 gitTest('keys: the highest of the prefix in commit messages, ticket file names on other branches, branch names, the working tree and this machine\'s feature folders; exact keys', () => {
   const { work } = setup({ remote: false });
-  const s = plans.settings(work);
+  const s = require(path.join(SCRIPTS, 'lib', 'plans-settings.js')).settings(work);
   const top = () => highestKey(work, 'PROJ', s, true);
   assert.equal(top(), 0);
   git(work, 'commit', '-q', '--allow-empty', '-m', 'PROJ-7: fix the upload\n\nAlso XPROJ-900, PROJECT-950, PRO-500 and proj-8.');
@@ -291,7 +296,7 @@ gitTest('keys: the highest of the prefix in commit messages, ticket file names o
   write(work, '.git/refs/heads/broken', `${'0123456789'.repeat(4)}\n`);
   assert.equal(highestKey(work, 'PROJ', s, true, notes), 25);
   assert.deepEqual(notes, ['keys: may be incomplete (git could not read the commit messages, ticket file names); check that the new keys are free']);
-  run(work, 'settings', 'set', '--export', 'pc', '--prefix', 'PROJ');
+  planning(work, { tickets: 'pc', ticket_prefix: 'PROJ' });
   ready(work, 's3-storage', 1);
   assert.ok(run(work, 'export', 's3-storage').includes(notes[0]));
 });
@@ -304,10 +309,12 @@ gitTest('export on this machine: keys after the highest, tickets and README in t
   run(work, 'set', 's3-storage', '--branch', 'feat/s3');
   run(work, 'state', 's3-storage', 'ready');
   git(work, 'commit', '-q', '--allow-empty', '-m', 'PROJ-100: earlier work');
-  assert.match(run(work, 'export', 's3-storage')[0], /refused \(where the tickets go is not set: plans\.js settings set --export pc\|repo\)/);
-  run(work, 'settings', 'set', '--export', 'pc');
-  assert.match(run(work, 'export', 's3-storage')[0], /refused \(no ticket prefix: plans\.js settings set --prefix <PROJ>\)/);
-  run(work, 'settings', 'set', '--prefix', 'PROJ');
+  const notSetUp = ['plans: export refused (planning is not set up in .keel/config.json: /keel:configure planning)'];
+  assert.deepEqual(run(work, 'export', 's3-storage'), notSetUp);
+  // Without a prefix the config is invalid, so nothing of the section counts, and the refusal says why.
+  planning(work, { tickets: 'pc' });
+  assert.deepEqual(run(work, 'export', 's3-storage'), ['plans: export refused (.keel/config.json is invalid ($.planning: missing "ticket_prefix"), so its planning section is not used: /keel:configure)']);
+  planning(work, { ticket_prefix: 'PROJ' });
   const folder = `${LOCAL}/s3-storage/tickets`;
   const out = run(work, 'export', 's3-storage');
   assert.deepEqual(out, [
@@ -347,7 +354,7 @@ gitTest('export on this machine: keys after the highest, tickets and README in t
   assert.match(readRel(work, `.keel/local/trash/${batch}/files/${LOCAL}/s3-storage/plan.md`), /^export: pc$/m);
   // Nothing of it goes into git.
   git(work, 'checkout', '-q', '-b', 's3');
-  assert.deepEqual(run(work, 'commit', 's3-storage'), ['plans: commit refused (the tickets of s3-storage are on this machine (export pc): none of it goes into git)']);
+  assert.deepEqual(run(work, 'commit', 's3-storage'), ['plans: commit refused (the tickets of s3-storage are on this machine (tickets pc): none of it goes into git)']);
   assert.match(run(work, 'push', 's3-storage')[0], /^plans: push refused \(the tickets of s3-storage are on this machine/);
   // The next feature's keys follow these on this machine.
   ready(work, 'csv-export', 1);
@@ -357,21 +364,29 @@ gitTest('export on this machine: keys after the highest, tickets and README in t
   assert.ok(!exists(work, `${LOCAL}/csv-export/tickets/README.md`));
 });
 
-gitTest('export refusals: not ready, a check problem, a repository draft to this machine, a taken target; the prefix from comments.ticket_prefixes', () => {
+gitTest('export refusals: not ready, a check problem, a repository draft to this machine, a taken target; the prefix is the planning one, not comments.ticket_prefixes', () => {
   const { work } = setup({ remote: false, config: { comments: { level: 'short', ticket_prefixes: ['X', 'SHOP'] } } });
-  run(work, 'settings', 'set', '--export', 'pc');
+  planning(work, { tickets: 'pc', ticket_prefix: 'INV' });
   run(work, 'new', 'draft-only');
   assert.match(run(work, 'export', 'draft-only')[0], /refused \(the plan is draft; only a ready plan is exported/);
   ready(work, 's3-storage', 1);
   fs.rmSync(path.join(work, 'src', 'app.js'));
   assert.match(run(work, 'export', 's3-storage')[0], /refused \(check finds 1 problems \(plans\.js check s3-storage\)\)/);
   write(work, 'src/app.js', 'module.exports = 1;\n');
-  assert.equal(run(work, 'export', 's3-storage')[1], `- T1 -> SHOP-1: ${LOCAL}/s3-storage/tickets/SHOP-1-ticket-1.md`, 'the first valid comments.ticket_prefixes');
+  assert.equal(run(work, 'export', 's3-storage')[1], `- T1 -> INV-1: ${LOCAL}/s3-storage/tickets/INV-1-ticket-1.md`);
 
   run(work, 'settings', 'set', '--draft', 'repo');
   ready(work, 'csv-export', 1, 'tickets/csv-export');
-  assert.match(run(work, 'export', 'csv-export')[0], /refused \(the draft is in the repository, so its tickets go there too: plans\.js settings set --export repo\)/);
-  run(work, 'settings', 'set', '--export', 'repo', '--export-dir', 'features');
+  assert.match(run(work, 'export', 'csv-export')[0], /refused \(the draft is in the repository, so its tickets go there too, but planning\.tickets in \.keel\/config\.json is pc: plans\.js settings set --draft pc for this machine, or \/keel:configure planning for the team\)/);
+  // A committed tickets_dir keel does not use: refused, nothing written.
+  const { exportDir } = require(path.join(SCRIPTS, 'lib', 'plans-settings.js'));
+  for (const d of ['../out', '.hidden', 'handoffs', 'docs/plans/x', 'docs//plans', 'docs\\plans']) {
+    planning(work, { tickets: 'repo', tickets_dir: d });
+    assert.equal(exportDir(work), null, d);
+    assert.deepEqual(run(work, 'export', 'csv-export'), ['plans: export refused (planning.tickets_dir in .keel/config.json is not a folder keel uses: /keel:configure planning)'], d);
+  }
+  assert.ok(!exists(work, '../out') && !exists(work, '.hidden') && !exists(work, 'docs'));
+  planning(work, { tickets: 'repo', tickets_dir: 'features' });
   write(work, 'features/csv-export/keep.md', 'x\n');
   assert.match(run(work, 'export', 'csv-export')[0], /refused \(features\/csv-export\/ exists and is not this draft's folder/);
   assert.match(readRel(work, 'tickets/csv-export/plan.md'), /^status: ready$/m);
@@ -379,7 +394,7 @@ gitTest('export refusals: not ready, a check problem, a repository draft to this
 
 gitTest('export is all or nothing on this machine: an interrupted run leaves no feature folder and a ready plan; the next run takes the same keys', () => {
   const { work } = setup({ remote: false });
-  run(work, 'settings', 'set', '--export', 'pc', '--prefix', 'PROJ');
+  planning(work, { tickets: 'pc', ticket_prefix: 'PROJ' });
   ready(work, 's3-storage');
   const plan = `${LOCAL}/s3-storage/plan.md`;
   for (const step of ['written', 'moved']) {
@@ -403,7 +418,7 @@ gitTest('export is all or nothing on this machine: an interrupted run leaves no 
 
 gitTest('the overview names the repository by the last part of its remote URL, the same on every machine', () => {
   const { work } = setup();
-  run(work, 'settings', 'set', '--export', 'pc', '--prefix', 'PROJ');
+  planning(work, { tickets: 'pc', ticket_prefix: 'PROJ' });
   ready(work, 's3-storage');
   run(work, 'export', 's3-storage');
   const readme = readRel(work, `${LOCAL}/s3-storage/tickets/README.md`);
@@ -416,7 +431,8 @@ gitTest('the overview names the repository by the last part of its remote URL, t
 
 gitTest('export into the repository: the draft\'s own folder gets the new files (an earlier run\'s are removed first); a draft on this machine goes through a temporary folder', () => {
   const { work } = setup({ remote: false });
-  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo');
+  planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });
+  run(work, 'settings', 'set', '--draft', 'repo');
   ready(work, 's3-storage', 2, 'tickets/s3-storage');
   // A failed run's ticket and overview in the draft's folder.
   write(work, 'tickets/s3-storage/PROJ-40-ticket-1.md', '---\ntype: ticket\nkey: PROJ-40\nfeature: s3-storage\n---\n');
@@ -434,7 +450,8 @@ gitTest('export into the repository: the draft\'s own folder gets the new files 
   assert.ok(exists(work, 'tickets/s3-storage/tickets/T1-ticket-1.md'), 'the draft stays until the commit');
 
   // A draft on this machine exported into the repository: temporary folder, one rename, the draft to the trash.
-  run(work, 'settings', 'set', '--draft', 'pc', '--export-dir', 'features');
+  planning(work, { tickets_dir: 'features' });
+  run(work, 'settings', 'set', '--draft', 'pc');
   ready(work, 'csv-export', 1);
   const moved = exportFeature(work, 'csv-export', { stop: (at) => { if (at === 'moved') throw new Error('interrupted'); } });
   assert.match(moved[0], /refused \(interrupted; nothing exported/);
@@ -451,7 +468,8 @@ gitTest('export into the repository: the draft\'s own folder gets the new files 
 
 gitTest('commit: refused on main, detached, during a merge, without a draft; a draft commits as "Plan"; an export commits its tickets and the draft leaves in the same commit; other staged changes stay out', () => {
   const { work } = setup({ remote: false });
-  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo');
+  planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });
+  run(work, 'settings', 'set', '--draft', 'repo');
   ready(work, 's3-storage', 2, 'tickets/s3-storage');
   assert.deepEqual(run(work, 'commit', 's3-storage'), ['plans: commit refused (on the main branch main; planning files go to a feature branch first)']);
   git(work, 'checkout', '-q', '--detach');
@@ -488,7 +506,7 @@ gitTest('commit: refused on main, detached, during a merge, without a draft; a d
 
 gitTest('commit and push: a key taken on another branch since the export is renumbered (files and references); one already on the remote is refused', () => {
   const { tmp, work, server } = setup();
-  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ');
+  planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });
   git(work, 'checkout', '-q', '-b', 's3-storage');
   ready(work, 's3-storage');
   assert.equal(run(work, 'export', 's3-storage')[1], '- T1 -> PROJ-1: tickets/s3-storage/PROJ-1-ticket-1.md');
@@ -525,7 +543,8 @@ gitTest('commit and push: a key taken on another branch since the export is renu
 
 gitTest('commit: when part of an exported draft cannot go to keel\'s trash, what went comes back and nothing is committed', () => {
   const { tmp, work } = setup({ remote: false });
-  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo');
+  planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });
+  run(work, 'settings', 'set', '--draft', 'repo');
   git(work, 'checkout', '-q', '-b', 's3-storage');
   ready(work, 's3-storage', 2, 'tickets/s3-storage');
   write(work, 'tickets/s3-storage/reviews/T1.md', 'decided\n');
@@ -546,9 +565,9 @@ gitTest('commit: when part of an exported draft cannot go to keel\'s trash, what
 });
 
 gitTest('commit: a draft in its own repository folder; "Plan" leaves other files of the ticket folder alone; after export the committed draft leaves with the tickets; a draft on this machine is refused', () => {
-  const { work } = setup({ remote: false });
+  const { work } = setup({ remote: false, config: { planning: { tickets: 'repo', ticket_prefix: 'PROJ' } } });
   run(work, 'new', 'local-thing');
-  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo', '--draft-dir', 'plans');
+  run(work, 'settings', 'set', '--draft', 'repo', '--draft-dir', 'plans');
   git(work, 'checkout', '-q', '-b', 's3-storage');
   assert.deepEqual(run(work, 'commit', 'local-thing'), ['plans: commit refused (the draft of local-thing is on this machine: none of it goes into git)']);
   ready(work, 's3-storage', 2, 'plans/s3-storage');
@@ -608,7 +627,8 @@ gitTest('stale: a named folder counts by every file in it, committed or not', ()
 
 gitTest('export into the draft\'s own folder never replaces a README of the user\'s own', () => {
   const { work } = setup({ remote: false });
-  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo');
+  planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });
+  run(work, 'settings', 'set', '--draft', 'repo');
   ready(work, 's3-storage', 2, 'tickets/s3-storage');
   write(work, 'tickets/s3-storage/README.md', '# My notes\n');
   assert.deepEqual(run(work, 'export', 's3-storage'), ['plans: export refused (tickets/s3-storage/README.md is not keel\'s overview: move it away, then export again)']);
@@ -616,7 +636,8 @@ gitTest('export into the draft\'s own folder never replaces a README of the user
   assert.match(readRel(work, 'tickets/s3-storage/plan.md'), /^status: ready$/m);
   assert.ok(!exists(work, 'tickets/s3-storage/PROJ-1-ticket-1.md'));
   // One ticket writes no overview: the user's README stays and the export goes on.
-  run(work, 'settings', 'set', '--draft', 'repo', '--draft-dir', 'plans', '--export-dir', 'plans');
+  planning(work, { tickets_dir: 'plans' });
+  run(work, 'settings', 'set', '--draft', 'repo', '--draft-dir', 'plans');
   ready(work, 'csv-export', 1, 'plans/csv-export');
   write(work, 'plans/csv-export/README.md', '# Mine\n');
   assert.equal(run(work, 'export', 'csv-export')[2], 'readme: none (1 ticket)');
@@ -662,7 +683,8 @@ const guard = (dir, sid, file) => {
 
 gitTest('mark set on an exported feature: its folder in the working tree, also while plan.md says exported; one only a branch has is refused naming that branch', () => {
   const { work } = setup();
-  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ', '--draft', 'repo');
+  planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });
+  run(work, 'settings', 'set', '--draft', 'repo');
   git(work, 'checkout', '-q', '-b', 's3-storage');
   ready(work, 's3-storage', 2, 'tickets/s3-storage');
   run(work, 'export', 's3-storage');
@@ -685,7 +707,7 @@ gitTest('mark set on an exported feature: its folder in the working tree, also w
 
 gitTest('ticket on an exported feature: the next key after a fetch, beside the others with the feature\'s front matter; check reads keys; the exported feature alone commits ("Update" once HEAD has its tickets) and pushes', () => {
   const { tmp, work, server } = setup();
-  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ');
+  planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });
   git(work, 'checkout', '-q', '-b', 's3-storage');
   ready(work, 's3-storage');
   run(work, 'export', 's3-storage');
@@ -712,7 +734,7 @@ gitTest('ticket on an exported feature: the next key after a fetch, beside the o
 
 gitTest('commit: a ticket folder HEAD has and the working tree no longer has is committed as its removal on the feature branch; refused on main', () => {
   const { work } = setup({ remote: false });
-  run(work, 'settings', 'set', '--export', 'repo', '--prefix', 'PROJ');
+  planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });
   git(work, 'checkout', '-q', '-b', 's3-storage');
   ready(work, 's3-storage');
   run(work, 'export', 's3-storage');
@@ -740,7 +762,7 @@ gitTest('commit: a ticket folder HEAD has and the working tree no longer has is 
 
 gitTest('a teammate\'s clone with no planning settings finds the exported feature by its folder: mark set, the write guard, ticket, check, commit; a branch at HEAD is never named', () => {
   const { tmp, work, server } = setup();
-  run(work, 'settings', 'set', '--export', 'repo', '--export-dir', 'features', '--prefix', 'PROJ');
+  planning(work, { tickets: 'repo', tickets_dir: 'features', ticket_prefix: 'PROJ' });
   git(work, 'checkout', '-q', '-b', 's3-storage');
   ready(work, 's3-storage');
   run(work, 'export', 's3-storage');
@@ -751,7 +773,7 @@ gitTest('a teammate\'s clone with no planning settings finds the exported featur
   git(mate, 'config', 'user.name', 'Mate');
   git(mate, 'config', 'user.email', 'mate@example.com');
   git(mate, 'checkout', '-q', 's3-storage');
-  assert.ok(!exists(mate, `${LOCAL}/settings.json`), 'export_dir is the default tickets here');
+  assert.ok(!exists(mate, `${LOCAL}/settings.json`), 'no planning settings on this machine');
 
   assert.deepEqual(run(mate, 'mark', 'set', 's3-storage', '--session', 'chat-1'), ['planning: s3-storage (exported: features/s3-storage/)']);
   assert.deepEqual(JSON.parse(readRel(mate, `${LOCAL}/sessions/chat-1.json`)), { feature: 's3-storage', folder: 'features/s3-storage' });
@@ -815,8 +837,8 @@ gitTest('a feature folder under a non-ASCII folder commits as "Update" once HEAD
 
 test('planning-guard: the exported feature folder in the repository is writable for the chat that plans it; other project files stay blocked', () => {
   const dir = tempDir('keel-export-guard-');
-  write(dir, '.keel/config.json', '{}');
-  run(dir, 'settings', 'set', '--export', 'repo', '--export-dir', 'features');
+  write(dir, '.keel/config.json', JSON.stringify(CONFIG()));
+  planning(dir, { tickets: 'repo', tickets_dir: 'features', ticket_prefix: 'PROJ' });
   run(dir, 'new', 's3-storage');
   run(dir, 'mark', 'set', 's3-storage', '--session', 'chat-plan');
   assert.equal(guard(dir, 'chat-plan', 'features/s3-storage/PROJ-1-client.md'), 'allow');
@@ -826,10 +848,20 @@ test('planning-guard: the exported feature folder in the repository is writable 
   assert.equal(guard(dir, 'chat-plan', 'src/app.js'), 'deny');
 });
 
+test('planning-guard: without the planning section the default tickets/ folder of the planned feature is writable; other project files stay blocked', () => {
+  const dir = tempDir('keel-export-guard-');
+  write(dir, '.keel/config.json', JSON.stringify(CONFIG()));
+  run(dir, 'new', 's3-storage');
+  run(dir, 'mark', 'set', 's3-storage', '--session', 'chat-plan');
+  assert.equal(guard(dir, 'chat-plan', 'tickets/s3-storage/PROJ-1-client.md'), 'allow');
+  assert.equal(guard(dir, 'chat-plan', 'tickets/payments/PROJ-9-pay.md'), 'deny');
+  assert.equal(guard(dir, 'chat-plan', 'src/app.js'), 'deny');
+});
+
 test('planning-guard: an exported feature reopened with mark set (no draft) is writable in its folder, in the repository and on this machine', () => {
   const dir = tempDir('keel-export-guard-');
-  write(dir, '.keel/config.json', '{}');
-  run(dir, 'settings', 'set', '--export-dir', 'features');
+  write(dir, '.keel/config.json', JSON.stringify(CONFIG()));
+  planning(dir, { tickets: 'repo', tickets_dir: 'features', ticket_prefix: 'PROJ' });
   const ticket = (key, feature) => `---\ntype: ticket\nkey: ${key}\nstatus: todo\nfeature: ${feature}\n---\n`;
   write(dir, 'features/s3-storage/PROJ-1-client.md', ticket('PROJ-1', 's3-storage'));
   write(dir, `${LOCAL}/csv-export/tickets/PROJ-3-rows.md`, ticket('PROJ-3', 'csv-export'));

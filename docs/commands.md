@@ -42,7 +42,7 @@ first commit of the current state, and stop on a no.
 | `/keel:configure` when the config is out of date or broken | Repairs it: asks only about fields a newer keel added, or lists each problem with a proposed fix, and keeps everything else. |
 | `/keel:configure machine` | Only this machine's settings, for every project: the conversation language, the machine values of the Claude Code settings, usage and costs. Writes no `.keel/` files. |
 | `/keel:configure check` | Says, without changing any setting, whether the project changed since the last configure in ways its settings depend on, which sections to run again and why (each with the fact, for example a new `npm run test:e2e` keel does not run, or a main branch that is gone), and the command that runs only those. Package versions alone never count. One script does the comparison, so the answer costs about one reply. On a machine without a record of the last configure it rebuilds one from the commit of `.keel/` (a few seconds, once). [More](#keelconfigure-check). |
-| `/keel:configure <section>[,<section>...]` | Only those sections again, in a configured project, in section order, and the files are written once at the end: `/keel:configure gates,git` (or `3,4`). Sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`. `prices` has an agent read the official pricing page and shows the differences; `migration` moves another notes system into keel. |
+| `/keel:configure <section>[,<section>...]` | Only those sections again, in a configured project, in section order, and the files are written once at the end: `/keel:configure gates,git` (or `3,4`). Sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`; `planning` asks only the planning settings (ticket prefix, where the tickets live, their language). `prices` has an agent read the official pricing page and shows the differences; `migration` moves another notes system into keel. |
 
 Nothing is written without your yes. A project setup writes `.keel/config.json`, `.keel/profile.json`
 and `.keel/.gitignore`; with your yes also the Claude Code settings it recommends (each file backed up
@@ -161,8 +161,8 @@ Every case: [ways of working](workflows.md#end-a-session-keelend-session).
 | `/keel:start-planning CSV export of invoices` (or a link, or a file) | a new feature: the retell, its size, a name, where its tasks merge, then one question at a time |
 | `/keel:start-planning csv-export` (or "continue the CSV export") | continues that draft from its Next action; an exported feature reopens its tickets for editing |
 
-The first run in a project asks the tickets' language and where the draft lives (this machine or the
-repository). No code: the conversation writes only the draft. Every case:
+Without the project's planning settings (`/keel:configure planning`) the first run stops before any
+question; then it asks where the draft lives (this machine or the repository). No code: the conversation writes only the draft. Every case:
 [ways of working](workflows.md#planning).
 
 ## `/keel:end-planning`

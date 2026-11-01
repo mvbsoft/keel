@@ -6,7 +6,23 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `.keel/config.json` has a `planning` section, the same for the whole team: the ticket prefix
+  (`ticket_prefix`), where exported tickets live (`tickets`: `repo` or `pc`; the researcher's reports
+  go with them) and their folder (`tickets_dir`, default `tickets`), and the tickets' language
+  (`language`, default `repo_language`). `/keel:configure` asks the prefix and where the tickets live,
+  quick setup too; detailed setup also asks the language. `/keel:configure planning` asks only these.
+- The planning settings on this machine keep `repos`, where the neighbouring repositories are by their
+  ticket prefix: `plans.js settings set --repo WEB=<absolute folder>`.
+- `comments.js` reports the planning ticket prefix in new comments and docs together with
+  `comments.ticket_prefixes`, read at each check; `/keel:configure check` no longer proposes it as a
+  tracker prefix.
+
 ### Changed
+- `/keel:start-planning` stops before its first question while the project has no planning settings
+  and names `/keel:configure planning`; export is refused the same way. The first planning on a
+  machine asks only where the draft lives. The ticket prefix no longer falls back to the first of
+  `comments.ticket_prefixes`.
 - A planned ticket starts with In plain words: the whole task told for a person, without code or
   paths, as long as it needs. Its sections always come in one order: In plain words, Example, Goal,
   Acceptance criteria, How to check, Boundaries (`always`, `ask first`, `never`), Correct the priors,
@@ -21,6 +37,15 @@ All notable changes to keel are listed here. The format follows
   scope, Terms and Stubs (no more Design sketch) and lists the feature's tickets: key, title and
   repository (the last part of the remote's URL, else the project folder's name), without states.
   Tickets and plans in the earlier format fail `plans.js check`; nothing converts them.
+
+### Fixed
+- `comments.js` no longer stops when `comments.ticket_prefixes` is not a list; it is skipped.
+- A planning folder written with a double slash, such as `docs//plans`, is refused like `docs/plans`.
+
+### Removed
+- `language`, `export`, `export_dir` and `prefix` in `.keel/local/plans/keel/settings.json`, and their
+  `plans.js settings set` options: the project's `planning` section replaces them. Values saved there
+  are not carried over: set them again with `/keel:configure planning`.
 
 ## [1.4.0] - 2026-10-27
 

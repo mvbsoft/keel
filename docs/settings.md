@@ -14,7 +14,7 @@ Each setting has one of three homes:
 | **This project** | this project, for everyone who works on it | `.keel/config.json` | yes, shared with the team |
 | **Machine or project** | every project on this computer, unless a project sets its own value | machine: as above; project: `.claude/settings.local.json` or `.keel/local/options.json` | no, personal |
 
-Planning keeps a file of its own, this project on this machine ([planning settings](#planning-settings)).
+Planning keeps a small file of its own, this project on this machine ([planning settings](#planning-settings)).
 
 **Rule:** a project's own value wins over the machine value. Remove the project value and the machine
 value applies again. One exception: `prompt_preview` can only be turned off for a project. When the
@@ -31,7 +31,7 @@ itself. Sessions in that project compact at 500,000; every other project still c
 | `/keel:configure` in a project | asks first: this project, or only this machine. Project mode sets the project's settings and, for "machine or project" settings, shows both values and lets you keep the machine value or set one for the project. A first setup also asks: **quick** (recommended, about six questions; every other value is keel's recommendation) or **detailed** (every section; both explain each question group first) |
 | `/keel:configure machine` | only the machine values, for every project |
 | `/keel:configure check` | which sections to run again since the last configure, and why; changes no setting |
-| `/keel:configure <section>[,<section>...]` | those sections again, written once at the end (`gates,git`); sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage` or `prices` |
+| `/keel:configure <section>[,<section>...]` | those sections again, written once at the end (`gates,git`); sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage` or `prices`; `planning` asks only the [planning settings](#planning-settings) |
 
 Nothing is written without your yes. The Claude Code settings files and the price table are backed up
 before keel changes them (project files in `.keel/local/backups/`, the machine file next to itself).
@@ -138,6 +138,10 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 | `delegation.min_plan_steps`, `min_plan_files` | from this plan size keel offers to hand the steps to implementer agents | steps, files | 8, 15 |
 | `cleanup.trash_max_age_days` | `/keel:cleanup empty-trash` deletes batches this many days old or more by default | days | 30 |
 | `tasks.in_git` | where unfinished task folders live: `true` in `.keel/tasks/<id>/`, committed on the task's branch so the team sees them; `false` in `.keel/local/tasks/<id>/`, this machine only. See [ways of working](workflows.md#where-the-files-live) | on / off | on |
+| `planning.ticket_prefix` | the start of every ticket key planning gives (`PROJ` in `PROJ-12`), one per repository. New comments and docs are checked for it as for `comments.ticket_prefixes` | 2-10 capital letters and digits, starting with a letter | none: `/keel:configure` proposes the tracker's prefix from git history, else 3-4 letters of the repository's name |
+| `planning.tickets` | where exported tickets live, with the researcher's reports: `repo` in `planning.tickets_dir`, committed on the feature branch so the team sees them; `pc` on this machine only. Without `ticket_prefix` and `tickets` planning does not start | `repo` / `pc` | none: `/keel:configure` recommends `repo` |
+| `planning.tickets_dir` | the repository folder for exported tickets | a folder; never a hidden one, `handoff/`, `handoffs/`, `docs/plans` or a place outside the project | `tickets` |
+| `planning.language` | the language of `plan.md` and the tickets. Detailed setup asks it; quick setup takes `repo_language` | a language code | `repo_language` |
 | `stack_skills` | the stack plugins you chose (for information) | names | none |
 | `usage.artifact_url` | a usage page the team shares. A machine sends to it only after its user approves it, and only while the machine has no `artifact_url` of its own. It then receives that machine's usage from **all** its projects (project folder names, branches, request previews unless turned off), not only from this one | a claude.ai link | none |
 
@@ -156,15 +160,18 @@ git does not ignore that file yet, `/keel:configure` offers to add it to `.gitig
 
 ### Planning settings
 
-Planning keeps its own settings in `.keel/local/plans/keel/settings.json` (outside git, this machine
-only). `/keel:configure` does not ask them: the first `/keel:start-planning` asks the language and
-where drafts live, the first export where tickets go and their prefix, and a change you name at any
-start ("draft in the repo") is saved too.
+What the team shares is in `.keel/config.json`: the ticket prefix, where the tickets live and their
+language (`planning.*` in the table above). `/keel:configure` asks them, quick setup too, and
+`/keel:configure planning` asks only them; without them `/keel:start-planning` stops and says so.
+
+What is personal stays in `.keel/local/plans/keel/settings.json` (outside git, this machine only). The
+first `/keel:start-planning` asks where the draft lives, and a change you name at any start ("draft in
+the repo") is saved too.
 
 | Setting | What it does | Values | Default |
 |---|---|---|---|
-| `language`, `draft`, `draft_dir` | the language of `plan.md` and the tickets; where a draft lives; its folder in the repository | a language code; `pc` (this machine) or `repo`; a folder | `repo_language`; `pc`; `tickets` |
-| `export`, `export_dir`, `prefix` | where exported tickets go; their folder in the repository; the start of each ticket key (`PROJ` in `PROJ-12`) | `pc` or `repo`; a folder; 2-10 capital letters and digits, starting with a letter | none; `tickets`; none |
+| `draft`, `draft_dir` | where a draft lives while you plan; its folder in the repository | `pc` (this machine) or `repo`; a folder | `pc`; `tickets` |
+| `repos` | where the neighbouring repositories are on this machine, by their ticket prefix (`"WEB": "O:/projects/web"`); set with `plans.js settings set --repo WEB=<folder>` | a prefix and an absolute folder each | none |
 
 Places keel never uses: [export](workflows.md#export). How they are used:
 [ways of working](workflows.md#planning).

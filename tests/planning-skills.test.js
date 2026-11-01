@@ -99,11 +99,14 @@ test('start-planning: preflight, the session-lane check, then notes.js check wit
   assert.match(text, /one conversation, one feature/);
 });
 
-test('start-planning: the first run asks the language, then the draft place, one per message, and saves them', () => {
+test('start-planning: without the planning settings in the config it stops before any question; the first run asks only the draft place', () => {
   const text = start();
-  assert.match(text, /`settings: none yet` → two questions, one per message: the\s+tickets' language/);
-  before(text, "tickets' language", 'where the draft lives');
-  assert.match(text, /`plans\.js settings set --language <l> --draft <pc\|repo> \[--draft-dir <dir>\]`/);
+  assert.match(text, /`planning: planning is not set up \.\.\.` → before any question say: "Planning is not set up in this\s+project yet: .*Run `\/keel:configure planning`, then `\/keel:start-planning` again\." and stop\./s);
+  before(text, '`planning: planning is not set up', '`settings: none yet`');
+  before(text, '`planning: planning is not set up', '**Which feature**');
+  assert.match(text, /`settings: none yet` → one question: where the draft lives/);
+  assert.match(text, /`plans\.js settings set --draft <pc\|repo> \[--draft-dir <dir>\]`/);
+  assert.doesNotMatch(text, /--language|tickets' language/, 'the ticket language is a project setting');
 });
 
 test('start-planning: no argument lists the drafts, words find one, a link or file starts a new feature', () => {
@@ -267,7 +270,7 @@ test('end-planning A: only changed tickets reviewed, fix or Q, plan.md and after
   assert.match(a, /A repository draft → planning\.md "Commit and push"/);
 });
 
-test('end-planning B: gates, ticket reviews then one plan review, at most 2 rounds, ready, then the export with its first-time questions', () => {
+test('end-planning B: gates, ticket reviews then one plan review, at most 2 rounds, ready, then the export with the project target and prefix', () => {
   const text = end();
   const b = text.slice(text.indexOf('**B. Final.**'), text.indexOf('**Always**'));
   assert.match(b, /\*\*Gates\*\*: `open Q 0`, `check: clean`, and every finding in `reviews\/` has a decision\. Else\s+show what blocks and offer mode A/);
@@ -276,14 +279,15 @@ test('end-planning B: gates, ticket reviews then one plan review, at most 2 roun
   before(b, '**Gates**', 'Reviews:');
   before(b, 'Reviews:', '`plans.js state <f> ready`');
   before(b, '`plans.js state <f> ready`', '**Export.**');
-  assert.match(b, /`export: -` \(the first time\) → ask where: the repository .* or this\s+machine only \(a draft in the repository exports there: say so, do not ask\)/s);
+  assert.match(b, /`plans\.js settings`: say the target \(`tickets: repo` → `<tickets_dir>\/<f>\/`;\s+`tickets: pc` → this machine only\) and the prefix \(`ticket_prefix`\) in one line/);
   // A plan already ready was reviewed as it is: no second round of paid reviews.
   assert.match(b, /A plan already\s+`ready` in `plans\.js list` \(not "changed after ready"\) was reviewed\s+as it is: go straight to Export \(B\.5\)\./);
   before(b, 'go straight to Export (B.5)', '**Gates**');
-  assert.match(b, /`prefix: -` → propose the first `comments\.ticket_prefixes`\s+of `\.keel\/config\.json`, else 3-4 capital letters from the repository name; the user confirms/);
-  assert.match(b, /`plans\.js settings set --export <pc\|repo> \[--export-dir <dir>\] --prefix <PROJ>`/);
-  before(b, 'settings set --export', '`plans.js export <f>`');
-  assert.match(b, /Ask "Export the\s+<n> tickets now\?"; no → the plan stays `ready`/);
+  // The target and prefix are the team's: /keel:configure asks them, export never does.
+  assert.match(b, /`planning: planning is not set up \.\.\.` → say\s+"Run `\/keel:configure planning` in a new conversation .*" and go to step 7: the plan stays `ready`/s);
+  assert.doesNotMatch(b, /settings set|comments\.ticket_prefixes/);
+  before(b, '`plans.js settings`', '`plans.js export <f>`');
+  assert.match(b, /Ask "Export the\s+<n>\s+tickets now\?"; no → the plan stays `ready`/);
   assert.match(b, /"These tickets are seen on\s+this machine only\."/);
   assert.match(b, /In the repository → planning\.md "Commit and push"/);
   assert.match(b, /Refused → its reason; the plan stays `ready`/);
@@ -307,7 +311,7 @@ test('end-planning: the chat mark is cleared in every mode, then the costs, and 
 });
 
 test('every output line the planning instructions quote is printed by plans.js', () => {
-  const scripts = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-export.js'], ['lib', 'plans-report.js'], ['lib', 'plans-state.js']];
+  const scripts = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-settings.js'], ['lib', 'plans-export.js'], ['lib', 'plans-report.js'], ['lib', 'plans-state.js']];
   const source = scripts.map((p) => (fs.existsSync(path.join(PLUGIN, 'scripts', ...p)) ? read('scripts', ...p) : '')).join('\n');
   const text = all().join('\n');
   const lines = ['settings: none yet', 'find: 1 match', 'find: no match', 'planning: none', 'check: clean', 'report: ok ·', 'report: failed',
@@ -318,10 +322,11 @@ test('every output line the planning instructions quote is printed by plans.js',
     assert.ok(source.includes(line), `plans.js no longer prints "${line}"`);
   }
   // Quoted with placeholders, printed from template literals.
-  for (const [quoted, printed] of [['`planning: <f> (exported: <folder>)`', ' (exported: ${'], ['`branch: <b> -> <merge_into>`', '`  branch: ${']]) {
+  for (const [quoted, printed] of [['`planning: planning is not set up ...`', 'planning: ${notSetUp(root)}'], ['`planning: <f> (exported: <folder>)`', ' (exported: ${'], ['`branch: <b> -> <merge_into>`', '`  branch: ${']]) {
     assert.ok(text.includes(quoted), `the instructions do not quote ${quoted}`);
     assert.ok(source.includes(printed), `plans.js does not print ${printed}`);
   }
+  assert.ok(source.includes("NOT_SET_UP = 'planning is not set up"), 'notSetUp() says planning is not set up');
   assert.match(read('skills', '_shared', 'final-report.md').split('\n')[0], /\/keel:end-planning/, 'final-report.md names end-planning, which reads its block 5');
 });
 

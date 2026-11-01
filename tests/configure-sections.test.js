@@ -279,6 +279,20 @@ test('configure flow section 5: turn caps are stated, not asked (they live in th
   assert.ok(five.indexOf('ask whether to keep them') < five.indexOf('Turn caps'), 'the question covers only the configurable values');
 });
 
+test('configure flow section 6: the planning settings, quick setup too, alone with `planning`; the planning prefix never goes into ticket_prefixes', () => {
+  const text = flow();
+  const six = text.slice(text.indexOf('## 6. Code'), text.indexOf('## 7.'));
+  assert.match(six, /\*\*Planning tickets\*\* \(`planning`; alone: `\/keel:configure planning`\)/);
+  for (const field of ['planning.ticket_prefix', 'planning.tickets', 'planning.tickets_dir', 'planning.language']) assert.ok(six.includes(`\`${field}\``), field);
+  assert.match(six, /else 3-4 capital letters from the repository's name/);
+  assert.match(six, /in the repository \(recommended[^]*together with the reports of keel's\s+researcher \(`research\/`\) \/ only on this machine/);
+  assert.match(six, /\*\*Ticket language\*\* \(`planning\.language`\), detailed setup only[^]*Quick\s+setup takes `repo_language`\./);
+  assert.ok(six.indexOf('**Planning tickets**') < six.indexOf('**Ids in comments and docs**'), 'the prefix is known before the ids question shows it');
+  assert.match(six, /The planning ticket prefix is always checked too: list it as "added on its own" and never\s+write it into `ticket_prefixes`/);
+  assert.match(text, /^\| 6 Code \| .*planning tickets asked: the prefix and where they live, two questions in one call \(the language is `repo_language`\)/m);
+  assert.match(text, /`planning` runs only\s+the "Planning tickets" block of section 6/);
+});
+
 test('configure flow section 7: stack plugins are never preselected, also on "accept all"', () => {
   const seven = flow().slice(flow().indexOf('## 7. Stack plugins'), flow().indexOf('## 8.'));
   assert.match(seven, /Also on "accept all" or "your\s+recommendation": list the plugins by name, none marked recommended or preselected/);

@@ -308,8 +308,9 @@ conversation of its own, and it writes no code:
 /keel:start-planning CSV export of invoices
 ```
 
-The first time in a project keel asks two things: the language of the tickets, and where the draft
-lives (on this machine, outside git, or in the repository, where colleagues see it). Then it retells
+Planning needs the project's ticket prefix and where the tickets live, set once by `/keel:configure`
+(or `/keel:configure planning`). The first time in a project keel then asks where the draft lives (on
+this machine, outside git, or in the repository, where colleagues see it). Then it retells
 the feature, checks in the code what it relies on, proposes a name and asks one question at a time.
 Your answers become decisions; the work becomes short tickets (T1, T2…) in the draft. With no argument,
 keel lists the drafts to continue. While a conversation plans, keel refuses the task, session, configure

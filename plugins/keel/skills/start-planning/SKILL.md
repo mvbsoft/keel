@@ -29,12 +29,13 @@ Current state of this project:
    3-6), or end it with /keel:end-planning first.
 3. Read `<keel>/skills/_shared/planning.md`, sections "Rules" and "Work"; they hold for the whole
    command (an exported feature: also "Exported feature"). Run `plans.js settings`.
-   `settings: none yet` → two questions, one per message: the
-   tickets' language (default: its `language:` line), then where the draft lives: on this machine
-   (default, outside git) or in the repository (folder `tickets`, or a ticket folder the project
-   already has; colleagues see it through git). Save with
-   `plans.js settings set --language <l> --draft <pc|repo> [--draft-dir <dir>]`. A change the user
-   names at any start ("draft in the repo") → the same command.
+   `planning: planning is not set up ...` → before any question say: "Planning is not set up in this
+   project yet: the ticket prefix and where the tickets live are shared with the team in
+   `.keel/config.json`. Run `/keel:configure planning`, then `/keel:start-planning` again." and stop.
+   `settings: none yet` → one question: where the draft lives: on this machine (default, outside git)
+   or in the repository (folder `tickets`, or a ticket folder the project already has; colleagues see
+   it through git). Save with `plans.js settings set --draft <pc|repo> [--draft-dir <dir>]`. A change
+   the user names at any start ("draft in the repo") → the same command.
 4. **Which feature**, from the instruction:
    - empty → `plans.js list`: show each draft (feature, state, open Q, tickets, last change, where)
      and ask which to continue, or what the new feature is; no drafts → ask "What feature do we plan?"
