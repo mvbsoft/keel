@@ -158,7 +158,7 @@ Every case: [ways of working](workflows.md#end-a-session-keelend-session).
 | You type | keel does |
 |---|---|
 | `/keel:start-planning` | lists the drafts (feature, state, open questions, tickets, last change, where) and asks which to continue or what the new feature is |
-| `/keel:start-planning CSV export of invoices` (or a link, or a file) | a new feature: the retell, its size, a name, where its tasks merge, then one question at a time |
+| `/keel:start-planning CSV export of invoices` (or a link, or a file) | a new feature: the retell, its size, a name, where its tasks merge; told in a line or two or large, an offer to gather first (the project map, with its price); then one question at a time |
 | `/keel:start-planning csv-export` (or "continue the CSV export") | continues that draft from its Next action; an exported feature reopens its tickets for editing |
 
 Without the project's planning settings (`/keel:configure planning`) the first run stops before any

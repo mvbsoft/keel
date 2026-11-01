@@ -14,8 +14,9 @@ const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 // The chat the planning cases resume: shop.js marks it, each case's history.jsonl keeps its id.
 const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(SHOP, 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planned', 'task-active'];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planned', 'task-active'];
 
+const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
 const front = (file) => {
   const m = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(fs.readFileSync(file, 'utf8'));
@@ -34,8 +35,14 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
     // A case tagged standards gives a plain request: it checks the coding standards keel adds to every
     // conversation, not a command. One tagged lanes may also give a plain request or a bare /name: the
     // lane guards stop both; a command it names is one of keel's.
+    const yaml = fs.existsSync(path.join(dir, 'case.yaml')) ? fs.readFileSync(path.join(dir, 'case.yaml'), 'utf8') : '';
     if (/\bstandards\b/.test(p.keys.tags || '')) assert.doesNotMatch(p.body, /^\/keel:/, `${name}: a plain request`);
-    else if (/\blanes\b/.test(p.keys.tags || '')) {
+    // One tagged start-planning goes on in a planning conversation its history started: keel refuses
+    // /keel:start-planning in every eval run, so the prompt is the person's next words.
+    else if (tagList(p.keys.tags).includes('start-planning')) {
+      assert.match(yaml, /^\s*history_file:/m, `${name}: resumes a written conversation`);
+      assert.doesNotMatch(p.body, /^\//, `${name}: the person's words, not a command`);
+    } else if (/\blanes\b/.test(p.keys.tags || '')) {
       const command = /^\/(?:keel:)?([a-z][a-z-]*)/.exec(p.body);
       if (p.body.startsWith('/')) assert.ok(command && fs.existsSync(path.join(PLUGIN, 'skills', command[1], 'SKILL.md')), `${name}: /${command ? command[1] : ''} is a keel command`);
     } else assert.match(p.body, /^\/keel:/, `${name}: the prompt is a keel command`);
@@ -46,8 +53,7 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
       assert.ok(['regex', 'tool_used', 'tool_order', 'file_exists', 'llm'].includes(keys.type), `${name}/${g}: type ${keys.type}`);
       for (const re of [keys.pattern, keys.input_match].filter(Boolean)) new RegExp(re.replace(/^'|'$/g, '')); // compiles
     }
-    if (fs.existsSync(path.join(dir, 'case.yaml'))) {
-      const yaml = fs.readFileSync(path.join(dir, 'case.yaml'), 'utf8');
+    if (yaml) {
       assert.match(yaml, /^schema_version: "1\.1"$/m, name);
       assert.match(yaml, new RegExp(`^name: ${name}$`, 'm'), name);
       assert.match(yaml, /scaffold_script: fixture\.sh/, name);
@@ -66,6 +72,26 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
         }
       }
     }
+  }
+});
+
+// A planning case's history holds /keel:start-planning as Claude Code expanded it, keel at /work/plugins/keel
+// (the Docker command mounts the repository at /work): its steps must be the command's current ones.
+test('a planning case resumes the current /keel:start-planning instructions', () => {
+  const refresh = 'run node plugins/keel/evals/_fixtures/start-planning-history.js';
+  const { CASES } = require(path.join(EVALS, '_fixtures', 'start-planning-history.js'));
+  const steps = (text) => text.slice(text.indexOf('\n1. Read '));
+  const skill = steps(fs.readFileSync(path.join(PLUGIN, 'skills', 'start-planning', 'SKILL.md'), 'utf8')).replaceAll('${CLAUDE_PLUGIN_ROOT}', '/work/plugins/keel');
+  const planning = cases.filter((n) => tagList(front(path.join(EVALS, n, 'prompt.md')).keys.tags).includes('start-planning'));
+  assert.ok(planning.length >= 2, planning.join(', '));
+  assert.deepEqual(Object.keys(CASES).sort(), [...planning].sort(), 'the history builder writes every start-planning case');
+  for (const name of planning) {
+    const text = fs.readFileSync(path.join(EVALS, name, 'history.jsonl'), 'utf8');
+    assert.equal(text, CASES[name](), `${name}: history.jsonl is stale: ${refresh}`);
+    const expanded = text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)).find((r) => r.isMeta && Array.isArray(r.message.content) && /^Base directory for this skill: \/work\/plugins\/keel\/skills\/start-planning\n/.test(r.message.content[0].text));
+    assert.ok(expanded, `${name}: start-planning expanded in the history`);
+    assert.match(expanded.message.content[0].text, /^- `<keel>` \(the plugin folder\): `\/work\/plugins\/keel`$/m, name);
+    assert.equal(steps(expanded.message.content[0].text), skill, `${name}: the history's start-planning steps are not the command's`);
   }
 });
 
@@ -91,6 +117,10 @@ const STATE = {
     assert.match(git('show', 'HEAD:AGENTS.md'), /^No ticket or backlog files in this repository: tickets live in Jira\.$/m);
   },
   'planning-repo': draftState('draft · open Q 0', 'tickets/csv-export/'),
+  'planning-new': (work) => {
+    assert.match(script('plans.js', work, 'list'), /^- notification-system: draft · open Q 0 · tickets 0 · .* \(this machine only\)$/m);
+    assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: notification-system$/m);
+  },
   planned: (work) => {
     const out = script('plans.js', work, 'tickets', '--fetch');
     assert.match(out, /^ {2}INV-1 .* — done$/m, out);
@@ -114,7 +144,7 @@ const STATE = {
 test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
   const expect = { base: ['main', 0, ''], tasks: ['main', 0, ''], finish: ['CAN-200-free-shipping', 1, ''], session: ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
-    planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'],
+    planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'], 'planning-new': ['main', 0, ''],
     planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {
@@ -149,4 +179,6 @@ test('npm run eval runs the suite once per release, never in CI by default', () 
   assert.match(fs.readFileSync(path.join(__dirname, '..', '.gitignore'), 'utf8'), /^plugins\/keel\/evals\/results\/$/m);
   // A resumed history gets each run's transcript beside it, in the case folder.
   assert.match(fs.readFileSync(path.join(__dirname, '..', '.gitignore'), 'utf8'), /^plugins\/keel\/evals\/\*\/\*-\*-\*-\*-\*\.jsonl$/m);
+  // A run that calls an agent also gets a folder of the same name with the agents' transcripts.
+  assert.match(fs.readFileSync(path.join(__dirname, '..', '.gitignore'), 'utf8'), /^plugins\/keel\/evals\/\*\/\*-\*-\*-\*-\*\/$/m);
 });

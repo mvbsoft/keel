@@ -52,6 +52,8 @@ Current state of this project:
    steps 1-2, then step 7, then its steps 3-6 as the work (not steps 5, 6 and 8). `abandoned` → say
    so; another draft or a new feature.
 5. **New feature.**
+   - Say once, in one line: keel advises Opus for planning, since the plan shapes all the work after
+     it; the model stays the user's choice (`/model`).
    - Source: a link → its connector tool (names with `atlassian`/`jira`, `linear`, `asana`, `google`,
      `notion`...; load deferred tools first), GitHub `gh issue view <link> --json title,body,labels,comments`,
      any other page WebFetch; a file → Read. Cannot read it → say so in one line and ask the user to
@@ -74,11 +76,12 @@ Current state of this project:
      there and continue that draft (step 6); no → another name). A merge branch other
      than `git.main_branch`, or a branch name other than `<f>` → `plans.js set <f> --branch <b> --merge-into <m>` (`branch:` and `merge_into:` lines).
 6. **Continue a draft.** `plans.js check <f>` and `plans.js review <f>`; read `plan.md` only (not the
-   tickets): the ticket list, open Q, Next action; and in `reviews/` the findings without a decision.
+   tickets): the ticket list, open Q, What was gathered, Next action; and in `reviews/` the findings without a decision.
    Stale? `plans.js stale <f>`: show its `stale:` line as it is. A repository draft → planning.md
    "Branch hints". Then a summary in 3-6 lines and the Next action. A `ready` plan: any change makes it a draft again.
 7. `plans.js mark set <f> --session <sid>` → `planning: <f>` (an exported feature:
    `planning: <f> (exported: <folder>)`). Say in one line: this conversation now
    plans `<f>`; task and session commands wait for /keel:end-planning; no code changes here.
-8. Work as planning.md "Work" says, from the Next action (new: the first open question). When the user
+8. Work as planning.md "Work" says, from the Next action (new: the gathering offer when
+   it fits, else the first open question). When the user
    wants to stop: "/keel:end-planning hands over, or reviews and exports the tickets."

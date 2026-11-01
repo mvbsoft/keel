@@ -359,8 +359,9 @@ conversation writes only the draft, and keel's hook refuses changes to other pro
 | `/keel:start-planning continue the CSV export` | Looks for the words in the drafts' names and In plain words: one match → "Continue `csv-export`?"; several or none → the list. |
 | `/keel:start-planning <idea, link or file>` | A new feature (below). |
 
-**A new feature.** keel reads the source as `/keel:start-task` reads a link, retells the goal, who
-gains and what is out, and checks in the code that what the feature relies on is there. Then:
+**A new feature.** keel says once that it advises Opus for planning (the model stays your choice,
+`/model`), reads the source as `/keel:start-task` reads a link, retells the goal, who gains and what
+is out, and checks in the code that what the feature relies on is there. Then:
 
 - **size**: small (up to 5 questions, one conversation) or large (several conversations, each ended
   with `/keel:end-planning`); one goal for 1-3 sittings looks like one task, so keel suggests
@@ -388,7 +389,19 @@ Example (may go), Goal, Acceptance criteria (a `- [ ]` list), How to check, Boun
 to look (`file:line`), Out of scope, Why, Dependencies. The technical part, all but In plain words and
 Example, stays short: 150-400 words, one goal, no implementation steps. In the draft they are
 `T1`, `T2`...; a T-number is never reused. More than about 15 tickets → keel offers to split the
-feature. keel looks up code facts itself; a pricier model or web research only when you ask.
+feature. keel looks up code facts itself; a pricier model or web research only when you ask or say
+yes to an offer of it.
+
+**Gathering before the questions.** When the feature is told in a line or two, or is large, keel first
+offers what to look up, with the price said as an estimate, all on one yes: the project map, a helper
+on Haiku (cheap) that finds where the feature meets the code: the stack, the modules and data it
+touches, what it can reuse. Take all, some or none (then the questions start at once). What it finds
+goes into `plan.md`, What was gathered, short and with `file:line`; the questions after it are
+concrete ("`chat/` already has a WebSocket: send through it, or a channel of its own?"), and none asks
+what the gathered facts or the project's docs already answer. The next conversation on the draft
+reads that section instead of searching again. The facts the tickets need go into their Where to look
+and Boundaries, the conclusions into Decisions; What was gathered is not exported and goes to the
+trash with the draft.
 
 **Abandon a draft**: say so in the planning conversation; after your yes the plan is `abandoned`. A
 draft on this machine goes to keel's trash (`/keel:cleanup` restores it); one in the repository stays
