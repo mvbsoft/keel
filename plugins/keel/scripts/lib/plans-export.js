@@ -25,14 +25,13 @@ const plans = require('./plans.js');
 const { git: readGit, read, frontmatter, clean } = require('./repo-read.js');
 const { linkOnWay, safeLocalPath, samePath } = require('./safe-path.js');
 const { moveToTrash, restore } = require('./trash.js');
-const { sections } = require('./tasks.js');
+const { overviewSections, repoName } = require('./plans-format.js');
 const { checkConfig } = require('./config.js');
 const { TRACKER } = require('../notes.js');
 const flow = require('../git-flow.js');
 
 const TEMP = '.export-tmp';
 const README = 'README.md';
-const README_SECTIONS = ['Summary', 'Problem / Goal', 'Decisions', 'Out of scope', 'Design sketch', 'Terms'];
 // How deep the file names of ticket folders are read: <folder>/<feature>/<file> and a little more.
 const WALK_DEPTH = 4;
 
@@ -278,10 +277,9 @@ function exportFiles(root, d, keys, front) {
     return { id: t.id, key, name: `${key}-${t.name.replace(/^T\d+-/, '')}`, text };
   });
   if (list.length < 2) return { files, readme: null };
-  const secs = sections(d.text);
   const title = /^# (.+)$/m.exec(bodyOf(d.text));
-  const parts = README_SECTIONS.filter((n) => secs[n]).map((n) => `## ${n}\n${swap(secs[n])}\n`);
-  return { files, readme: { name: README, text: `${frontText({ type: 'feature' })}# ${swap(title ? title[1].trim() : d.feature)}\n\n${parts.join('\n')}` } };
+  const parts = overviewSections(d.text, files, swap, repoName(root));
+  return { files, readme: { name: README, text: `${frontText({ type: 'feature' })}# ${swap(title ? title[1].trim() : d.feature)}\n\n${parts}` } };
 }
 
 // --- export ---

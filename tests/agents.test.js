@@ -129,9 +129,13 @@ test('the planning reviewers check what the plan-findings schema names, with evi
   const ticket = agent('ticket-reviewer').body;
   const plan = agent('plan-reviewer').body;
   // Spec 7: the ticket checklist and one free "what is missing?"; the plan checklist.
-  assert.deepEqual(named(ticket), ['one-goal', 'testable-criteria', 'scope', 'dependencies', 'size', 'one-task', 'true-in-code', 'how-to-check', 'no-steps', 'complete']);
+  assert.deepEqual(named(ticket), ['one-goal', 'testable-criteria', 'scope', 'dependencies', 'size', 'one-task', 'true-in-code', 'how-to-check', 'no-steps', 'plain-words', 'markdown', 'complete']);
   assert.deepEqual(named(plan), ['coverage', 'consistency', 'order', 'forgotten', 'premortem']);
   assert.deepEqual([...named(ticket), ...named(plan)], schema.$defs.check.properties.check.enum);
+  // In plain words is for a person: read first, never counted in the size, judged as advice.
+  assert.match(ticket, /Read `plan\.md` first \(In plain words,/);
+  assert.match(ticket, /`size`: the technical part \(all but In plain words and Example\) is about 150-400 words[^]*A long In\s+plain words never counts against it/);
+  assert.match(ticket, /\*\*minor\*\*: wording, and\s+`plain-words` and `markdown`, which are advice/);
   for (const [body, limit] of [[ticket, 'At most 5 per ticket'], [plan, 'At most 10']]) {
     assert.match(body, /<keel>\/schemas\/plan-findings\.schema\.json/);
     assert.ok(body.includes(limit), limit);

@@ -13,17 +13,23 @@ ready_hash: <set by plans.js state ready; any later change makes the plan a draf
 ---
 <!-- The plan of one feature (plans.js new). Headings and front matter keys stay in English; the text is
 in the plan's language. plans.js check reads the sections by these names: keep them all, empty when
-there is nothing to say. No TBD and no <...> left in the text. Comments are removed when the file is
-made. -->
+there is nothing to say; Stubs may be removed. Export builds the feature overview README.md from In
+plain words, Level, Decisions, Contract, Out of scope, Terms and Stubs, with a Tickets list of its own.
+Level: the level of detail chosen and what is left for later. Contract: the APIs, events and formats
+between repositories. What was gathered: what was found before the questions. Stubs: a title and In plain
+words for each part a repository that is not on this machine would do. No TBD and no <...> left in the text. Comments are removed
+when the file is made. -->
 # <feature>
 
-## Summary
-<2-3 lines: what the feature gives and to whom>
+## In plain words
+<the whole feature in plain words: what and why, how it will work, an example, what is not done, how we know it is done>
 
-## Problem / Goal
+## Level
 
 ## Decisions
 <D1. decision - why>
+
+## Contract
 
 ## Out of scope
 
@@ -31,10 +37,14 @@ made. -->
 
 ## Terms
 
+## What was gathered
+
 ## Open questions
 <Q1. question - what depends on it>
 
 ## Tickets
 <T1 title, one line per ticket>
+
+## Stubs
 
 ## Next action

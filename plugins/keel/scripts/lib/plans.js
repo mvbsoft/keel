@@ -24,13 +24,12 @@ const { git, read, frontmatter, clean } = require('./repo-read.js');
 const { linkOnWay, unsafeRel, localLink, safeLocalPath, safeLocalWrite } = require('./safe-path.js');
 const { validSid } = require('./ids.js');
 const { sections, setFront, dateOf } = require('./tasks.js');
+const { ticketStructure, planStructure } = require('./plans-format.js');
 
 const PLAN_FILE = 'plan.md';
 const TEMPLATES = path.join(__dirname, '..', '..', 'templates', 'keel', 'planning');
 const STATES = ['draft', 'ready', 'exported', 'abandoned'];
 const MOVES = { draft: ['ready', 'abandoned'], ready: ['draft', 'exported', 'abandoned'], exported: [], abandoned: [] };
-const PLAN_SECTIONS = ['Summary', 'Problem / Goal', 'Decisions', 'Out of scope', 'Design sketch', 'Terms', 'Open questions', 'Tickets', 'Next action'];
-const TICKET_SECTIONS = ['Goal', 'Why', 'Acceptance criteria', 'Where to look', 'Out of scope', 'Dependencies', 'How to check'];
 // 2-4 English words joined by hyphens, starting with a letter; a word never starts with a digit, else
 // part of the name reads as a tracker key (add-2fa -> ADD-2).
 const FEATURE = /^[a-z][a-z0-9]*(?:-[a-z][a-z0-9]*){1,3}$/;
@@ -280,8 +279,8 @@ function draftList(root) {
   return [`drafts: ${drafts.length}`, ...drafts.map((d) => draftLine(root, d))];
 }
 
-// Words of a request ("continue planning the S3 connection") against folder names and Summary. Words
-// shorter than 3 letters are left out unless they hold a digit (s3); a word of 5 letters or more
+// Words of a request ("continue planning the S3 connection") against folder names and In plain words.
+// Words shorter than 3 letters are left out unless they hold a digit (s3); a word of 5 letters or more
 // matches by its first 5 (connect ~ connection, підключення ~ підключенням).
 const words = (text) => (String(text).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length >= 3 || (w.length === 2 && /\d/.test(w)));
 const stem = (w) => (w.length >= 5 ? w.slice(0, 5) : w);
@@ -291,7 +290,7 @@ function draftFind(root, query) {
   if (!asked.length) return refuse('find', 'needs words');
   const drafts = listDrafts(root);
   const scored = drafts.map((d) => {
-    const have = new Set([...words(d.feature.replace(/-/g, ' ')), ...words(sections(d.text).Summary || '')].map(stem));
+    const have = new Set([...words(d.feature.replace(/-/g, ' ')), ...words(sections(d.text)['In plain words'] || '')].map(stem));
     return { d, score: asked.filter((w) => have.has(w)).length };
   });
   const top = Math.max(0, ...scored.map((s) => s.score));
@@ -457,13 +456,11 @@ function cycles(list) {
   return out;
 }
 
-// One ticket's text, a draft's or an exported one: its sections, acceptance criteria, no placeholders,
+// One ticket's text, a draft's or an exported one: its structure (lib/plans-format.js), no placeholders,
 // the files Where to look names exist.
 function ticketProblems(root, label, text) {
-  const out = [];
+  const out = ticketStructure(label, text);
   const secs = sections(text);
-  for (const name of TICKET_SECTIONS) if (!(name in secs)) out.push(`${label}: no section "## ${name}"`);
-  if ('Acceptance criteria' in secs && !secs['Acceptance criteria'].trim()) out.push(`${label}: acceptance criteria are empty`);
   for (const p of placeholders(text)) out.push(`${label}: placeholder ${p}`);
   for (const f of mentionedFiles(secs['Where to look'] || '')) {
     const outside = path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..');
@@ -474,9 +471,7 @@ function ticketProblems(root, label, text) {
 }
 
 function problems(root, d) {
-  const out = [];
-  const plan = sections(d.text);
-  for (const name of PLAN_SECTIONS) if (!(name in plan)) out.push(`plan.md: no section "## ${name}"`);
+  const out = planStructure(d.text);
   for (const p of placeholders(d.text)) out.push(`plan.md: placeholder ${p}`);
   const list = tickets(d);
   const ids = new Set(list.map((t) => t.id));

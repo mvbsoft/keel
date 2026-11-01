@@ -25,17 +25,26 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
 - **One question per message** (AskUserQuestion when it exists), answerable in a line. A design
   choice → 2-3 approaches with your recommendation and why. The first question gets no answer (no
   one is there) → stop: planning is a conversation with a person.
-- Keep `plan.md` true as you go: Summary (2-3 lines), Problem / Goal, Decisions (`D1. decision - why`),
-  Out of scope, Design sketch, Terms, Open questions (`Q1. question - what depends on it`; an answered
-  Q leaves the list and becomes a D), Tickets (one line per ticket: `T3 title`), Next action. Sections
-  stay, empty when there is nothing to say; no TBD and no `<...>`.
-- **Tickets** at once in the short template: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "T1,T2"]`
+- Keep `plan.md` true as you go: In plain words (the whole feature for a person: what and why, how it
+  will work, an example, what is not done, how we know it is done), Level,
+  Decisions (`D1. decision - why`), Contract (APIs, events and formats between repositories), Out of
+  scope, Design sketch, Terms, What was gathered,
+  Open questions (`Q1. question - what depends on it`; an answered Q leaves the list and becomes a D),
+  Tickets (one line per ticket: `T3 title`), Stubs, Next action. Sections stay, empty when there is
+  nothing to say (Stubs may go); no TBD and no `<...>`.
+- **Tickets** at once from the template: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "T1,T2"]`
   (a plain title: double or curly quotes, `$`, a backquote or a backslash before a quote or a space are
-  refused; `--slug` in English when the title is not), then fill the file it names (Edit): Goal (1-2 sentences,
-  how to tell it is done), Why (the D it follows), Acceptance criteria (behaviour an action checks; no
-  "fast" or "easy" without a measure), Where to look (`file:line` you checked), Out of scope,
-  Dependencies, How to check (a command and the manual steps). 150-400 words, one goal,
-  no implementation steps. T-numbers are never reused.
+  refused; `--slug` in English when the title is not), then fill the file it names (Edit), its sections
+  in this order: In plain words (the whole task for a person, without code or paths: what changes for
+  them, how it works step by step, what is in and what is not, examples; as long as it needs), Example
+  (what happens → what we see; may go), Goal (1-2 sentences, how to tell it is done), Acceptance
+  criteria (a `- [ ]` list, one behaviour an action checks per item; no "fast" or "easy" without a
+  measure), How to check (a command in a code block with its language, and the manual steps),
+  Boundaries (`- always:`, `- ask first:`, `- never:` for this ticket), Correct the priors (the obvious
+  but wrong way and the right one; may go), Where to look (`file:line` you checked), Out of scope, Why
+  (the D it follows), Dependencies (why; the list is `depends_on`). The technical part (all but In
+  plain words and Example) is 150-400 words, one goal, no implementation steps; plain markdown, no
+  HTML. T-numbers are never reused.
 - More than about 15 tickets → offer to split the feature in two.
 - The user abandons the plan → confirm, then `plans.js state <f> abandoned` and say what its lines say.
 

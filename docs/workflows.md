@@ -356,7 +356,7 @@ conversation writes only the draft, and keel's hook refuses changes to other pro
 | `/keel:start-planning` the first time in a project | Two questions, one per message: the tickets' language (default: the project's `repo_language`), and where the draft lives: on this machine (default, outside git) or in the repository (a `tickets/` folder, or a ticket folder the project already has; colleagues see it through git). Say "draft in the repo" at any start to change it. |
 | `/keel:start-planning` | Lists the drafts (feature, state, open questions, tickets, last change, where) and asks which to continue or what the new feature is. |
 | `/keel:start-planning csv-export` | Continues that draft: its open questions, the review findings without a decision, which files its tickets name changed since, a summary in 3-6 lines and the Next action. |
-| `/keel:start-planning continue the CSV export` | Looks for the words in the drafts' names and summaries: one match → "Continue `csv-export`?"; several or none → the list. |
+| `/keel:start-planning continue the CSV export` | Looks for the words in the drafts' names and In plain words: one match → "Continue `csv-export`?"; several or none → the list. |
 | `/keel:start-planning <idea, link or file>` | A new feature (below). |
 
 **A new feature.** keel reads the source as `/keel:start-task` reads a link, retells the goal, who
@@ -378,13 +378,17 @@ gains and what is out, and checks in the code that what the feature relies on is
   conversation → the draft on this machine for now, another copy (`git worktree add`), or your risk.
 
 **The work.** One question per message, answerable in a line; a design choice comes with 2-3
-approaches and a recommendation. keel keeps `plan.md` true as you go: Summary, Problem / Goal,
-Decisions (`D1. decision - why`), Out of scope, Design sketch, Terms, Open questions
-(`Q1. question - what depends on it`; an answered Q becomes a D), Tickets, Next action. Tickets are
-written at once and stay short (150-400 words, one goal, no implementation steps): Goal, Why,
-Acceptance criteria, Where to look (`file:line`), Out of scope, Dependencies, How to check. In the
-draft they are `T1`, `T2`...; a T-number is never reused. More than about 15 tickets → keel offers to
-split the feature. keel looks up code facts itself; a pricier model or web research only when you ask.
+approaches and a recommendation. keel keeps `plan.md` true as you go: In plain words (the whole
+feature for a person), Level, Decisions (`D1. decision - why`), Contract, Out of scope, Design sketch,
+Terms, What was gathered, Open questions (`Q1. question - what depends on it`; an answered Q becomes a
+D), Tickets, Stubs (may go), Next action. Tickets are written at once, their sections always in this
+order: In plain words (the whole task in plain words, without code or paths, as long as it needs),
+Example (may go), Goal, Acceptance criteria (a `- [ ]` list), How to check, Boundaries
+(`- always:`, `- ask first:`, `- never:`), Correct the priors (the obvious wrong way; may go), Where
+to look (`file:line`), Out of scope, Why, Dependencies. The technical part, all but In plain words and
+Example, stays short: 150-400 words, one goal, no implementation steps. In the draft they are
+`T1`, `T2`...; a T-number is never reused. More than about 15 tickets → keel offers to split the
+feature. keel looks up code facts itself; a pricier model or web research only when you ask.
 
 **Abandon a draft**: say so in the planning conversation; after your yes the plan is `abandoned`. A
 draft on this machine goes to keel's trash (`/keel:cleanup` restores it); one in the repository stays
@@ -398,8 +402,9 @@ until you remove it.
 | `/keel:end-planning final review and export` | **Final**: below. |
 | `/keel:end-planning` | Open questions or structure problems → hands over, with the reason in one line; otherwise asks "Final review and export, or hand over?". |
 
-**Final.** 1) The gates: no open questions, a clean structure check (sections, acceptance criteria, no
-TBD, the named files exist, dependencies without cycles), and a decision for every finding; else keel
+**Final.** 1) The gates: no open questions, a clean structure check (the `# [id] title` heading, each section
+once and in its order, headings inside code blocks being text, the three Boundaries labels, acceptance criteria as a `- [ ]` list, no TBD, the named files exist,
+dependencies without cycles; style is the ticket reviewer's advice and never blocks), and a decision for every finding; else keel
 shows what blocks and offers to hand over. 2) Ticket reviews of the tickets not reviewed as they are
 (`keel:ticket-reviewer`, up to 4 tickets per call), then one review of the whole plan
 (`keel:plan-reviewer`), both on Sonnet. You decide each finding: fix, defer to a Q, or reject with a
@@ -430,7 +435,10 @@ Every end, also after a no, frees the conversation from planning. The report: **
   overview), the files written into a temporary folder and renamed once. A failed run leaves no
   feature folder and the plan `ready`.
 - **After**: the feature folder is the one source: the tickets (`type: ticket`, `key`, `status: todo`,
-  `feature`, `branch`, `merge_into`, `depends_on`) and, from 2 tickets, a `README.md` overview. A draft
+  `feature`, `branch`, `merge_into`, `depends_on`) and, from 2 tickets, a `README.md` overview: the
+  plan's In plain words, Level, Decisions, Contract, Out of scope, Terms and Stubs that have text, and a
+  Tickets list keel builds (each ticket's key, title and repository, the last part of the remote's URL
+  or else the project folder's name; no states, each ticket carries its own). A draft
   on this machine goes to keel's trash; one in the repository leaves with the commit of the tickets.
 - **Git**: "Commit the planning files?", then "Push `<branch>`?", each on its own, and Claude Code asks
   too, every time. Never on the main branch; planning never opens a pull request.

@@ -406,22 +406,43 @@ function invoices() {
 
 // The tickets of csv-export: the planning variants take the first two, planned all four.
 const TICKETS = [
-  { title: 'CSV export endpoint for invoices', slug: 'csv-endpoint', text: `## Goal
+  { title: 'CSV export endpoint for invoices', slug: 'csv-endpoint', text: `## In plain words
+Today the accountants copy the invoices from the invoices page by hand. The shop gets a new address
+that gives the same invoices as a CSV file their accounting program loads: a header row, then one line
+per paid order, with the total in two decimals. Unpaid orders are not in it. The invoices page and the
+JSON list stay as they are; the button on the page comes in the next ticket.
+
+## Example
+- Two paid orders and one unpaid → the file has the header and two lines.
+- A total of 1234.5 → the file says 1234.50.
+
+## Goal
 GET /invoices.csv returns the invoices GET /invoices returns, as a CSV file. Done when the route answers
 with a header row and one line per paid order.
 
-## Why
-The accountants load invoices into their accounting program, which imports CSV (D1, D2).
-
 ## Acceptance criteria
-- Given two paid orders and one unpaid, when GET /invoices.csv is called, then the answer is 200 with
-  content type \`text/csv; charset=utf-8\` and three lines: the header and the two paid orders.
-- The header is \`number,date,customer,total\`.
-- A total of 1234.5 is written as 1234.50.
-- A customer name with a comma or a double quote is quoted as CSV requires: \`"Smith, Dana"\` stays one
-  field.
-- With no paid orders the file holds the header only.
-- GET /invoices still returns the same JSON as before.
+- [ ] Given two paid orders and one unpaid, when GET /invoices.csv is called, then the answer is 200
+  with content type \`text/csv; charset=utf-8\` and three lines: the header and the two paid orders.
+- [ ] The header is \`number,date,customer,total\`.
+- [ ] A total of 1234.5 is written as 1234.50.
+- [ ] A customer name with a comma or a double quote is quoted as CSV requires: \`"Smith, Dana"\` stays
+  one field.
+- [ ] With no paid orders the file holds the header only.
+- [ ] GET /invoices still returns the same JSON as before.
+
+## How to check
+- \`npm test\`: the new tests of the route pass, the old ones still pass.
+- By hand: start the server with a few orders, open \`http://localhost:3000/invoices.csv\` and load the
+  file into a spreadsheet: one invoice per row, totals with two decimals.
+
+## Boundaries
+- always: keep GET /invoices and its JSON as they are.
+- ask first: a CSV library; the format is small enough to write here.
+- never: unpaid orders in the file.
+
+## Correct the priors
+Joining the fields with commas is not enough: a name with a comma or a double quote breaks the line
+unless that field is quoted.
 
 ## Where to look
 - \`src/server.js:6\` handle(): the routes; GET /invoices is the model for the new one.
@@ -432,27 +453,38 @@ The accountants load invoices into their accounting program, which imports CSV (
 - The download button on the invoices page (T2).
 - Filters by date or customer.
 
-## Dependencies
-Blocks T2.
+## Why
+The accountants load invoices into their accounting program, which imports CSV (D1, D2).
 
-## How to check
-- \`npm test\`: the new tests of the route pass, the old ones still pass.
-- By hand: start the server with a few orders, open \`http://localhost:3000/invoices.csv\` and load the
-  file into a spreadsheet: one invoice per row, totals with two decimals.
+## Dependencies
+Blocks T2: its button calls this route.
 ` },
-  { title: 'Download button on the invoices page', slug: 'download-button', depends: 'T1', text: `## Goal
+  { title: 'Download button on the invoices page', slug: 'download-button', depends: 'T1', text: `## In plain words
+The accountants work from the invoices page. Above the table they get a "Download CSV" button; one click
+saves a file invoices.csv with the same invoices as the table, in the same order, ready for their
+accounting program. With no invoices the button is still there and the file holds only the header row.
+The table itself does not change.
+
+## Goal
 The invoices page shows a "Download CSV" button that saves the file GET /invoices.csv gives. Done when a
 click saves invoices.csv with the invoices of the table.
 
-## Why
-The accountants work from the invoices page and should not have to type a URL (D1).
-
 ## Acceptance criteria
-- Given the invoices page is open, then a "Download CSV" button is shown above the table.
-- When the button is clicked, then the browser saves a file named invoices.csv holding the same invoices
-  as the table, in the same order.
-- With no invoices the button is still shown, and the saved file holds the header only.
-- The table and its columns do not change.
+- [ ] Given the invoices page is open, then a "Download CSV" button is shown above the table.
+- [ ] When the button is clicked, then the browser saves a file named invoices.csv holding the same
+  invoices as the table, in the same order.
+- [ ] With no invoices the button is still shown, and the saved file holds the header only.
+- [ ] The table and its columns do not change.
+
+## How to check
+- \`npm test\` passes.
+- By hand: start the server, open the invoices page, click "Download CSV" and open the saved file: its
+  rows match the table, and the header comes first.
+
+## Boundaries
+- always: the file comes from GET /invoices.csv, not from the table in the page.
+- ask first: any change to the table.
+- never: a second copy of the CSV format in the page.
 
 ## Where to look
 - \`public/invoices.html:6\`: the table the button goes above.
@@ -462,28 +494,38 @@ The accountants work from the invoices page and should not have to type a URL (D
 - A new look for the page beyond the button.
 - Choosing which columns go into the file.
 
-## Dependencies
-Blocked by T1.
+## Why
+The accountants work from the invoices page and should not have to type a URL (D1).
 
-## How to check
-- \`npm test\` passes.
-- By hand: start the server, open the invoices page, click "Download CSV" and open the saved file: its
-  rows match the table, and the header comes first.
+## Dependencies
+Blocked by T1: the button calls its route.
 ` },
-  { title: 'Date range for the CSV export', slug: 'date-range', depends: 'T1', text: `## Goal
+  { title: 'Date range for the CSV export', slug: 'date-range', depends: 'T1', text: `## In plain words
+The accountants close one month at a time. The CSV address learns two optional dates, from and to, and
+then gives only the invoices dated between them, both days included. Without the dates it gives every
+invoice, as before. A date written wrongly, or a from after the to, gets a clear error instead of a
+file.
+
+## Goal
 GET /invoices.csv takes an optional date range, from and to, and gives only the invoices dated inside it.
 Done when a request with both dates returns only that month's invoices.
 
-## Why
-The accountants close one month at a time and load only that month (D3).
-
 ## Acceptance criteria
-- Given invoices dated 2026-09-30, 2026-10-01 and 2026-10-31, when GET
+- [ ] Given invoices dated 2026-09-30, 2026-10-01 and 2026-10-31, when GET
   \`/invoices.csv?from=2026-10-01&to=2026-10-31\` is called, then the file holds the two October ones.
-- Both ends are included.
-- Without from and to the file holds every invoice, as before.
-- A date that is not YYYY-MM-DD gives 400 with a message that names the parameter.
-- from after to gives 400.
+- [ ] Both ends are included.
+- [ ] Without from and to the file holds every invoice, as before.
+- [ ] A date that is not YYYY-MM-DD gives 400 with a message that names the parameter.
+- [ ] from after to gives 400.
+
+## How to check
+- \`npm test\`: tests for both ends, no range, a bad date and from after to.
+- By hand: call the route with the dates of last month and compare the rows with the invoices page.
+
+## Boundaries
+- always: dates as YYYY-MM-DD, compared as calendar days.
+- ask first: a date library.
+- never: a new route for the range; it is the same /invoices.csv.
 
 ## Where to look
 - \`src/server.js:6\` handle(): reads the request URL.
@@ -493,26 +535,42 @@ The accountants close one month at a time and load only that month (D3).
 - Filters by customer.
 - A date picker on the page.
 
-## Dependencies
-Blocked by T1. Blocks T4.
+## Why
+The accountants close one month at a time and load only that month (D3).
 
-## How to check
-- \`npm test\`: tests for both ends, no range, a bad date and from after to.
-- By hand: call the route with the dates of last month and compare the rows with the invoices page.
+## Dependencies
+Blocked by T1: it adds the route. Blocks T4: the monthly mail takes one month.
 ` },
-  { title: 'Monthly CSV by e-mail', slug: 'monthly-email', depends: 'T3', text: `## Goal
+  { title: 'Monthly CSV by e-mail', slug: 'monthly-email', depends: 'T3', text: `## In plain words
+The accountants asked not to download the file by hand every month. On the first day of each month the
+shop sends them one mail with the CSV of the month before attached. A month without invoices still gets
+its mail, with a file that holds only the header row. If no address is set, nothing is sent and the
+shop writes why into its log.
+
+## Goal
 On the first day of each month the shop sends the CSV of the month before to the accountants' address.
 Done when the mail with the attached file arrives once per month.
 
-## Why
-The accountants asked not to download the file by hand every month (D4).
-
 ## Acceptance criteria
-- Given the first day of a month, when the monthly job runs, then one mail goes to the configured
+- [ ] Given the first day of a month, when the monthly job runs, then one mail goes to the configured
   address with invoices.csv of the month before attached.
-- Running the job twice on the same day sends one mail.
-- With no invoices that month the mail still goes, with the header-only file.
-- Without a configured address the job sends nothing and logs why.
+- [ ] Running the job twice on the same day sends one mail.
+- [ ] With no invoices that month the mail still goes, with the header-only file.
+- [ ] Without a configured address the job sends nothing and logs why.
+
+## How to check
+- \`npm test\`: a test with a fake mailer and a fixed date.
+- By hand: run the job with the date set to the first of the month and a test address; one mail with the
+  file arrives.
+
+## Boundaries
+- always: the file of the mail is the one GET /invoices.csv gives for that month.
+- ask first: a mail library, and where the address is set.
+- never: real mails from the tests.
+
+## Correct the priors
+A job that only checks "is it the first of the month" sends again after every restart that day; it has
+to remember the month it already sent.
 
 ## Where to look
 - \`src/invoices.js:3\` list(): the invoices of the month.
@@ -523,13 +581,11 @@ The accountants asked not to download the file by hand every month (D4).
 - Other mail recipients or a mail per customer.
 - PDF invoices.
 
-## Dependencies
-Blocked by T3.
+## Why
+The accountants asked not to download the file by hand every month (D4).
 
-## How to check
-- \`npm test\`: a test with a fake mailer and a fixed date.
-- By hand: run the job with the date set to the first of the month and a test address; one mail with the
-  file arrives.
+## Dependencies
+Blocked by T3: the mail takes one month's range.
 ` },
 ];
 
@@ -538,18 +594,19 @@ function planText(list, openq, next) {
   const decisions = list.length > 2 ? '\nD3. A from/to date range on the same route - one route to keep, and the accountants close one month at a time.\nD4. A monthly job in the shop process sends the file - no new service to run for one mail a month.' : '';
   return `# csv-export
 
-## Summary
-The accountants download the invoices as a CSV file from the invoices page and load it into their
-accounting program, without retyping.
-
-## Problem / Goal
+## In plain words
 Today the invoices are only shown on the invoices page and given as JSON by GET /invoices, so the
-accountants copy them by hand every month. Goal: one click on the invoices page gives a CSV file with
-the same invoices.
+accountants copy them by hand every month. Now one click on the invoices page gives a CSV file with the
+same invoices, which they load into their accounting program without retyping. Done when the file from
+the button loads there with one invoice per row.
+
+## Level
 
 ## Decisions
 D1. The CSV comes from a new route GET /invoices.csv beside GET /invoices - the list stays in one place (src/invoices.js) and the page only links to it.
 D2. Comma-separated, UTF-8, a header row, totals in UAH with two decimals - what the accountants' program imports.${decisions}
+
+## Contract
 
 ## Out of scope
 ${later}
@@ -561,6 +618,8 @@ a "Download CSV" button above the table that calls it.
 ## Terms
 - Invoice: one paid order, as list() in src/invoices.js gives it.
 - CSV: comma-separated values, one invoice per line after the header row.
+
+## What was gathered
 
 ## Open questions
 ${openq ? 'Q1. Should the file use a semicolon, as Excel with a Ukrainian locale expects? - D2 and the T1 acceptance criteria depend on it.\n' : ''}
