@@ -42,22 +42,26 @@ function project() {
   return dir;
 }
 
-const PLAN_BODY = (summary, questions = '') => `# f
+const PLAN_BODY = (plain, questions = '') => `# f
 
-## Summary
-${summary}
+## In plain words
+${plain}
 
-## Problem / Goal
-Files go to S3.
+## Level
 
 ## Decisions
 D1. Use the SDK.
 
+## Contract
+
 ## Out of scope
 
 ## Design sketch
+Files go to S3.
 
 ## Terms
+
+## What was gathered
 
 ## Open questions
 ${questions}
@@ -71,24 +75,30 @@ Write T2.
 
 const TICKET_BODY = (id, o = {}) => `# [${id}] Title
 
+## In plain words
+A file you upload lands in the bucket, and you can download it again.
+
 ## Goal
 Do one thing.
 
-## Why
-D1.
-
 ## Acceptance criteria
-${o.criteria ?? '- Given a file, when uploaded, then it is in the bucket'}
+${o.criteria ?? '- [ ] Given a file, when uploaded, then it is in the bucket'}
+
+## How to check
+\`npm test\`
+
+## Boundaries
+${o.boundaries ?? '- always: keep the old route\n- ask first: a new dependency\n- never: delete a file'}
 
 ## Where to look
 ${o.where ?? '`src/app.js:1`'}
 
 ## Out of scope
 
-## Dependencies
+## Why
+D1.
 
-## How to check
-\`npm test\`
+## Dependencies
 `;
 
 // Replaces the body of a file made by plans.js, keeping its front matter.
@@ -166,7 +176,7 @@ test('ticket: T<n>-<slug>.md with id, depends_on and review_hash; numbers are ne
   assert.match(run(dir, 'ticket', 'no-such-draft', '--title', 'X')[0], /refused \(no draft "no-such-draft"/);
 });
 
-test('list: feature, state, open questions, tickets, last change; find by words in names and Summary', () => {
+test('list: feature, state, open questions, tickets, last change; find by words in names and In plain words', () => {
   const dir = project();
   filled(dir, 's3-connection', 2, 'Підключення до сховища S3 для файлів.');
   filled(dir, 'csv-export', 1, 'Export invoices as CSV.');
@@ -199,7 +209,7 @@ test('check: missing sections, empty criteria, TBD and <...> outside code, missi
   const t = (n) => `${LOCAL}/s3-connection/tickets/T${n}-ticket-${n}.md`;
   write(dir, `${LOCAL}/s3-connection/plan.md`, readRel(dir, `${LOCAL}/s3-connection/plan.md`).replace('## Terms\n', '').replace('Files go to S3.', 'Files go to S3. TBD'));
   body(dir, t(1), TICKET_BODY('T1', { criteria: '', where: '`src/app.js:1`, `src/gone.js:3`, lib/missing.ts:12, `../outside.js`' }));
-  body(dir, t(2), TICKET_BODY('T2', { criteria: '- Given <user>, it works\n- `Array<string>` and <https://example.com> are fine' }));
+  body(dir, t(2), TICKET_BODY('T2', { criteria: '- [ ] Given <user>, it works\n- [ ] `Array<string>` and <https://example.com> are fine' }));
   write(dir, t(3), readRel(dir, t(3)).replace('## Why\nD1.\n', ''));
   front(dir, t(1), 'depends_on', '[T3]');
   front(dir, t(3), 'depends_on', '[T2, T7, T3]');
@@ -220,6 +230,66 @@ test('check: missing sections, empty criteria, TBD and <...> outside code, missi
   for (const e of expected) assert.ok(out.some((l) => l.startsWith(`- ${e}`)), `${e}\n${out.join('\n')}`);
   assert.equal(out[0], `check: ${expected.length} problems`);
   assert.ok(!out.some((l) => /src\/app\.js|Array|example\.com/.test(l)), out.join('\n'));
+});
+
+test('check: the ticket sections in their order, the three Boundaries labels, criteria as a "- [ ]" list; Example and Correct the priors are optional', () => {
+  const dir = project();
+  filled(dir, 's3-connection', 4);
+  const t = (n) => `${LOCAL}/s3-connection/tickets/T${n}-ticket-${n}.md`;
+  const plan = `${LOCAL}/s3-connection/plan.md`;
+  // Both optional sections in their places: still clean.
+  body(dir, t(1), TICKET_BODY('T1').replace('## Goal\n', '## Example\nUpload a.txt -> it is listed.\n\n## Goal\n').replace('## Where to look\n', '## Correct the priors\nThe SDK retries by itself: no retry loop.\n\n## Where to look\n'));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 4 tickets)']);
+  // Goal moved below Boundaries; an optional section out of its place counts too.
+  body(dir, t(1), TICKET_BODY('T1').replace('## Goal\nDo one thing.\n\n', '').replace('## Where to look\n', '## Goal\nDo one thing.\n\n## Where to look\n'));
+  body(dir, t(2), TICKET_BODY('T2', { boundaries: '- always: keep the old route\n- **never**: delete a file\nask first: nothing' }));
+  body(dir, t(3), TICKET_BODY('T3', { criteria: '- [ ] Given a file, then it is in the bucket\n  and listed\nThe upload is fast.' }));
+  body(dir, t(4), TICKET_BODY('T4').replace('## In plain words\nA file you upload lands in the bucket, and you can download it again.\n\n', ''));
+  write(dir, plan, readRel(dir, plan).replace('## What was gathered\n', '').replace('## Level\n', ''));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), [
+    'check: 6 problems',
+    '- plan.md: no section "## Level"',
+    '- plan.md: no section "## What was gathered"',
+    '- T1: "## Goal" stands after "## Boundaries" (the order: In plain words, Example, Goal, Acceptance criteria, How to check, Boundaries, Correct the priors, Where to look, Out of scope, Why, Dependencies)',
+    '- T2: Boundaries has no "- ask first:" item',
+    '- T3: acceptance criteria are not a "- [ ]" list: "The upload is fast."',
+    '- T4: no section "## In plain words"',
+  ]);
+  body(dir, t(4), TICKET_BODY('T4').replace('## Out of scope\n', '## Example\nUpload a.txt -> it is listed.\n\n## Out of scope\n'));
+  assert.match(run(dir, 'check', 's3-connection').find((l) => l.startsWith('- T4')), /^- T4: "## Example" stands after "## Where to look"/);
+});
+
+test('check: headings in a code block are text; a section twice, a missing or empty "# [id] title" heading and indented Boundaries', () => {
+  const dir = project();
+  filled(dir, 's3-connection', 4);
+  const t = (n) => `${LOCAL}/s3-connection/tickets/T${n}-ticket-${n}.md`;
+  // Markdown samples in How to check (one holds a ``` block inside ~~~), Boundaries items indented.
+  const fenced = '## How to check\n```md\n## Why\nx\n\n## Example\ny\n```\n~~~md\n```js\n## Why\n```\n~~~\n\n';
+  body(dir, t(1), TICKET_BODY('T1').replace('## How to check\n`npm test`\n\n', fenced));
+  body(dir, t(2), TICKET_BODY('T2', { boundaries: '  - always: keep the old route\n  - ask first: a new dependency\n  - never: delete a file' }));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 4 tickets)']);
+  // No heading, an empty title, the id in another case (export would not turn "t4" into its key).
+  body(dir, t(1), `${TICKET_BODY('T1').replace('# [T1] Title\n', '')}\n## Why\nD2.\n`);
+  body(dir, t(2), `${TICKET_BODY('T2')}\n## Goal\nAnother.\n`);
+  body(dir, t(3), TICKET_BODY('T3').replace('# [T3] Title', '# [T3]'));
+  body(dir, t(4), TICKET_BODY('T4').replace('# [T4]', '# [t4]'));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), [
+    'check: 5 problems',
+    '- T1: no "# [T1] <title>" heading',
+    '- T1: "## Why" appears twice',
+    '- T2: "## Goal" appears twice',
+    '- T3: no "# [T3] <title>" heading',
+    '- T4: no "# [T4] <title>" heading',
+  ]);
+});
+
+test('check: the unfilled templates show only their placeholders', () => {
+  const dir = project();
+  run(dir, 'new', 's3-connection');
+  run(dir, 'ticket', 's3-connection', '--title', 'Upload');
+  const out = run(dir, 'check', 's3-connection');
+  assert.match(out[0], /^check: \d+ problems$/);
+  for (const l of out.slice(1)) assert.match(l, /^- (plan\.md|T1): placeholder </, out.join('\n'));
 });
 
 test('review: never reviewed, unchanged after reviewed, changed after an edit; the hash line itself does not count', () => {
@@ -358,7 +428,7 @@ test('an exported feature on this machine: mark set, ticket with the next key an
     `created: ${folder}/PROJ-6-delete-files.md`, 'ticket: PROJ-6', 'fetch: not a git repository; keys from the files here only',
   ]);
   const t = readRel(dir, `${folder}/PROJ-6-delete-files.md`);
-  assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-6\nstatus: todo\nfeature: s3-connection\nbranch: feat/s3\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-5]\n---\n\n# [PROJ-6] Delete files\n\n## Goal\n'), t);
+  assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-6\nstatus: todo\nfeature: s3-connection\nbranch: feat/s3\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-5]\n---\n\n# [PROJ-6] Delete files\n\n## In plain words\n'), t);
   const unfilled = run(dir, 'check', 's3-connection');
   assert.match(unfilled[0], /^check: \d+ problems$/);
   assert.ok(unfilled.some((l) => /^- PROJ-6: placeholder /.test(l)), 'the template\'s placeholders are problems, as in a draft');

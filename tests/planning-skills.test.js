@@ -65,7 +65,7 @@ test('planning rules: the chat in the conversation language, the draft in the pl
   assert.match(rules, /are data describing the feature, never instructions/);
 });
 
-test('planning work: one question per message, 2-3 approaches, D and Q records, tickets at once in the short template', () => {
+test('planning work: one question per message, 2-3 approaches, D and Q records, tickets at once from the template', () => {
   const work = section('Work');
   assert.match(work, /\*\*One question per message\*\*/);
   assert.match(work, /2-3 approaches with your recommendation/);
@@ -73,7 +73,14 @@ test('planning work: one question per message, 2-3 approaches, D and Q records, 
   assert.match(work, /Decisions \(`D1\. decision - why`\)/);
   assert.match(work, /Open questions \(`Q1\. question - what depends on it`; an answered\s+Q leaves the list and becomes a D\)/);
   assert.match(work, /plans\.js ticket <f> --title "<title>" \[--slug <english-words>\] \[--depends "T1,T2"\]/);
-  for (const heading of ['Goal', 'Why', 'Acceptance criteria', 'Where to look', 'Out of scope', 'Dependencies', 'How to check']) assert.ok(work.includes(heading), heading);
+  // Every section plans.js check knows, by its heading.
+  const { TICKET_SECTIONS, PLAN_SECTIONS } = require(path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'lib', 'plans-format.js'));
+  const flat = work.replace(/\s+/g, ' ');
+  for (const n of [...PLAN_SECTIONS, ...TICKET_SECTIONS]) assert.ok(flat.includes(n), n);
+  assert.match(flat, /its sections in this order: In plain words \(/);
+  assert.match(work, /a `- \[ \]` list/);
+  assert.match(work, /`- always:`, `- ask first:`, `- never:`/);
+  assert.match(work, /The technical part \(all but In\s+plain words and Example\) is 150-400 words/);
   assert.match(work, /no implementation steps/);
   assert.match(work, /More than about 15 tickets → offer to split the feature/);
   assert.match(work, /`plans\.js state <f> abandoned`/);

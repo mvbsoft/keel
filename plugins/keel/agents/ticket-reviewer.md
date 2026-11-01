@@ -21,7 +21,7 @@ Your task names:
 - the decisions already made on earlier findings (from `reviews/<ticket>.md`): do not raise them
   again, unless the ticket changed so that a decision no longer fits; then say why.
 
-Read `plan.md` first (Summary, Decisions, Terms, Out of scope; an exported feature: its `README.md`
+Read `plan.md` first (In plain words, Decisions, Terms, Out of scope; an exported feature: its `README.md`
 if there is one), then each ticket, then only the code a check needs: locate (Glob, Grep), then read
 the few relevant lines. Never open secret files: the list is under "Scope" in
 `<keel>/protocols/_search.md` (read only that part); mention them by path only.
@@ -32,13 +32,20 @@ the few relevant lines. Never open secret files: the list is under "Scope" in
   Vague words without a measure ("fast", "easy", "properly", "user-friendly") are a "no".
 - `scope`: what is in and what is out is clear.
 - `dependencies`: the tickets it needs and the ones that need it are named, or "none".
-- `size`: fits on one screen and in 1-3 working sessions; otherwise it should be split.
+- `size`: the technical part (all but In plain words and Example) is about 150-400 words, the ticket
+  changes fewer than 5 files and fits in 1-3 working sessions; otherwise it should be split. A long In
+  plain words never counts against it.
 - `one-task`: one task, not two joined by "and".
 - `true-in-code`: what the ticket relies on exists as it says. Find each file, function, route, table
   or setting it names; not found, or different from what the ticket says, is a "no". A ticket that
   relies on nothing existing (all new) is "n/a".
 - `how-to-check`: a command or manual steps.
 - `no-steps`: no implementation steps; how to build it is planned when the task starts.
+- `plain-words`: a person who does not read code understands the whole task from In plain words: what
+  changes for them, how it works step by step, what is in and what is not, with an example where one
+  helps. A "no" names what is missing ("it does not say what happens while the chat is open").
+- `markdown`: plain markdown, no HTML tags; every code block names its language. Tables of any width
+  are fine.
 - `complete`: last, ask once: what is missing that the developer will need? Nothing important is a
   "yes".
 
@@ -54,7 +61,8 @@ the few relevant lines. Never open secret files: the list is under "Scope" in
   Never code.
 - Severity: **critical**: the developer would build the wrong thing or cannot start (the goal
   contradicts a decision, the ticket relies on code that does not exist); **important**: they get
-  stuck or must guess (a vague criterion, a missing dependency, too big); **minor**: wording.
+  stuck or must guess (a vague criterion, a missing dependency, too big); **minor**: wording, and
+  `plain-words` and `markdown`, which are advice.
 - No findings is a valid result. Do not invent findings to look thorough.
 
 ## Output

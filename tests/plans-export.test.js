@@ -12,6 +12,7 @@ const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
 const { exportFeature, highestKey } = require(path.join(SCRIPTS, 'lib', 'plans-export.js'));
 const plans = require(path.join(SCRIPTS, 'lib', 'plans.js'));
+const { repoName } = require(path.join(SCRIPTS, 'lib', 'plans-format.js'));
 
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const gitTest = (name, fn) => test(name, { skip: !hasGit && 'git is not installed' }, fn);
@@ -42,25 +43,37 @@ const front = (dir, rel, key, value) => write(dir, rel, readRel(dir, rel).replac
 
 const PLAN_BODY = `# S3 storage
 
-## Summary
+## In plain words
 Upload and download files on S3; T1 comes first.
 
-## Problem / Goal
-Files go to S3.
+## Level
+Tickets for one repository.
 
 ## Decisions
 D1. Use the SDK (T2 builds on T1).
 
+## Contract
+PUT /files/{name} stores a file.
+
 ## Out of scope
+Deleting files.
 
 ## Design sketch
+Files go to S3.
 
 ## Terms
+Bucket: the S3 folder of the project.
+
+## What was gathered
+src/app.js has no upload yet.
 
 ## Open questions
 
 ## Tickets
 T1 client
+
+## Stubs
+The web app shows the files T1 uploads.
 
 ## Next action
 Export.
@@ -68,24 +81,32 @@ Export.
 
 const TICKET_BODY = (id, where = '`src/app.js:1`') => `# [${id}] Title of ${id}
 
+## In plain words
+A file you upload lands in the bucket.
+
 ## Goal
 Do one thing after T1; not T10, T20 or xT1.
 
-## Why
-D1.
-
 ## Acceptance criteria
-- Given a file, when uploaded, then it is in the bucket
+- [ ] Given a file, when uploaded, then it is in the bucket
+
+## How to check
+\`npm test\`
+
+## Boundaries
+- always: keep the old route
+- ask first: a new dependency
+- never: delete a file
 
 ## Where to look
 ${where}
 
 ## Out of scope
 
-## Dependencies
+## Why
+D1.
 
-## How to check
-\`npm test\`
+## Dependencies
 `;
 
 // A project with keel's config, src/app.js, one commit on main and, when asked, a remote with main pushed.
@@ -304,9 +325,21 @@ gitTest('export on this machine: keys after the highest, tickets and README in t
   assert.match(t2, /^Do one thing after PROJ-101; not T10, T20 or xT1\.$/m, 'only the draft\'s T-numbers, whole words');
   assert.doesNotMatch(t2, /review_hash|^id:/m);
   const readme = readRel(work, `${folder}/README.md`);
-  assert.ok(readme.startsWith('---\ntype: feature\n---\n\n# S3 storage\n\n## Summary\nUpload and download files on S3; PROJ-101 comes first.\n'), readme);
-  assert.match(readme, /^D1\. Use the SDK \(PROJ-102 builds on PROJ-101\)\.$/m);
-  assert.doesNotMatch(readme, /## (Open questions|Tickets|Next action)|status|branch/);
+  // The plan's sections with text, in the overview's order, T-numbers swapped for keys; Tickets: key,
+  // title and the repository (no remote: the project folder's name), no states. Design sketch, What
+  // was gathered and Next action stay in the plan.
+  assert.equal(readme, [
+    '---', 'type: feature', '---', '',
+    '# S3 storage', '',
+    '## In plain words', 'Upload and download files on S3; PROJ-101 comes first.', '',
+    '## Level', 'Tickets for one repository.', '',
+    '## Decisions', 'D1. Use the SDK (PROJ-102 builds on PROJ-101).', '',
+    '## Contract', 'PUT /files/{name} stores a file.', '',
+    '## Out of scope', 'Deleting files.', '',
+    '## Terms', 'Bucket: the S3 folder of the project.', '',
+    '## Tickets', '- PROJ-101 Title of PROJ-101 (work)', '- PROJ-102 Title of PROJ-102 (work)', '',
+    '## Stubs', 'The web app shows the files PROJ-101 uploads.', '',
+  ].join('\n'));
   // The draft left the folder for keel's trash, marked exported; the folder holds only the tickets.
   assert.deepEqual(fs.readdirSync(path.join(work, LOCAL, 's3-storage')), ['tickets']);
   const batch = trashed(work)[0];
@@ -366,6 +399,19 @@ gitTest('export is all or nothing on this machine: an interrupted run leaves no 
   assert.equal(out[2], `- T2 -> PROJ-2: ${LOCAL}/s3-storage/tickets/PROJ-2-ticket-2.md`);
   assert.deepEqual(fs.readdirSync(path.join(work, LOCAL, 's3-storage', 'tickets')).sort(), ['PROJ-1-ticket-1.md', 'PROJ-2-ticket-2.md', 'README.md']);
   assert.ok(!exists(work, `${LOCAL}/s3-storage.export-tmp`));
+});
+
+gitTest('the overview names the repository by the last part of its remote URL, the same on every machine', () => {
+  const { work } = setup();
+  run(work, 'settings', 'set', '--export', 'pc', '--prefix', 'PROJ');
+  ready(work, 's3-storage');
+  run(work, 'export', 's3-storage');
+  const readme = readRel(work, `${LOCAL}/s3-storage/tickets/README.md`);
+  assert.match(readme, /^## Tickets\n- PROJ-1 Title of PROJ-1 \(server\)\n- PROJ-2 Title of PROJ-2 \(server\)\n$/m, readme);
+  for (const [url, name] of [['git@github.com:team/web.git', 'web'], ['https://user:token@github.com/team/web-app/', 'web-app'], ['C:\\repos\\api.git', 'api'], ['ssh://host/srv/mobile', 'mobile']]) {
+    git(work, 'remote', 'set-url', 'origin', url);
+    assert.equal(repoName(work), name, url);
+  }
 });
 
 gitTest('export into the repository: the draft\'s own folder gets the new files (an earlier run\'s are removed first); a draft on this machine goes through a temporary folder', () => {

@@ -6,6 +6,22 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- A planned ticket starts with In plain words: the whole task told for a person, without code or
+  paths, as long as it needs. Its sections always come in one order: In plain words, Example, Goal,
+  Acceptance criteria, How to check, Boundaries (`always`, `ask first`, `never`), Correct the priors,
+  Where to look, Out of scope, Why, Dependencies; Example and Correct the priors may be left out.
+  `plans.js check` checks the `# [id] title` heading (an empty title fails), each section once and
+  in its order (headings inside code blocks are text), the three Boundaries labels and the
+  acceptance criteria as a `- [ ]` list; the ticket reviewer advises on In plain words and on plain markdown without blocking,
+  and its size check leaves In plain words out of the 150-400 words.
+- A planning draft's `plan.md` has In plain words, Level, Contract, What was gathered and an optional
+  Stubs instead of Summary and Problem / Goal; `plans.js find` reads In plain words.
+- The feature overview `README.md` takes the plan's In plain words, Level, Decisions, Contract, Out of
+  scope, Terms and Stubs (no more Design sketch) and lists the feature's tickets: key, title and
+  repository (the last part of the remote's URL, else the project folder's name), without states.
+  Tickets and plans in the earlier format fail `plans.js check`; nothing converts them.
+
 ## [1.4.0] - 2026-10-27
 
 ### Added
