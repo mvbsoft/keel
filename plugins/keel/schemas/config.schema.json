@@ -288,6 +288,40 @@
         }
       }
     },
+    "planning": {
+      "description": "Optional. The team's planning settings (/keel:start-planning). Without them planning does not start and export is refused: /keel:configure planning asks them.",
+      "type": "object",
+      "required": [
+        "ticket_prefix",
+        "tickets"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ticket_prefix": {
+          "description": "The start of every ticket key (PROJ in PROJ-12). comments.js also reports it in new comments and docs, besides comments.ticket_prefixes.",
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]{1,9}$"
+        },
+        "tickets": {
+          "description": "Where exported tickets live, with the researcher's reports: repo (tickets_dir, committed on the feature branch) or pc (this machine only).",
+          "enum": [
+            "repo",
+            "pc"
+          ]
+        },
+        "tickets_dir": {
+          "description": "The repository folder for exported tickets (repo). Never a hidden folder, handoff/, handoffs/, docs/plans or a place outside the project. Configs without it use tickets.",
+          "type": "string",
+          "minLength": 1,
+          "default": "tickets"
+        },
+        "language": {
+          "description": "The language of plan.md and the tickets. Configs without it use repo_language.",
+          "type": "string",
+          "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$"
+        }
+      }
+    },
     "stack_skills": {
       "description": "Stack skills the user chose during configure (informational).",
       "type": "array",

@@ -14,12 +14,13 @@
 //                   over-engineered average() with its test, and an unexplained restyle of src/cart.js
 //   task-active     tasks, with CAN-123 active again for the chat SID (status active, started recorded,
 //                   committed), checked out on CAN-123-discount
+// Every variant's config has the planning settings: ticket prefix INV, tickets in the repository.
 // The planning variants add the invoices (src/invoices.js, src/server.js, public/invoices.html) on main:
-//   planning        a draft csv-export on this machine (settings: language en, draft pc; no export, no
-//                   prefix): plan.md and tickets T1, T2 (T2 depends on T1) written, both reviewed as they
-//                   are, check clean, no open question; the chat SID plans csv-export; on main
+//   planning        a draft csv-export on this machine (draft pc): plan.md and tickets T1, T2 (T2 depends
+//                   on T1) written, both reviewed as they are, check clean, no open question; the chat SID
+//                   plans csv-export; on main
 //   planning-openq  as planning, with one open question Q1 in plan.md
-//   planning-ready  as planning, the plan ready, prefix INV (export still unset), and a committed AGENTS.md
+//   planning-ready  as planning, the plan ready, and a committed AGENTS.md
 //                   that says tickets live in Jira
 //   planning-repo   as planning, the draft in the repository (draft repo): tickets/csv-export/ not committed
 //   planned         csv-export exported into tickets/csv-export/ (INV-1..INV-4, branch csv-export, merge_into
@@ -58,6 +59,7 @@ const CONFIG = {
   architecture: { file_lines_warn: 700, file_lines_max: 1000 },
   docs: { profile: 1, pattern: 'none' },
   cleanup: { trash_max_age_days: 30 },
+  planning: { ticket_prefix: 'INV', tickets: 'repo' },
 };
 
 function taskFile(o) {
@@ -631,10 +633,10 @@ ${next || (list.length > 2 ? 'Export the tickets.' : 'Final review of the ticket
 `;
 }
 
-// A draft csv-export as start-planning leaves it: settings, plan.md and the tickets written in full, each
+// A draft csv-export as start-planning leaves it: the draft place, plan.md and the tickets written in full, each
 // ticket reviewed as it is (last, so the review hashes match).
 function draft({ where = 'pc', list = TICKETS.slice(0, 2), openq = false, next } = {}) {
-  plans('settings', 'set', '--language', 'en', '--draft', where);
+  plans('settings', 'set', '--draft', where);
   const plan = /^created: (.+)$/m.exec(plans('new', 'csv-export'))[1];
   const files = list.map((t) => /^created: (.+)$/m.exec(plans('ticket', 'csv-export', '--title', t.title, '--slug', t.slug, ...(t.depends ? ['--depends', t.depends] : [])))[1]);
   body(plan, planText(list, openq, next));
@@ -657,7 +659,6 @@ function planningReady() {
   git('push', '-q', 'origin', 'main');
   planning({ next: 'Export the tickets.' });
   plans('state', 'csv-export', 'ready');
-  plans('settings', 'set', '--prefix', 'INV');
 }
 
 // Commits as another person: the in-progress hint names the branch tip's author.
@@ -666,7 +667,6 @@ const commitAs = (name, email, msg) => { git('add', '-A'); git('-c', `user.name=
 function planned() {
   invoices();
   draft({ list: TICKETS });
-  plans('settings', 'set', '--export', 'repo', '--prefix', 'INV');
   plans('state', 'csv-export', 'ready');
   git('switch', '-q', '-c', 'csv-export');
   plans('export', 'csv-export');

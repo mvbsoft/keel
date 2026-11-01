@@ -33,8 +33,8 @@
 //                                         (absolute, or relative to the project): its
 //                                         findings, or `report: failed` and why (never "no findings")
 //   export <feature>                      a ready plan's tickets into the feature folder with keys shared
-//                                         across the repository (export, export_dir, prefix settings); all
-//                                         or nothing
+//                                         across the repository (planning in .keel/config.json); all or
+//                                         nothing
 //   commit <feature>                      the feature's planning files into git on the current branch (keys
 //                                         checked again, taken ones renumbered), also a feature folder
 //                                         removed by drop; never on the main branch
@@ -48,9 +48,13 @@
 //   drop <feature>                        a feature whose every ticket is done: its folder to keel's trash
 //                                         (a repository folder only off the branch it merges into; then
 //                                         commit <feature>)
-//   settings                              the planning settings (.keel/local/plans/keel/settings.json)
-//   settings set [--language <l>] [--draft pc|repo] [--draft-dir <dir>] [--export pc|repo]
-//                [--export-dir <dir>] [--prefix <PROJ>]
+//   settings                              the planning settings: this machine's
+//                                         (.keel/local/plans/keel/settings.json) and the project's
+//                                         (.keel/config.json planning); `planning: planning is not set up`
+//                                         without the project's
+//   settings set [--draft pc|repo] [--draft-dir <dir>] [--repo <PREFIX>=<absolute folder>]
+//                                         this machine's: where drafts live, where a neighbouring
+//                                         repository is (one --repo per call)
 //   mark set <feature> --session <id>     this chat plans the feature: a draft, or an exported feature
 //                                         whose folder is in the working tree (the mark keeps the folder)
 //   mark get --session <id>               the feature this chat plans, or none
@@ -85,11 +89,12 @@ function run(root, pos, opts) {
   if (command === 'done') { const f = flagged(pos, opts, 'undo'); return require('./lib/plans-state.js').doneCommand(root, f.arg, f.on); }
   if (command === 'drop') return require('./lib/plans-state.js').dropCommand(root, feature);
   if (command === 'settings') {
-    if (!pos[2]) return plans.settingsShow(root);
+    const settings = require('./lib/plans-settings.js');
+    if (!pos[2]) return settings.settingsShow(root);
     if (pos[2] !== 'set') return [`plans: unknown settings command "${pos[2]}" (set)`];
-    // --draft-dir and --export-dir name the draft_dir and export_dir settings.
+    // --draft-dir names the draft_dir setting.
     const named = Object.fromEntries(Object.entries(opts).map(([k, v]) => [k.replace(/-/g, '_'), v]));
-    return plans.settingsSet(root, named);
+    return settings.settingsSet(root, named);
   }
   if (command === 'mark') return plans.markCommand(root, pos[2], pos[3], opts.session);
   return [`plans: unknown command "${command}" (${COMMANDS})`];

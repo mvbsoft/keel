@@ -5,8 +5,8 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
 
 ## Rules
 - **Languages.** The chat, the questions and the report: the conversation language. `plan.md`, the
-  tickets and `reviews/`: the plan's `language` (its front matter; the planning settings for a new
-  one): translate what the chat said when writing them. Headings and front matter keys stay in English.
+  tickets and `reviews/`: the plan's `language` (its front matter; a new one takes `planning.language`
+  of `.keel/config.json`, else `repo_language`): translate what the chat said when writing them. Headings and front matter keys stay in English.
 - **No keel traces** in files, branch names and commit messages: no "keel", no "generated", no AI
   attribution; fields stay neutral (`type: ticket`).
 - **plans.js**: run `node "<keel>/scripts/plans.js" "<project>" <command> ...` one step at a time and

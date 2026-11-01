@@ -96,7 +96,7 @@ accepts each step after running its tests. Why steps should not be cut too small
 | `.keel/local/options.json` | this project's own values of `conversation_language`, `allow_opus` and `prompt_preview` (personal) | no |
 | `.keel/local/plans/claude/` | Claude Code's Plan Mode files | no |
 | `.keel/local/plans/keel/` | planning: drafts kept on this machine and tickets exported to this machine (`<feature>/tickets/`), the planning settings, which conversation plans which feature (`sessions/`), ticket review samples (`samples/`) | no |
-| `<draft_dir>/<feature>/`, `<export_dir>/<feature>/` | a feature's draft in the repository, and its exported tickets with their overview (`tickets/` by default) | when you commit them, on the feature's branch |
+| `<draft_dir>/<feature>/`, `<tickets_dir>/<feature>/` | a feature's draft in the repository, and its exported tickets with their overview (`tickets/` by default) | when you commit them, on the feature's branch |
 | `.keel/local/` | temporary agent files and saved agent reports, the token ledger, backups, the trash | no |
 
 On each machine keel also keeps `~/.claude/keel/`:

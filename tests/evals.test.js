@@ -86,8 +86,8 @@ const STATE = {
   'planning-ready': (work, git) => {
     draftState('ready · open Q 0', '\\.keel/local/plans/keel/csv-export/ \\(this machine only\\)')(work);
     const settings = script('plans.js', work, 'settings');
-    assert.match(settings, /^export: -$/m);
-    assert.match(settings, /^prefix: INV$/m);
+    assert.match(settings, /^tickets: repo$/m);
+    assert.match(settings, /^ticket_prefix: INV$/m);
     assert.match(git('show', 'HEAD:AGENTS.md'), /^No ticket or backlog files in this repository: tickets live in Jira\.$/m);
   },
   'planning-repo': draftState('draft · open Q 0', 'tickets/csv-export/'),

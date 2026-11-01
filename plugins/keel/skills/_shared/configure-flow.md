@@ -77,7 +77,7 @@ question group first. Quick runs:
 | 3 Gates | asked: the commands and the one dry run; scanners: those already on PATH, without a question; the missing ones are named in the summary |
 | 4 Git | asked: mode (both modes offered) and main branch, two questions in one call; `ask_before_merge` yes, state and task folders in git |
 | 5 Verification | the defaults, stated in one line |
-| 6 Code | file sizes 700 / 1,000; the comment level `comments.js --project` recommends; ticket prefixes it lists from git history; `adr_refs` `allowed` |
+| 6 Code | file sizes 700 / 1,000; the comment level `comments.js --project` recommends; planning tickets asked: the prefix and where they live, two questions in one call (the language is `repo_language`); ticket prefixes it lists from git history; `adr_refs` `allowed` |
 | 7 Stack plugins | skipped; the summary says `/keel:configure plugins` |
 | 8 Documentation | the suggested profile and pattern, stated with the reason; existing docs are kept up to date in every profile |
 | 9 Moving | asked only when `migrate.js find` finds another system |
@@ -100,7 +100,8 @@ Then by the first line:
   line. An argument that names sections (numbers or `languages`, `scan`, `gates`, `git`,
   `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`; several
   separated by commas or spaces, such as `gates,git` or `3,4`) runs only those, in section order
-  whatever order they were given in, then section 12 once for what they changed. A name that is no
+  whatever order they were given in, then section 12 once for what they changed. `planning` runs only
+  the "Planning tickets" block of section 6 (all three of its questions). A name that is no
   section → list the sections and ask; run nothing before the answer.
 
 Existing AI instruction files (`profile.ai_rules` from the scan: AGENTS.md, CLAUDE.md, Cursor or
@@ -215,13 +216,31 @@ it gives the share of comment lines in the code now and the closest level; recom
   session.
 - keel checks new code with `comments.js` at the end of a task and when it accepts a delegated step.
 
+**Planning tickets** (`planning`; alone: `/keel:configure planning`). `/keel:start-planning` turns a
+feature into tickets that `/keel:start-task` then builds; these settings say how the tickets are named
+and where they live, the same for the whole team (they go into git). Without them planning does not
+start. Ask in one call (only this block runs → run `comments.js --project` first):
+- **Ticket prefix** (`planning.ticket_prefix`): the start of every ticket key (`API` in `API-12`), one
+  per repository. Propose the first prefix the `--project` run lists from git history (the tracker's),
+  else 3-4 capital letters from the repository's name (`api-gateway` → `API`): 2-10 capital letters and
+  digits, starting with a letter.
+- **Where the tickets live** (`planning.tickets`): in the repository (recommended: the team sees them
+  and a task starts from a ticket on any machine), in `tickets/` or a ticket folder the project already
+  has (`planning.tickets_dir`; written only when it is not `tickets`; never a hidden folder, `handoff/`,
+  `handoffs/`, `docs/plans` or a place outside the project), together with the reports of keel's
+  researcher (`research/`) / only on this machine (outside git; the reports stay with them).
+- **Ticket language** (`planning.language`), detailed setup only: the language of `plan.md` and the
+  tickets; recommend `repo_language` (the team reads them) and write it only when it differs. Quick
+  setup takes `repo_language`.
+
 **Ids in comments and docs** (`comments.ticket_prefixes`, `comments.adr_refs`, `comments.refs_exempt`).
 A ticket id, a commit hash or a record code in a comment or doc points at something that may be
 deleted; `comments.js` reports them in new comment and doc lines (commit hashes always). Ask, in one
 question:
 - ticket prefixes: propose the ones the `--project` run lists from git history and ask for the ones
   it cannot see (register or debt rows such as `D-12`, acceptance criteria). None: ticket ids are not
-  checked;
+  checked. The planning ticket prefix is always checked too: list it as "added on its own" and never
+  write it into `ticket_prefixes`;
 - decision records (`ADR-12`): `allowed` (default) when the project keeps them for good; `forbidden`
   when they may be removed or renamed, so a comment states the reason itself and a doc links the record;
 - files where ids are the subject besides the built-in ones (decision records, task and ticket

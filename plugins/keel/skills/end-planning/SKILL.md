@@ -49,14 +49,13 @@ Current state of this project:
       more. A finding deferred to a Q → the gates fail: offer mode A. Fixes after the last round →
       the user chooses: accept them as reviewed (`plans.js reviewed <f> <tickets>`) or mode A.
    4. `plans.js state <f> ready` → `status: ready`; refused → show its reason and offer mode A.
-   5. **Export.** `plans.js settings`. `export: -` (the first time) → ask where: the repository (a
-      ticket folder the project has, else `tickets`; the feature lands in `<folder>/<f>/`) or this
-      machine only (a draft in the repository exports there: say so, do not ask); then planning.md
-      "Project rules" for that choice. `prefix: -` → propose the first `comments.ticket_prefixes`
-      of `.keel/config.json`, else 3-4 capital letters from the repository name; the user confirms.
-      Save with `plans.js settings set --export <pc|repo> [--export-dir <dir>] --prefix <PROJ>`. Set
-      before → say the target and prefix in one line (the user may change them). Ask "Export the
-      <n> tickets now?"; no → the plan stays `ready` for the next end-planning.
+   5. **Export.** `plans.js settings`: say the target (`tickets: repo` → `<tickets_dir>/<f>/`;
+      `tickets: pc` → this machine only) and the prefix (`ticket_prefix`) in one line, then
+      planning.md "Project rules" for that target. `planning: planning is not set up ...` → say
+      "Run `/keel:configure planning` in a new conversation (it does not run while this one plans),
+      then `/keel:end-planning` again." and go to step 7: the plan stays `ready`. A change of target
+      or prefix is the team's setting: `/keel:configure planning`, the same way. Ask "Export the <n>
+      tickets now?"; no → the plan stays `ready` for the next end-planning.
    6. `plans.js export <f>`: show `exported:`, its `- T<n> -> <KEY>: <file>` lines and `readme:`.
       Refused → its reason; the plan stays `ready`. On this machine → say "These tickets are seen on
       this machine only." In the repository → planning.md "Commit and push" (a draft's plan.md,

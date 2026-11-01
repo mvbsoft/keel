@@ -353,7 +353,7 @@ conversation writes only the draft, and keel's hook refuses changes to other pro
 
 | You type | keel does |
 |---|---|
-| `/keel:start-planning` the first time in a project | Two questions, one per message: the tickets' language (default: the project's `repo_language`), and where the draft lives: on this machine (default, outside git) or in the repository (a `tickets/` folder, or a ticket folder the project already has; colleagues see it through git). Say "draft in the repo" at any start to change it. |
+| `/keel:start-planning` the first time in a project | Without the project's planning settings (the ticket prefix and where the tickets live, `/keel:configure planning`) it stops before any question and says so. Then one question: where the draft lives: on this machine (default, outside git) or in the repository (a `tickets/` folder, or a ticket folder the project already has; colleagues see it through git). Say "draft in the repo" at any start to change it. |
 | `/keel:start-planning` | Lists the drafts (feature, state, open questions, tickets, last change, where) and asks which to continue or what the new feature is. |
 | `/keel:start-planning csv-export` | Continues that draft: its open questions, the review findings without a decision, which files its tickets name changed since, a summary in 3-6 lines and the Next action. |
 | `/keel:start-planning continue the CSV export` | Looks for the words in the drafts' names and In plain words: one match → "Continue `csv-export`?"; several or none → the list. |
@@ -419,13 +419,18 @@ Every end, also after a no, frees the conversation from planning. The report: **
 
 ### Export
 
-- **Where**, asked the first time: the repository (a ticket folder the project has, else `tickets/`;
-  the feature lands in `<folder>/<feature>/`) or this machine only (keel says "These tickets are seen
-  on this machine only"). A draft in the repository always exports there. Never used: hidden folders,
-  `handoff/` and `handoffs/` (another notes system), `docs/plans`, a place outside the project.
+- **Where**: the project's setting, asked by `/keel:configure` (`planning.tickets` and
+  `planning.tickets_dir` in `.keel/config.json`, [settings](settings.md#planning-settings)): the
+  repository (a ticket folder the project has, else `tickets/`; the feature lands in
+  `<folder>/<feature>/`) or this machine only (keel says "These tickets are seen on this machine
+  only"). A draft in the repository exports only there: with `pc` the export is refused and names
+  both ways out (`plans.js settings set --draft pc` for this machine, or `/keel:configure planning` for
+  the team). Never used: hidden folders, `handoff/` and `handoffs/` (another notes system),
+  `docs/plans`, a place outside the project.
 - **Names**: `PROJ-123-add-csv-export.md` with the title `# [PROJ-123] Add CSV export`. The prefix is
-  asked once: the first of `comments.ticket_prefixes` in `.keel/config.json`, else 3-4 capital
-  letters from the repository's name; you confirm.
+  `planning.ticket_prefix`, one per repository and the same for the team; `/keel:configure` proposes
+  the tracker's prefix from git history, else 3-4 capital letters from the repository's name.
+  Without these settings the export is refused and names `/keel:configure planning`.
 - **Shared numbers**: after a `git fetch`, the next number is 1 + the highest of that prefix in commit
   messages, ticket file names on every branch, branch names and ticket folders (exact: `PROJ-10` is
   not `PROJ-101`). The commit checks again: a key another ticket file took meanwhile gets a new number
@@ -583,7 +588,7 @@ Rules:
 | `.keel/local/trash/<batch>/` | the folders of finished and dropped tasks; exported, abandoned and dropped planning folders | no, this machine only |
 | `.keel/local/plans/claude/` | Claude Code's Plan Mode plans (the `plansDirectory` keel recommends) | no, this machine only |
 | `.keel/local/plans/keel/<feature>/` | a planning draft on this machine: `plan.md`, `tickets/T<n>-<slug>.md`, `reviews/`; after an export to this machine, its `tickets/` holds the exported tickets | no, this machine only |
-| `.keel/local/plans/keel/sessions/`, `settings.json`, `samples/` | which conversation plans which feature; the planning settings; the ticket reviewers' inputs and replies, kept to compare models later | no, this machine only |
+| `.keel/local/plans/keel/sessions/`, `settings.json`, `samples/` | which conversation plans which feature; this machine's planning settings (where drafts live, where neighbouring repositories are); the ticket reviewers' inputs and replies, kept to compare models later | no, this machine only |
 | `tickets/<feature>/` (or the folder you chose) | a planning draft in the repository, and the feature folder: `<KEY>-<slug>.md` tickets and, from 2 tickets, `README.md` | yes, on the feature branch, after your yes |
 
 - **The task folder lives on the task branch.** It is created after the branch, and a finish removes

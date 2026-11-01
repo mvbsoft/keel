@@ -10,7 +10,7 @@
 //   every exported ticket (lib/plans-export.js).
 // - States: draft -> ready -> exported, draft or ready -> abandoned, ready -> draft. A plan changed
 //   after `ready` (its ready_hash no longer matches) is a draft again.
-// - Settings: .keel/local/plans/keel/settings.json. The planning chat marks:
+// - Settings: lib/plans-settings.js. The planning chat marks:
 //   .keel/local/plans/keel/sessions/<session id>.json = { "feature": "<name>" }.
 // - An exported feature is edited in its feature folder: mark set, ticket and check take it when no
 //   draft of that name is here or the draft is exported (lib/plans-export.js).
@@ -25,6 +25,7 @@ const { linkOnWay, unsafeRel, localLink, safeLocalPath, safeLocalWrite } = requi
 const { validSid } = require('./ids.js');
 const { sections, setFront, dateOf } = require('./tasks.js');
 const { ticketStructure, planStructure } = require('./plans-format.js');
+const { base, badFolder, settings } = require('./plans-settings.js');
 
 const PLAN_FILE = 'plan.md';
 const TEMPLATES = path.join(__dirname, '..', '..', 'templates', 'keel', 'planning');
@@ -36,93 +37,21 @@ const FEATURE = /^[a-z][a-z0-9]*(?:-[a-z][a-z0-9]*){1,3}$/;
 const FEATURE_MAX = 40;
 const SLUG_MAX = 60;
 const TICKET_FILE = /^T(\d+)-[a-z0-9-]+\.md$/;
-const DEFAULTS = { draft: 'pc', draft_dir: 'tickets', export_dir: 'tickets' };
-const SETTING_KEYS = ['language', 'draft', 'draft_dir', 'export', 'export_dir', 'prefix'];
 // Files a ticket names in "Where to look" without a folder or a line count only with a known extension:
 // `obj.id` or `fs.readFileSync` are code, not files.
 const FILE_EXT = new Set(['js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'py', 'go', 'rs', 'java', 'kt', 'rb', 'php', 'cs', 'c', 'h', 'cpp', 'hpp', 'swift', 'dart', 'ex', 'exs', 'scala', 'md', 'json', 'yml', 'yaml', 'toml', 'xml', 'sql', 'sh', 'ps1', 'html', 'css', 'scss', 'vue', 'svelte', 'txt', 'ini', 'cfg', 'gradle', 'lock', 'proto', 'graphql']);
 
 const refuse = (what, why) => [`plans: ${what} refused (${why})`];
 const rel = (root, file) => path.relative(root, file).split(path.sep).join('/');
-const base = (root) => path.join(root, '.keel', 'local', 'plans', 'keel');
 const oneLine = (s) => String(s).replace(/\s+/g, ' ').trim();
 const lf = (text) => String(text).replace(/\r\n/g, '\n');
 const sha = (text) => crypto.createHash('sha256').update(text).digest('hex').slice(0, 12);
 const given = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '-';
 
-// --- settings ---
-
-const settingsFile = (root) => path.join(base(root), 'settings.json');
-
-// Why a repository folder cannot hold planning files, or null. The places keel's scanner reads as
-// another system (handoff/, handoffs/), hidden folders and docs/plans are never used.
-function badFolder(root, dir) {
-  if (typeof dir !== 'string' || !dir.trim()) return 'empty';
-  const why = unsafeRel(root, dir);
-  if (why) return why;
-  const parts = dir.replace(/\\/g, '/').replace(/\/+$/, '').split('/');
-  if (parts.some((p) => p.startsWith('.'))) return 'a hidden folder';
-  if (parts.some((p) => /^handoffs?$/i.test(p))) return 'handoff/ and handoffs/ belong to another system';
-  if (/^docs\/plans(\/|$)/i.test(parts.join('/'))) return 'docs/plans is not for tickets';
-  return null;
-}
-
-const SETTING_CHECKS = {
-  language: (v) => (/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(v) ? null : 'a language code such as en or uk'),
-  draft: (v) => (['pc', 'repo'].includes(v) ? null : 'pc or repo'),
-  draft_dir: (v, root) => badFolder(root, v),
-  export: (v) => (['pc', 'repo'].includes(v) ? null : 'pc or repo'),
-  export_dir: (v, root) => badFolder(root, v),
-  prefix: (v) => (/^[A-Z][A-Z0-9]{1,9}$/.test(v) ? null : '2-10 capital letters and digits, starting with a letter'),
-};
-
-// The saved settings (only valid values) and whether the file exists.
-function readSettings(root) {
-  const text = read(settingsFile(root));
-  let raw = null;
-  try { raw = text === null ? null : JSON.parse(text); } catch { /* unreadable: defaults */ }
-  const saved = {};
-  if (raw && typeof raw === 'object') {
-    for (const k of SETTING_KEYS) if (typeof raw[k] === 'string' && !SETTING_CHECKS[k](raw[k], root)) saved[k] = raw[k];
-  }
-  return { exists: text !== null, readable: text === null || (raw !== null && typeof raw === 'object'), saved };
-}
-
-// The settings in effect: saved values over the defaults; the language defaults to repo_language.
-function settings(root) {
-  const { saved } = readSettings(root);
-  const { state, config } = checkConfig(root);
-  return { language: (state === 'ok' && config.repo_language) || 'en', ...DEFAULTS, ...saved };
-}
-
 // The project's main branch (config git.main_branch), or null without a valid config.
 function mainBranch(root) {
   const { state, config } = checkConfig(root);
   return state === 'ok' ? config.git.main_branch : null;
-}
-
-function settingsShow(root) {
-  const { exists, readable, saved } = readSettings(root);
-  const s = settings(root);
-  const out = [exists ? `settings: ${rel(root, settingsFile(root))}${readable ? '' : ' (unreadable: defaults in use)'}` : 'settings: none yet (the first planning here asks the language and where the draft lives)'];
-  for (const k of SETTING_KEYS) out.push(`${k}: ${s[k] === undefined ? '-' : s[k]}${k in saved ? '' : s[k] === undefined ? '' : ' (default)'}`);
-  return out;
-}
-
-function settingsSet(root, opts) {
-  const updates = {};
-  for (const k of SETTING_KEYS) {
-    if (opts[k] === undefined) continue;
-    const v = typeof opts[k] === 'string' ? opts[k].trim().replace(/\\/g, '/').replace(/\/+$/, '') : '';
-    const why = SETTING_CHECKS[k](v, root);
-    if (why) return refuse('settings set', `--${k}: ${why}`);
-    updates[k] = v;
-  }
-  if (!Object.keys(updates).length) return refuse('settings set', `nothing to set: --${SETTING_KEYS.join(', --')}`);
-  try {
-    safeLocalWrite(root, ['plans', 'keel', 'settings.json'], JSON.stringify({ ...readSettings(root).saved, ...updates }, null, 2) + '\n');
-  } catch (e) { return refuse('settings set', e.message); }
-  return settingsShow(root);
 }
 
 // --- the drafts ---
@@ -134,13 +63,6 @@ const FEATURE_RULE = '2-4 English words joined by hyphens, [a-z0-9-], at most 40
 function draftDirs(root) {
   const dir = settings(root).draft_dir;
   return [{ dir: base(root), local: true }, ...(badFolder(root, dir) ? [] : [{ dir: path.join(root, dir), local: false }])];
-}
-
-// The repository folder exported features go to (export_dir), or null when it is not one
-// keel uses.
-function exportDir(root, s = settings(root)) {
-  const dir = s.export_dir;
-  return badFolder(root, dir) ? null : path.join(root, dir);
 }
 
 // One draft: its folder, plan.md text and front matter. Links are skipped: a draft folder is always a
@@ -330,7 +252,7 @@ function draftNew(root, feature, now = new Date()) {
   const draft = listDrafts(root).find((d) => d.feature === feature);
   if (draft) return refuse('new', `a draft "${feature}" exists (${stateOf(draft)}, ${where(root, draft)}): continue it or pick another name`);
   const folder = path.join(local ? base(root) : path.join(root, s.draft_dir), feature);
-  const repoDirs = [s.draft_dir, s.export_dir].filter((x) => x && !badFolder(root, x));
+  const repoDirs = [s.draft_dir, s.tickets_dir].filter((x) => x && !badFolder(root, x));
   const taken = [folder, ...repoDirs.map((x) => path.join(root, x, feature))].find((f) => fs.existsSync(f));
   if (taken) return refuse('new', `${rel(root, taken)}/ exists: pick another name`);
   // A draft committed on its feature branch is not seen from another branch: that branch takes the name.
@@ -625,7 +547,7 @@ function planningMark(root, sid) {
 }
 
 // The exported feature's folder mark set recorded for this chat (hooks/planning-guard.js lets the chat
-// write there, wherever export_dir points): an absolute path inside the project whose way passes the
+// write there, wherever tickets_dir points): an absolute path inside the project whose way passes the
 // feature's name, or null.
 function markedFolder(root, sid) {
   if (!validSid(sid)) return null;
@@ -663,10 +585,10 @@ function markCommand(root, sub, feature, sid) {
 }
 
 module.exports = {
-  validFeature, settings, settingsShow, settingsSet, listDrafts, draftList, draftFind, draftNew, ticketNew,
+  validFeature, listDrafts, draftList, draftFind, draftNew, ticketNew,
   draftCheck, draftReview, draftReviewed, draftState, planningMark, markedFolder, markCommand, ticketHash, draftDirs,
-  draftSet, exportDir, draftStale,
+  draftSet, draftStale,
   // for lib/plans-export.js
-  base, badFolder, SETTING_CHECKS, needDraft, settle, stateOf, problems, tickets, ticketIds, writePlan, writeFile,
+  base, needDraft, settle, stateOf, problems, tickets, ticketIds, writePlan, writeFile,
   branchesOf, mainBranch, PLAN_FILE, TICKET_FILE, fromTemplate, ticketProblems, cycles,
 };

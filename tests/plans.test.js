@@ -367,17 +367,19 @@ test('abandoned: a draft on this machine goes to keel\'s trash and its chat mark
   assert.match(run(dir, 'mark', 'set', 'csv-export', '--session', 'chat-2')[0], /refused \(the plan is abandoned\)/);
 });
 
-test('settings: defaults (language from repo_language), saved values, refused values', () => {
+test('settings: this machine keeps only the draft place and the repos map; the old planning keys are dropped, not carried over', () => {
   const dir = project();
-  assert.deepEqual(run(dir, 'settings').slice(0, 4), ['settings: none yet (the first planning here asks the language and where the draft lives)', 'language: uk (default)', 'draft: pc (default)', 'draft_dir: tickets (default)']);
-  const out = run(dir, 'settings', 'set', '--language', 'en', '--draft', 'repo', '--draft-dir', 'docs/tickets/', '--prefix', 'PROJ', '--export', 'repo');
+  assert.deepEqual(run(dir, 'settings').slice(0, 4), ['settings: none yet (the first planning here asks where the draft lives)', 'draft: pc (default)', 'draft_dir: tickets (default)', 'repos: -']);
+  // A settings file of keel 1.4: its language, export and prefix count nowhere and leave with the next write.
+  write(dir, `${LOCAL}/settings.json`, JSON.stringify({ language: 'en', draft: 'pc', export: 'repo', export_dir: 'features', prefix: 'OLD' }));
+  const old = run(dir, 'settings');
+  for (const l of ['planning: planning is not set up in .keel/config.json: /keel:configure planning', 'ticket_prefix: -', 'tickets: -', 'tickets_dir: tickets (default)', 'language: uk (default)']) assert.ok(old.includes(l), l);
+  const out = run(dir, 'settings', 'set', '--draft', 'repo', '--draft-dir', 'docs/tickets/');
   assert.equal(out[0], `settings: ${LOCAL}/settings.json`);
-  for (const l of ['language: en', 'draft: repo', 'draft_dir: docs/tickets', 'export: repo', 'prefix: PROJ', 'export_dir: tickets (default)']) assert.ok(out.includes(l), l);
-  assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { language: 'en', draft: 'repo', draft_dir: 'docs/tickets', export: 'repo', prefix: 'PROJ' });
-  const bad = {
-    '--draft': 'cloud', '--language': 'English', '--prefix': 'proj', '--export': 'jira',
-  };
-  for (const [k, v] of Object.entries(bad)) assert.match(run(dir, 'settings', 'set', k, v)[0], new RegExp(`^plans: settings set refused \\(${k}: `), `${k} ${v}`);
+  for (const l of ['draft: repo', 'draft_dir: docs/tickets']) assert.ok(out.includes(l), l);
+  assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { draft: 'repo', draft_dir: 'docs/tickets' });
+  for (const k of ['--language', '--export', '--export-dir', '--prefix']) assert.match(run(dir, 'settings', 'set', k, 'x')[0], /^plans: settings set refused \(nothing to set: --draft, --draft-dir, --repo\)$/, k);
+  assert.match(run(dir, 'settings', 'set', '--draft', 'cloud')[0], /^plans: settings set refused \(--draft: pc or repo\)/);
   for (const d of ['.hidden/t', 'work/handoff', 'handoffs', 'docs/plans/x', '../elsewhere', 'C:/abs']) {
     assert.match(run(dir, 'settings', 'set', '--draft-dir', d)[0], /^plans: settings set refused \(--draft_dir: /, d);
   }
@@ -386,7 +388,46 @@ test('settings: defaults (language from repo_language), saved values, refused va
   // A broken file: the defaults, said so.
   write(dir, `${LOCAL}/settings.json`, '{oops');
   assert.match(run(dir, 'settings')[0], /\(unreadable: defaults in use\)$/);
-  assert.equal(run(dir, 'settings')[2], 'draft: pc (default)');
+  assert.equal(run(dir, 'settings')[1], 'draft: pc (default)');
+});
+
+test('settings: the project\'s planning section in .keel/config.json; the ticket language defaults to repo_language', () => {
+  const dir = project();
+  const config = (planning) => write(dir, '.keel/config.json', JSON.stringify({ ...CONFIG, planning }));
+  config({ ticket_prefix: 'API', tickets: 'repo' });
+  const out = run(dir, 'settings');
+  for (const l of ['planning: .keel/config.json', 'ticket_prefix: API', 'tickets: repo', 'tickets_dir: tickets (default)', 'language: uk (default)']) assert.ok(out.includes(l), l);
+  config({ ticket_prefix: 'API', tickets: 'pc', tickets_dir: 'work/tickets', language: 'en' });
+  for (const l of ['tickets: pc', 'tickets_dir: work/tickets', 'language: en']) assert.ok(run(dir, 'settings').includes(l), l);
+  assert.equal(line(run(dir, 'new', 'csv-export'), 'language: '), 'language: en', 'a new plan takes the ticket language');
+  // A section the config check rejects (here without tickets), or a valid one in a config invalid
+  // elsewhere, is not used: the line names the config problem, not a missing section.
+  config({ ticket_prefix: 'API' });
+  assert.match(line(run(dir, 'settings'), 'planning: '), /^planning: \.keel\/config\.json is invalid \(.*tickets.*\), so its planning section is not used: \/keel:configure$/);
+  write(dir, '.keel/config.json', JSON.stringify({ ...CONFIG, docs: { profile: 99 }, planning: { ticket_prefix: 'API', tickets: 'pc' } }));
+  assert.match(line(run(dir, 'settings'), 'planning: '), /^planning: \.keel\/config\.json is invalid \(.*docs.*\), so its planning section is not used: \/keel:configure$/);
+  write(dir, '.keel/config.json', JSON.stringify(CONFIG));
+  assert.equal(line(run(dir, 'settings'), 'planning: '), 'planning: planning is not set up in .keel/config.json: /keel:configure planning');
+});
+
+test('settings: the repos map, one --repo <PREFIX>=<absolute folder> per call', () => {
+  const dir = project();
+  const web = path.join(path.dirname(dir), 'web');
+  const mob = path.join(path.dirname(dir), 'mobile') + path.sep;
+  const slash = (p) => p.replace(/\\/g, '/').replace(/\/+$/, '');
+  assert.ok(run(dir, 'settings', 'set', '--repo', `WEB=${web}`).includes(`repos: WEB=${slash(web)}`));
+  run(dir, 'settings', 'set', '--draft', 'repo');
+  const out = run(dir, 'settings', 'set', '--repo', `MOB=${mob}`);
+  assert.ok(out.includes(`repos: WEB=${slash(web)}, MOB=${slash(mob)}`), out.join('\n'));
+  assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { repos: { WEB: slash(web), MOB: slash(mob) }, draft: 'repo' });
+  assert.ok(run(dir, 'settings', 'set', '--repo', `WEB=${mob}`).includes(`repos: WEB=${slash(mob)}, MOB=${slash(mob)}`), 'a prefix set again moves');
+  for (const [v, why] of [['web=/x', 'the prefix is 2-10 capital letters'], ['W=/x', 'the prefix is 2-10 capital letters'], ['WEB=../web', 'the folder is an absolute path'], ['WEB=', 'the folder is an absolute path'], ['WEB', 'give <PREFIX>=<absolute folder>']]) {
+    assert.match(run(dir, 'settings', 'set', '--repo', v)[0], new RegExp(`^plans: settings set refused \\(--repo: ${why}`), v);
+  }
+  assert.match(run(dir, 'settings', 'set', '--repo')[0], /refused \(--repo: give <PREFIX>=<absolute folder>\)/);
+  // Entries edited by hand into something else are left out.
+  write(dir, `${LOCAL}/settings.json`, JSON.stringify({ repos: { WEB: web, bad: web, API: 'relative/api', MOB: 7 } }));
+  assert.ok(run(dir, 'settings').includes(`repos: WEB=${web}`));
 });
 
 test('mark: set, get and clear this chat\'s planning mark', () => {

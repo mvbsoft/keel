@@ -176,6 +176,19 @@ test('worth a look: ticket ids, a checked plugin, a grown CLAUDE.md, another not
   assert.equal(lines.at(-1), 'run: /keel:configure code,plugins,docs,migration,settings,usage');
 });
 
+test('ticket ids of the planning ticket prefix are not proposed as tracker prefixes: comments.js checks them already', () => {
+  const p = project();
+  write(path.join(p.dir, '.keel', 'config.json'), JSON.stringify({ ...CONFIG, planning: { ticket_prefix: 'SHOP', tickets: 'repo' } }));
+  p.commit('planning settings');
+  p.save();
+  write(path.join(p.dir, 'a.js'), 'module.exports = 2;\n');
+  p.commit('SHOP-1 cart');
+  write(path.join(p.dir, 'a.js'), 'module.exports = 3;\n');
+  p.commit('SHOP-2 totals');
+  const lines = block(p.check());
+  assert.ok(!lines.some((l) => l.startsWith('- code [worth]: ticket ids')), lines.join('\n'));
+});
+
 test('a recommended value that changed is worth a look once: a record from an older keel counts as its old value', () => {
   const p = project();
   p.save();

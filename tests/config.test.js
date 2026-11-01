@@ -50,3 +50,18 @@ test('checkConfig: a directory in place of the file is reported, not thrown', ()
 test('checkConfig: a config saved with a byte order mark (Windows PowerShell 5.1) is read as ok', () => {
   assert.equal(checkConfig(project('\uFEFF' + JSON.stringify(VALID))).state, 'ok');
 });
+
+test('checkConfig: the planning section is optional; when present it needs the prefix and where the tickets live', () => {
+  const state = (planning) => checkConfig(project(JSON.stringify({ ...VALID, planning }))).state;
+  assert.equal(state(undefined), 'ok', 'a config without planning');
+  assert.equal(state({ ticket_prefix: 'API', tickets: 'repo' }), 'ok');
+  assert.equal(state({ ticket_prefix: 'API2', tickets: 'pc', tickets_dir: 'work/tickets', language: 'pt-BR' }), 'ok');
+  const errors = (planning) => checkConfig(project(JSON.stringify({ ...VALID, planning }))).errors.join('\n');
+  assert.match(errors({ tickets: 'repo' }), /\$\.planning: missing "ticket_prefix"/);
+  assert.match(errors({ ticket_prefix: 'API' }), /\$\.planning: missing "tickets"/);
+  for (const prefix of ['api', 'A', '1API', 'API-X', 'ABCDEFGHIJK']) assert.match(errors({ ticket_prefix: prefix, tickets: 'repo' }), /\$\.planning\.ticket_prefix: does not match/, prefix);
+  assert.match(errors({ ticket_prefix: 'API', tickets: 'jira' }), /\$\.planning\.tickets: must be one of/);
+  assert.match(errors({ ticket_prefix: 'API', tickets: 'repo', tickets_dir: '' }), /\$\.planning\.tickets_dir: shorter than 1/);
+  assert.match(errors({ ticket_prefix: 'API', tickets: 'repo', language: 'English' }), /\$\.planning\.language: does not match/);
+  assert.match(errors({ ticket_prefix: 'API', tickets: 'repo', research: 'pc' }), /\$\.planning\.research: unexpected property/);
+});

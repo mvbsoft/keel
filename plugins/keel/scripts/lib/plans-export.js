@@ -22,11 +22,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const plans = require('./plans.js');
+const { settings, setUp, notSetUp, exportDir } = require('./plans-settings.js');
 const { git: readGit, read, frontmatter, clean } = require('./repo-read.js');
 const { linkOnWay, safeLocalPath, samePath } = require('./safe-path.js');
 const { moveToTrash, restore } = require('./trash.js');
 const { overviewSections, repoName } = require('./plans-format.js');
-const { checkConfig } = require('./config.js');
 const { TRACKER } = require('../notes.js');
 const flow = require('../git-flow.js');
 
@@ -45,14 +45,6 @@ const gitText = (r) => clean(flow.firstLines(r.err || r.out, 2), 300);
 const prefixOfKey = (key) => key.slice(0, key.lastIndexOf('-')).toUpperCase();
 const numberOfKey = (key) => Number(key.slice(key.lastIndexOf('-') + 1));
 const byNumber = (a, b) => prefixOfKey(a).localeCompare(prefixOfKey(b)) || numberOfKey(a) - numberOfKey(b);
-
-// The ticket prefix: the planning setting, else the first of comments.ticket_prefixes that is a valid one.
-function prefixOf(root, s) {
-  if (s.prefix) return s.prefix;
-  const { state, config } = checkConfig(root);
-  const list = state === 'ok' && config.comments && Array.isArray(config.comments.ticket_prefixes) ? config.comments.ticket_prefixes : [];
-  return list.find((p) => typeof p === 'string' && !plans.SETTING_CHECKS.prefix(p)) || null;
-}
 
 // The highest number of the prefix's keys in a text, any case; 0 for none.
 function highestIn(text, prefix) {
@@ -81,7 +73,7 @@ function fileNames(dirs) {
 // The folders whose file names count: the repository's ticket and draft folders, this machine's feature
 // folders.
 function keyFolders(root, s) {
-  const repo = [plans.exportDir(root, s), ...plans.draftDirs(root).filter((d) => !d.local).map((d) => d.dir)].filter(Boolean);
+  const repo = [exportDir(root, s), ...plans.draftDirs(root).filter((d) => !d.local).map((d) => d.dir)].filter(Boolean);
   let local = [];
   try { local = fs.readdirSync(plans.base(root), { withFileTypes: true }).filter((e) => e.isDirectory() && plans.validFeature(e.name)).map((e) => path.join(plans.base(root), e.name)); } catch { /* none */ }
   return [...new Set(repo), ...local];
@@ -148,7 +140,7 @@ const KEY = /^[A-Z][A-Z0-9]+-\d+$/;
 const RECENT_DAYS = 30;
 
 // The folders among git's paths (from the project folder) that hold a ticket-named file
-// (<KEY>-<slug>.md) and are named after the feature, as absolute paths. The export_dir setting is this
+// (<KEY>-<slug>.md) and are named after the feature, as absolute paths. The tickets_dir setting is this
 // machine's: a colleague's feature folder may be anywhere.
 function namedFolders(root, feature, paths) {
   const named = new RegExp(`(?:^|/)${feature.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/[A-Za-z][A-Za-z0-9]+-\\d+(?:-[^/]*)?\\.md$`);
@@ -157,11 +149,11 @@ function namedFolders(root, feature, paths) {
 }
 const gitPaths = (root, [command, ...args]) => (readGit(root, [command, '-z', ...args]) || '').split('\0').filter(Boolean);
 
-// The feature's exported tickets in the working tree: <export_dir>/<feature>/, this machine's
+// The feature's exported tickets in the working tree: <tickets_dir>/<feature>/, this machine's
 // <base>/<feature>/tickets/, else any folder of the project named after the feature with a ticket-named
 // file git sees (committed or not, not ignored). null when none holds a ticket.
 function featureFolder(root, feature) {
-  const dir = plans.exportDir(root);
+  const dir = exportDir(root);
   const found = (folder, local) => {
     const list = exportedTickets(folder).sort((a, b) => byNumber(a.fm.key, b.fm.key));
     return list.length ? { folder, local, list } : null;
@@ -210,7 +202,7 @@ function missingKeys(root, keys, f) {
   const valid = rest.filter((k) => KEY.test(k));
   if (!valid.length) return rest;
   const { taken } = keyCheck(root, valid, f.folder);
-  const names = fileNames(keyFolders(root, plans.settings(root))).map((n) => n.toUpperCase());
+  const names = fileNames(keyFolders(root, settings(root))).map((n) => n.toUpperCase());
   return rest.filter((k) => !KEY.test(k) || (!taken.has(k) && !names.some((n) => n === `${k}.MD` || n.startsWith(`${k}-`))));
 }
 
@@ -228,7 +220,7 @@ function exportedTicket(root, feature, f, { title, slug, deps }) {
   // The folder's own keys too: found by its name, it may be outside the folders highestKey reads, and a
   // new ticket there is not in git yet.
   const own = f.list.filter((t) => prefixOfKey(t.fm.key) === prefix).map((t) => numberOfKey(t.fm.key));
-  const key = `${prefix}-${Math.max(highestKey(root, prefix, plans.settings(root), git.repo, git.notes), ...own) + 1}`;
+  const key = `${prefix}-${Math.max(highestKey(root, prefix, settings(root), git.repo, git.notes), ...own) + 1}`;
   const file = path.join(f.folder, `${key}-${slug}.md`);
   if (fs.existsSync(file)) return refuse(what, `${rel(root, file)} exists`);
   const t = plans.fromTemplate('ticket.md', {
@@ -294,20 +286,19 @@ function exportFeature(root, feature, { stop = () => {} } = {}) {
   if (d.fm.status !== 'ready') return refuse(what, `the plan is ${d.fm.status}; only a ready plan is exported (/keel:end-planning)`);
   const { out: problems } = plans.problems(root, d);
   if (problems.length) return refuse(what, `check finds ${problems.length} problems (plans.js check ${feature})`);
-  const s = plans.settings(root);
-  if (!s.export) return refuse(what, 'where the tickets go is not set: plans.js settings set --export pc|repo');
-  const prefix = prefixOf(root, s);
-  if (!prefix) return refuse(what, 'no ticket prefix: plans.js settings set --prefix <PROJ>');
+  const s = settings(root);
+  if (!setUp(s)) return refuse(what, notSetUp(root));
+  const prefix = s.ticket_prefix;
   const { branch, merge_into: mergeInto } = plans.branchesOf(root, d);
   if (!mergeInto) return refuse(what, `the plan names no branch to merge into: plans.js set ${feature} --merge-into <branch>`);
-  const toRepo = s.export === 'repo';
-  if (!toRepo && !d.local) return refuse(what, 'the draft is in the repository, so its tickets go there too: plans.js settings set --export repo');
-  const dir = toRepo ? plans.exportDir(root, s) : null;
-  if (toRepo && !dir) return refuse(what, 'export_dir is not a folder keel uses (plans.js settings)');
+  const toRepo = s.tickets === 'repo';
+  if (!toRepo && !d.local) return refuse(what, 'the draft is in the repository, so its tickets go there too, but planning.tickets in .keel/config.json is pc: plans.js settings set --draft pc for this machine, or /keel:configure planning for the team');
+  const dir = toRepo ? exportDir(root, s) : null;
+  if (toRepo && !dir) return refuse(what, 'planning.tickets_dir in .keel/config.json is not a folder keel uses: /keel:configure planning');
   // On this machine the feature folder takes the draft's place: <base>/<feature>/tickets/.
   const target = toRepo ? path.join(dir, feature) : d.folder;
   const intoDraft = toRepo && !d.local && samePath(path.resolve(target), path.resolve(d.folder));
-  if (toRepo && !intoDraft && fs.existsSync(target)) return refuse(what, `${rel(root, target)}/ exists and is not this draft's folder: set another export_dir or move that folder away`);
+  if (toRepo && !intoDraft && fs.existsSync(target)) return refuse(what, `${rel(root, target)}/ exists and is not this draft's folder: set another tickets_dir (/keel:configure planning) or move that folder away`);
   // The overview goes beside the draft's files: a README of the user's own there is never replaced.
   const ownReadme = path.join(target, README);
   if (intoDraft && plans.tickets(d).length >= 2 && fs.existsSync(ownReadme) && frontmatter(read(ownReadme) || '').type !== 'feature') {
@@ -399,9 +390,9 @@ function featureFiles(root, feature, what) {
   if (!plans.validFeature(feature)) return { why: refuse(what, `invalid feature name "${clean(String(feature))}"`) };
   const drafts = plans.listDrafts(root).filter((d) => d.feature === feature);
   const draft = drafts.find((d) => !d.local) || null;
-  // The ticket folder as plans.js mark set, ticket and check find it, wherever export_dir points.
+  // The ticket folder as plans.js mark set, ticket and check find it, wherever tickets_dir points.
   const found = featureFolder(root, feature);
-  const dir = plans.exportDir(root);
+  const dir = exportDir(root);
   const folder = found && !found.local ? found.folder : dir ? path.join(dir, feature) : null;
   const list = found && !found.local ? found.list : [];
   if (!draft && !list.length) {
@@ -409,7 +400,7 @@ function featureFiles(root, feature, what) {
     const gone = namedFolders(root, feature, gitPaths(root, ['ls-tree', '-r', '--name-only', 'HEAD'])).filter((f) => !fs.existsSync(f)).sort(preferred)[0];
     if (gone) return { draft: null, folder: gone, list, exported: false, removed: true, keys: [] };
     if (drafts.length) return { why: refuse(what, `the draft of ${feature} is on this machine: none of it goes into git`) };
-    if (fs.existsSync(path.join(plans.base(root), feature, 'tickets'))) return { why: refuse(what, `the tickets of ${feature} are on this machine (export pc): none of it goes into git`) };
+    if (fs.existsSync(path.join(plans.base(root), feature, 'tickets'))) return { why: refuse(what, `the tickets of ${feature} are on this machine (tickets pc): none of it goes into git`) };
     return { why: refuse(what, `no draft or exported tickets "${feature}" in the repository`) };
   }
   const exported = list.length > 0 && (!draft || plans.stateOf(draft) === 'exported');
@@ -446,7 +437,7 @@ function keyCheck(root, keys, folder) {
 // New numbers for the taken keys, replaced in every file of the feature folder (files renamed).
 function renumber(root, c, taken, notes) {
   const old = [...taken.keys()].sort(byNumber);
-  const s = plans.settings(root);
+  const s = settings(root);
   const next = new Map();
   const map = new Map(old.map((k) => {
     const p = prefixOfKey(k);
@@ -549,7 +540,7 @@ function pushFeature(root, feature) {
 }
 
 module.exports = {
-  exportFeature, commitFeature, pushFeature, fetched, highestKey, prefixOf, keyCheck,
+  exportFeature, commitFeature, pushFeature, fetched, highestKey, keyCheck,
   // for lib/plans.js
   featureFolder, branchWith, exportedTicket, exportedProblems,
 };

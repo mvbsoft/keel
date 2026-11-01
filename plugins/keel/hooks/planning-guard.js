@@ -1,9 +1,9 @@
 'use strict';
 // PreToolUse hook on Edit, Write, NotebookEdit, Bash and PowerShell: while the conversation plans a
 // feature (its chat mark, scripts/lib/plans.js), project files stay unchanged. Allowed: the feature's
-// draft folder, its exported feature folder in the repository (<export_dir>/<feature>/: export writes it
+// draft folder, its exported feature folder in the repository (<tickets_dir>/<feature>/: export writes it
 // and the conversation edits the exported tickets; also the folder plans.js mark set recorded in the chat
-// mark when it reopened an exported feature, wherever export_dir points), the planning settings, keel's
+// mark when it reopened an exported feature, wherever tickets_dir points), the planning settings, keel's
 // working files in .keel/local/tmp/, Claude Code's Plan Mode files in .keel/local/plans/claude/ (Plan
 // Mode writes its plan with Write and Edit) and anything outside the project (memory, temporary files).
 // A safeguard against slips, not a wall: shell commands are read with skill-hints.js shell(), which sees redirections,
@@ -23,7 +23,7 @@ const within = (file, place) => fold(norm(file)) === fold(norm(place)) || fold(n
 function allowedPlaces(root, feature, sid) {
   const local = path.join(root, '.keel', 'local');
   const plans = require('../scripts/lib/plans.js');
-  const exported = plans.exportDir(root);
+  const exported = require('../scripts/lib/plans-settings.js').exportDir(root);
   const marked = plans.markedFolder(root, sid);
   return [
     ...plans.draftDirs(root).map((d) => path.join(d.dir, feature)),
