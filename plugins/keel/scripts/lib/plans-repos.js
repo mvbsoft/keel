@@ -47,13 +47,24 @@ function plannedPrefix(folder) {
   return { broken: false, prefix: typeof p === 'string' ? p : null };
 }
 
+// `folder` (a real path, as git prints it) spelled through the nearest ancestor of `root` it lies under,
+// so a link in root's path (macOS /var -> /private/var) shows as the user gave it; else `folder`.
+function asGiven(folder, root) {
+  const target = real(folder);
+  for (let a = path.dirname(root); ; a = path.dirname(a)) {
+    const rel = path.relative(real(a), target);
+    if (!rel.startsWith('..') && !path.isAbsolute(rel)) return path.join(a, rel);
+    if (path.dirname(a) === a) return folder;
+  }
+}
+
 // The git repositories next to the project: folders with a .git entry in the project's parent folder
 // and, for a worktree, in the main worktree's parent; never this project nor another worktree of its
 // repository; hidden folders and node_modules skipped.
 function nextTo(root) {
   const own = commonDir(root);
   const parents = [path.dirname(root)];
-  const mainParent = own && path.basename(own) === '.git' ? path.dirname(path.dirname(own)) : null;
+  const mainParent = own && path.basename(own) === '.git' ? asGiven(path.dirname(path.dirname(own)), root) : null;
   if (mainParent && !same(mainParent, parents[0])) parents.push(mainParent);
   const out = [];
   const notes = [];

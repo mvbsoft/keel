@@ -200,6 +200,30 @@ gitTest('repos: the repos map and the git repositories next to the project; neve
   assert.deepEqual(run(solo, 'repos'), ['repos: 0 (repos map 0, next to this project 0)', `this project: SOLO (${slash(solo)})`]);
 });
 
+// git prints real paths: through a link (macOS /var -> /private/var) the main worktree's parent is
+// spelled otherwise than the folders the user gave.
+gitTest('repos: a worktree reached through a link lists each neighbour once, spelled as given', () => {
+  const tmp = tempDir('keel-repos-');
+  const link = path.join(tmp, 'link');
+  fs.mkdirSync(path.join(tmp, 'real'));
+  fs.symlinkSync(path.join(tmp, 'real'), link, 'junction');
+  const projects = path.join(link, 'projects');
+  const api = repo(projects, 'api', CONFIG('API'));
+  const web = repo(projects, 'web', CONFIG('WEB'));
+  const admin = repo(projects, 'admin');
+  const s1 = path.join(link, 'steps', 's1');
+  fs.mkdirSync(path.dirname(s1));
+  git(api, 'worktree', 'add', '-q', s1, '-b', 's1');
+  run(s1, 'settings', 'set', '--repo', `WEB=${slash(web)}`);
+  const out = run(s1, 'repos');
+  assert.equal(out[0], 'repos: 2 (repos map 1, next to this project 1)', out.join('\n'));
+  assert.equal(out[1], `this project: API (${slash(s1)})`);
+  assert.ok(out.includes(`- ${slash(web)}: repos map WEB, planning prefix WEB`), out.join('\n'));
+  assert.ok(out.includes(`- ${slash(admin)}: next to this project, no planning prefix`), out.join('\n'));
+  assert.equal(out.filter((l) => l.includes('/web:')).length, 1, out.join('\n'));
+  assert.equal(out.filter((l) => l.includes('/admin:')).length, 1, out.join('\n'));
+});
+
 gitTest('set --repos: this project first, each other one from the repos map on this machine; its commit recorded', () => {
   const w = world();
   const { tmp, projects, api, web, admin } = w;
