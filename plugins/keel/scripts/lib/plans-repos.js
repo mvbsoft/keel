@@ -224,5 +224,5 @@ const noCommitNotes = (list, s) => list
 
 module.exports = {
   reposCommand, planRepos, planReposProblems, namedRepos, targetOf, headOf, commitsOf, commitsText, reposValue, recordCommits,
-  noCommitNotes,
+  noCommitNotes, isFolder, isRepoTop,
 };

@@ -59,7 +59,20 @@ All notable changes to keel are listed here. The format follows
   repository's tickets with its own commit, `after_commit_repos`, which `plans.js set <f>
   --after-commit` records with `after_commit` at a hand-over. A repository not on this machine gets
   stubs in `plan.md` `## Stubs` (a title and In plain words, no key), which the plan reviewer counts
-  as covered in its coverage check. Exporting a plan that names other repositories is refused for now.
+  as covered in its coverage check.
+- Exporting a feature on several repositories: `plans.js export` puts each repository's tickets into
+  that repository by its own planning settings (prefix, ticket place, main branch) and its own key
+  counter after its own `git fetch`, all or nothing across the repositories. Each gets the same
+  `README.md` overview, already from 1 ticket, with `repos:`, every repository's tickets, `## Stubs`
+  and `## Parts`; `research/` goes to each repository whose tickets or overview name the report.
+  Another repository must be ready (on the feature branch, clean tree, its prefix set, no active keel
+  task, no folder of the feature yet); the refusal says why per repository, and `--as-is "WEB"` lets
+  uncommitted changes or another branch stay. `plans.js commit|push <f> --repo WEB` commit and push in
+  another repository of the feature (its folder from this machine's `repos` map; a map tracked in git
+  is refused); Claude Code's window names the repository. The commit checks the keys in every
+  repository and renumbers a taken one in all of them; a push that fails on the network or access prints a `retry:` command.
+  `plans.js ticket <f> --repo WEB` on an exported feature adds a ticket with WEB's next key, and a
+  later ticket's line goes into the Tickets of every overview of the feature on this machine.
 
 ### Changed
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,

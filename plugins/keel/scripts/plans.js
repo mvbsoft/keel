@@ -17,7 +17,9 @@
 //                                         tickets/T<n>-<slug>.md; T-numbers are never reused; --repo: the
 //                                         ticket is for another repository of the plan's repos. An exported
 //                                         feature: <KEY>-<slug>.md in its folder with the next key (as
-//                                         export gives them), status todo, --depends "K1,K2"
+//                                         export gives them), status todo, --depends "K1,K2", --repo: in
+//                                         that repository's folder of the feature; a line in Tickets of
+//                                         every overview of the feature on this machine
 //   check <feature>                       the structure (lib/plans-format.js): the "# [id] title" heading,
 //                                         sections once and in their order, the Boundaries labels, acceptance criteria as a list, no TBD or <...>,
 //                                         the files Where to look names exist, depends_on valid, no cycles;
@@ -45,13 +47,18 @@
 //   report <file>                         a planning reviewer's reply under .keel/local/tmp/planning/
 //                                         (absolute, or relative to the project): its
 //                                         findings, or `report: failed` and why (never "no findings")
-//   export <feature>                      a ready plan's tickets into the feature folder with keys shared
+//   export <feature> [--as-is "WEB,MOB"]  a ready plan's tickets into the feature folder with keys shared
 //                                         across the repository (planning in .keel/config.json); all or
-//                                         nothing; refused for a plan that names other repositories
-//   commit <feature>                      the feature's planning files into git on the current branch (keys
-//                                         checked again, taken ones renumbered), also a feature folder
-//                                         removed by drop; never on the main branch
-//   push <feature>                        the current branch to the remote after the same key check
+//                                         nothing. A plan on several repositories: each repository's
+//                                         tickets into its own folder by its own settings and keys, the
+//                                         same overview in each; refused while another repository is not
+//                                         ready (--as-is: its uncommitted changes or other branch are fine)
+//   commit <feature> [--repo <PREFIX>]    the feature's planning files into git on the current branch (keys
+//                                         checked again in every repository of the feature, taken ones
+//                                         renumbered), also a feature folder removed by drop; never on the
+//                                         main branch. --repo: in that repository's folder from the repos map
+//   push <feature> [--repo <PREFIX>]      the current branch to the remote after the same key check; a
+//                                         push failed on the network or access: `retry:` and the command
 //   tickets [<feature> | <KEY>] [--fetch] the exported tickets' state: no argument, every feature with a
 //                                         ticket not done; one feature (and its branch); one key (and
 //                                         its file and dependencies); `next:` the ticket to take next.
@@ -96,9 +103,16 @@ function run(root, pos, opts) {
   if (command === 'stale') return plans.draftStale(root, feature);
   if (command === 'repos') return require('./lib/plans-repos.js').reposCommand(root);
   if (command === 'report') return require('./lib/plans-report.js').reportCheck(root, pos[2]);
-  if (command === 'export') return require('./lib/plans-export.js').exportFeature(root, feature);
-  if (command === 'commit') return require('./lib/plans-export.js').commitFeature(root, feature);
-  if (command === 'push') return require('./lib/plans-export.js').pushFeature(root, feature);
+  if (command === 'export') {
+    const asIs = opts['as-is'];
+    if (asIs !== undefined && (typeof asIs !== 'string' || !asIs.trim())) return ['plans: export refused (--as-is needs the prefixes: --as-is "WEB,MOB")'];
+    return require('./lib/plans-export-repos.js').exportFeature(root, feature, { asIs: asIs ? asIs.split(/[\s,;]+/).filter(Boolean) : [] });
+  }
+  if (command === 'commit' || command === 'push') {
+    if (opts.repo !== undefined && (typeof opts.repo !== 'string' || !opts.repo.trim())) return [`plans: ${command} refused (--repo needs a ticket prefix: --repo WEB)`];
+    const step = require('./lib/plans-export.js')[command === 'commit' ? 'commitFeature' : 'pushFeature'];
+    return step(root, feature, { repo: opts.repo });
+  }
   if (command === 'tickets') { const f = flagged(pos, opts, 'fetch'); return require('./lib/plans-state.js').ticketsCommand(root, f.arg, { fetch: f.on }); }
   if (command === 'done') { const f = flagged(pos, opts, 'undo'); return require('./lib/plans-state.js').doneCommand(root, f.arg, f.on); }
   if (command === 'drop') return require('./lib/plans-state.js').dropCommand(root, feature);

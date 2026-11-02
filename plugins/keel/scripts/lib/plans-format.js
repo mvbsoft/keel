@@ -9,8 +9,9 @@ const { sections } = require('./tasks.js');
 
 const TICKET_SECTIONS = ['In plain words', 'Example', 'Goal', 'Acceptance criteria', 'How to check', 'Boundaries', 'Correct the priors', 'Where to look', 'Out of scope', 'Why', 'Dependencies'];
 const PLAN_SECTIONS = ['In plain words', 'Level', 'Decisions', 'Contract', 'Out of scope', 'Design sketch', 'Terms', 'What was gathered', 'Open questions', 'Tickets', 'Stubs', 'Next action'];
-// plan.md's sections the overview takes, in its order; Tickets is built from the exported tickets.
-const README_SECTIONS = ['In plain words', 'Level', 'Decisions', 'Contract', 'Out of scope', 'Terms', 'Tickets', 'Stubs'];
+// plan.md's sections the overview takes, in its order; Tickets is built from the exported tickets and
+// Parts (a feature on several repositories) from Design sketch.
+const README_SECTIONS = ['In plain words', 'Level', 'Decisions', 'Contract', 'Out of scope', 'Terms', 'Tickets', 'Stubs', 'Parts'];
 // May be left out; when present they keep their place.
 const OPTIONAL = new Set(['Example', 'Correct the priors', 'Stubs']);
 const BOUNDARIES = ['always', 'ask first', 'never'];
@@ -69,11 +70,34 @@ function ticketStructure(label, text) {
 
 const planStructure = (text) => missing('plan.md', sections(text), PLAN_SECTIONS);
 
-// The overview's sections from plan.md: the ones with text, T-numbers swapped for keys, and Tickets: one
-// line per exported ticket with its key, title and repository, no states (each ticket carries its own).
-function overviewSections(planText, tickets, swap, repo) {
+// One ticket's line in the overview's Tickets.
+const ticketLine = (key, title, repo) => `- ${key} ${title} (${repo})`;
+
+// Design sketch's "### <PREFIX>" parts as "### <repository> (<PREFIX>)", in the order of `repos`
+// ([{ prefix, name }]); a part the sketch lacks is left out.
+function partsText(sketch, repos) {
+  const parts = new Map();
+  const plain = outsideFences(sketch).split('\n');
+  let at = null;
+  sketch.split(/\r?\n/).forEach((line, i) => {
+    // A "### API" inside a code block is text; so is a heading that names no repository (### DB).
+    const m = /^###\s+([A-Z][A-Z0-9]*)\s*$/.exec(plain[i]);
+    if (m && repos.some((r) => r.prefix === m[1])) { at = m[1]; parts.set(at, []); } else if (at) parts.get(at).push(line);
+  });
+  return repos.filter((r) => parts.has(r.prefix) && parts.get(r.prefix).join('\n').trim())
+    .map((r) => `### ${r.name} (${r.prefix})\n${parts.get(r.prefix).join('\n').trim()}`).join('\n');
+}
+
+// The overview's sections from plan.md: the ones with text, T-numbers swapped for keys; Tickets: one line
+// per exported ticket ({ key, text, repo }) with its key, title and repository, no states (each ticket
+// carries its own); Parts only for a feature on several repositories (`repos`).
+function overviewSections(planText, tickets, swap, repos = null) {
   const secs = sections(planText);
-  const text = (n) => (n === 'Tickets' ? tickets.map((t) => `- ${t.key} ${heading(t.text)[1]} (${repo})`).join('\n') : swap(secs[n] || ''));
+  const text = (n) => {
+    if (n === 'Tickets') return tickets.map((t) => ticketLine(t.key, heading(t.text)[1], t.repo)).join('\n');
+    if (n === 'Parts') return repos ? swap(partsText(secs['Design sketch'] || '', repos)) : '';
+    return swap(secs[n] || '');
+  };
   return README_SECTIONS.map((n) => [n, text(n)]).filter(([, t]) => t).map(([n, t]) => `## ${n}\n${t}\n`).join('\n');
 }
 
@@ -86,4 +110,4 @@ function repoName(root) {
   return clean(m ? m[1] : path.basename(path.resolve(root)), 60);
 }
 
-module.exports = { TICKET_SECTIONS, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, repoName };
+module.exports = { TICKET_SECTIONS, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName };

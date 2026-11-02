@@ -466,7 +466,7 @@ test('an exported feature on this machine: mark set, ticket with the next key an
   assert.deepEqual(run(dir, 'ticket', 's3-connection', '--title', 'X', '--depends', 'PROJ-9,T1'), ['plans: ticket refused (--depends: no ticket PROJ-9, T1)']);
   // The next key after every key here (PROJ-5 of another feature); depends_on are keys, any case.
   assert.deepEqual(run(dir, 'ticket', 's3-connection', '--title', 'Delete files', '--depends', 'proj-2,PROJ-5'), [
-    `created: ${folder}/PROJ-6-delete-files.md`, 'ticket: PROJ-6', 'fetch: not a git repository; keys from the files here only',
+    `created: ${folder}/PROJ-6-delete-files.md`, 'ticket: PROJ-6', `overview: ${folder}/README.md`, 'fetch: not a git repository; keys from the files here only',
   ]);
   const t = readRel(dir, `${folder}/PROJ-6-delete-files.md`);
   assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-6\nstatus: todo\nfeature: s3-connection\nbranch: feat/s3\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-5]\n---\n\n# [PROJ-6] Delete files\n\n## In plain words\n'), t);

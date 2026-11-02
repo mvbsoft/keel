@@ -456,8 +456,26 @@ a new event in `api` and a badge in `web`; each ticket is for one repository onl
   planned or built here, and its In plain words, for a developer there to plan it. It has no key, so no
   ticket depends on it by `depends_on`; the plan reviewer counts it as covered in its coverage check. When that
   repository appears later, keel offers to turn the stubs into tickets.
-- **Export** of such a plan is refused for now: "a feature on several repositories is not exported
-  yet"; the plan stays `ready`.
+- **Export** puts each repository's tickets into that repository, by its own planning settings: its
+  prefix and its own next number after its own `git fetch` (`API-1` here, `WEB-10` there), its ticket
+  place, and its main branch as `merge_into` (the plan's `merge_into` when you changed it). All or
+  nothing across the repositories: nothing is written until every one is checked. Each repository gets
+  the same `README.md` overview, already from 1 ticket: `repos: [API, WEB]`, every repository's tickets,
+  `## Stubs` as in the plan and `## Parts` from the Design sketch (`### web (WEB)`). `research/`: this
+  project gets every report, another repository the reports its tickets or the overview name.
+- **Another repository must be ready**: on the feature branch with a clean tree, its prefix set, no
+  keel task active there, no folder of the feature yet (tickets on that machine only: just the prefix
+  and the folder). keel does not export while one is not and says why, per repository. On its main
+  branch with a clean tree keel offers to create (or switch to) the feature branch there on your yes;
+  "wait, I prepare it" keeps the plan `ready` (later `/keel:start-planning <f>`, then
+  `/keel:end-planning`); uncommitted changes or another branch may stay on your word
+  (`--as-is "WEB"`), noted in the report. A repository in `repos:` without a ticket is refused: give it
+  one, or leave it out.
+- **Commit and push** are asked once for all repositories, and Claude Code then asks for each one,
+  naming it. The commit checks the keys in every repository: a key taken meanwhile gets a new number
+  in every repository's files. A failed push does not stop the others; after a network or access
+  failure the report names the command to run again, after a refusal (behind, a protected branch)
+  what to do first.
 
 ### End: `/keel:end-planning`
 
@@ -478,7 +496,8 @@ another repository is reviewed in that repository's folder. You decide each find
 reason; decisions go into `reviews/` and are not raised again. Fixed tickets are reviewed again, at
 most 2 rounds per `/keel:end-planning`; a failed review is named as failed, never as "no findings".
 3) The plan becomes `ready` (any later change makes it a draft again), then "Export the <n> tickets
-now?"; no → it stays `ready` for the next `/keel:end-planning`.
+now?"; no → it stays `ready`, to export later with `/keel:start-planning <f>`, then
+`/keel:end-planning`.
 
 Every end, also after a no, frees the conversation from planning. The report: **Done**, **Reviews**,
 **Git**, **What next** (the Next action, or "a ticket starts with `/keel:start-task <KEY>`"),
@@ -493,7 +512,8 @@ Every end, also after a no, frees the conversation from planning. The report: **
   only"). A draft in the repository exports only there: with `pc` the export is refused and names
   both ways out (`plans.js settings set --draft pc` for this machine, or `/keel:configure planning` for
   the team). Never used: hidden folders, `handoff/` and `handoffs/` (another notes system),
-  `docs/plans`, a place outside the project. A plan that names other repositories is not exported yet.
+  `docs/plans`, a place outside the project. A plan on several repositories: each repository's own
+  setting ([above](#a-feature-on-several-repositories)).
 - **Names**: `PROJ-123-add-csv-export.md` with the title `# [PROJ-123] Add CSV export`. The prefix is
   `planning.ticket_prefix`, one per repository and the same for the team; `/keel:configure` proposes
   the tracker's prefix from git history, else 3-4 capital letters from the repository's name.
@@ -557,8 +577,11 @@ ticket / wait for it / start anyway; one not checked: start anyway / take anothe
 branch, keel offers to switch). Only `to do` and `next` tickets are edited, each change on your yes,
 then checked and reviewed; you decide each finding in the chat. A ticket `in progress`,
 `waiting for ...` or `done` is never changed: keel offers a new ticket or to leave it, and names whom it
-concerns. A new ticket takes the next shared key. `/keel:end-planning` then checks the folder and
-offers the commit and push; no plan gates, no plan review.
+concerns. A new ticket takes the next shared key and a line in the overview's Tickets. A feature on
+several repositories: `--repo WEB` puts it into that repository's feature folder with WEB's next key,
+and every overview of the feature on this machine gets its line (keel names any it could not update).
+`/keel:end-planning` then checks the folder and offers the commit and push of each repository it
+changed; no plan gates, no plan review.
 
 ### End of a feature
 
@@ -672,6 +695,7 @@ Rules:
 | `.keel/local/plans/keel/<feature>/` | a planning draft on this machine: `plan.md`, `tickets/T<n>-<slug>.md`, `reviews/`, `research/` (the researcher's reports); after an export to this machine, its `tickets/` holds the exported tickets and their `research/` | no, this machine only |
 | `.keel/local/plans/keel/sessions/`, `settings.json`, `samples/` | which conversation plans which feature; this machine's planning settings (where drafts live, where neighbouring repositories are); the ticket reviewers' inputs and replies, kept to compare models later | no, this machine only |
 | `tickets/<feature>/` (or the folder you chose) | a planning draft in the repository, and the feature folder: `<KEY>-<slug>.md` tickets, from 2 tickets `README.md`, and the reports in `research/` | yes, on the feature branch, after your yes |
+| `<tickets_dir>/<feature>/` in another repository | that repository's tickets of a feature on several repositories, by its own settings, and the same `README.md` | yes, on the feature branch there, after your yes |
 
 - **The task folder lives on the task branch.** It is created after the branch, and a finish removes
   it before the last commit, so the main branch's files never hold it (in manual git, as long as you
