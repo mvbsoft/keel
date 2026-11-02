@@ -26,15 +26,19 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
 - **One question per message** (AskUserQuestion when it exists), answerable in a line; options come
   with your recommendation and why. The first question gets no answer (no one is there) → stop:
   planning is a conversation with a person.
-- **Gather before the questions.** A new feature told in a line or two, or one sized large → before
+- **Gather before the questions.** A new feature told in a line or two, one sized large, or one whose
+  `repos:` names another repository → before
   its first question, one message offers what to look up first, each item with its price said as an
   estimate (in words and the helper's model, such as "cheap: a Haiku helper"; never a dollar figure
   nobody measured), all on one yes (the user may take only some, or none: then the questions at
   once): the project map, one `keel:context` call (a Haiku helper, cheap) with numbered questions on
   where the feature meets the code (the stack, the modules and data it touches, what it can reuse);
+  each other repository of `repos:`, one `keel:context` call each (cheap) with its absolute folder:
+  its rules (`CLAUDE.md`, `AGENTS.md`, skills) and where the feature meets its code;
   how others do it, one `keel:researcher` call (a Sonnet helper on the web, dearer than the map), when
   the feature leans on outside know-how (a library, a protocol, an outside service, a known pattern).
-  On a yes first write its answers, short and with `file:line`, into What was gathered (`plan.md`),
+  On a yes first write its answers, short and with `file:line` (another repository's under
+  `### <PREFIX>`, its paths from its folder), into What was gathered (`plan.md`),
   then ask; the researcher's report is written as "Research" says, with one line there naming its
   file. Each question then builds on what was found ("chat/ already has a WebSocket: send through it, or a channel of its
   own?"), and none asks what the gathered facts or the project's docs already answer. The facts a
@@ -92,8 +96,9 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   failures, abuse). One message: what may be missing, as numbered proposals, each naming its view,
   with your advice on which to take now and which later; nothing found → one line saying so. The
   user decides each; a proposal taken goes into the plan.
-- **Tickets** at once from the template: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "T1,T2"]`
-  (`--depends` may also name another repository's ticket by its key, `API-121`, checked in that
+- **Tickets** at once from the template: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "T1,T2"] [--repo <PREFIX>]`
+  (`--repo` for a ticket of another repository of `repos:`: "Several repositories";
+  `--depends` may also name another repository's ticket by its key, `API-121`, checked in that
   repository's folder from the repos map: a `note: ... not checked` line → say it and how to add the
   folder; a plain title: double or curly quotes, `$`, a backquote or a backslash before a quote or a
   space are refused; `--slug` in English when the title is not), then fill the file it names (Edit), its sections
@@ -109,6 +114,42 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   HTML. T-numbers are never reused.
 - More than about 15 tickets → offer to split the feature in two.
 - The user abandons the plan → confirm, then `plans.js state <f> abandoned` and say what its lines say.
+
+## Several repositories
+A feature may also need work in other repositories on this machine (a new API for a front, a format
+others read). This one conversation plans all of it; each ticket is for one repository only.
+1. **Which projects.** After the premise check, only when the feature shows signs of another
+   repository (an API, event or format others use; a front or an app) or the user names one: run
+   `plans.js repos`. It lists this project and the candidates (the repos map, then the git
+   repositories next to this project), each with its planning prefix. Take the ones the signs point
+   to; none fits and the user named none → no question, the feature is this project's. One question:
+   "Besides <this project>, it looks like it touches <web, admin>. Right?" with [yes, all] [only some]
+   [other: I give a path] [no].
+2. **A repository not in the map yet** (chosen, or given as a path): its prefix is the `planning
+   prefix` `plans.js repos` shows; with none, propose 3-4 capital letters from its folder name and
+   the user confirms (that repository's `/keel:configure planning` must set the same one before the
+   export). Then `plans.js settings set --repo <PREFIX>=<absolute folder>`.
+3. **Needed, but not on this machine** (the feature needs a front, and no repository fits): say what
+   you found ("a front is needed, but no repository was found") and ask with 4 options: (1) a
+   repository from the list that may be it, without certainty: confirm it; (2) stubs (item 6);
+   (3) leave that repository out; (4) other: a path, or what to do.
+4. After `plans.js new`: `plans.js set <f> --repos "<PREFIX>,<PREFIX>"` (this project's prefix goes
+   first by itself). `plans: set refused (<why>)` → say why and ask again.
+5. **Another repository's files** are outside this project, so Claude Code may ask to allow each read
+   there. Before the first one, say once that `/add-dir <folder>` lets this conversation read it
+   without asking; never change settings without a yes.
+6. **Stubs.** For a repository not on this machine, `## Stubs` in `plan.md` gets one part per piece of
+   work there: `### <repository>: <title>` (a title that says what it is), one line saying it is a
+   stub for that repository, not planned or built here, then its In plain words, as long as a
+   developer there needs to plan it. A stub has no key: `depends_on` never names one; a ticket that
+   needs it says so in its Dependencies.
+7. **Tickets and the plan.** `--repo <PREFIX>` for another repository's ticket (`repo:` in its front
+   matter); a ticket never mixes repositories. Design sketch gets one `### <PREFIX>` part per
+   repository of `repos:`. `plans.js check` looks for another repository's Where to look in its
+   folder: `note: <T>: Where to look not checked (<why>)` → say why. A draft continued: a stub's
+   repository is now in `plans.js repos` → offer to turn its stubs into tickets.
+8. **Export.** `plans.js export` refuses a plan that names other repositories for now (`the plan names
+   other repositories (<PREFIX>)`): say so; the plan stays `ready`.
 
 ## Exported feature
 Its tickets live in the feature folder; work there continues while others may already build them.
@@ -174,10 +215,13 @@ what stays uncommitted or unpushed.
 2. `plans.js review <f>`: review only the tickets `never reviewed` or `changed since review`.
 3. **Ticket reviews**: Agent tool, `subagent_type: "keel:ticket-reviewer"`, `run_in_background: false`,
    up to 4 tickets per call, all calls in one message. The prompt is short: `<keel>` and `<project>`
-   (absolute paths), the draft folder, the tickets (id and file path), and the paths of their
-   `reviews/<ticket>.md` that exist, as decisions already made. Never paste the files.
+   (absolute paths), the draft folder, the tickets (id and file path; another repository's ticket
+   with its folder as `plans.js review` names it, `(WEB: <folder>)`, or that it is not on this
+   machine), and the paths of their `reviews/<ticket>.md` that exist, as decisions already made.
+   Never paste the files.
 4. **Plan review** (final only): one `keel:plan-reviewer` after the ticket reviews, same prompt with
-   the draft folder and its `reviews/` folder.
+   the draft folder, its `reviews/` folder and, for a feature on several repositories, the `repos:`
+   line of `plans.js review` (each repository's folder).
 5. **Each reply**: keel's hook saves it as `<project>/.keel/local/tmp/planning/<sid>/<agent>-<agent id>.md`
    (the agent id is in the Agent result). Run `plans.js report "<that file>"`.
    - `report: ok · <agent> · <status> · findings N`: its `- <id> <place> <severity> <check>: <what>`

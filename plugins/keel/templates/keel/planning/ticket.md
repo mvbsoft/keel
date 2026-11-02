@@ -1,5 +1,6 @@
 ---
 id: <T-number, as in the file name>
+repo: <only for another repository of the plan's repos: its ticket prefix; none means this project>
 depends_on: <[T1, T2] or []>
 review_hash: <set by plans.js reviewed; a different text means the ticket changed since its review, or ->
 ---

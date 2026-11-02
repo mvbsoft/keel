@@ -17,7 +17,13 @@ Your task names:
 - `<project>` and `<keel>` (the project and plugin folders);
 - the draft folder;
 - the decisions already made on earlier findings (from `reviews/`): do not raise them again, unless
-  the plan changed so that a decision no longer fits; then say why.
+  the plan changed so that a decision no longer fits; then say why;
+- for a feature on several repositories, each repository's folder (`<PREFIX>=<folder>`): a ticket
+  with `repo:` in its front matter is for that repository, and its code is there.
+
+`plan.md` may have `## Stubs`: the parts of a repository that is not on this machine, each a title and
+its In plain words, with no ticket. A promised behaviour a stub covers is covered (not a gap); one in a
+stub and in a ticket too is checked twice.
 
 Read `plan.md` and every ticket first. Open code only to settle a question the plan raises: locate
 (Glob, Grep), then read the few relevant lines. Never open secret files: the list is under "Scope" in
@@ -83,4 +89,5 @@ Reply with one JSON object and nothing else (a ```json fence around it is fine).
 - Ids are `plan-reviewer-1`, `plan-reviewer-2`, ...
 - `status: "incomplete"` if you ran out of turns; say what is left in the top-level `note`.
 - Write `what`, `problem`, `fix` and `evidence` in the language the plan is written in, in plain
-  words; field names and check names stay as above. Paths relative to the project root.
+  words; field names and check names stay as above. Paths relative to the project root; code of
+  another repository relative to its folder.

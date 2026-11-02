@@ -47,6 +47,19 @@ All notable changes to keel are listed here. The format follows
   `plans.js ticket --depends`; with no folder in the map, or a folder not on this machine or not a git
   repository, the dependency is `not checked`: a `note:` line and a mark on the ticket's line, never a
   block, so the ticket can still be next.
+- Planning a feature on several repositories in one conversation. When a feature shows signs of
+  another repository, planning asks which projects it touches, from the new `plans.js repos`: the
+  `repos` map and the git repositories next to the project, each with its planning prefix (never the
+  project itself or another worktree of it). `plans.js set <f> --repos "WEB"` records them in `plan.md`
+  `repos: [API, WEB]`; a repository whose prefix is not set yet takes the one the user confirms. The
+  gathering offer then always includes each other repository: `keel:context` reads its rules and code
+  by its absolute folder. `plans.js ticket --repo WEB` marks a ticket `repo: WEB`; `plans.js check`
+  looks for its Where to look in that folder (none on this machine: a `note:`, never a problem),
+  `plans.js review` names the folder for the reviewers, and `plans.js stale` compares each
+  repository's tickets with its own commit, `after_commit_repos`, which `plans.js set <f>
+  --after-commit` records with `after_commit` at a hand-over. A repository not on this machine gets
+  stubs in `plan.md` `## Stubs` (a title and In plain words, no key), which the plan reviewer counts
+  as covered in its coverage check. Exporting a plan that names other repositories is refused for now.
 
 ### Changed
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,

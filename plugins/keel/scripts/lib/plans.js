@@ -5,7 +5,7 @@
 //   repository when settings say `draft: repo`. Both places are always read, so changing the setting
 //   does not hide a draft.
 // - plan.md (front matter `type: plan`, `status`, `branch`, `merge_into`, `last_ticket`...),
-//   tickets/T<n>-<slug>.md (front matter `id`, `depends_on`, `review_hash`), reviews/ (written by the
+//   tickets/T<n>-<slug>.md (front matter `id`, `repo`, `depends_on`, `review_hash`), reviews/ (written by the
 //   conversation). `branch` (the feature branch) and `merge_into` (where the feature merges) go into
 //   every exported ticket (lib/plans-export.js).
 // - States: draft -> ready -> exported, draft or ready -> abandoned, ready -> draft. A plan changed
@@ -14,6 +14,9 @@
 //   .keel/local/plans/keel/sessions/<session id>.json = { "feature": "<name>" }.
 // - An exported feature is edited in its feature folder: mark set, ticket and check take it when no
 //   draft of that name is here or the draft is exported (lib/plans-export.js).
+// - A feature on several repositories: plan.md `repos`, a ticket's `repo`, plan.md
+//   `after_commit_repos` (lib/plans-repos.js); check, stale and review read another repository's
+//   tickets in its folder.
 // Nothing here prints a draft's text beyond its name, state, counts and the problems check finds.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -258,7 +261,7 @@ function draftNew(root, feature, now = new Date()) {
   // A draft committed on its feature branch is not seen from another branch: that branch takes the name.
   if (!local && featureBranchElsewhere(root, feature)) return refuse('new', `branch ${feature} exists and may hold this draft: switch to it, or pick another name`);
   const head = git(root, ['rev-parse', '--short', 'HEAD']);
-  const front = { type: 'plan', status: 'draft', feature, language: s.language, export: '-', branch: feature, merge_into: mainBranch(root) || '-', created: dateOf(now), after_commit: head || '-', last_ticket: 0, ready_hash: '-' };
+  const front = { type: 'plan', status: 'draft', feature, language: s.language, export: '-', branch: feature, merge_into: mainBranch(root) || '-', repos: '-', created: dateOf(now), after_commit: head || '-', after_commit_repos: '-', last_ticket: 0, ready_hash: '-' };
   const t = fromTemplate(PLAN_FILE, front);
   const d = { feature, folder, local, text: '', fm: {} };
   try { writeFile(root, d, path.join(folder, PLAN_FILE), t.text(t.body.replace(/^# .*$/m, () => `# ${feature}`))); } catch (e) { return refuse('new', e.message); }
@@ -278,7 +281,16 @@ function ticketNew(root, feature, o) {
   const slug = slugOf(typeof o.slug === 'string' ? o.slug : o.title);
   if (!slug) return refuse('ticket', 'the title has no English words for the file name: add --slug <english-words>');
   const deps = typeof o.depends === 'string' ? ticketIds(o.depends) : [];
+  if (ex && o.repo !== undefined) return refuse('ticket', '--repo works on a draft only');
   if (ex) return require('./plans-export.js').exportedTicket(root, feature, ex, { title: oneLine(o.title), slug, deps });
+  let repo = null;
+  if (o.repo !== undefined) {
+    if (typeof o.repo !== 'string' || !o.repo.trim()) return refuse('ticket', '--repo needs a ticket prefix: --repo WEB');
+    const asked = o.repo.trim().toUpperCase();
+    const own = settings(root).ticket_prefix;
+    if (asked !== own && !repos().planRepos(d.fm).includes(asked)) return refuse('ticket', `--repo: ${clean(asked, 20)} is not in the plan's repos (plans.js set ${feature} --repos ...)`);
+    if (asked !== own) repo = asked;
+  }
   const all = tickets(d);
   const other = otherRepos(root, deps.filter((x) => !all.some((t) => t.id === x)));
   // Another repository's key is unknown only when that repository lacks it; not checked is never unknown.
@@ -288,7 +300,7 @@ function ticketNew(root, feature, o) {
   const n = Math.max(Number(d.fm.last_ticket) || 0, ...all.map((t) => t.n)) + 1;
   const id = `T${n}`;
   const file = path.join(d.folder, 'tickets', `${id}-${slug}.md`);
-  const t = fromTemplate('ticket.md', { id, depends_on: `[${deps.join(', ')}]`, review_hash: '-' });
+  const t = fromTemplate('ticket.md', { id, ...(repo ? { repo } : {}), depends_on: `[${deps.join(', ')}]`, review_hash: '-' });
   try {
     writeFile(root, d, file, t.text(t.body.replace(/^# .*$/m, () => `# [${id}] ${oneLine(o.title)}`)));
     writePlan(root, d, { last_ticket: n, ...(d.fm.status === 'ready' ? { status: 'draft', ready_hash: '-' } : {}) });
@@ -297,6 +309,7 @@ function ticketNew(root, feature, o) {
 }
 
 const neighbours = () => require('./plans-neighbours.js');
+const repos = () => require('./plans-repos.js');
 // Another repository's keys among a draft's dependencies (lib/plans-neighbours.js).
 const otherRepos = (root, deps) => neighbours().lookUp(root, deps);
 
@@ -312,8 +325,9 @@ function branchesOf(root, d) {
   return { branch: given(d.fm.branch) ? d.fm.branch : d.feature, merge_into: given(d.fm.merge_into) ? d.fm.merge_into : mainBranch(root) };
 }
 
-// plans.js set: the plan's branch and merge_into. A plan is changed only while it is a draft; a ready
-// one becomes a draft again.
+// plans.js set: the plan's branch and merge_into; its repositories (--repos, lib/plans-repos.js); and
+// --after-commit: after_commit and the other repositories' after_commit_repos from their HEAD now. A
+// plan is changed only while it is a draft; a ready one becomes a draft again.
 function draftSet(root, feature, o) {
   const { d: found, why } = needDraft(root, feature, 'set');
   if (!found) return why;
@@ -323,7 +337,23 @@ function draftSet(root, feature, o) {
     if (!validBranch(root, o[opt])) return refuse('set', `--${opt}: "${clean(String(o[opt]))}" is not a valid branch name`);
     updates[key] = o[opt];
   }
-  if (!Object.keys(updates).length) return refuse('set', 'nothing to set: --branch, --merge-into');
+  const s = settings(root);
+  let list = repos().planRepos(found.fm);
+  if (o.repos !== undefined) {
+    const r = repos().reposValue(root, o.repos, s);
+    if (r.why) return refuse('set', `--repos: ${r.why}`);
+    updates.repos = r.value;
+    list = r.list;
+  }
+  const commit = o['after-commit'] !== undefined;
+  if (commit && o['after-commit'] !== true) return refuse('set', '--after-commit takes no value');
+  if (commit) {
+    const head = repos().headOf(root);
+    if (!head) return refuse('set', '--after-commit: no commit here (not a git repository, or no commit yet)');
+    updates.after_commit = head;
+  }
+  if (o.repos !== undefined || commit) updates.after_commit_repos = repos().commitsText(repos().recordCommits(found.fm, list, s, commit ? 'all' : null));
+  if (!Object.keys(updates).length) return refuse('set', 'nothing to set: --branch, --merge-into, --repos, --after-commit');
   let d;
   try { d = settle(root, found); } catch (e) { return refuse('set', e.message); }
   if (!['draft', 'ready'].includes(d.fm.status)) return refuse('set', `the plan is ${d.fm.status}`);
@@ -333,7 +363,14 @@ function draftSet(root, feature, o) {
     try { d = writePlan(root, d, { ...Object.fromEntries(changed), ...(back ? { status: 'draft', ready_hash: '-' } : {}) }); } catch (e) { return refuse('set', e.message); }
   }
   const b = branchesOf(root, d);
-  return [`branch: ${b.branch}`, `merge_into: ${b.merge_into || '-'}`, ...(back ? ['status: draft (the plan changed after ready)'] : [])];
+  return [
+    `branch: ${b.branch}`, `merge_into: ${b.merge_into || '-'}`,
+    ...(o.repos !== undefined ? [`repos: ${d.fm.repos}`] : []),
+    ...(commit ? [`after_commit: ${d.fm.after_commit}`] : []),
+    ...('after_commit_repos' in updates ? [`after_commit_repos: ${d.fm.after_commit_repos}`] : []),
+    ...(back ? ['status: draft (the plan changed after ready)'] : []),
+    ...(o.repos !== undefined || commit ? repos().noCommitNotes(list, s) : []),
+  ];
 }
 
 // --- the structure check ---
@@ -385,15 +422,18 @@ function cycles(list) {
 }
 
 // One ticket's text, a draft's or an exported one: its structure (lib/plans-format.js), no placeholders,
-// the files Where to look names exist.
-function ticketProblems(root, label, text) {
+// the files Where to look names exist in `filesRoot` (another repository's folder for its ticket; null:
+// not looked for).
+function ticketProblems(root, label, text, filesRoot = root) {
   const out = ticketStructure(label, text);
   const secs = sections(text);
   for (const p of placeholders(text)) out.push(`${label}: placeholder ${p}`);
+  if (filesRoot === null) return out;
+  const own = filesRoot === root;
   for (const f of mentionedFiles(secs['Where to look'] || '')) {
     const outside = path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..');
-    if (outside) out.push(`${label}: ${clean(f)} in Where to look is outside the project`);
-    else if (!fs.existsSync(path.join(root, f))) out.push(`${label}: ${clean(f)} in Where to look does not exist`);
+    if (outside) out.push(`${label}: ${clean(f)} in Where to look is outside ${own ? 'the project' : clean(filesRoot, 200)}`);
+    else if (!fs.existsSync(path.join(filesRoot, f))) out.push(`${label}: ${clean(f)} in Where to look does not exist${own ? '' : ` in ${clean(filesRoot, 200)}`}`);
   }
   return out;
 }
@@ -401,13 +441,20 @@ function ticketProblems(root, label, text) {
 function problems(root, d) {
   const out = planStructure(d.text);
   for (const p of placeholders(d.text)) out.push(`plan.md: placeholder ${p}`);
+  const s = settings(root);
+  out.push(...repos().planReposProblems(d.fm, s.ticket_prefix));
+  const planned = repos().planRepos(d.fm);
   const list = tickets(d);
   const ids = new Set(list.map((t) => t.id));
   const other = otherRepos(root, list.flatMap((t) => ticketIds(t.fm.depends_on)).filter((x) => !ids.has(x)));
   const notes = [];
   for (const t of list) {
     if (t.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(t.fm.id || '')}", the file name says ${t.id}`);
-    out.push(...ticketProblems(root, t.id, t.text));
+    const target = repos().targetOf(root, t, s);
+    if (target.bad) out.push(`${t.id}: repo "${clean(target.prefix, 20)}" is not a ticket prefix`);
+    else if (!target.own && !planned.includes(target.prefix)) out.push(`${t.id}: repo ${target.prefix} is not in the plan's repos`);
+    if (!target.own && !target.bad && !target.folder) notes.push(`note: ${t.id}: Where to look not checked (${clean(target.why, 200)})`);
+    out.push(...ticketProblems(root, t.id, t.text, target.own ? root : target.folder));
     for (const dep of ticketIds(t.fm.depends_on)) {
       const k = dep.toUpperCase();
       if (dep === t.id) out.push(`${t.id}: depends on itself`);
@@ -443,26 +490,47 @@ function draftCheck(root, feature) {
 
 const STALE_SHOWN = 10;
 
-// Which of the files the tickets name in "Where to look" changed since plan.md's after_commit: in
-// commits since then or uncommitted. Read-only; only those files are compared.
+// One `stale<tag>:` line: which of the files the tickets `list` name in "Where to look" changed in
+// `folder` since `after`: in commits since then or uncommitted. Read-only; only those files are compared.
+function staleLine(folder, after, list, tag) {
+  if (!given(after) || after.startsWith('-')) return `stale${tag}: unknown (no after_commit)`;
+  if (git(folder, ['rev-parse', '--git-dir']) === null) return `stale${tag}: unknown (not a git repository)`;
+  if (git(folder, ['rev-parse', '-q', '--verify', `${after}^{commit}`]) === null) return `stale${tag}: unknown (after_commit ${clean(after, 40)} not found)`;
+  // A named folder (src/lib/) counts by everything in it.
+  const files = [...new Set(list.flatMap((t) => mentionedFiles(sections(t.text)['Where to look'] || '')).map((f) => f.replace(/\\/g, '/').replace(/\/+$/, '')))]
+    .filter((f) => f && !(path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..') || f.startsWith('-')));
+  if (!files.length) return `stale${tag}: none of 0 named files changed since ${after}`;
+  // Paths from the project folder (--relative), which may sit below the repository's top.
+  const lines = (args) => (git(folder, args) || '').split('\n').filter(Boolean);
+  const changed = new Set([...lines(['diff', '--relative', '--name-only', after, 'HEAD', '--', ...files]), ...lines(['diff', '--relative', '--name-only', 'HEAD', '--', ...files])]);
+  const hit = files.filter((f) => [...changed].some((c) => c === f || c.startsWith(`${f}/`)));
+  if (!hit.length) return `stale${tag}: none of ${files.length} named files changed since ${after}`;
+  const shown = hit.slice(0, STALE_SHOWN).map((f) => clean(f)).join(', ') + (hit.length > STALE_SHOWN ? ', …' : '');
+  return `stale${tag}: ${hit.length} of ${files.length} named files changed since ${after}: ${shown}`;
+}
+
+// This project's tickets against after_commit; each other repository's tickets in its folder against
+// its commit in after_commit_repos, one `stale (<PREFIX>):` line each.
 function draftStale(root, feature) {
   const { d, why } = needDraft(root, feature, 'stale');
   if (!d) return why;
-  const after = d.fm.after_commit;
-  if (!given(after) || after.startsWith('-')) return ['stale: unknown (no after_commit)'];
-  if (git(root, ['rev-parse', '--git-dir']) === null) return ['stale: unknown (not a git repository)'];
-  if (git(root, ['rev-parse', '-q', '--verify', `${after}^{commit}`]) === null) return [`stale: unknown (after_commit ${clean(after, 40)} not found)`];
-  // A named folder (src/lib/) counts by everything in it.
-  const files = [...new Set(tickets(d).flatMap((t) => mentionedFiles(sections(t.text)['Where to look'] || '')).map((f) => f.replace(/\\/g, '/').replace(/\/+$/, '')))]
-    .filter((f) => f && !(path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..') || f.startsWith('-')));
-  if (!files.length) return [`stale: none of 0 named files changed since ${after}`];
-  // Paths from the project folder (--relative), which may sit below the repository's top.
-  const lines = (args) => (git(root, args) || '').split('\n').filter(Boolean);
-  const changed = new Set([...lines(['diff', '--relative', '--name-only', after, 'HEAD', '--', ...files]), ...lines(['diff', '--relative', '--name-only', 'HEAD', '--', ...files])]);
-  const hit = files.filter((f) => [...changed].some((c) => c === f || c.startsWith(`${f}/`)));
-  if (!hit.length) return [`stale: none of ${files.length} named files changed since ${after}`];
-  const shown = hit.slice(0, STALE_SHOWN).map((f) => clean(f)).join(', ') + (hit.length > STALE_SHOWN ? ', …' : '');
-  return [`stale: ${hit.length} of ${files.length} named files changed since ${after}: ${shown}`];
+  const s = settings(root);
+  const own = [];
+  const other = new Map();
+  for (const t of tickets(d)) {
+    const target = repos().targetOf(root, t, s);
+    if (target.own) own.push(t);
+    else other.set(target.prefix, { target, list: [...(other.has(target.prefix) ? other.get(target.prefix).list : []), t] });
+  }
+  const commits = repos().commitsOf(d.fm);
+  const out = [staleLine(root, d.fm.after_commit, own, '')];
+  for (const [prefix, { target, list }] of other) {
+    const tag = ` (${clean(prefix, 20)})`;
+    if (target.bad || !target.folder) out.push(`stale${tag}: not checked (${target.bad ? 'repo is not a ticket prefix' : clean(target.why, 200)})`);
+    else if (!commits.has(prefix)) out.push(`stale${tag}: not checked (no commit recorded for ${prefix}: plans.js set ${d.feature} --after-commit)`);
+    else out.push(staleLine(target.folder, commits.get(prefix), list, tag));
+  }
+  return out;
 }
 
 // --- reviews ---
@@ -472,9 +540,19 @@ const reviewState = (t) => (!given(t.fm.review_hash) ? 'never reviewed' : t.fm.r
 function draftReview(root, feature) {
   const { d, why } = needDraft(root, feature, 'review');
   if (!d) return why;
-  const list = tickets(d).map((t) => ({ t, state: reviewState(t) }));
+  const s = settings(root);
+  const list = tickets(d).map((t) => ({ t, state: reviewState(t), target: repos().targetOf(root, t, s) }));
   const due = list.filter((x) => x.state !== 'unchanged').length;
-  return [`review: ${due} of ${list.length} tickets to review`, ...list.map((x) => `- ${x.t.id}: ${x.state}`)];
+  // Another repository's ticket is reviewed in its folder; the plan reviewer gets every folder.
+  const where = (target) => (target.folder ? clean(target.folder, 200) : target.bad ? 'not a ticket prefix' : 'not on this machine');
+  const place = (target) => (target.own ? '' : ` (${clean(target.prefix, 20)}: ${where(target)})`);
+  const planned = repos().planRepos(d.fm);
+  const folders = planned.map((p) => { const r = repos().targetOf(root, { fm: { repo: p } }, s); return `${clean(p, 20)}=${r.own ? 'this project' : where(r)}`; });
+  return [
+    `review: ${due} of ${list.length} tickets to review`,
+    ...(planned.length ? [`repos: ${folders.join(', ')}`] : []),
+    ...list.map((x) => `- ${x.t.id}: ${x.state}${place(x.target)}`),
+  ];
 }
 
 function draftReviewed(root, feature, ids) {

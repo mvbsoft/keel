@@ -313,6 +313,9 @@ function exportFeature(root, feature, { stop = () => {} } = {}) {
   if (problems.length) return refuse(what, `check finds ${problems.length} problems (plans.js check ${feature})`);
   const s = settings(root);
   if (!setUp(s)) return refuse(what, notSetUp(root));
+  // Every ticket would get this project's key and folder, so a WEB ticket would land here as an API one.
+  const others = require('./plans-repos.js').namedRepos(d.fm, plans.tickets(d), s.ticket_prefix);
+  if (others.length) return refuse(what, `the plan names other repositories (${others.map((p) => clean(p, 20)).join(', ')}): a feature on several repositories is not exported yet; the plan stays ready`);
   const prefix = s.ticket_prefix;
   const { branch, merge_into: mergeInto } = plans.branchesOf(root, d);
   if (!mergeInto) return refuse(what, `the plan names no branch to merge into: plans.js set ${feature} --merge-into <branch>`);

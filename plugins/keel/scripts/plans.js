@@ -13,8 +13,9 @@
 //                                         one match, several, or none (then all drafts)
 //   new <feature>                         a draft folder with plan.md (status draft); refused for an invalid
 //                                         or taken name
-//   ticket <feature> --title <t> [--slug <english-words>] [--depends "T1,T2"]
-//                                         tickets/T<n>-<slug>.md; T-numbers are never reused. An exported
+//   ticket <feature> --title <t> [--slug <english-words>] [--depends "T1,T2"] [--repo <PREFIX>]
+//                                         tickets/T<n>-<slug>.md; T-numbers are never reused; --repo: the
+//                                         ticket is for another repository of the plan's repos. An exported
 //                                         feature: <KEY>-<slug>.md in its folder with the next key (as
 //                                         export gives them), status todo, --depends "K1,K2"
 //   check <feature>                       the structure (lib/plans-format.js): the "# [id] title" heading,
@@ -22,21 +23,31 @@
 //                                         the files Where to look names exist, depends_on valid, no cycles;
 //                                         an exported feature: its tickets, depends_on are keys. Another
 //                                         repository's key (ticket --depends too) is looked up in its
-//                                         folder from the repos map; none there: `note: ... not checked`
-//   review <feature>                      per ticket: never reviewed, changed since review, unchanged
+//                                         folder from the repos map; none there: `note: ... not checked`.
+//                                         Another repository's ticket (repo:) is checked in its folder;
+//                                         without one: `note: ... Where to look not checked`
+//   review <feature>                      per ticket: never reviewed, changed since review, unchanged;
+//                                         another repository's ticket with its folder
 //   reviewed <feature> <T1> [T2...]       record the tickets' review hashes after their review
 //   state <feature> <draft|ready|exported|abandoned>   move the plan; ready needs a clean check, no open
 //                                         questions and every ticket reviewed as it is
-//   set <feature> [--branch <b>] [--merge-into <b>]   the feature branch and where it merges (plan.md
-//                                         branch, merge_into); a ready plan becomes a draft again
+//   set <feature> [--branch <b>] [--merge-into <b>] [--repos "WEB,MOB" | -] [--after-commit]
+//                                         the feature branch and where it merges (plan.md branch,
+//                                         merge_into); the repositories of a feature on several (repos:,
+//                                         from the repos map); after_commit and each other repository's
+//                                         HEAD (after_commit_repos); a ready plan becomes a draft again
 //   stale <feature>                       which files the tickets name in Where to look changed since
-//                                         plan.md after_commit (commits and uncommitted changes)
+//                                         plan.md after_commit (commits and uncommitted changes); another
+//                                         repository's tickets in its folder since its after_commit_repos
+//   repos                                 this project and the repositories a feature may also touch: the
+//                                         repos map and the git repositories next to this project, each
+//                                         with its planning prefix
 //   report <file>                         a planning reviewer's reply under .keel/local/tmp/planning/
 //                                         (absolute, or relative to the project): its
 //                                         findings, or `report: failed` and why (never "no findings")
 //   export <feature>                      a ready plan's tickets into the feature folder with keys shared
 //                                         across the repository (planning in .keel/config.json); all or
-//                                         nothing
+//                                         nothing; refused for a plan that names other repositories
 //   commit <feature>                      the feature's planning files into git on the current branch (keys
 //                                         checked again, taken ones renumbered), also a feature folder
 //                                         removed by drop; never on the main branch
@@ -65,7 +76,7 @@ const path = require('node:path');
 const { parseArgs } = require('./lib/project.js');
 const plans = require('./lib/plans.js');
 
-const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, set, stale, report, export, commit, push, tickets, done, drop, settings, mark';
+const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, set, stale, repos, report, export, commit, push, tickets, done, drop, settings, mark';
 
 // A flag followed by a word takes it as its value (lib/project.js): `done --undo PROJ-1` names PROJ-1.
 const flagged = (pos, opts, flag) => ({ on: opts[flag] !== undefined, arg: pos[2] ?? (typeof opts[flag] === 'string' ? opts[flag] : undefined) });
@@ -83,6 +94,7 @@ function run(root, pos, opts) {
   if (command === 'state') return plans.draftState(root, feature, pos[3]);
   if (command === 'set') return plans.draftSet(root, feature, opts);
   if (command === 'stale') return plans.draftStale(root, feature);
+  if (command === 'repos') return require('./lib/plans-repos.js').reposCommand(root);
   if (command === 'report') return require('./lib/plans-report.js').reportCheck(root, pos[2]);
   if (command === 'export') return require('./lib/plans-export.js').exportFeature(root, feature);
   if (command === 'commit') return require('./lib/plans-export.js').commitFeature(root, feature);

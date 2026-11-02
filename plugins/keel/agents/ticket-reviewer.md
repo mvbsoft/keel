@@ -19,7 +19,11 @@ Your task names:
 - `<project>` and `<keel>` (the project and plugin folders);
 - the draft folder (or an exported feature's folder) and the tickets to review (up to 4);
 - the decisions already made on earlier findings (from `reviews/<ticket>.md`): do not raise them
-  again, unless the ticket changed so that a decision no longer fits; then say why.
+  again, unless the ticket changed so that a decision no longer fits; then say why;
+- for a ticket of another repository (`repo:` in its front matter), that repository's absolute
+  folder: check its code there (`true-in-code`, Where to look), and give its `code` paths relative
+  to that folder. Its folder "not on this machine": say in `true-in-code`'s `note` that its code was
+  not checked, and raise no finding about files you could not look for.
 
 Read `plan.md` first (In plain words, Decisions, Terms, Out of scope; an exported feature: its `README.md`
 if there is one), then each ticket, then only the code a check needs: locate (Glob, Grep), then read
@@ -96,4 +100,5 @@ Reply with one JSON object and nothing else (a ```json fence around it is fine).
 - Ids are `ticket-reviewer-1`, `ticket-reviewer-2`, ... across all tickets of the call.
 - `status: "incomplete"` if you ran out of turns; name the tickets left in the top-level `note`.
 - Write `what`, `problem`, `fix` and `evidence` in the language the tickets are written in, in plain
-  words; field names and check names stay as above. Paths relative to the project root.
+  words; field names and check names stay as above. Paths relative to the root of the ticket's
+  repository (the project, or the folder your task gives for another repository).
