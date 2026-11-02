@@ -12,7 +12,9 @@
 //   in the draft's folder) and starts again with the same keys. A run killed between two steps may leave
 //   a state the next run refuses (a feature folder that exists); that one is settled by hand.
 // - A draft on this machine goes to keel's trash once exported; one in the repository leaves with the
-//   commit of its tickets.
+//   commit of its tickets. The researcher's reports (the draft's research/) go with the tickets: into
+//   research/ beside them (<feature>/tickets/research/ on this machine, <feature>/research/ in the
+//   repository).
 // - Commit and push check the keys again: a key another ticket file took (on any branch or in the working
 //   tree) gets a new number while the ticket is not on a remote yet. A ticket folder HEAD has and the
 //   working tree no longer has (a dropped feature) is committed as its removal.
@@ -254,6 +256,17 @@ function exportedProblems(root, f) {
   return { out, count: list.length };
 }
 
+// The researcher's reports of the draft (research/*.md), as they are. Anything else there (a link, a
+// folder, another file) would leave with the draft without a copy, so it stops the export.
+function researchFiles(d) {
+  const dir = path.join(d.folder, 'research');
+  let entries = [];
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { /* none */ }
+  const other = entries.find((e) => !(e.isFile() && /\.md$/i.test(e.name)));
+  if (other) throw new Error(`research/${other.name} is not a report: research/ holds only .md files; move it out`);
+  return entries.map((e) => ({ name: `research/${e.name}`, text: fs.readFileSync(path.join(dir, e.name)) }));
+}
+
 // What an export into the draft's own folder that did not finish left there: its tickets and overview.
 const leftovers = (d) => folderFiles(d.folder).filter((f) => (f.fm.type === 'ticket' && f.fm.feature === d.feature) || (f.fm.type === 'feature' && f.name === README));
 
@@ -315,13 +328,16 @@ function exportFeature(root, feature, { stop = () => {} } = {}) {
   const first = highestKey(root, prefix, s, git.repo, git.notes) + 1;
   const keys = new Map(plans.tickets(d).map((t, i) => [t.id, `${prefix}-${first + i}`]));
   const { files, readme } = exportFiles(root, d, keys, { feature, branch, merge_into: mergeInto });
+  // The reports go with the tickets into the feature folder; a draft that is the feature folder has them.
+  let research;
+  try { research = researchFiles(d); } catch (e) { return refuse(what, `${e.message}; nothing exported, the plan stays ready`); }
   const into = temp ? path.join(temp, local ? 'tickets' : '') : target;
   const made = [];
   let batch = null;
   let renamed = false;
   let marked = false;
   try {
-    for (const f of readme ? [...files, readme] : files) {
+    for (const f of [...files, ...(readme ? [readme] : []), ...(temp ? research : [])]) {
       const file = path.join(into, f.name);
       plans.writeFile(root, { local }, file, f.text);
       if (!temp) made.push(file);
@@ -357,12 +373,13 @@ function exportFeature(root, feature, { stop = () => {} } = {}) {
   else if (d.local) {
     const r = moveToTrash(root, [rel(root, d.folder)], 'planning');
     draft = r.batch ? `draft: moved to keel's trash: batch ${r.batch}` : `draft: not moved to keel's trash (${r.failed.map((f) => f.reason).join(', ')}); remove ${rel(root, d.folder)}/ by hand`;
-  } else draft = `draft: plan.md, reviews/ and T-files leave with the commit (plans.js commit ${feature})`;
+  } else draft = `draft: plan.md, reviews/${temp && research.length ? ', research/' : ''} and T-files leave with the commit (plans.js commit ${feature})`;
   const shown = rel(root, local ? path.join(target, 'tickets') : target);
   return [
     `exported: ${shown}/ (${files.length} tickets)`,
     ...files.map((f) => `- ${f.id} -> ${f.key}: ${shown}/${f.name}`),
     `readme: ${readme ? `${shown}/${README}` : 'none (1 ticket)'}`,
+    ...(research.length ? [`research: ${shown}/research/ (${research.length} reports)`] : []),
     draft,
     ...git.notes,
     ...(local ? ['note: these tickets are seen on this machine only'] : []),
@@ -461,9 +478,11 @@ function renumber(root, c, taken, notes) {
 // Whether git knows a path: in the working tree, the index or HEAD.
 const known = (root, p) => fs.existsSync(path.join(root, p)) || Boolean(readGit(root, ['ls-files', '--', p])) || Boolean(readGit(root, ['ls-tree', '-r', '--name-only', 'HEAD', '--', p]));
 
-// An exported draft's own files: plan.md, reviews/ and its T-files.
-function draftFiles(root, d) {
-  const out = [plans.PLAN_FILE, 'reviews'].map((n) => path.join(d.folder, n)).filter((f) => fs.existsSync(f));
+// An exported draft's own files: plan.md, reviews/, its T-files and, when the tickets went to another
+// folder, research/ (export copied it there).
+function draftFiles(root, d, folder) {
+  const own = [plans.PLAN_FILE, 'reviews', ...(folder && samePath(path.resolve(folder), path.resolve(d.folder)) ? [] : ['research'])];
+  const out = own.map((n) => path.join(d.folder, n)).filter((f) => fs.existsSync(f));
   let names = [];
   try { names = fs.readdirSync(path.join(d.folder, 'tickets')).filter((n) => plans.TICKET_FILE.test(n)); } catch { /* none */ }
   return [...out, ...names.map((n) => path.join(d.folder, 'tickets', n))].map((f) => rel(root, f));
@@ -490,7 +509,7 @@ function commitFeature(root, feature) {
     if (taken.size) { try { renumbered.push(...renumber(root, c, taken, notes)); } catch (e) { return done(refuse(what, `renumbering failed: ${e.message}`)); } }
   }
   if (c.draft && plans.stateOf(c.draft) === 'exported') {
-    const r = moveToTrash(root, draftFiles(root, c.draft), 'planning');
+    const r = moveToTrash(root, draftFiles(root, c.draft, c.folder), 'planning');
     if (r.failed.length) {
       // All or none: what did go comes back, so the next run still sees the exported draft.
       if (r.batch) restore(root, r.batch);

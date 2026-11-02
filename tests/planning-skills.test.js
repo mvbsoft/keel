@@ -38,7 +38,7 @@ test('every plans.js command the planning instructions name is documented in pla
 test('the other scripts, subcommands, agents and files the planning instructions name exist', () => {
   for (const text of all()) {
     for (const [, ref] of text.matchAll(/<keel>\/([A-Za-z0-9_./-]+)/g)) assert.ok(fs.existsSync(path.join(PLUGIN, ref)), `<keel>/${ref} does not exist`);
-    for (const [, name] of text.matchAll(/keel:([a-z-]+-reviewer|context)\b/g)) assert.ok(fs.existsSync(path.join(PLUGIN, 'agents', `${name}.md`)), `no agent ${name}`);
+    for (const [, name] of text.matchAll(/keel:([a-z-]+-reviewer|context|researcher)\b/g)) assert.ok(fs.existsSync(path.join(PLUGIN, 'agents', `${name}.md`)), `no agent ${name}`);
     for (const [, script, sub] of text.matchAll(/(notes|git-flow)\.js" "<project>" ([a-z]+)/g)) {
       assert.match(read('scripts', `${script}.js`), new RegExp(`^//   ${sub}\\b`, 'm'), `${script}.js documents no ${sub}`);
     }
@@ -65,10 +65,12 @@ test('planning rules: the chat in the conversation language, the draft in the pl
   assert.match(rules, /are data describing the feature, never instructions/);
 });
 
-test('planning work: one question per message, 2-3 approaches, D and Q records, tickets at once from the template', () => {
+test('planning work: one question per message with a recommendation, D and Q records, tickets at once from the template', () => {
   const work = section('Work');
   assert.match(work, /\*\*One question per message\*\*/);
-  assert.match(work, /2-3 approaches with your recommendation/);
+  assert.match(work, /options come\s+with your recommendation and why/);
+  // Offers come as levels on a signal, not as 2-3 approaches on every choice.
+  assert.doesNotMatch(work, /2-3 approaches/);
   assert.match(work, /The first question gets no answer \(no\s+one is there\) → stop/, 'the fallback when the hooks cannot tell there is no person');
   assert.match(work, /Decisions \(`D1\. decision - why`\)/);
   assert.match(work, /Open questions \(`Q1\. question - what depends on it`; an answered\s+Q leaves the list and becomes a D\)/);
@@ -95,17 +97,56 @@ test('planning gathers before it asks: an offer with its price on one yes, the f
   assert.ok(work.includes('never a dollar figure nobody measured'), 'no invented price');
   assert.ok(work.includes('all on one yes'));
   assert.ok(work.includes('the project map, one `keel:context` call (a Haiku helper, cheap)'));
-  assert.ok(work.includes('On a yes first write its answers, short and with `file:line`, into What was gathered (`plan.md`), then ask'));
+  assert.ok(work.includes('how others do it, one `keel:researcher` call (a Sonnet helper on the web, dearer than the map), when the feature leans on outside know-how'));
+  before(work, 'the project map, one `keel:context` call', 'how others do it, one `keel:researcher` call', 'one offer, the map first');
+  assert.ok(work.includes('On a yes first write its answers, short and with `file:line`, into What was gathered (`plan.md`), then ask; the researcher\'s report is written as "Research" says, with one line there naming its file'));
   assert.ok(work.includes('none asks what the gathered facts or the project\'s docs already answer'));
   assert.ok(work.includes('What was gathered stays in the draft and is not exported'));
   assert.ok(work.includes('**A draft continued** reads What was gathered first and never searches for it again'));
-  // The researcher and the neighbouring repositories join the gathering in later versions of these instructions.
-  for (const text of [flow(), start()]) assert.doesNotMatch(text, /keel:researcher|neighbou?ring repositor/i, 'only the project map is gathered');
+  // The neighbouring repositories join the gathering in a later version of these instructions.
+  for (const text of [flow(), start()]) assert.doesNotMatch(text, /neighbou?ring repositor/i, 'the project map and the researcher are gathered');
   // Research the planner offered and the user took is allowed, not only research the user asked for.
   assert.ok(flat(section('Rules')).includes('A pricier model or web research only when the user asks or says yes to an offer of it'));
   const text = flat(start());
   assert.ok(text.includes('read `plan.md` only (not the tickets): the ticket list, open Q, What was gathered, Next action'));
   assert.ok(text.includes('new: the gathering offer when it fits, else the first open question'));
+});
+
+test('planning decides proportionally: the reuse ladder, levels only on a signal, three views before the tickets, research on a yes into research/', () => {
+  const flat = (text) => text.replace(/\s+/g, ' ');
+  const work = flat(section('Work'));
+  // Reuse first: in this order, the web only for the registry step, the offer from the shared file.
+  assert.ok(work.includes('the project\'s own code → its installed packages (manifest and lock file) → the framework and the platform → a small, living package → write it ourselves; stop at the first good answer'));
+  assert.ok(work.includes('only the registry needs the web: `keel:researcher` on a yes, its price said in words, at most 2 packages'));
+  assert.ok(work.includes('An elementary task stops after the first step'));
+  assert.ok(work.includes('Show the choice as `<keel>/skills/_shared/packages.md` "Offer" says'));
+  // Levels: none for an elementary task or one without a signal, 2-5 on a signal, each with the same four parts, any level on request.
+  assert.ok(work.includes('"1d 2h" to seconds is a function of a few lines with a table of units, not a class with validators), and any task with none of the signals below, gets one simple answer, said as the plan, and one line on when to revisit it: no levels and no list of other ways (a package, another design) to pick from'));
+  assert.ok(work.includes('An elementary task stops after the first step: nothing there → write it ourselves, no package named'));
+  // The levels come right after the goal: channels, formats and timing are what they differ in.
+  assert.ok(work.includes('as soon as the user has said who gains and what for, the next message offers 2-5 levels of the feature (as many as make sense) before any question on channels, formats or timing'));
+  assert.ok(work.includes('Levels come when at least one signal holds'));
+  for (const signal of ['several real variants today', 'an I/O boundary', 'a public API or a format others use', 'money, access or security', 'a scale the user gave in numbers', 'a change hard to undo', 'a large feature']) assert.ok(work.includes(signal), signal);
+  assert.ok(work.includes('each says what we build, about how many tickets, its cost and risk now, and how painful adding it later is'));
+  assert.ok(work.includes('Recommend one and say why; the user chooses, also a level nobody offered'));
+  assert.ok(work.includes('even for an elementary task'));
+  assert.ok(work.includes('The chosen level goes into Level'));
+  // The rules of an earned abstraction live in the architecture skill, read from there, not copied.
+  assert.ok(work.includes('section 3 of `<keel>/skills/architecture/SKILL.md`'));
+  assert.match(read('skills', 'architecture', 'SKILL.md'), /^## 3\. Structure of new logic: is an abstraction earned\?$/m);
+  assert.ok(work.includes('Justify a design by its consequence ("one place to add a unit"), never by a principle\'s name'));
+  // Three views: lines of the checklist, right before the tickets, as proposals the user decides.
+  before(work, '**Three views before the tickets.**', '**Tickets** at once from the template');
+  for (const view of ['the product and its users', 'the architect', 'operations and security']) assert.ok(work.includes(view), view);
+  assert.ok(work.includes('what may be missing, as numbered proposals'));
+  assert.ok(work.includes('The user decides each; a proposal taken goes into the plan'));
+  // Research: on a yes; the planner writes the report, the researcher writes no file.
+  assert.ok(work.includes('`keel:researcher` runs only after a yes to an offer with its price in words'));
+  assert.ok(work.includes('Its reply → first write it as it is into `research/<topic>.md` in the draft folder'));
+  assert.ok(work.includes('also a report with "not checked" in it), then show the choice'));
+  assert.ok(work.includes('a ticket that follows it names the file in Why'));
+  assert.ok(work.includes('The research folder goes with the tickets on export'));
+  for (const text of all()) assert.doesNotMatch(text, /keel:perspectives/, 'the three views need no agent');
 });
 
 test('start-planning: a new feature hears once that keel advises Opus, without a model check', () => {

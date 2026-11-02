@@ -464,6 +464,54 @@ gitTest('export into the repository: the draft\'s own folder gets the new files 
   assert.deepEqual(fs.readdirSync(path.join(work, 'features')), ['csv-export']);
 });
 
+gitTest('the researcher\'s reports go with the tickets into research/ beside them, on this machine and in the repository; anything else in research/ stops the export; a draft in another repository folder leaves its copy at the commit', () => {
+  const { work } = setup({ remote: false });
+  planning(work, { tickets: 'pc', ticket_prefix: 'PROJ' });
+  const report = '# Push library\r\n\r\n## Question\nWhich one?\n';
+  ready(work, 's3-storage');
+  write(work, `${LOCAL}/s3-storage/research/push-library.md`, report);
+  // A file that is not a report, or a folder, would leave with the draft without a copy.
+  for (const other of ['notes.txt', 'old/a.md']) {
+    write(work, `${LOCAL}/s3-storage/research/${other}`, 'x');
+    const name = other.split('/')[0];
+    assert.deepEqual(run(work, 'export', 's3-storage'), [`plans: export refused (research/${name} is not a report: research/ holds only .md files; move it out; nothing exported, the plan stays ready)`]);
+    fs.rmSync(path.join(work, LOCAL, 's3-storage', 'research', name), { recursive: true });
+  }
+  assert.ok(!exists(work, `${LOCAL}/s3-storage/tickets/PROJ-1-ticket-1.md`) && !exists(work, `${LOCAL}/s3-storage.export-tmp`));
+  // Interrupted: nothing of it is left beside the draft.
+  exportFeature(work, 's3-storage', { stop: (at) => { if (at === 'written') throw new Error('interrupted'); } });
+  assert.ok(!exists(work, `${LOCAL}/s3-storage.export-tmp`));
+  const out = run(work, 'export', 's3-storage');
+  assert.equal(line(out, 'research: '), `research: ${LOCAL}/s3-storage/tickets/research/ (1 reports)`);
+  assert.equal(readRel(work, `${LOCAL}/s3-storage/tickets/research/push-library.md`), report, 'copied as it is');
+  assert.deepEqual(fs.readdirSync(path.join(work, LOCAL, 's3-storage')), ['tickets'], 'the draft\'s own copy went to the trash with it');
+
+  // A draft in the repository whose folder is the feature folder keeps its reports where they are.
+  planning(work, { tickets: 'repo' });
+  run(work, 'settings', 'set', '--draft', 'repo');
+  ready(work, 'csv-export', 1, 'tickets/csv-export');
+  write(work, 'tickets/csv-export/research/csv-format.md', report);
+  assert.equal(line(run(work, 'export', 'csv-export'), 'research: '), 'research: tickets/csv-export/research/ (1 reports)');
+  git(work, 'checkout', '-q', '-b', 'csv-export');
+  run(work, 'commit', 'csv-export');
+  assert.match(git(work, 'show', '--name-status', '--format=', 'HEAD'), /^A\ttickets\/csv-export\/research\/csv-format\.md$/m);
+
+  // A draft in another repository folder: copied at export, the draft's copy leaves with the commit.
+  run(work, 'settings', 'set', '--draft', 'repo', '--draft-dir', 'plans');
+  ready(work, 'pdf-export', 1, 'plans/pdf-export');
+  write(work, 'plans/pdf-export/research/pdf-library.md', report);
+  run(work, 'commit', 'pdf-export');
+  const pdf = run(work, 'export', 'pdf-export');
+  assert.equal(line(pdf, 'research: '), 'research: tickets/pdf-export/research/ (1 reports)');
+  assert.equal(line(pdf, 'draft: '), 'draft: plan.md, reviews/, research/ and T-files leave with the commit (plans.js commit pdf-export)');
+  assert.equal(readRel(work, 'tickets/pdf-export/research/pdf-library.md'), report);
+  run(work, 'commit', 'pdf-export');
+  const files = git(work, 'show', '--name-status', '--no-renames', '--format=', 'HEAD').split('\n');
+  assert.ok(files.includes('A\ttickets/pdf-export/research/pdf-library.md'), files.join('\n'));
+  assert.ok(files.includes('D\tplans/pdf-export/research/pdf-library.md'), files.join('\n'));
+  assert.ok(!exists(work, 'plans/pdf-export'));
+});
+
 // --- commit and push ---
 
 gitTest('commit: refused on main, detached, during a merge, without a draft; a draft commits as "Plan"; an export commits its tickets and the draft leaves in the same commit; other staged changes stay out', () => {

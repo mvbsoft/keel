@@ -88,8 +88,12 @@ test('a planning case resumes the current /keel:start-planning instructions', ()
   for (const name of planning) {
     const text = fs.readFileSync(path.join(EVALS, name, 'history.jsonl'), 'utf8');
     assert.equal(text, CASES[name](), `${name}: history.jsonl is stale: ${refresh}`);
-    const expanded = text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l)).find((r) => r.isMeta && Array.isArray(r.message.content) && /^Base directory for this skill: \/work\/plugins\/keel\/skills\/start-planning\n/.test(r.message.content[0].text));
+    const records = text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+    const expanded = records.find((r) => r.isMeta && Array.isArray(r.message.content) && /^Base directory for this skill: \/work\/plugins\/keel\/skills\/start-planning\n/.test(r.message.content[0].text));
     assert.ok(expanded, `${name}: start-planning expanded in the history`);
+    // A resumed run sees only the history: the planning rules are there as the command read them.
+    const reads = records.filter((r) => r.type === 'assistant').flatMap((r) => r.message.content).filter((b) => b.type === 'tool_use' && b.name === 'Read');
+    assert.ok(reads.some((b) => b.input.file_path === '/work/plugins/keel/skills/_shared/planning.md'), `${name}: the history reads planning.md`);
     assert.match(expanded.message.content[0].text, /^- `<keel>` \(the plugin folder\): `\/work\/plugins\/keel`$/m, name);
     assert.equal(steps(expanded.message.content[0].text), skill, `${name}: the history's start-planning steps are not the command's`);
   }

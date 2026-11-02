@@ -21,8 +21,31 @@ All notable changes to keel are listed here. The format follows
   offer of what to look up, with the price as an estimate, on one yes: the project map, a
   `keel:context` helper on Haiku. Its findings go into `plan.md`, What was gathered, which a continued
   draft reads instead of searching again; the questions after it build on what was found.
+- A new agent, `keel:researcher` (Sonnet, read-only, web): in planning, on a yes to an offer with its
+  price, it reads documentation, package registries (npm, Packagist, deps.dev; GET requests only) and
+  the web, and returns a report with dated data and its sources. The planner writes it into the
+  draft's `research/<topic>.md`; "how others do it" joins the gathering offer.
+- Planning looks for what exists before it plans new code: the project's code, its installed
+  packages, the framework and platform, a small living package, then writing it ourselves. A package
+  choice is shown as a table with size, dependencies, license, releases and known vulnerabilities,
+  each with its source and date, "write it ourselves" always among the options, and a recommendation.
+- Planning designs for today's acceptance criteria: a request for everything at once gets a first
+  working slice, each ticket is a thin slice through the layers it needs, and a new dependency,
+  datastore, protocol, module boundary or public contract comes with an offer of a short ADR.
+- Planning looks at the plan with three views before it writes the tickets (the product and its
+  users, the architect, operations and security) and offers what may be missing; the user decides
+  each.
+- Export takes the draft's `research/` with the tickets, into `research/` beside them, on this
+  machine and in the repository; a file there that is not a `.md` report stops the export.
+- The plan reviewer's `coverage` check also maps the acceptance criteria: each behaviour `plan.md`
+  promises is checked in exactly one ticket.
 
 ### Changed
+- Planning no longer offers 2-3 approaches on every choice. An elementary task, or one with none of
+  the reasons below, gets one simple answer; a feature with a reason for more (several variants today, a database or network, a public
+  API, money, access, security, a stated scale, or simply a large one) gets 2-5 levels, each with what
+  is built, about how many tickets, the cost and risk now and the pain of adding it later. keel
+  recommends one, the user chooses, also a level it did not offer; the choice goes into Level.
 - `/keel:start-planning` says once on a new feature that keel advises Opus for planning; the model
   stays the user's choice. A pricier model or web research also runs after a yes to an offer of it,
   not only when the user asks.

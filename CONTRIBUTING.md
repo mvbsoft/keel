@@ -22,16 +22,17 @@ Claude Code CLI (`claude plugin validate --strict .` checks the marketplace file
 keel's instructions (the retell and the "new?" question, lanes, the end-task menu, the level question
 before any review agent, a recorded verification before a task folder moves, the session note, the
 planning lane: end-planning's modes and gates, ticket states on start-task, a task that turns into
-planning) and the coding standards. 34 of the 35 cases build a small shop project with git (`evals/_fixtures/shop.js`;
+planning, the gathering, the levels and the package comparison in planning) and the coding standards. 37 of the 38 cases build a small shop project with git (`evals/_fixtures/shop.js`;
 `help-lists-every-command` needs none). Each case runs one keel command in Claude Code, or a plain
 request for the two cases tagged `standards`; a case tagged `lanes` may also give a plain request or a
 bare command (`/start-task`), which the lane guards must stop too. Each case grades the reply and the
 tool calls. Every eval run is `claude -p`, where keel refuses `/keel:start-planning` without a person,
 so the planning cases resume a short written conversation instead (`history.jsonl` in the case folder,
-with the fixed session id the fixture marks as planning a feature or working on a task). The two cases
+with the fixed session id the fixture marks as planning a feature or working on a task). The five cases
 tagged `start-planning` resume `/keel:start-planning` as Claude Code expanded it, with keel at
 `/work/plugins/keel` as the Docker command below mounts it, and give the person's next words; a test
-keeps the expanded steps equal to the command's: after a change to `start-planning`, run
+keeps the expanded steps and the planning rules it read (`skills/_shared/planning.md`) equal to the
+current ones: after a change to either, run
 `node plugins/keel/evals/_fixtures/start-planning-history.js` to write them again.
 
 ```bash
@@ -58,6 +59,8 @@ npm run eval
   `--security-opt` flags let the sandbox create its namespaces inside the container.
 - **Not in CI by default**, because it costs money. To add it, run the same command in a job with
   `ANTHROPIC_API_KEY` as a secret, `--json results.json` and a `--threshold`, on a release tag only.
+- `start-planning-compares-packages` reads package registries on the web (WebFetch and WebSearch,
+  granted by `npm run eval`); without network its reply has no data to compare.
 - Results go to `plugins/keel/evals/results/` (ignored by git). A case that resumes `history.jsonl`
   also gets each run's transcript beside it (`<session id>.jsonl`, and a `<session id>/` folder
   when the run calls an agent; both ignored by git too).

@@ -36,8 +36,9 @@ keel runs hooks and Node scripts with your user's rights inside Claude Code. In 
 - **Data that leaves the machine.** Usage data goes only to the usage page you set up (your private
   page, or a team page you approved). Besides that, keel's git steps talk to your remote (autonomous
   mode, or a step you ask for), a task link you give is read with a connector, `gh` or a web fetch, setup lists
-  the plugins of the marketplaces you added, and a price update you ask for reads the official pricing
-  page.
+  the plugins of the marketplaces you added, a price update you ask for reads the official pricing
+  page, and in planning, after your yes, the researcher reads package registries and web pages with
+  package names and general words (never the project's code or paths).
 
 The details, rule by rule: [under the hood: safety](docs/under-the-hood.md#safety), and
 [how keel behaves](docs/behavior.md) for the confirmations. What goes to the usage page:

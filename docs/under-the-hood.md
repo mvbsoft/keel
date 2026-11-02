@@ -50,7 +50,7 @@ project.
 
 ## Agents and models
 
-keel has 16 agents. Read-only agents cannot write; the ones that run code are checked after each run
+keel has 17 agents. Read-only agents cannot write; the ones that run code are checked after each run
 (see [safety](#safety)). The level decides who runs and sometimes on which model:
 [verification](verification.md#the-four-levels).
 
@@ -71,7 +71,8 @@ keel has 16 agents. Read-only agents cannot write; the ones that run code are ch
 | judge | merges the findings into one ranked list, adds none of its own | Sonnet; Opus at Maximum |
 | implementer | does one planned step when the work is delegated | the step's model: Haiku, Sonnet or Opus |
 | ticket-reviewer | in planning: reviews up to 4 tickets (draft or exported) each against a checklist and checks in the code what they rely on | Sonnet |
-| plan-reviewer | in planning: reviews the whole plan once at its final end (coverage, contradictions, order) | Sonnet |
+| plan-reviewer | in planning: reviews the whole plan once at its final end (coverage, with each acceptance criterion in exactly one ticket, contradictions, order) | Sonnet |
+| researcher | in planning, on your yes: reads documentation, package registries and the web (how others do it, which package fits) and returns a report with dated data | Sonnet |
 
 With `allow_opus` off every Opus agent above runs on Sonnet. keel never switches your conversation's model;
 which main model to use: [cost optimization](cost-optimization.md#1-choose-the-main-model).
@@ -203,7 +204,9 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
   web fetch;
   `/keel:configure` runs Claude Code's `claude plugin list --json --available` to look for stack
   plugins in the marketplaces you added; a price update, only when you ask for one, has an agent read
-  the official pricing page.
+  the official pricing page; in planning, only after your yes to its offer, `keel:researcher` reads
+  package registries (npm, deps.dev, Packagist) and web pages, with queries of package names and
+  general words, never the project's code or paths.
 
 Reporting a vulnerability: [SECURITY.md](../SECURITY.md).
 
