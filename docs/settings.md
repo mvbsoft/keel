@@ -171,7 +171,7 @@ the repo") is saved too.
 | Setting | What it does | Values | Default |
 |---|---|---|---|
 | `draft`, `draft_dir` | where a draft lives while you plan; its folder in the repository | `pc` (this machine) or `repo`; a folder | `pc`; `tickets` |
-| `repos` | where the neighbouring repositories are on this machine, by their ticket prefix (`"WEB": "O:/projects/web"`); set with `plans.js settings set --repo WEB=<folder>` | a prefix and an absolute folder each | none |
+| `repos` | where the neighbouring repositories are on this machine, by their ticket prefix (`"WEB": "O:/projects/web"`); set with `plans.js settings set --repo WEB=<folder>`; keel reads the state of their tickets a `depends_on` names there ([Ticket states](workflows.md#ticket-states)) | a prefix and an absolute folder each | none |
 
 Places keel never uses: [export](workflows.md#export). How they are used:
 [ways of working](workflows.md#planning).

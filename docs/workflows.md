@@ -147,7 +147,7 @@ search. For the last two keel fetches first; then it reads the ticket's [state](
 | `to do` or `next` | Reads it, checks its Goal, Acceptance criteria and Where to look against the code, then the usual retell, questions and plan. The task id is the key (`PROJ-104`), the title is the ticket's. |
 | `in progress` or `waiting for ...` | Names the branch, author and date behind it and asks: continue it on that branch, start over, or take another ticket. A waiting ticket is never offered as free; with `stale`: "Nobody touched it for 30 days: treat it as free?" |
 | `reverted` | Explains that the branch was merged once and the merge reverted: merging it again brings nothing back; it needs a revert of that revert, or new commits. |
-| blocked by a dependency | A dependency done only on its ticket branch, or not done in another feature → start from its branch, wait for its merge, or start anyway. One of the same feature not done, or not found → start anyway, or take the next ticket. |
+| blocked by a dependency | A dependency of this repository done only on its ticket branch, or not done in another feature → start from its branch, wait for its merge, or start anyway. One of the same feature not done, or not found → take the next ticket, or start anyway. Another repository's: [Ticket states](#ticket-states). |
 | `done` | Says so; starts it again only on your yes. |
 | `duplicate key` | Warns first: two tickets with this key, naming the files. |
 
@@ -502,6 +502,21 @@ feature merge). Marks after the state: `reverted` (done on a branch merged once,
 line names the branch, author and age behind it. Branches without a commit in 30 days are not read,
 except each ticket's own `branch` and `merge_into`. Tickets on this machine: `done` in the file,
 `in progress` by a task or the note here, else `to do`.
+
+**Dependencies in other repositories.** `depends_on` may name a ticket of another repository by its
+key (`depends_on: [API-121]` in `WEB-14`): a key whose prefix is neither this project's planning
+prefix nor that of a ticket here. keel finds that repository's folder on this machine in the
+[`repos` map](settings.md#planning-settings) and reads the ticket's state there the same way, from
+that folder's git and files, with no network: the state is as of that repository's last fetch, which
+the `depends:` line names (`API-121 waiting for the feature merge (O:/projects/api, server data from
+<date>)`); `--fetch` fetches only this project. It counts as for a ticket here: `done`, or
+`waiting for the feature merge` in a feature of the same name. With no folder for the prefix in the
+map, or a folder that is not on this machine or not a git repository, the dependency is
+`not checked`: a note, never a block, so the ticket can still be `next`, its line marked
+`API-121 not checked`. `plans.js check` and
+`plans.js ticket --depends` look the key up the same way: absent from that repository is a problem,
+`not checked` a `note:` line. `/keel:start-task` with such a dependency not met asks: take the next
+ticket / wait for it / start anyway; one not checked: start anyway / take another ticket.
 
 ### Edit an exported feature
 

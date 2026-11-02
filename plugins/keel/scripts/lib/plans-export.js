@@ -197,16 +197,25 @@ function branchWith(root, feature, now = Date.now()) {
 }
 
 // The keys no ticket file has: not in the feature, on a branch, in the working tree or in this
-// machine's feature folders.
+// machine's feature folders. Another repository's key is looked for only in that repository
+// (lib/plans-neighbours.js), never among the file names here: `where` says where it is missing, `notes`
+// the ones not checked.
 function missingKeys(root, keys, f) {
   const own = new Set(f.list.map((t) => t.fm.key.toUpperCase()));
   const rest = [...new Set(keys)].filter((k) => !own.has(k));
-  const valid = rest.filter((k) => KEY.test(k));
-  if (!valid.length) return rest;
+  const other = require('./plans-neighbours.js').lookUp(root, rest);
+  const local = rest.filter((k) => !other.foreign(k));
+  // Another repository's key is missing only when that repository lacks it; not checked is never missing.
+  const out = (here) => ({ missing: [...here, ...rest.filter((k) => other.missing.has(k))], where: other.missing, notes: other.notes });
+  const valid = local.filter((k) => KEY.test(k));
+  if (!valid.length) return out(local);
   const { taken } = keyCheck(root, valid, f.folder);
   const names = fileNames(keyFolders(root, settings(root))).map((n) => n.toUpperCase());
-  return rest.filter((k) => !KEY.test(k) || (!taken.has(k) && !names.some((n) => n === `${k}.MD` || n.startsWith(`${k}-`))));
+  return out(local.filter((k) => !KEY.test(k) || (!taken.has(k) && !names.some((n) => n === `${k}.MD` || n.startsWith(`${k}-`)))));
 }
+
+// "API-121" or "API-121 in <folder> (<server data>)" for a key missingKeys found missing.
+const missingText = (m, k) => `${clean(k)}${m.where.has(k) ? ` ${m.where.get(k)}` : ''}`;
 
 // plans.js ticket on an exported feature: the next key of the feature's prefix (fetch, the highest
 // anywhere + 1), <KEY>-<slug>.md beside the others with a sibling's feature, branch and merge_into.
@@ -215,8 +224,8 @@ function exportedTicket(root, feature, f, { title, slug, deps }) {
   // The fetch first: a key the dependencies name may be on the remote only.
   const git = fetched(root);
   const depends = deps.map((x) => x.toUpperCase());
-  const unknown = missingKeys(root, depends, f);
-  if (unknown.length) return refuse(what, `--depends: no ticket ${unknown.map((x) => clean(x)).join(', ')}`);
+  const m = missingKeys(root, depends, f);
+  if (m.missing.length) return refuse(what, `--depends: no ticket ${m.missing.map((x) => missingText(m, x)).join(', ')}`);
   const sibling = f.list[0];
   const prefix = prefixOfKey(sibling.fm.key);
   // The folder's own keys too: found by its name, it may be outside the folders highestKey reads, and a
@@ -230,7 +239,7 @@ function exportedTicket(root, feature, f, { title, slug, deps }) {
     merge_into: sibling.fm.merge_into || '-', depends_on: `[${depends.join(', ')}]`,
   });
   try { plans.writeFile(root, { local: f.local }, file, t.text(t.body.replace(/^# .*$/m, () => `# [${key}] ${title}`))); } catch (e) { return refuse(what, e.message); }
-  return [`created: ${rel(root, file)}`, `ticket: ${key}`, ...git.notes];
+  return [`created: ${rel(root, file)}`, `ticket: ${key}`, ...[...m.notes].map(([k, why]) => require('./plans-neighbours.js').noteLine(key, k, why)), ...git.notes];
 }
 
 // plans.js check on an exported feature: each ticket's structure as in a draft, its key, status and
@@ -238,7 +247,9 @@ function exportedTicket(root, feature, f, { title, slug, deps }) {
 function exportedProblems(root, f) {
   const out = [];
   const list = f.list.map((t) => ({ ...t, id: t.fm.key.toUpperCase(), deps: plans.ticketIds(t.fm.depends_on).map((x) => x.toUpperCase()) }));
-  const missing = new Set(missingKeys(root, list.flatMap((t) => t.deps.filter((x) => x !== t.id)), f));
+  const m = missingKeys(root, list.flatMap((t) => t.deps.filter((x) => x !== t.id)), f);
+  const missing = new Set(m.missing);
+  const notes = [];
   const twins = new Map();
   for (const t of list) twins.set(t.id, [...(twins.get(t.id) || []), t.name]);
   for (const [id, names] of twins) if (names.length > 1) out.push(`${id}: duplicate key (${names.length} files: ${names.sort().map((n) => clean(n)).join(', ')})`);
@@ -249,11 +260,12 @@ function exportedProblems(root, f) {
     out.push(...plans.ticketProblems(root, t.id, t.text));
     for (const dep of t.deps) {
       if (dep === t.id) out.push(`${t.id}: depends on itself`);
-      else if (missing.has(dep)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist`);
+      else if (missing.has(dep)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist${m.where.has(dep) ? ` ${m.where.get(dep)}` : ''}`);
+      else if (m.notes.has(dep)) notes.push(require('./plans-neighbours.js').noteLine(t.id, dep, m.notes.get(dep)));
     }
   }
   for (const c of plans.cycles(list.map((t) => ({ id: t.id, fm: { depends_on: t.deps.join(',') } })))) out.push(`dependency cycle: ${c}`);
-  return { out, count: list.length };
+  return { out, count: list.length, notes };
 }
 
 // The researcher's reports of the draft (research/*.md), as they are. Anything else there (a link, a

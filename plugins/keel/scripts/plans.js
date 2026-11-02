@@ -20,7 +20,9 @@
 //   check <feature>                       the structure (lib/plans-format.js): the "# [id] title" heading,
 //                                         sections once and in their order, the Boundaries labels, acceptance criteria as a list, no TBD or <...>,
 //                                         the files Where to look names exist, depends_on valid, no cycles;
-//                                         an exported feature: its tickets, depends_on are keys
+//                                         an exported feature: its tickets, depends_on are keys. Another
+//                                         repository's key (ticket --depends too) is looked up in its
+//                                         folder from the repos map; none there: `note: ... not checked`
 //   review <feature>                      per ticket: never reviewed, changed since review, unchanged
 //   reviewed <feature> <T1> [T2...]       record the tickets' review hashes after their review
 //   state <feature> <draft|ready|exported|abandoned>   move the plan; ready needs a clean check, no open

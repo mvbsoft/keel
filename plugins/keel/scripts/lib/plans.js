@@ -280,8 +280,10 @@ function ticketNew(root, feature, o) {
   const deps = typeof o.depends === 'string' ? ticketIds(o.depends) : [];
   if (ex) return require('./plans-export.js').exportedTicket(root, feature, ex, { title: oneLine(o.title), slug, deps });
   const all = tickets(d);
-  const unknown = deps.filter((x) => !all.some((t) => t.id === x));
-  if (unknown.length) return refuse('ticket', `--depends: no ticket ${unknown.join(', ')}`);
+  const other = otherRepos(root, deps.filter((x) => !all.some((t) => t.id === x)));
+  // Another repository's key is unknown only when that repository lacks it; not checked is never unknown.
+  const unknown = deps.filter((x) => !all.some((t) => t.id === x) && (!other.foreign(x) || other.missing.has(x.toUpperCase())));
+  if (unknown.length) return refuse('ticket', `--depends: no ticket ${unknown.map((x) => `${clean(x, 40)}${other.missing.has(x.toUpperCase()) ? ` ${other.missing.get(x.toUpperCase())}` : ''}`).join(', ')}`);
   // Numbers are never reused: past the highest ever given and the highest file there.
   const n = Math.max(Number(d.fm.last_ticket) || 0, ...all.map((t) => t.n)) + 1;
   const id = `T${n}`;
@@ -291,8 +293,12 @@ function ticketNew(root, feature, o) {
     writeFile(root, d, file, t.text(t.body.replace(/^# .*$/m, () => `# [${id}] ${oneLine(o.title)}`)));
     writePlan(root, d, { last_ticket: n, ...(d.fm.status === 'ready' ? { status: 'draft', ready_hash: '-' } : {}) });
   } catch (e) { return refuse('ticket', e.message); }
-  return [`created: ${rel(root, file)}`, `ticket: ${id}`];
+  return [`created: ${rel(root, file)}`, `ticket: ${id}`, ...[...other.notes].map(([k, why]) => neighbours().noteLine(id, k, why))];
 }
+
+const neighbours = () => require('./plans-neighbours.js');
+// Another repository's keys among a draft's dependencies (lib/plans-neighbours.js).
+const otherRepos = (root, deps) => neighbours().lookUp(root, deps);
 
 // --- the feature branch ---
 
@@ -397,16 +403,22 @@ function problems(root, d) {
   for (const p of placeholders(d.text)) out.push(`plan.md: placeholder ${p}`);
   const list = tickets(d);
   const ids = new Set(list.map((t) => t.id));
+  const other = otherRepos(root, list.flatMap((t) => ticketIds(t.fm.depends_on)).filter((x) => !ids.has(x)));
+  const notes = [];
   for (const t of list) {
     if (t.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(t.fm.id || '')}", the file name says ${t.id}`);
     out.push(...ticketProblems(root, t.id, t.text));
     for (const dep of ticketIds(t.fm.depends_on)) {
+      const k = dep.toUpperCase();
       if (dep === t.id) out.push(`${t.id}: depends on itself`);
-      else if (!ids.has(dep)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist`);
+      else if (ids.has(dep)) continue;
+      else if (!other.foreign(dep)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist`);
+      else if (other.missing.has(k)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist ${other.missing.get(k)}`);
+      else if (other.notes.has(k)) notes.push(neighbours().noteLine(t.id, dep, other.notes.get(k)));
     }
   }
   for (const c of cycles(list)) out.push(`dependency cycle: ${c}`);
-  return { out, count: list.length };
+  return { out, count: list.length, notes };
 }
 
 // A draft: plan.md and its tickets. An exported feature: its tickets, whose depends_on are keys.
@@ -414,17 +426,17 @@ function draftCheck(root, feature) {
   const { d: found, why } = needDraft(root, feature, 'check');
   const ex = exportedHere(root, feature, found);
   if (ex) {
-    const { out, count } = require('./plans-export.js').exportedProblems(root, ex);
-    if (!out.length) return [`check: clean (${count} tickets in ${rel(root, ex.folder)}/)`];
-    return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`)];
+    const { out, count, notes } = require('./plans-export.js').exportedProblems(root, ex);
+    if (!out.length) return [`check: clean (${count} tickets in ${rel(root, ex.folder)}/)`, ...notes];
+    return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`), ...notes];
   }
   if (!found) return why;
   let d;
   try { d = settle(root, found); } catch (e) { return refuse('check', e.message); }
-  const { out, count } = problems(root, d);
+  const { out, count, notes } = problems(root, d);
   const back = d !== found ? ['status: draft (the plan changed after ready)'] : [];
-  if (!out.length) return [`check: clean (plan.md and ${count} tickets)`, ...back];
-  return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`), ...back];
+  if (!out.length) return [`check: clean (plan.md and ${count} tickets)`, ...notes, ...back];
+  return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`), ...notes, ...back];
 }
 
 // --- staleness ---
