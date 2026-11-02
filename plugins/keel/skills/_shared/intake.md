@@ -236,11 +236,20 @@ from git (0 tokens). Each call is `node "<keel>/scripts/plans.js" "<project>" ti
      with `stale` ask "Nobody touched it for 30 days: treat it as free?". `reverted` → say "The branch
      was merged once and that merge was reverted; merging it again brings nothing back: it needs a
      revert of that revert, or new commits.";
-   - a `depends:` ticket `waiting for merge into the feature branch`, or one of another feature that is
-     not done (not `not found`) → ask: start from that ticket's branch / wait for its merge / start
-     anyway;
+   - a `depends:` ticket of this repository `waiting for merge into the feature branch`, or one of
+     another feature that is not done (not `not found`) → ask: start from that ticket's branch / wait
+     for its merge / start anyway;
+   - a `depends:` ticket of another repository (its state is followed by `(<folder>, <server data>)`,
+     read from that folder's git, never fetched) that is not done (not `not found`), and the ticket is
+     not `next` (`next` counts one waiting for the merge of the same feature as met) → say which, its
+     state there and as of when (a fetch in that folder brings it up to date), and ask: take the next
+     ticket / wait for it / start anyway;
+   - a `depends:` ticket `not checked` (its folder is not in the repos map, not on this machine, or not a
+     git repository) →
+     say which and why, and that `plans.js settings set --repo <PREFIX>=<folder>` makes it checked;
+     ask: start anyway / take another ticket;
    - a `depends:` ticket of the same feature `to do` or `in progress`, or any `not found` → say which,
-     and ask: start anyway / take the next ticket. A `not found` may be a finished feature merged
+     and ask: take the next ticket / start anyway. A `not found` may be a finished feature merged
      with squash after its tickets were removed (no ticket file ever reached `merge_into`): say so;
      the user checks its code there;
    - `done` → say so; start it again only on a yes.

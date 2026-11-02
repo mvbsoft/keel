@@ -39,8 +39,19 @@ All notable changes to keel are listed here. The format follows
   machine and in the repository; a file there that is not a `.md` report stops the export.
 - The plan reviewer's `coverage` check also maps the acceptance criteria: each behaviour `plan.md`
   promises is checked in exactly one ticket.
+- `depends_on` takes tickets of other repositories by their key (`API-121` in a `WEB` ticket), in a
+  draft and in exported tickets. keel reads their state in that repository's folder on this machine
+  (the `repos` map) from its git and files, with no network, as of its last fetch, which the
+  `depends:` line of `plans.js tickets <KEY>` names; it counts as for a ticket here. A key absent from
+  that repository (on any of its branches) is a `plans.js check` problem and refuses
+  `plans.js ticket --depends`; with no folder in the map, or a folder not on this machine or not a git
+  repository, the dependency is `not checked`: a `note:` line and a mark on the ticket's line, never a
+  block, so the ticket can still be next.
 
 ### Changed
+- `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,
+  then to start anyway; for another repository's dependency: take the next ticket / wait for it /
+  start anyway, and for one not checked: start anyway / take another ticket.
 - Planning no longer offers 2-3 approaches on every choice. An elementary task, or one with none of
   the reasons below, gets one simple answer; a feature with a reason for more (several variants today, a database or network, a public
   API, money, access, security, a stated scale, or simply a large one) gets 2-5 levels, each with what
