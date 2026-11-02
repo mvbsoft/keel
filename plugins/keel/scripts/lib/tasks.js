@@ -328,6 +328,12 @@ function activeTask(root, sid) {
   return mark && validId(mark.id) ? treeTask(root, mark.id) || findTask(root, mark.id) : null;
 }
 
+// The tasks some session marked active within FRESH_MS whose folder is in this working tree: someone may
+// be working on them now.
+function busyTasks(root, now = Date.now()) {
+  return [...new Set(markers(root).filter((m) => now - m.at < FRESH_MS && validId(m.id) && treeTask(root, m.id)).map((m) => m.id))];
+}
+
 function setMarker(root, sid, id) {
   safeLocalWrite(root, ['active', `${sid}.json`], JSON.stringify({ id }) + '\n');
 }
@@ -631,6 +637,6 @@ function taskInventory(root, id) {
 }
 
 module.exports = {
-  validId, readBlobs, listTasks, treeTasks, findTask, activeTask, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
+  validId, readBlobs, listTasks, treeTasks, findTask, activeTask, busyTasks, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
   taskDelete, taskRestore, taskDrop, taskInventory, sections, setFront, stepCounts, planText, readClosed, dateOf,
 };

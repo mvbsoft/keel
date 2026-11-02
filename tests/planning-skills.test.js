@@ -356,7 +356,7 @@ test('end-planning B: gates, ticket reviews then one plan review, at most 2 roun
   assert.match(b, /A plan already\s+`ready` in `plans\.js list` \(not "changed after ready"\) was reviewed\s+as it is: go straight to Export \(B\.5\)\./);
   before(b, 'go straight to Export (B.5)', '**Gates**');
   // The target and prefix are the team's: /keel:configure asks them, export never does.
-  assert.match(b, /`planning: planning is not set up \.\.\.` → say\s+"Run `\/keel:configure planning` in a new conversation .*" and go to step 7: the plan stays `ready`/s);
+  assert.match(b, /`planning: planning is not set up \.\.\.` → say\s+"Run `\/keel:configure planning` in a new conversation .*" and go to step 7: the plan stays\s+`ready`/s);
   assert.doesNotMatch(b, /settings set|comments\.ticket_prefixes/);
   before(b, '`plans.js settings`', '`plans.js export <f>`');
   assert.match(b, /Ask "Export the\s+<n>\s+tickets now\?"; no → the plan stays `ready`/);
@@ -383,12 +383,12 @@ test('end-planning: the chat mark is cleared in every mode, then the costs, and 
 });
 
 test('every output line the planning instructions quote is printed by plans.js', () => {
-  const scripts = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-settings.js'], ['lib', 'plans-export.js'], ['lib', 'plans-report.js'], ['lib', 'plans-state.js'], ['lib', 'plans-repos.js']];
+  const scripts = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-settings.js'], ['lib', 'plans-export.js'], ['lib', 'plans-export-repos.js'], ['lib', 'plans-report.js'], ['lib', 'plans-state.js'], ['lib', 'plans-repos.js']];
   const source = scripts.map((p) => (fs.existsSync(path.join(PLUGIN, 'scripts', ...p)) ? read('scripts', ...p) : '')).join('\n');
   const text = all().join('\n');
   const lines = ['settings: none yet', 'find: 1 match', 'find: no match', 'planning: none', 'check: clean', 'report: ok ·', 'report: failed',
     'exported:', 'readme:', 'committed:', 'commit: nothing to commit', 'renumbered:', 'pushed:', 'push: no remote, nothing pushed', 'branch:', 'merge_into:',
-    'created:', 'ticket:'];
+    'created:', 'ticket:', 'not ready:', 'overview:', 'retry:'];
   for (const line of lines) {
     assert.ok(text.includes('`' + line), `the instructions do not quote ${line}`);
     assert.ok(source.includes(line), `plans.js no longer prints "${line}"`);
@@ -435,7 +435,28 @@ test('several repositories: a repository not here gets 4 options and stubs; one 
   assert.match(several, /Design sketch gets one `### <PREFIX>` part per\s+repository of `repos:`/);
   assert.match(several, /`\/add-dir <folder>` lets this conversation read it\s+without asking; never change settings without a yes/);
   assert.match(several, /offer to turn its stubs into tickets/);
-  assert.match(several, /`plans\.js export` refuses a plan that names other repositories/);
+  assert.doesNotMatch(several, /refuses a plan that names other repositories/);
+});
+
+test('several repositories: export into each repository; a repository not ready gets its answers; commit and push once per repository', () => {
+  const several = section('Several repositories');
+  before(several, '`plans.js repos` once more first', '`plans.js export <f>` puts each');
+  assert.match(several, /`git -C "<folder>" switch \.\.\.` → "Create \(or switch to\) `<branch>` in <repository>\?"; yes → run\s+exactly that command/);
+  // The mark is cleared at the end of end-planning, so the way back starts with start-planning.
+  assert.match(several, /"wait, I prepare it" → the\s+plan stays `ready`; later `\/keel:start-planning <f>`, then `\/keel:end-planning`/);
+  assert.match(several, /only for a\s+line with `\(or --as-is <PREFIX>: \.\.\.\)`: do as is → `plans\.js export <f> --as-is "<PREFIX>,<PREFIX>"`/);
+  assert.match(several, /Never commit, stash or end a task in another repository/);
+  assert.match(several, /is in repos but has no ticket` → offer a ticket for it, or `plans\.js set <f> --repos`/);
+  const git = section('Commit and push');
+  assert.match(git, /one question for all \("Commit the planning files in <API, WEB>\?"\),\s+then Claude Code asks once per repository/);
+  before(git, '`plans.js commit <f>` here first', '`plans.js commit <f> --repo');
+  assert.match(git, /a failed push does not stop the others: at\s+the end name each one with its `retry:` command \(a network or access failure\), or with its refusal\s+\(behind, a protected branch: what to do first\)/);
+  const exported = section('Exported feature');
+  assert.match(exported, /`--repo <PREFIX>`\s+for another repository of its overview/);
+  assert.match(exported, /offers the commit and push of every repository\s+it changed/);
+  const b = end().slice(end().indexOf('**B. Final.**'), end().indexOf('**Always**'));
+  assert.doesNotMatch(b, /`\/keel:end-planning` again|for the next end-planning/);
+  assert.match(b, /`not ready:` lines → planning\.md\s+"Several repositories" item 8/);
 });
 
 test('several repositories: the neighbours are always in the gathering offer; reviewers get each repository\'s folder', () => {

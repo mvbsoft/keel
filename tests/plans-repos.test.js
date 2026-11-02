@@ -297,7 +297,7 @@ gitTest('set --repos: this project first, each other one from the repos map on t
   assert.match(run(admin, 'set', FEATURE, '--repos', 'WEB')[0], /--repos: this project has no planning prefix: \/keel:configure planning\)$/);
 });
 
-gitTest('ticket --repo: another repository of the plan gets repo:, this project none; never on an exported feature', () => {
+gitTest('ticket --repo: another repository of the plan gets repo:, this project none; on an exported feature only a repository of its overview', () => {
   const { api } = world();
   run(api, 'new', FEATURE);
   run(api, 'set', FEATURE, '--repos', 'WEB');
@@ -310,7 +310,7 @@ gitTest('ticket --repo: another repository of the plan gets repo:, this project 
   assert.match(run(api, 'ticket', FEATURE, '--title', 'Phone', '--repo')[0], /refused \(--repo needs a ticket prefix: --repo WEB\)$/);
   // An exported feature's folder in the repository.
   write(api, 'tickets/early-work/API-1-early.md', '---\ntype: ticket\nkey: API-1\nstatus: todo\nfeature: early-work\nbranch: early-work\nmerge_into: main\ndepends_on: []\n---\n\n# [API-1] Early\n');
-  assert.equal(run(api, 'ticket', 'early-work', '--title', 'Late', '--repo', 'WEB')[0], 'plans: ticket refused (--repo works on a draft only)');
+  assert.equal(run(api, 'ticket', 'early-work', '--title', 'Late', '--repo', 'WEB')[0], "plans: ticket refused (--repo: WEB is not a repository of early-work's overview (a feature on one repository))");
 });
 
 gitTest('check: another repository\'s ticket is looked up in its folder; no folder is a note; repo and repos are checked', () => {
@@ -366,7 +366,7 @@ gitTest('stale: another repository\'s tickets against its own commit in its fold
   assert.deepEqual(run(api, 'stale', FEATURE), ['stale: unknown (no after_commit)', `stale (WEB): not checked (no commit recorded for WEB: plans.js set ${FEATURE} --after-commit)`]);
 });
 
-gitTest('review names another repository\'s folder; export refuses a feature on several repositories', () => {
+gitTest('review names another repository\'s folder; export waits for another repository that is not ready', () => {
   const w = world();
   const { tmp, api, web } = w;
   draft(w);
@@ -385,6 +385,7 @@ gitTest('review names another repository\'s folder; export refuses a feature on 
 
   run(api, 'reviewed', FEATURE, 'T1', 'T2');
   assert.deepEqual(run(api, 'state', FEATURE, 'ready'), ['status: ready']);
-  assert.equal(run(api, 'export', FEATURE)[0], 'plans: export refused (the plan names other repositories (WEB): a feature on several repositories is not exported yet; the plan stays ready)');
+  // web is on its main branch (tests/plans-export-repos.test.js exports into a ready one).
+  assert.equal(run(api, 'export', FEATURE)[0], 'plans: export refused (not ready: WEB; nothing exported, the plan stays ready)');
   assert.ok(!fs.existsSync(path.join(api, 'tickets', FEATURE)), 'nothing exported');
 });

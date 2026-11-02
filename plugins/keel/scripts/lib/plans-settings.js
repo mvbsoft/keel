@@ -129,4 +129,4 @@ function exportDir(root, s = settings(root)) {
   return badFolder(root, s.tickets_dir) ? null : path.join(root, s.tickets_dir);
 }
 
-module.exports = { base, badFolder, settings, setUp, notSetUp, settingsShow, settingsSet, exportDir, PREFIX };
+module.exports = { base, settingsFile, badFolder, settings, setUp, notSetUp, settingsShow, settingsSet, exportDir, PREFIX };

@@ -429,6 +429,48 @@ test('PowerShell reads the en dash, em dash and horizontal bar as a dash too, an
   assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find -a: x`, 'Bash', env), 'allow', 'Bash: -a:');
 });
 
+test('plans.js commit and push name their repository: the project, or --repo\'s folder from the project\'s repos map; never another project', () => {
+  const proj = project({ mode: 'autonomous' });
+  fs.mkdirSync(path.join(proj, '.keel', 'local', 'plans', 'keel'), { recursive: true });
+  fs.writeFileSync(path.join(proj, '.keel', 'local', 'plans', 'keel', 'settings.json'), JSON.stringify({ repos: { WEB: '/work/web' } }));
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  const reason = (args, tool) => hook(tool, { command: `node "${SCRIPTS}/plans.js" "${proj}" ${args}` }, env);
+  for (const tool of ['Bash', 'PowerShell']) {
+    let out = reason('commit csv-export', tool);
+    assert.equal(out?.permissionDecision, 'ask', tool);
+    assert.equal(out.permissionDecisionReason, `keel: commit the planning files in ${proj}?`, tool);
+    out = reason('commit csv-export --repo WEB', tool);
+    assert.equal(out?.permissionDecision, 'ask', tool);
+    assert.equal(out.permissionDecisionReason, 'keel: commit the planning files in WEB (/work/web)?', tool);
+    out = reason('push csv-export --repo web', tool);
+    assert.equal(out.permissionDecisionReason, 'keel: push the branch with the planning files of WEB (/work/web) to the remote?', tool);
+    assert.equal(reason('push csv-export --repo MOB', tool).permissionDecisionReason, 'keel: push the branch with the planning files of MOB (no folder in the repos map) to the remote?', tool);
+    // The other repository is reached only through this project: named directly, it is refused.
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "/work/web" commit csv-export`, tool, env), 'deny', tool);
+  }
+});
+
+test('plans.js commit --repo with this project\'s own prefix names the project, as the script runs there', () => {
+  const proj = project({ mode: 'autonomous' });
+  fs.writeFileSync(path.join(proj, '.keel', 'config.json'), JSON.stringify({
+    schema_version: 1,
+    repo_language: 'en',
+    gates: { checks: [], security_scanners: [] },
+    git: { mode: 'autonomous', main_branch: 'main', ask_before_merge: true, state_in_git: true },
+    verification: {
+      tier_rules: { gates_only_max_files: 1, basic_max_modules: 1, large_change_lines: 400, very_large_change_lines: 1000 },
+      verifier_caps: { basic: 3, standard: 5, maximum: 8 },
+    },
+    architecture: { file_lines_warn: 700, file_lines_max: 1000 },
+    docs: { profile: 1, pattern: 'none' },
+    planning: { ticket_prefix: 'API', tickets: 'repo' },
+  }));
+  fs.mkdirSync(path.join(proj, '.keel', 'local', 'plans', 'keel'), { recursive: true });
+  fs.writeFileSync(path.join(proj, '.keel', 'local', 'plans', 'keel', 'settings.json'), JSON.stringify({ repos: { API: '/work/elsewhere' } }));
+  const out = hook('Bash', { command: `node "${SCRIPTS}/plans.js" "${proj}" commit csv-export --repo api` }, { CLAUDE_PROJECT_DIR: proj });
+  assert.equal(out.permissionDecisionReason, `keel: commit the planning files in ${proj}?`);
+});
+
 test('plans.js commit or push anywhere in its command is never silent: refused off the current project, asked on it', () => {
   const proj = project({ mode: 'autonomous' });
   const env = { CLAUDE_PROJECT_DIR: proj };

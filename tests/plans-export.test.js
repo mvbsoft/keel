@@ -10,7 +10,8 @@ const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
-const { exportFeature, highestKey } = require(path.join(SCRIPTS, 'lib', 'plans-export.js'));
+const { highestKey } = require(path.join(SCRIPTS, 'lib', 'plans-export.js'));
+const { exportFeature } = require(path.join(SCRIPTS, 'lib', 'plans-export-repos.js'));
 const plans = require(path.join(SCRIPTS, 'lib', 'plans.js'));
 const { repoName } = require(path.join(SCRIPTS, 'lib', 'plans-format.js'));
 
@@ -763,7 +764,8 @@ gitTest('ticket on an exported feature: the next key after a fetch, beside the o
   assert.deepEqual(run(work, 'push', 's3-storage'), ['pushed: s3-storage -> origin/s3-storage']);
   // A colleague took PROJ-7 on a branch this clone has not fetched yet.
   otherPush(server, tmp, 'payments', 'tickets/payments/PROJ-7-pay.md', '---\ntype: ticket\nkey: PROJ-7\n---\n');
-  assert.deepEqual(run(work, 'ticket', 's3-storage', '--title', 'Delete files', '--depends', 'proj-2,PROJ-7'), ['created: tickets/s3-storage/PROJ-8-delete-files.md', 'ticket: PROJ-8']);
+  assert.deepEqual(run(work, 'ticket', 's3-storage', '--title', 'Delete files', '--depends', 'proj-2,PROJ-7'), ['created: tickets/s3-storage/PROJ-8-delete-files.md', 'ticket: PROJ-8', 'overview: tickets/s3-storage/README.md']);
+  assert.match(readRel(work, 'tickets/s3-storage/README.md'), /^- PROJ-8 Delete files \(\S+\)$/m, 'the overview names the later ticket');
   const t = readRel(work, 'tickets/s3-storage/PROJ-8-delete-files.md');
   assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-8\nstatus: todo\nfeature: s3-storage\nbranch: s3-storage\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-7]\n---\n\n# [PROJ-8] Delete files\n'), t);
   assert.deepEqual(run(work, 'ticket', 's3-storage', '--title', 'X', '--depends', 'PROJ-70'), ['plans: ticket refused (--depends: no ticket PROJ-70)']);
@@ -775,7 +777,7 @@ gitTest('ticket on an exported feature: the next key after a fetch, beside the o
   front(work, 'tickets/s3-storage/PROJ-8-delete-files.md', 'depends_on', '[PROJ-2]');
   const out = run(work, 'commit', 's3-storage');
   assert.match(out[0], /^committed: [0-9a-f]{7,} Update the s3-storage tickets$/, 'HEAD already has the feature\'s tickets');
-  assert.equal(git(work, 'show', '--name-status', '--format=', 'HEAD'), 'A\ttickets/s3-storage/PROJ-8-delete-files.md');
+  assert.equal(git(work, 'show', '--name-status', '--format=', 'HEAD'), 'A\ttickets/s3-storage/PROJ-8-delete-files.md\nM\ttickets/s3-storage/README.md');
   assert.deepEqual(run(work, 'push', 's3-storage'), ['pushed: s3-storage -> origin/s3-storage']);
   assert.equal(git(server, 'rev-parse', 'refs/heads/s3-storage'), git(work, 'rev-parse', 'HEAD'));
 });
@@ -828,8 +830,8 @@ gitTest('a teammate\'s clone with no planning settings finds the exported featur
   assert.equal(guard(mate, 'chat-1', 'features/s3-storage/PROJ-3-x.md'), 'allow', 'the folder recorded in the mark');
   assert.equal(guard(mate, 'chat-1', 'features/payments/PROJ-9-x.md'), 'deny');
   assert.equal(guard(mate, 'chat-1', 'src/app.js'), 'deny');
-  assert.deepEqual(run(mate, 'ticket', 's3-storage', '--title', 'Delete files'), ['created: features/s3-storage/PROJ-3-delete-files.md', 'ticket: PROJ-3'], 'the feature\'s own prefix; none is set here');
-  assert.deepEqual(run(mate, 'ticket', 's3-storage', '--title', 'Rename files'), ['created: features/s3-storage/PROJ-4-rename-files.md', 'ticket: PROJ-4'], 'the folder\'s uncommitted PROJ-3 counts');
+  assert.deepEqual(run(mate, 'ticket', 's3-storage', '--title', 'Delete files'), ['created: features/s3-storage/PROJ-3-delete-files.md', 'ticket: PROJ-3', 'overview: features/s3-storage/README.md'], 'the feature\'s own prefix; none is set here');
+  assert.deepEqual(run(mate, 'ticket', 's3-storage', '--title', 'Rename files'), ['created: features/s3-storage/PROJ-4-rename-files.md', 'ticket: PROJ-4', 'overview: features/s3-storage/README.md'], 'the folder\'s uncommitted PROJ-3 counts');
   body(mate, 'features/s3-storage/PROJ-3-delete-files.md', TICKET_BODY('PROJ-3'));
   body(mate, 'features/s3-storage/PROJ-4-rename-files.md', TICKET_BODY('PROJ-4'));
   assert.deepEqual(run(mate, 'check', 's3-storage'), ['check: clean (4 tickets in features/s3-storage/)']);
@@ -837,7 +839,7 @@ gitTest('a teammate\'s clone with no planning settings finds the exported featur
   assert.deepEqual(run(mate, 'check', 's3-storage'), ['check: 1 problems', '- PROJ-4: duplicate key (2 files: PROJ-4-copy.md, PROJ-4-rename-files.md)']);
   fs.rmSync(path.join(mate, 'features', 's3-storage', 'PROJ-4-copy.md'));
   assert.match(run(mate, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Update the s3-storage tickets$/);
-  assert.deepEqual(git(mate, 'show', '--name-status', '--format=', 'HEAD').split('\n'), ['A\tfeatures/s3-storage/PROJ-3-delete-files.md', 'A\tfeatures/s3-storage/PROJ-4-rename-files.md']);
+  assert.deepEqual(git(mate, 'show', '--name-status', '--format=', 'HEAD').split('\n'), ['A\tfeatures/s3-storage/PROJ-3-delete-files.md', 'A\tfeatures/s3-storage/PROJ-4-rename-files.md', 'M\tfeatures/s3-storage/README.md']);
   assert.deepEqual(run(mate, 'push', 's3-storage'), ['pushed: s3-storage -> origin/s3-storage']);
 
   // The folder removed by hand: only HEAD's commit has it, so no branch is named.

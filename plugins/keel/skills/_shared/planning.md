@@ -148,8 +148,20 @@ others read). This one conversation plans all of it; each ticket is for one repo
    repository of `repos:`. `plans.js check` looks for another repository's Where to look in its
    folder: `note: <T>: Where to look not checked (<why>)` → say why. A draft continued: a stub's
    repository is now in `plans.js repos` → offer to turn its stubs into tickets.
-8. **Export.** `plans.js export` refuses a plan that names other repositories for now (`the plan names
-   other repositories (<PREFIX>)`): say so; the plan stays `ready`.
+8. **Export.** `plans.js repos` once more first: a stub's repository is listed now → offer its stubs as
+   tickets before the export. `plans.js export <f>` puts each repository's tickets into that
+   repository's feature folder, by its own planning settings and keys, and the same overview in each;
+   all or nothing. Its `exported:` lines come once per repository; say each `note: <PREFIX>: ...`.
+   - `plans: export refused (not ready: <PREFIX>, ...)` and a `not ready: <PREFIX> (<folder>): <why>`
+     line per problem → nothing is written, the plan stays `ready`. Say the lines, then ask for each
+     repository: (1) it is on its main branch with a clean tree and the line names
+     `git -C "<folder>" switch ...` → "Create (or switch to) `<branch>` in <repository>?"; yes → run
+     exactly that command (Claude Code may ask), then export again; (2) "wait, I prepare it" → the
+     plan stays `ready`; later `/keel:start-planning <f>`, then `/keel:end-planning`; (3) only for a
+     line with `(or --as-is <PREFIX>: ...)`: do as is → `plans.js export <f> --as-is "<PREFIX>,<PREFIX>"`
+     (quoted); (4) other: what the user says. Never commit, stash or end a task in another repository.
+   - `<PREFIX> is in repos but has no ticket` → offer a ticket for it, or `plans.js set <f> --repos`
+     without it.
 
 ## Exported feature
 Its tickets live in the feature folder; work there continues while others may already build them.
@@ -168,8 +180,12 @@ Its tickets live in the feature folder; work there continues while others may al
    as it is; name whom it concerns (the branch and author of its hint).
 5. A new ticket: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "K1,K2"]` →
    `created: <path>` and `ticket: <KEY>` (the next key shared across the repository); fill it as
-   "Work" says, then step 3's check and review.
-6. Done → `/keel:end-planning` checks the folder and offers the commit and push.
+   "Work" says, then step 3's check and review. A feature on several repositories: `--repo <PREFIX>`
+   for another repository of its overview puts the ticket in that repository's feature folder with
+   its next key; `overview:` lines name each overview that got its line, `note: <PREFIX>: its
+   overview is not updated (<why>)` → say it.
+6. Done → `/keel:end-planning` checks the folder and offers the commit and push of every repository
+   it changed.
 
 ## Project rules
 Grep `AGENTS.md`, `CLAUDE.md` and `CONTRIBUTING.md` for tickets, backlog, plans and branch names. A
@@ -208,6 +224,13 @@ files?"; yes → say "Claude Code will now ask you to allow it." (keel's hook as
 on its own; yes → the same line, then `plans.js push <f>`: `pushed: <branch> -> <remote>/<branch>` or `push: no remote, nothing pushed`.
 A declined question or "Allow?" window is the user's no: never run it again or another way; say
 what stays uncommitted or unpushed.
+A feature on several repositories: one question for all ("Commit the planning files in <API, WEB>?"),
+then Claude Code asks once per repository, naming it: `plans.js commit <f>` here first (it checks the
+keys in every repository and renumbers taken ones in all of them), then `plans.js commit <f> --repo
+<PREFIX>` for each other repository whose tickets are in its repository. Push the same way, one
+question, then `plans.js push <f> [--repo <PREFIX>]` each; a failed push does not stop the others: at
+the end name each one with its `retry:` command (a network or access failure), or with its refusal
+(behind, a protected branch: what to do first).
 
 ## Reviews
 1. `plans.js check <f>` first: `check: <n> problems` → fix them (or record why not as a Q); no reviewer

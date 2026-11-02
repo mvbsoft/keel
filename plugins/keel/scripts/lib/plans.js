@@ -281,11 +281,10 @@ function ticketNew(root, feature, o) {
   const slug = slugOf(typeof o.slug === 'string' ? o.slug : o.title);
   if (!slug) return refuse('ticket', 'the title has no English words for the file name: add --slug <english-words>');
   const deps = typeof o.depends === 'string' ? ticketIds(o.depends) : [];
-  if (ex && o.repo !== undefined) return refuse('ticket', '--repo works on a draft only');
-  if (ex) return require('./plans-export.js').exportedTicket(root, feature, ex, { title: oneLine(o.title), slug, deps });
+  if (o.repo !== undefined && (typeof o.repo !== 'string' || !o.repo.trim())) return refuse('ticket', '--repo needs a ticket prefix: --repo WEB');
+  if (ex) return require('./plans-export.js').exportedTicket(root, feature, ex, { title: oneLine(o.title), slug, deps, repo: o.repo });
   let repo = null;
   if (o.repo !== undefined) {
-    if (typeof o.repo !== 'string' || !o.repo.trim()) return refuse('ticket', '--repo needs a ticket prefix: --repo WEB');
     const asked = o.repo.trim().toUpperCase();
     const own = settings(root).ticket_prefix;
     if (asked !== own && !repos().planRepos(d.fm).includes(asked)) return refuse('ticket', `--repo: ${clean(asked, 20)} is not in the plan's repos (plans.js set ${feature} --repos ...)`);
