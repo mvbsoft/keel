@@ -378,9 +378,8 @@ is out, and checks in the code that what the feature relies on is there. Then:
   stash them first; the feature's branch exists → "Switch to it?"; a task active in another
   conversation → the draft on this machine for now, another copy (`git worktree add`), or your risk.
 
-**The work.** One question per message, answerable in a line; a design choice comes with 2-3
-approaches and a recommendation. keel keeps `plan.md` true as you go: In plain words (the whole
-feature for a person), Level, Decisions (`D1. decision - why`), Contract, Out of scope, Design sketch,
+**The work.** One question per message, answerable in a line; options come with a recommendation.
+keel keeps `plan.md` true as you go: In plain words (the whole feature for a person), Level, Decisions (`D1. decision - why`), Contract, Out of scope, Design sketch,
 Terms, What was gathered, Open questions (`Q1. question - what depends on it`; an answered Q becomes a
 D), Tickets, Stubs (may go), Next action. Tickets are written at once, their sections always in this
 order: In plain words (the whole task in plain words, without code or paths, as long as it needs),
@@ -395,13 +394,34 @@ yes to an offer of it.
 **Gathering before the questions.** When the feature is told in a line or two, or is large, keel first
 offers what to look up, with the price said as an estimate, all on one yes: the project map, a helper
 on Haiku (cheap) that finds where the feature meets the code: the stack, the modules and data it
-touches, what it can reuse. Take all, some or none (then the questions start at once). What it finds
-goes into `plan.md`, What was gathered, short and with `file:line`; the questions after it are
+touches, what it can reuse; and, when the feature leans on outside know-how (a library, a protocol, an
+outside service), how others do it: the researcher, a helper on Sonnet that reads the web (dearer).
+Take all, some or none (then the questions start at once). What it finds goes into `plan.md`, What
+was gathered, short and with `file:line`; the questions after it are
 concrete ("`chat/` already has a WebSocket: send through it, or a channel of its own?"), and none asks
 what the gathered facts or the project's docs already answer. The next conversation on the draft
 reads that section instead of searching again. The facts the tickets need go into their Where to look
 and Boundaries, the conclusions into Decisions; What was gathered is not exported and goes to the
 trash with the draft.
+
+**Decisions.** Before planning new code keel looks for what exists, in this order, and stops at the
+first good answer: the project's code, its installed packages, the framework and the platform, a small
+living package, then writing it ourselves. The first three are searches in files; for a package keel
+offers the researcher on your yes, which reads registries (npm, Packagist, deps.dev) for at most 2
+packages, and shows a table: size, dependencies, license, releases, known vulnerabilities, each with
+its source and date, "write it ourselves" always among them, and a recommendation. An elementary task
+("1d 2h" to seconds) gets one simple answer: a short function, no levels; so does a task with none of
+the reasons below. A feature with a reason for
+more (several variants today, a database or network, a public API, money, access, security, a scale
+you gave in numbers, or simply a large feature) gets 2-5 levels, each with what is built, about how
+many tickets, the cost and risk now and how painful adding it later is; keel recommends one, you
+choose, and you can ask for any level it did not offer. The level goes into Level. The design fits
+today's acceptance criteria: a request for everything at once gets a first working slice to grow,
+each ticket is a thin slice through the layers it needs, and a new dependency, datastore, protocol,
+module boundary or public contract comes with an offer of a short ADR. Before writing the
+tickets keel looks at the plan as three colleagues would (the product and its users, the architect,
+operations and security) and offers what may be missing; you decide each. A research report goes into
+the draft's `research/<topic>.md`, and a ticket that follows it names it.
 
 **Abandon a draft**: say so in the planning conversation; after your yes the plan is `abandoned`. A
 draft on this machine goes to keel's trash (`/keel:cleanup` restores it); one in the repository stays
@@ -420,7 +440,8 @@ once and in its order, headings inside code blocks being text, the three Boundar
 dependencies without cycles; style is the ticket reviewer's advice and never blocks), and a decision for every finding; else keel
 shows what blocks and offers to hand over. 2) Ticket reviews of the tickets not reviewed as they are
 (`keel:ticket-reviewer`, up to 4 tickets per call), then one review of the whole plan
-(`keel:plan-reviewer`), both on Sonnet. You decide each finding: fix, defer to a Q, or reject with a
+(`keel:plan-reviewer`, which also checks that each behaviour the plan promises is an acceptance
+criterion of exactly one ticket), both on Sonnet. You decide each finding: fix, defer to a Q, or reject with a
 reason; decisions go into `reviews/` and are not raised again. Fixed tickets are reviewed again, at
 most 2 rounds per `/keel:end-planning`; a failed review is named as failed, never as "no findings".
 3) The plan becomes `ready` (any later change makes it a draft again), then "Export the <n> tickets
@@ -456,8 +477,8 @@ Every end, also after a no, frees the conversation from planning. The report: **
   `feature`, `branch`, `merge_into`, `depends_on`) and, from 2 tickets, a `README.md` overview: the
   plan's In plain words, Level, Decisions, Contract, Out of scope, Terms and Stubs that have text, and a
   Tickets list keel builds (each ticket's key, title and repository, the last part of the remote's URL
-  or else the project folder's name; no states, each ticket carries its own). A draft
-  on this machine goes to keel's trash; one in the repository leaves with the commit of the tickets.
+  or else the project folder's name; no states, each ticket carries its own), and the research
+  reports in `research/`. A draft on this machine goes to keel's trash; one in the repository leaves with the commit of the tickets.
 - **Git**: "Commit the planning files?", then "Push `<branch>`?", each on its own, and Claude Code asks
   too, every time. Never on the main branch; planning never opens a pull request.
 
@@ -600,9 +621,9 @@ Rules:
 | `.keel/next-session.md`, `.keel/memory/`, `.keel/sessions/` | the session note, project memory and session logs | yes (`git.state_in_git`) |
 | `.keel/local/trash/<batch>/` | the folders of finished and dropped tasks; exported, abandoned and dropped planning folders | no, this machine only |
 | `.keel/local/plans/claude/` | Claude Code's Plan Mode plans (the `plansDirectory` keel recommends) | no, this machine only |
-| `.keel/local/plans/keel/<feature>/` | a planning draft on this machine: `plan.md`, `tickets/T<n>-<slug>.md`, `reviews/`; after an export to this machine, its `tickets/` holds the exported tickets | no, this machine only |
+| `.keel/local/plans/keel/<feature>/` | a planning draft on this machine: `plan.md`, `tickets/T<n>-<slug>.md`, `reviews/`, `research/` (the researcher's reports); after an export to this machine, its `tickets/` holds the exported tickets and their `research/` | no, this machine only |
 | `.keel/local/plans/keel/sessions/`, `settings.json`, `samples/` | which conversation plans which feature; this machine's planning settings (where drafts live, where neighbouring repositories are); the ticket reviewers' inputs and replies, kept to compare models later | no, this machine only |
-| `tickets/<feature>/` (or the folder you chose) | a planning draft in the repository, and the feature folder: `<KEY>-<slug>.md` tickets and, from 2 tickets, `README.md` | yes, on the feature branch, after your yes |
+| `tickets/<feature>/` (or the folder you chose) | a planning draft in the repository, and the feature folder: `<KEY>-<slug>.md` tickets, from 2 tickets `README.md`, and the reports in `research/` | yes, on the feature branch, after your yes |
 
 - **The task folder lives on the task branch.** It is created after the branch, and a finish removes
   it before the last commit, so the main branch's files never hold it (in manual git, as long as you

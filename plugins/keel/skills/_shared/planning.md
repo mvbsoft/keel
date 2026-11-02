@@ -23,22 +23,62 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   nothing (the user may do it). Planning never opens or offers a pull request.
 
 ## Work
-- **One question per message** (AskUserQuestion when it exists), answerable in a line. A design
-  choice → 2-3 approaches with your recommendation and why. The first question gets no answer (no
-  one is there) → stop: planning is a conversation with a person.
+- **One question per message** (AskUserQuestion when it exists), answerable in a line; options come
+  with your recommendation and why. The first question gets no answer (no one is there) → stop:
+  planning is a conversation with a person.
 - **Gather before the questions.** A new feature told in a line or two, or one sized large → before
   its first question, one message offers what to look up first, each item with its price said as an
   estimate (in words and the helper's model, such as "cheap: a Haiku helper"; never a dollar figure
   nobody measured), all on one yes (the user may take only some, or none: then the questions at
   once): the project map, one `keel:context` call (a Haiku helper, cheap) with numbered questions on
-  where the feature meets the code (the stack, the modules and data it touches, what it can reuse).
+  where the feature meets the code (the stack, the modules and data it touches, what it can reuse);
+  how others do it, one `keel:researcher` call (a Sonnet helper on the web, dearer than the map), when
+  the feature leans on outside know-how (a library, a protocol, an outside service, a known pattern).
   On a yes first write its answers, short and with `file:line`, into What was gathered (`plan.md`),
-  then ask. Each question then builds on what was found ("chat/ already has a WebSocket: send through it, or a channel of its
+  then ask; the researcher's report is written as "Research" says, with one line there naming its
+  file. Each question then builds on what was found ("chat/ already has a WebSocket: send through it, or a channel of its
   own?"), and none asks what the gathered facts or the project's docs already answer. The facts a
   ticket needs go into its Where to look and Boundaries, the conclusions into Decisions: What was
   gathered stays in the draft and is not exported.
 - **A draft continued** reads What was gathered first and never searches for it again; a fact it
   lacks → look it up and add it there.
+- **Reuse first.** Before planning new code for a capability: the project's own code → its installed
+  packages (manifest and lock file) → the framework and the platform → a small, living package →
+  write it ourselves; stop at the first good answer. The first three are searches in files; only the
+  registry needs the web: `keel:researcher` on a yes, its price said in words, at most 2 packages.
+  An elementary task stops after the first step: nothing there → write it ourselves, no package
+  named. Show the choice as `<keel>/skills/_shared/packages.md`
+  "Offer" says (read only that section).
+- **Levels.** An elementary task or choice (a closed set of cases, variation only by parameters, a
+  one-shot transform, imagined variants: "1d 2h" to seconds is a function of a few lines with a table
+  of units, not a class with validators), and any task with none of the signals below, gets one
+  simple answer, said as the plan, and one line on when to revisit it: no levels and no list of other
+  ways (a package, another design) to pick from; a question may still follow on how it behaves
+  (limits, errors). Otherwise, as soon as
+  the user has said who gains and what for, the next message offers 2-5 levels of the feature (as
+  many as make sense) before any question on channels, formats or timing: those are what the levels
+  differ in. Levels come when at least one signal holds: several real
+  variants today, an I/O boundary (network, database, files, clock), a public API or a format others
+  use, data integrity, money, access or security, a scale the user gave in numbers, a change hard to
+  undo, or a large feature. Levels differ in decisions, not polish; each says what we build, about
+  how many tickets, its cost and risk now, and how painful adding it later is. Recommend one and say
+  why; the user chooses, also a level nobody offered ("more detailed", "minimal", "add email", even
+  for an elementary task): describe it the same way and say frankly when it is too much or too
+  little. The chosen level goes into Level. When an abstraction is earned: section 3 of
+  `<keel>/skills/architecture/SKILL.md` (read only that section).
+- **Proportional design.** Design for today's acceptance criteria; a request for everything at once
+  gets a first working slice to grow. Each ticket is a thin slice through the layers it needs,
+  testable and useful on its own, not one layer. Before planning to remove or replace existing code,
+  find why it exists (git log, tests, an ADR); unknown → ask, or keep it. New names, defaults and APIs follow the
+  project's conventions. A new dependency, datastore, protocol, module boundary or public contract →
+  offer a short ADR. Justify a design by its consequence ("one place to add a unit"), never by a
+  principle's name.
+- **Research.** `keel:researcher` runs only after a yes to an offer with its price in words. Its
+  prompt: the question, the candidates (at most 2 packages) or what to compare, the project's stack and
+  versions from its manifest, `<keel>`, `<project>` and the plan's language. Its reply → first write
+  it as it is into `research/<topic>.md` in the draft folder (`<topic>`: English words joined by `-`;
+  also a report with "not checked" in it), then show the choice; a ticket that follows it names the
+  file in Why. The research folder goes with the tickets on export.
 - Keep `plan.md` true as you go: In plain words (the whole feature for a person: what and why, how it
   will work, an example, what is not done, how we know it is done), Level,
   Decisions (`D1. decision - why`), Contract (APIs, events and formats between repositories), Out of
@@ -46,6 +86,12 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   Open questions (`Q1. question - what depends on it`; an answered Q leaves the list and becomes a D),
   Tickets (one line per ticket: `T3 title`), Stubs, Next action. Sections stay, empty when there is
   nothing to say (Stubs may go); no TBD and no `<...>`.
+- **Three views before the tickets.** Before writing them, look at the plan as three colleagues
+  would: the product and its users (what people really need; what to add or drop), the architect
+  (simpler or sturdier; what the code or a package already has), operations and security (load,
+  failures, abuse). One message: what may be missing, as numbered proposals, each naming its view,
+  with your advice on which to take now and which later; nothing found → one line saying so. The
+  user decides each; a proposal taken goes into the plan.
 - **Tickets** at once from the template: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "T1,T2"]`
   (a plain title: double or curly quotes, `$`, a backquote or a backslash before a quote or a space are
   refused; `--slug` in English when the title is not), then fill the file it names (Edit), its sections

@@ -24,7 +24,10 @@ Read `plan.md` and every ticket first. Open code only to settle a question the p
 `<keel>/protocols/_search.md` (read only that part); mention them by path only.
 
 ## Checklist (for the plan; "yes" is good)
-- `coverage`: both ways: every goal of the plan has a ticket, and every ticket serves a goal.
+- `coverage`: both ways: every goal of the plan has a ticket, and every ticket serves a goal. Then
+  the criteria map: list each behaviour `plan.md` promises (its In plain words and Decisions) and the
+  tickets' Acceptance criteria that check it; each belongs to exactly one ticket. A promised behaviour
+  no criterion checks, or one checked in two tickets, is a "no".
 - `consistency`: no ticket contradicts a decision or another ticket; each term means one thing
   everywhere.
 - `order`: the order fits the dependencies; no ticket needs one that comes later or a cycle.
@@ -38,6 +41,8 @@ Read `plan.md` and every ticket first. Open code only to settle a question the p
 - At most 10, the most important first. Every "no" has a finding; use `other` for a real problem the
   checklist does not name.
 - `place` is the ticket, the section of `plan.md` (`Decisions`, `Tickets`...) or `plan` for the whole.
+  A gap or a duplicate in the criteria map is one finding per behaviour, its words quoted; more than
+  fit → the rest named in one last finding.
 - Each finding has evidence: short quotes of the plan's or the tickets' words that show it, and
   `file:line` in `code` when the code settles it. Every `code` entry is `path:line` or
   `path:start-end`; for a whole file write its first line (`docs/install.md:1`). An entry without a

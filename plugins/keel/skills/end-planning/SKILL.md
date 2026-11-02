@@ -56,10 +56,10 @@ Current state of this project:
       then `/keel:end-planning` again." and go to step 7: the plan stays `ready`. A change of target
       or prefix is the team's setting: `/keel:configure planning`, the same way. Ask "Export the <n>
       tickets now?"; no → the plan stays `ready` for the next end-planning.
-   6. `plans.js export <f>`: show `exported:`, its `- T<n> -> <KEY>: <file>` lines and `readme:`.
-      Refused → its reason; the plan stays `ready`. On this machine → say "These tickets are seen on
-      this machine only." In the repository → planning.md "Commit and push" (a draft's plan.md,
-      `reviews/` and T-files leave with that commit; without it they stay).
+   6. `plans.js export <f>`: show `exported:`, its `- T<n> -> <KEY>: <file>` lines, `readme:` and
+      `research:`. Refused → its reason; the plan stays `ready`. On this machine → say
+      "These tickets are seen on this machine only." In the repository → planning.md "Commit and push"
+      (the files its `draft:` line names leave with that commit; without it they stay).
 7. **Always**, whatever happened above (also after a stop or a no):
    `plans.js mark clear --session <sid>` → `planning: none`. A question waiting for the user's answer
    ends the turn, not the command: steps 7-9 run once the answer is handled.

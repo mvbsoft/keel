@@ -27,7 +27,7 @@ This page lists what keel does in each situation and what makes sure it happens.
 | **Stop hook** | One case only: in autonomous git, when this conversation moved a finished task's folder to keel's trash and no commit holds it, Claude Code does not let keel end its answer and tells it to go on with git or put the task back. It pushes once: when keel stops again right after, the answer ends. It does not block when keel's last message ends with a question, and it ignores a finish older than a day or a task no longer in keel's trash. |
 | **Hook** | Another of keel's hooks, such as the one that keeps keel out of projects that are not set up. |
 | **Instruction** | The model follows keel's instructions; nothing checks it in code. |
-| **Instruction + eval** | The same, and a behaviour test suite (`npm run eval`, 35 cases) checks it. The suite is run by hand before each release, not on every change; it is not a guarantee for every run. |
+| **Instruction + eval** | The same, and a behaviour test suite (`npm run eval`, 38 cases) checks it. The suite is run by hand before each release, not on every change; it is not a guarantee for every run. |
 
 ## Before any command
 

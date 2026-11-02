@@ -15,7 +15,7 @@ ready_hash: <set by plans.js state ready; any later change makes the plan a draf
 in the plan's language. plans.js check reads the sections by these names: keep them all, empty when
 there is nothing to say; Stubs may be removed. Export builds the feature overview README.md from In
 plain words, Level, Decisions, Contract, Out of scope, Terms and Stubs, with a Tickets list of its own.
-Level: the level of detail chosen and what is left for later. Contract: the APIs, events and formats
+Level: the level of the feature chosen (what is built) and what is left for later. Contract: the APIs, events and formats
 between repositories. What was gathered: what was found before the questions. Stubs: a title and In plain
 words for each part a repository that is not on this machine would do. No TBD and no <...> left in the text. Comments are removed
 when the file is made. -->
