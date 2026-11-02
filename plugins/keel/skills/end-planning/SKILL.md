@@ -37,7 +37,8 @@ Current state of this project:
       review). Nothing changed → no review.
    2. Each finding: fix now or record it as a Q.
    3. Update `plan.md`: Open questions; Next action (where planning stands and the next step, so the
-      next conversation starts from it); front matter `after_commit` = `git rev-parse --short HEAD`.
+      next conversation starts from it); then `plans.js set <f> --after-commit` (`after_commit:`, and
+      `after_commit_repos:` for the plan's other repositories).
    4. A repository draft → planning.md "Commit and push".
 6. **B. Final.** A plan already `ready` in `plans.js list` (not "changed after ready") was reviewed
    as it is: go straight to Export (B.5).

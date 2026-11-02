@@ -27,8 +27,8 @@ Current state of this project:
    `planning: <f>` → this conversation already plans `<f>`: one conversation, one feature; continue
    `<f>` (step 6; an exported feature, told apart as in step 4: planning.md "Exported feature" steps
    3-6), or end it with /keel:end-planning first.
-3. Read `<keel>/skills/_shared/planning.md`, sections "Rules" and "Work"; they hold for the whole
-   command (an exported feature: also "Exported feature"). Run `plans.js settings`.
+3. Read `<keel>/skills/_shared/planning.md`, sections "Rules", "Work" and "Several repositories"; they
+   hold for the whole command (an exported feature: also "Exported feature"). Run `plans.js settings`.
    `planning: planning is not set up ...` → before any question say: "Planning is not set up in this
    project yet: the ticket prefix and where the tickets live are shared with the team in
    `.keel/config.json`. Run `/keel:configure planning`, then `/keel:start-planning` again." and stop.
@@ -60,6 +60,8 @@ Current state of this project:
      paste the text. Never guess content.
    - Retell in a few lines: the goal, who gains, what is out. Check the premise in the code with a
      few searches: what the feature relies on exists and works as said (else say it, `file:line`).
+   - **Which projects**: only with signs of another repository, planning.md "Several repositories"
+     items 1-3.
    - Size: **small** (up to 5 questions, one conversation) or **large** (several conversations, each
      ended with /keel:end-planning). One goal, 1-3 sittings, one ticket → it looks like one task:
      suggest `/keel:start-task`; the user decides.
@@ -75,9 +77,11 @@ Current state of this project:
      may hold this draft` → offer "Switch to `<f>`?": yes → `git switch <f>`, then `plans.js list`
      there and continue that draft (step 6); no → another name). A merge branch other
      than `git.main_branch`, or a branch name other than `<f>` → `plans.js set <f> --branch <b> --merge-into <m>` (`branch:` and `merge_into:` lines).
+     Other repositories chosen → `plans.js set <f> --repos "<PREFIX>,..."` ("Several repositories" item 4).
 6. **Continue a draft.** `plans.js check <f>` and `plans.js review <f>`; read `plan.md` only (not the
    tickets): the ticket list, open Q, What was gathered, Next action; and in `reviews/` the findings without a decision.
-   Stale? `plans.js stale <f>`: show its `stale:` line as it is. A repository draft → planning.md
+   Stale? `plans.js stale <f>`: show its `stale:` lines as they are (one more per other repository).
+   Stubs whose repository is now here → "Several repositories" item 7. A repository draft → planning.md
    "Branch hints". Then a summary in 3-6 lines and the Next action. A `ready` plan: any change makes it a draft again.
 7. `plans.js mark set <f> --session <sid>` → `planning: <f>` (an exported feature:
    `planning: <f> (exported: <folder>)`). Say in one line: this conversation now

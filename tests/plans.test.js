@@ -494,6 +494,6 @@ test('an exported feature on this machine: mark set, ticket with the next key an
 
 test('plans.js: unknown commands are named, never thrown', () => {
   const dir = project();
-  assert.match(run(dir, 'import')[0], /^plans: unknown command "import" \(list, find, new, .*set, stale, report, export, commit, push/);
+  assert.match(run(dir, 'import')[0], /^plans: unknown command "import" \(list, find, new, .*set, stale, repos, report, export, commit, push/);
   assert.equal(run(dir)[0], 'drafts: 0');
 });

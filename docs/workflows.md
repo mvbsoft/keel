@@ -427,6 +427,38 @@ the draft's `research/<topic>.md`, and a ticket that follows it names it.
 draft on this machine goes to keel's trash (`/keel:cleanup` restores it); one in the repository stays
 until you remove it.
 
+### A feature on several repositories
+
+One conversation plans a feature that also needs work in other repositories on this machine, such as
+a new event in `api` and a badge in `web`; each ticket is for one repository only.
+
+- **Which projects.** After checking the premise, when the feature shows signs of another repository
+  (an API, event or format others use; a front or an app) or you name one, keel asks: "Besides `api`,
+  it looks like it touches `web`, `admin`. Right?" [yes, all] [only some] [other: I give a path] [no].
+  The candidates come from `plans.js repos`: the repos map ([settings](settings.md#planning-settings))
+  and the git repositories next to this project (never this project or another worktree of it), each
+  with its planning prefix. A new folder goes into the map with its prefix; a repository whose prefix
+  is not set yet gets one you confirm now (keel proposes 3-4 letters from its name), and that
+  repository must set the same one before the tickets go there. The plan records its repositories in
+  `repos: [API, WEB]` (`plans.js set <f> --repos "WEB"`).
+- **Their rules and code.** The gathering offer always includes each other repository: a helper on
+  Haiku reads its `CLAUDE.md`, `AGENTS.md`, skills and code by its absolute folder, and its notes go
+  into What was gathered under `### <PREFIX>`. Claude Code may ask to allow reads in another folder;
+  `/add-dir <folder>` lets the conversation read it without asking.
+- **Its tickets.** `plans.js ticket <f> --title "..." --repo WEB` marks a ticket `repo: WEB`. The check
+  looks for its Where to look in that repository's folder; a folder not on this machine is a note,
+  "not checked", never a problem. The reviewers get the ticket's repository folder. `stale` compares
+  each repository's tickets with its own commit (`after_commit_repos`, recorded by `plans.js set <f>
+  --after-commit` when you hand over).
+- **A repository not on this machine.** keel says what it found ("a front is needed, but no
+  repository was found") and offers: a repository that may be it, to confirm; stubs; leave it out; or
+  your own way. A stub in `plan.md` `## Stubs` is `### <repository>: <title>`, a line saying it is not
+  planned or built here, and its In plain words, for a developer there to plan it. It has no key, so no
+  ticket depends on it by `depends_on`; the plan reviewer counts it as covered in its coverage check. When that
+  repository appears later, keel offers to turn the stubs into tickets.
+- **Export** of such a plan is refused for now: "a feature on several repositories is not exported
+  yet"; the plan stays `ready`.
+
 ### End: `/keel:end-planning`
 
 | You type | keel does |
@@ -441,7 +473,8 @@ dependencies without cycles; style is the ticket reviewer's advice and never blo
 shows what blocks and offers to hand over. 2) Ticket reviews of the tickets not reviewed as they are
 (`keel:ticket-reviewer`, up to 4 tickets per call), then one review of the whole plan
 (`keel:plan-reviewer`, which also checks that each behaviour the plan promises is an acceptance
-criterion of exactly one ticket), both on Sonnet. You decide each finding: fix, defer to a Q, or reject with a
+criterion of exactly one ticket, a stub's behaviour counted as covered), both on Sonnet; a ticket of
+another repository is reviewed in that repository's folder. You decide each finding: fix, defer to a Q, or reject with a
 reason; decisions go into `reviews/` and are not raised again. Fixed tickets are reviewed again, at
 most 2 rounds per `/keel:end-planning`; a failed review is named as failed, never as "no findings".
 3) The plan becomes `ready` (any later change makes it a draft again), then "Export the <n> tickets
@@ -460,7 +493,7 @@ Every end, also after a no, frees the conversation from planning. The report: **
   only"). A draft in the repository exports only there: with `pc` the export is refused and names
   both ways out (`plans.js settings set --draft pc` for this machine, or `/keel:configure planning` for
   the team). Never used: hidden folders, `handoff/` and `handoffs/` (another notes system),
-  `docs/plans`, a place outside the project.
+  `docs/plans`, a place outside the project. A plan that names other repositories is not exported yet.
 - **Names**: `PROJ-123-add-csv-export.md` with the title `# [PROJ-123] Add CSV export`. The prefix is
   `planning.ticket_prefix`, one per repository and the same for the team; `/keel:configure` proposes
   the tracker's prefix from git history, else 3-4 capital letters from the repository's name.

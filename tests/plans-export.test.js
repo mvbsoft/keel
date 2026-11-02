@@ -180,7 +180,7 @@ gitTest('set: new writes branch (the feature) and merge_into (the main branch); 
   assert.deepEqual(run(work, 'set', 's3-storage', '--branch', 'feat/s3'), ['branch: feat/s3', 'merge_into: develop'], 'the same value changes nothing');
   for (const bad of ['-x', 'a b', 'a..b', '@{-1}']) assert.match(run(work, 'set', 's3-storage', '--branch', bad)[0], /^plans: set refused \(--branch: .* is not a valid branch name\)$/, bad);
   assert.match(run(work, 'set', 's3-storage', '--merge-into')[0], /refused \(--merge-into: "true" is not a valid branch name\)/);
-  assert.match(run(work, 'set', 's3-storage')[0], /refused \(nothing to set: --branch, --merge-into\)/);
+  assert.match(run(work, 'set', 's3-storage')[0], /refused \(nothing to set: --branch, --merge-into, --repos, --after-commit\)/);
   assert.match(run(work, 'set', 'no-such-plan', '--branch', 'x')[0], /refused \(no draft "no-such-plan"/);
   run(work, 'state', 's3-storage', 'abandoned');
   run(work, 'settings', 'set', '--draft', 'repo');
