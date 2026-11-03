@@ -105,7 +105,13 @@ All notable changes to keel are listed here. The format follows
   `plans.js check` checks the `# [id] title` heading (an empty title fails), each section once and
   in its order (headings inside code blocks are text), the three Boundaries labels and the
   acceptance criteria as a `- [ ]` list; the ticket reviewer advises on In plain words and on plain markdown without blocking,
-  and its size check leaves In plain words out of the 150-400 words.
+  and its size check leaves In plain words out of the 150-500 words.
+- Every section of a planned ticket is written for someone who has not seen the feature: short, but
+  in whole sentences, a D or T number with its words. Each acceptance criterion is a sentence
+  "situation → what we see" with concrete people and values, each Boundaries item says why, and the
+  technical part may take 150-500 words (was 150-400). The plan's Level says which of how many, what
+  the scale means, what this level builds and what is put off. The ticket reviewer has a new check,
+  `clear-to-newcomer`: a "no" in Goal or Acceptance criteria is important, elsewhere advice.
 - A planning draft's `plan.md` has In plain words, Level, Contract, What was gathered and an optional
   Stubs instead of Summary and Problem / Goal; `plans.js find` reads In plain words.
 - The feature overview `README.md` takes the plan's In plain words, Level, Decisions, Contract, Out of

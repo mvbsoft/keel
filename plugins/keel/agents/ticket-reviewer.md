@@ -36,7 +36,7 @@ the few relevant lines. Never open secret files: the list is under "Scope" in
   Vague words without a measure ("fast", "easy", "properly", "user-friendly") are a "no".
 - `scope`: what is in and what is out is clear.
 - `dependencies`: the tickets it needs and the ones that need it are named, or "none".
-- `size`: the technical part (all but In plain words and Example) is about 150-400 words, the ticket
+- `size`: the technical part (all but In plain words and Example) is about 150-500 words, the ticket
   changes fewer than 5 files and fits in 1-3 working sessions; otherwise it should be split. A long In
   plain words never counts against it.
 - `one-task`: one task, not two joined by "and".
@@ -48,6 +48,12 @@ the few relevant lines. Never open secret files: the list is under "Scope" in
 - `plain-words`: a person who does not read code understands the whole task from In plain words: what
   changes for them, how it works step by step, what is in and what is not, with an example where one
   helps. A "no" names what is missing ("it does not say what happens while the chat is open").
+- `clear-to-newcomer`: a reader who has not seen the feature understands every other section without
+  the plan: Goal; each acceptance criterion says the situation and what we see, with concrete people
+  or values; How to check says what to see; each Boundaries item says why; Where to look says what
+  each place has to do with the ticket; Out of scope and Why are sentences, a D or T number with its
+  words. A "no" names the section and what a newcomer would ask ("criterion 1: who gets the event,
+  and what is in it?").
 - `markdown`: plain markdown, no HTML tags; every code block names its language. Tables of any width
   are fine.
 - `complete`: last, ask once: what is missing that the developer will need? Nothing important is a
@@ -65,8 +71,9 @@ the few relevant lines. Never open secret files: the list is under "Scope" in
   Never code.
 - Severity: **critical**: the developer would build the wrong thing or cannot start (the goal
   contradicts a decision, the ticket relies on code that does not exist); **important**: they get
-  stuck or must guess (a vague criterion, a missing dependency, too big); **minor**: wording, and
-  `plain-words` and `markdown`, which are advice.
+  stuck or must guess (a vague criterion, a missing dependency, too big, a `clear-to-newcomer` "no"
+  in Goal or Acceptance criteria: one cannot tell when it is done); **minor**: wording, a
+  `clear-to-newcomer` "no" in another section, and `plain-words` and `markdown`, which are advice.
 - No findings is a valid result. Do not invent findings to look thorough.
 
 ## Output

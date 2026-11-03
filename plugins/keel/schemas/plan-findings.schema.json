@@ -43,7 +43,7 @@
         "place": { "$ref": "#/$defs/place" },
         "check": {
           "description": "Ticket checklist, then plan checklist. 'yes' is good.",
-          "enum": ["one-goal", "testable-criteria", "scope", "dependencies", "size", "one-task", "true-in-code", "how-to-check", "no-steps", "plain-words", "markdown", "complete", "coverage", "consistency", "order", "forgotten", "premortem"]
+          "enum": ["one-goal", "testable-criteria", "scope", "dependencies", "size", "one-task", "true-in-code", "how-to-check", "no-steps", "plain-words", "clear-to-newcomer", "markdown", "complete", "coverage", "consistency", "order", "forgotten", "premortem"]
         },
         "answer": { "enum": ["yes", "no", "n/a"] },
         "note": { "type": "string", "minLength": 1 }
@@ -58,7 +58,7 @@
         "place": { "$ref": "#/$defs/place" },
         "check": {
           "description": "The checklist item it fails, or 'other' for what the checklist does not cover.",
-          "enum": ["one-goal", "testable-criteria", "scope", "dependencies", "size", "one-task", "true-in-code", "how-to-check", "no-steps", "plain-words", "markdown", "complete", "coverage", "consistency", "order", "forgotten", "premortem", "other"]
+          "enum": ["one-goal", "testable-criteria", "scope", "dependencies", "size", "one-task", "true-in-code", "how-to-check", "no-steps", "plain-words", "clear-to-newcomer", "markdown", "complete", "coverage", "consistency", "order", "forgotten", "premortem", "other"]
         },
         "severity": {
           "description": "critical: a developer would build the wrong thing or cannot start; important: gets stuck or must guess; minor: wording.",
