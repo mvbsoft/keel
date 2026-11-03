@@ -327,6 +327,9 @@ gitTest('a link in the other repository\'s ticket folder is never written throug
   const outside = path.join(w.tmp, 'outside');
   fs.mkdirSync(outside);
   fs.symlinkSync(outside, path.join(w.web, 'tickets'), 'junction');
+  // git on Linux and macOS lists the link as an untracked file (on Windows it skips a junction):
+  // excluded, web's tree stays clean, so the refusal comes from the link check itself.
+  fs.appendFileSync(path.join(w.web, '.git', 'info', 'exclude'), '/tickets\n');
   const out = run(w.api, 'export', FEATURE);
   assert.match(out[0], /^plans: export refused \(.*tickets is a link: keel does not write through it/, out.join('\n'));
   assert.deepEqual(fs.readdirSync(outside), [], 'nothing written where the link points');
