@@ -14,6 +14,9 @@ const CHARS_PER_TOKEN = 4;
 const SESSION_FILE = /\.jsonl$/;
 const NOT_A_PROMPT = ['<local-command-stdout>', '<local-command-caveat>',
   '<task-notification>', '<system-reminder>', '[Request interrupted by user'];
+// The desktop app puts notes such as "Linked sessions now" before the user's own words. Only stripped when
+// something follows, so a row that is only a reminder still starts with one and is not a prompt.
+const LEADING_REMINDERS = /^(?:\s*<system-reminder>[\s\S]*?<\/system-reminder>)+\s*(?=\S)/;
 
 function redact(text) {
   let s = String(text == null ? '' : text);
@@ -68,13 +71,13 @@ function promptText(content) {
 }
 
 // A real user prompt: not a tool result, meta row, compact summary, command output or notification
-// wrapper. A slash command is one, returned as { text, command: true }.
+// wrapper; leading system reminders are not part of it. A slash command is one, returned as { text, command: true }.
 function promptOf(row, requireMain) {
   if (row.type !== 'user' || row.isMeta || row.isCompactSummary) return null;
   if (requireMain && row.isSidechain) return null;
   const c = row.message && row.message.content;
   if (Array.isArray(c) && c.length && c.every((b) => b && b.type === 'tool_result')) return null;
-  const text = promptText(c);
+  const text = promptText(c).replace(LEADING_REMINDERS, '');
   const head = text.trimStart();
   if (NOT_A_PROMPT.some((p) => head.startsWith(p))) return null;
   // A slash command arrives wrapped: its turn reads as the user typed it, "/name args".
