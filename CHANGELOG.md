@@ -116,6 +116,9 @@ All notable changes to keel are listed here. The format follows
 ### Fixed
 - `comments.js` no longer stops when `comments.ticket_prefixes` is not a list; it is skipped.
 - A planning folder written with a double slash, such as `docs//plans`, is refused like `docs/plans`.
+- The cost report counts a message that starts with a system reminder, such as the desktop app's
+  "Linked sessions now" note, as your turn, and its preview skips the reminder; before, a long session
+  started from another one showed a single turn.
 
 ### Removed
 - `language`, `export`, `export_dir` and `prefix` in `.keel/local/plans/keel/settings.json`, and their
