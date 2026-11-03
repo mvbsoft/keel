@@ -73,6 +73,14 @@ All notable changes to keel are listed here. The format follows
   repository and renumbers a taken one in all of them; a push that fails on the network or access prints a `retry:` command.
   `plans.js ticket <f> --repo WEB` on an exported feature adds a ticket with WEB's next key, and a
   later ticket's line goes into the Tickets of every overview of the feature on this machine.
+- `plans.js tickets` (and `/keel:tasks`) shows, after `next:`, the `linked:` tickets of each feature
+  of this project in its other repositories: their states from that repository's git on this
+  machine, or, for one not here, the overview's Tickets list with the state unknown; a feature done
+  here but not there stays listed, other projects' own tickets do not show. An overview that differs
+  between the repositories gives one line with a pull hint. The new `plans.js align <feature>` shows
+  the versions and the sections where they differ, defaults to the newest change (the main
+  repository's on the same time), and `--take <PREFIX>` writes the chosen one into the other
+  repositories' overviews; the commit and push stay on the user's yes.
 
 ### Changed
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,

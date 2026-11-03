@@ -571,6 +571,36 @@ map, or a folder that is not on this machine or not a git repository, the depend
 `not checked` a `note:` line. `/keel:start-task` with such a dependency not met asks: take the next
 ticket / wait for it / start anyway; one not checked: start anyway / take another ticket.
 
+**Tickets of linked repositories.** A feature on several repositories has `repos:` in its overview
+(`README.md` beside its tickets). `/keel:tasks` then also shows that feature's tickets in its other
+repositories, after the next ticket here and marked apart: never the next one here, and only for
+features of this project (another project's own tickets are not shown). A feature done here but not
+there is still shown. A repository in the [`repos` map](settings.md#planning-settings) is read the
+same way as a dependency there, with its branches, authors and ages; a ticket its overview lists
+that it has no file for is looked up in its history. One with no folder on this machine: "the
+repository widget has more tickets", the overview's Tickets lines with the state unknown.
+
+```
+next: API-122 (message-notify)
+linked: message-notify in web (WEB; O:/projects/web, server data from 2026-10-27T09:12:00Z)
+  WEB-14 Unread badge — in progress · branch message-notify, Ann Lee, 2 days ago
+  WEB-15 Sound — to do
+linked: message-notify: the repository widget (WGT) has more tickets, state unknown (no folder for WGT in the repos map: ...):
+  WGT-3 Badge on the chat icon — state unknown
+linked: message-notify: the overview in web differs from this project's (pull there; still different: plans.js align message-notify)
+```
+
+The overview is the same word for word in every repository; one that differs gets that one line, it
+blocks nothing. Each is read in the working tree, else on the tip of the feature branch. Still
+different after a pull (someone edited it by hand in one repository): `plans.js align <feature>`
+shows each repository's version, when it last changed, and per section the lines one has and another
+lacks (`-` / `+`); keel asks which version is right. The default is the newest: the latest commit that
+changed the overview, an uncommitted edit counting as newer still; with the same time, the main
+repository's (the first in `repos:`). `plans.js align <feature> --take WEB` writes that version into
+the other repositories' overviews on this machine, in their working trees (one whose feature branch
+is not checked out there is named, not changed); the commit and push of each
+(`plans.js commit <feature> --repo <PREFIX>`, then `push`) only on your yes.
+
 ### Edit an exported feature
 
 `/keel:start-planning <feature>` reopens it in its feature folder (when the folder is on another

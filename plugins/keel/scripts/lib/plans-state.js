@@ -183,6 +183,7 @@ function listRefs(root) {
 
 // Everything the states are worked out from. A view is one place the tickets were read: a branch, or
 // the working tree in place of the current branch. `all`: every branch, whatever its age.
+// lib/plans-linked.js reads the views' work, ref, sha and date to find a feature's overview.
 function collect(root, now, { all = false } = {}) {
   const inRepo = git(root, ['rev-parse', '--git-dir']) !== null;
   const remote = inRepo ? pickRemote((git(root, ['remote']) || '').split('\n').filter(Boolean)) : null;
@@ -496,7 +497,7 @@ function doneInHistory(d, keys, wanted = null, foreign = () => false) {
 // a key with no ticket file there looked up in the history of that project's main branch as a dependency
 // is, else not found; that folder's server data, and whether it is a git repository. A key on none of
 // the recent branches is looked for again on every branch: an old unmerged branch may hold it.
-function stateIn(folder, list, now = new Date()) {
+function stateIn(folder, list, now = new Date(), d = collect(folder, now)) {
   const read = (d) => {
     const keys = states(d);
     const target = d.main ? targetRef(d, d.main) : null;
@@ -505,7 +506,7 @@ function stateIn(folder, list, now = new Date()) {
     const of = (e) => ({ state: STATES[e.state], shown: e.shown, feature: e.feature });
     return new Map(list.map((k) => [k, keys.has(k) ? of(keys.get(k)) : { state: gone.get(`${target} ${k}`) || 'not found' }]));
   };
-  const d = collect(folder, now);
+  // `d`: that folder's collect() when the caller has it already (lib/plans-linked.js).
   const out = read(d);
   // Only a key still not found is read again on every branch: one found in history keeps that state.
   if (d.inRepo && [...out.values()].some((s) => s.state === 'not found')) {
@@ -596,6 +597,8 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
     `tickets: ${plural(shown.length, 'feature')}, ${plural(count, 'ticket')}; ${serverData(d)}`,
     ...out,
     next ? `next: ${next.shown} (${next.feature})` : 'next: none',
+    // Only with no argument: a feature or key view is read for its own repository's tickets.
+    ...(arg ? [] : require('./plans-linked.js').linkedLines(d, keys, now)),
     ...notes,
   ];
 }
@@ -659,4 +662,8 @@ function dropCommand(root, feature) {
   return r.moved.map((m) => `drop: ${m.path}/ -> trash ${r.batch}`);
 }
 
-module.exports = { ticketsCommand, doneCommand, dropCommand, stateIn, keysHere, metBy, KEY, prefixOf, STATES };
+module.exports = {
+  ticketsCommand, doneCommand, dropCommand, stateIn, keysHere, metBy, KEY, prefixOf, STATES,
+  // for lib/plans-linked.js
+  collect, states, ticketLine, serverData,
+};
