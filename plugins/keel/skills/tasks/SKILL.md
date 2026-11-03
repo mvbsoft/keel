@@ -33,6 +33,14 @@ Current state of this project:
    `/keel:start-task <KEY>`" with the key of its `next:` line (`next: none` → no such line). A
    feature whose every ticket is `done` or `waiting for the feature merge` (all done in its feature
    branch) → offer its end as `<keel>/skills/_shared/git.md` "End of feature" says.
+   `linked:` lines after `next:` → a block "Other repositories" (tickets of the same features there,
+   never the next one here): each `linked: <feature> in <name> (<PREFIX>; <folder>, <data date>)`
+   with its ticket lines as printed; `... has more tickets, state unknown (<why>):` → "<name> is not
+   on this machine; its tickets from the overview:" with its lines and the why. `... the overview in
+   <names> differs ...` → one line: pull there first; still different → offer the alignment: run
+   `plans.js align <feature>`, show its versions and each section's `-` / `+` lines as they are, and
+   ask which version is right, its `default:` first; on the answer `plans.js align <feature> --take
+   <PREFIX>`; the commit and push of each `commit:` line only on the user's yes.
 4. `<task id>`: show its block, then read its `task.md` (and `plan.md`): in this working tree from the
    path in Files; on another branch: `git show <branch>:<path>/task.md`. Tell its goal, state,
    open questions and next action in 3-6 lines. An id that is not listed → say so and show the list.

@@ -368,4 +368,4 @@ function addToOverviews(root, feature, f, line) {
   return out;
 }
 
-module.exports = { exportFeature, repoFor, otherFeature, addToOverviews };
+module.exports = { exportFeature, repoFor, otherFeature, addToOverviews, mapTracked, trackedMap };

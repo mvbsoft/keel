@@ -62,7 +62,12 @@
 //   tickets [<feature> | <KEY>] [--fetch] the exported tickets' state: no argument, every feature with a
 //                                         ticket not done; one feature (and its branch); one key (and
 //                                         its file and dependencies); `next:` the ticket to take next.
+//                                         No argument: then `linked:` lines, the tickets of each
+//                                         feature's other repositories (lib/plans-linked.js).
 //                                         --fetch: git fetch --prune first
+//   align <feature> [--take <PREFIX>]     the versions of a feature's overview in its repositories on this
+//                                         machine, the sections where they differ and the default one;
+//                                         --take: that version into the others' working trees (not committed)
 //   done <KEY> [--undo]                   status done (--undo: todo) in the working tree's ticket with that
 //                                         key; says when every ticket of its feature is done
 //   drop <feature>                        a feature whose every ticket is done: its folder to keel's trash
@@ -83,7 +88,7 @@ const path = require('node:path');
 const { parseArgs } = require('./lib/project.js');
 const plans = require('./lib/plans.js');
 
-const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, set, stale, repos, report, export, commit, push, tickets, done, drop, settings, mark';
+const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, set, stale, repos, report, export, commit, push, tickets, align, done, drop, settings, mark';
 
 // A flag followed by a word takes it as its value (lib/project.js): `done --undo PROJ-1` names PROJ-1.
 const flagged = (pos, opts, flag) => ({ on: opts[flag] !== undefined, arg: pos[2] ?? (typeof opts[flag] === 'string' ? opts[flag] : undefined) });
@@ -114,6 +119,7 @@ function run(root, pos, opts) {
     return step(root, feature, { repo: opts.repo });
   }
   if (command === 'tickets') { const f = flagged(pos, opts, 'fetch'); return require('./lib/plans-state.js').ticketsCommand(root, f.arg, { fetch: f.on }); }
+  if (command === 'align') return require('./lib/plans-linked.js').alignCommand(root, feature, { take: opts.take });
   if (command === 'done') { const f = flagged(pos, opts, 'undo'); return require('./lib/plans-state.js').doneCommand(root, f.arg, f.on); }
   if (command === 'drop') return require('./lib/plans-state.js').dropCommand(root, feature);
   if (command === 'settings') {
