@@ -68,7 +68,9 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   how many tickets, its cost and risk now, and how painful adding it later is. Recommend one and say
   why; the user chooses, also a level nobody offered ("more detailed", "minimal", "add email", even
   for an elementary task): describe it the same way and say frankly when it is too much or too
-  little. The chosen level goes into Level. When an abstraction is earned: section 3 of
+  little. The chosen level goes into Level, for a reader who has not seen the levels: which of how
+  many and what that scale means ("2 of 5: 1 is a counter on the site only, 5 adds quiet hours and an
+  e-mail digest"), what this level builds, and what is put off and why. When an abstraction is earned: section 3 of
   `<keel>/skills/architecture/SKILL.md` (read only that section).
 - **Proportional design.** Design for today's acceptance criteria; a request for everything at once
   gets a first working slice to grow. Each ticket is a thin slice through the layers it needs,
@@ -101,17 +103,24 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   `--depends` may also name another repository's ticket by its key, `API-121`, checked in that
   repository's folder from the repos map: a `note: ... not checked` line → say it and how to add the
   folder; a plain title: double or curly quotes, `$`, a backquote or a backslash before a quote or a
-  space are refused; `--slug` in English when the title is not), then fill the file it names (Edit), its sections
-  in this order: In plain words (the whole task for a person, without code or paths: what changes for
-  them, how it works step by step, what is in and what is not, examples; as long as it needs), Example
-  (what happens → what we see; may go), Goal (1-2 sentences, how to tell it is done), Acceptance
-  criteria (a `- [ ]` list, one behaviour an action checks per item; no "fast" or "easy" without a
-  measure), How to check (a command in a code block with its language, and the manual steps),
-  Boundaries (`- always:`, `- ask first:`, `- never:` for this ticket), Correct the priors (the obvious
-  but wrong way and the right one; may go), Where to look (`file:line` you checked), Out of scope, Why
-  (the D it follows), Dependencies (why; the list is `depends_on`). The technical part (all but In
-  plain words and Example) is 150-400 words, one goal, no implementation steps; plain markdown, no
-  HTML. T-numbers are never reused.
+  space are refused; `--slug` in English when the title is not), then fill the file it names (Edit).
+  Every section is for a reader who has not seen the feature: short, but in whole sentences, with
+  concrete people and values; a term, a T or a D number comes with its words ("D1: one event for
+  every client"), never alone. Fill its sections in this order: In plain words (the whole task for a
+  person, without code or paths: what changes for them, how it works step by step, what is in and what
+  is not, examples; as long as it needs), Example (what happens → what we see; may go), Goal (1-2
+  sentences: what changes, and how to tell it is done), Acceptance criteria (a `- [ ]` list, one
+  behaviour per item, each a sentence "situation → what we see" that an action checks: "Olya sends a
+  message to a chat Petro is in → Petro gets the event with her name and the first 100 characters;
+  Olya herself gets none"; no "fast" or "easy" without a measure), How to check (a command in a code
+  block with its language, and the manual steps: what to do and what to see), Boundaries
+  (`- always:`, `- ask first:`, `- never:` for this ticket, each with why in a few words: "never: the
+  whole text in the event - it also goes to the push services"), Correct the priors (the obvious but
+  wrong way and the right one; may go), Where to look (`file:line` you checked, and what it has to do
+  with this ticket), Out of scope (what this ticket does not do, and where it is done instead), Why
+  (the D it follows, with its words), Dependencies (why; the list is `depends_on`). The technical part
+  (all but In plain words and Example) is 150-500 words, one goal, no implementation steps; plain
+  markdown, no HTML. T-numbers are never reused.
 - More than about 15 tickets → offer to split the feature in two.
 - The user abandons the plan → confirm, then `plans.js state <f> abandoned` and say what its lines say.
 

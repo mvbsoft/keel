@@ -17,7 +17,8 @@ ready_hash: <set by plans.js state ready; any later change makes the plan a draf
 in the plan's language. plans.js check reads the sections by these names: keep them all, empty when
 there is nothing to say; Stubs may be removed. Export builds the feature overview README.md from In
 plain words, Level, Decisions, Contract, Out of scope, Terms and Stubs, with a Tickets list of its own.
-Level: the level of the feature chosen (what is built) and what is left for later. Contract: the APIs, events and formats
+Level: for a reader who has not seen the levels, which of how many and what the scale means, what this
+level builds, and what is left for later and why. Contract: the APIs, events and formats
 between repositories. Design sketch of a feature on several repositories: one "### <PREFIX>" part per
 repository of repos. What was gathered: what was found before the questions. Stubs: for each part a
 repository that is not on this machine would do, "### <repository>: <title>", a line saying it is a stub
@@ -29,6 +30,7 @@ depends_on. No TBD and no <...> left in the text. Comments are removed when the 
 <the whole feature in plain words: what and why, how it will work, an example, what is not done, how we know it is done>
 
 ## Level
+<which level of how many, and what the scale means in plain words; what this level builds; what is put off for later and why>
 
 ## Decisions
 <D1. decision - why>

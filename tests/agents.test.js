@@ -131,7 +131,7 @@ test('the planning reviewers check what the plan-findings schema names, with evi
   const ticket = agent('ticket-reviewer').body;
   const plan = agent('plan-reviewer').body;
   // Spec 7: the ticket checklist and one free "what is missing?"; the plan checklist.
-  assert.deepEqual(named(ticket), ['one-goal', 'testable-criteria', 'scope', 'dependencies', 'size', 'one-task', 'true-in-code', 'how-to-check', 'no-steps', 'plain-words', 'markdown', 'complete']);
+  assert.deepEqual(named(ticket), ['one-goal', 'testable-criteria', 'scope', 'dependencies', 'size', 'one-task', 'true-in-code', 'how-to-check', 'no-steps', 'plain-words', 'clear-to-newcomer', 'markdown', 'complete']);
   assert.deepEqual(named(plan), ['coverage', 'consistency', 'order', 'forgotten', 'premortem']);
   assert.deepEqual([...named(ticket), ...named(plan)], schema.$defs.check.properties.check.enum);
   // The criteria map is part of coverage: what plan.md promises against the tickets' criteria.
@@ -141,8 +141,11 @@ test('the planning reviewers check what the plan-findings schema names, with evi
   assert.match(plan, /one finding per behaviour, its words quoted; more than\s+fit → the rest named in one last finding/);
   // In plain words is for a person: read first, never counted in the size, judged as advice.
   assert.match(ticket, /Read `plan\.md` first \(In plain words,/);
-  assert.match(ticket, /`size`: the technical part \(all but In plain words and Example\) is about 150-400 words[^]*A long In\s+plain words never counts against it/);
-  assert.match(ticket, /\*\*minor\*\*: wording, and\s+`plain-words` and `markdown`, which are advice/);
+  assert.match(ticket, /`size`: the technical part \(all but In plain words and Example\) is about 150-500 words[^]*A long In\s+plain words never counts against it/);
+  // A section a newcomer cannot follow: important where it hides when the ticket is done, advice elsewhere.
+  assert.match(ticket, /`clear-to-newcomer`: a reader who has not seen the feature understands every other section/);
+  assert.match(ticket, /a `clear-to-newcomer` "no"\s+in Goal or Acceptance criteria: one cannot tell when it is done\); \*\*minor\*\*/);
+  assert.match(ticket, /\*\*minor\*\*: wording, a\s+`clear-to-newcomer` "no" in another section, and `plain-words` and `markdown`, which are advice/);
   for (const [body, limit] of [[ticket, 'At most 5 per ticket'], [plan, 'At most 10']]) {
     assert.match(body, /<keel>\/schemas\/plan-findings\.schema\.json/);
     assert.ok(body.includes(limit), limit);

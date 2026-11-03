@@ -82,7 +82,11 @@ test('planning work: one question per message with a recommendation, D and Q rec
   assert.match(flat, /its sections in this order: In plain words \(/);
   assert.match(work, /a `- \[ \]` list/);
   assert.match(work, /`- always:`, `- ask first:`, `- never:`/);
-  assert.match(work, /The technical part \(all but In\s+plain words and Example\) is 150-400 words/);
+  assert.match(work, /The technical part\s+\(all but In plain words and Example\) is 150-500 words/);
+  // Every section reads for someone who has not seen the feature: criteria as situation → what we see, Boundaries with why.
+  assert.ok(flat.includes('Every section is for a reader who has not seen the feature: short, but in whole sentences, with concrete people and values; a term, a T or a D number comes with its words'));
+  assert.ok(flat.includes('one behaviour per item, each a sentence "situation → what we see" that an action checks'));
+  assert.ok(flat.includes('`- always:`, `- ask first:`, `- never:` for this ticket, each with why in a few words'));
   assert.match(work, /no implementation steps/);
   assert.match(work, /More than about 15 tickets → offer to split the feature/);
   assert.match(work, /`plans\.js state <f> abandoned`/);
@@ -129,7 +133,8 @@ test('planning decides proportionally: the reuse ladder, levels only on a signal
   assert.ok(work.includes('each says what we build, about how many tickets, its cost and risk now, and how painful adding it later is'));
   assert.ok(work.includes('Recommend one and say why; the user chooses, also a level nobody offered'));
   assert.ok(work.includes('even for an elementary task'));
-  assert.ok(work.includes('The chosen level goes into Level'));
+  assert.ok(work.includes('The chosen level goes into Level, for a reader who has not seen the levels: which of how many and what that scale means'));
+  assert.ok(work.includes('what this level builds, and what is put off and why'));
   // The rules of an earned abstraction live in the architecture skill, read from there, not copied.
   assert.ok(work.includes('section 3 of `<keel>/skills/architecture/SKILL.md`'));
   assert.match(read('skills', 'architecture', 'SKILL.md'), /^## 3\. Structure of new logic: is an abstraction earned\?$/m);

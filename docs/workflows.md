@@ -383,10 +383,13 @@ keel keeps `plan.md` true as you go: In plain words (the whole feature for a per
 Terms, What was gathered, Open questions (`Q1. question - what depends on it`; an answered Q becomes a
 D), Tickets, Stubs (may go), Next action. Tickets are written at once, their sections always in this
 order: In plain words (the whole task in plain words, without code or paths, as long as it needs),
-Example (may go), Goal, Acceptance criteria (a `- [ ]` list), How to check, Boundaries
-(`- always:`, `- ask first:`, `- never:`), Correct the priors (the obvious wrong way; may go), Where
-to look (`file:line`), Out of scope, Why, Dependencies. The technical part, all but In plain words and
-Example, stays short: 150-400 words, one goal, no implementation steps. In the draft they are
+Example (may go), Goal, Acceptance criteria (a `- [ ]` list, each item a sentence "situation → what
+we see" with concrete people and values), How to check, Boundaries (`- always:`, `- ask first:`,
+`- never:`, each with why in a few words), Correct the priors (the obvious wrong way; may go), Where
+to look (`file:line`), Out of scope, Why, Dependencies. Every section is written for someone who has
+not seen the feature: short, but in whole sentences, and a D or T number comes with its words. The
+technical part, all but In plain words and Example, stays short: 150-500 words, one goal, no
+implementation steps. The ticket reviewer checks that a newcomer understands each section. In the draft they are
 `T1`, `T2`...; a T-number is never reused. More than about 15 tickets → keel offers to split the
 feature. keel looks up code facts itself; a pricier model or web research only when you ask or say
 yes to an offer of it.
@@ -415,7 +418,9 @@ the reasons below. A feature with a reason for
 more (several variants today, a database or network, a public API, money, access, security, a scale
 you gave in numbers, or simply a large feature) gets 2-5 levels, each with what is built, about how
 many tickets, the cost and risk now and how painful adding it later is; keel recommends one, you
-choose, and you can ask for any level it did not offer. The level goes into Level. The design fits
+choose, and you can ask for any level it did not offer. The level goes into Level so that someone who
+has not seen the levels follows it: which of how many and what the scale means, what this level builds,
+and what is put off and why. The design fits
 today's acceptance criteria: a request for everything at once gets a first working slice to grow,
 each ticket is a thin slice through the layers it needs, and a new dependency, datastore, protocol,
 module boundary or public contract comes with an offer of a short ADR. Before writing the
