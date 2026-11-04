@@ -94,6 +94,16 @@ test('a planning case resumes the current /keel:start-planning instructions', ()
     // A resumed run sees only the history: the planning rules are there as the command read them.
     const reads = records.filter((r) => r.type === 'assistant').flatMap((r) => r.message.content).filter((b) => b.type === 'tool_use' && b.name === 'Read');
     assert.ok(reads.some((b) => b.input.file_path === '/work/plugins/keel/skills/_shared/planning.md'), `${name}: the history reads planning.md`);
+    // keel's first reply states what its steps found; without their calls in the history the resumed
+    // run takes those claims as unchecked and runs the steps (and the code search) again.
+    const calls = records.slice(0, records.findIndex((r) => r.type === 'assistant' && r.message.stop_reason === 'end_turn'))
+      .filter((r) => r.type === 'assistant').flatMap((r) => r.message.content).filter((b) => b.type === 'tool_use');
+    const ran = (re) => calls.some((b) => b.name === 'Bash' && re.test(b.input.command));
+    assert.ok(reads.some((b) => b.input.file_path === '/work/plugins/keel/skills/_shared/preflight.md'), `${name}: the history reads preflight.md`);
+    assert.ok(ran(/scripts\/notes\.js" "\." check --session /), `${name}: the history runs the lane check`);
+    assert.ok(calls.some((b) => b.name === 'Grep'), `${name}: the history checks the premise in the code`);
+    assert.ok(ran(/scripts\/plans\.js" "\." new notification-system$/), `${name}: the history makes the draft`);
+    assert.ok(ran(/scripts\/plans\.js" "\." mark set notification-system --session /), `${name}: the history marks the chat`);
     assert.match(expanded.message.content[0].text, /^- `<keel>` \(the plugin folder\): `\/work\/plugins\/keel`$/m, name);
     assert.equal(steps(expanded.message.content[0].text), skill, `${name}: the history's start-planning steps are not the command's`);
   }

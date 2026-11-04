@@ -20,7 +20,9 @@ All notable changes to keel are listed here. The format follows
 - Planning gathers before it asks: a new feature told in a line or two, or a large one, first gets an
   offer of what to look up, with the price as an estimate, on one yes: the project map, a
   `keel:context` helper on Haiku. Its findings go into `plan.md`, What was gathered, which a continued
-  draft reads instead of searching again; the questions after it build on what was found.
+  draft reads instead of searching again; the questions after it build on what was found. Skipped or
+  not answered yet, it is not replaced by searches of keel's own. In planning keel writes the draft
+  first and then replies: the answer and the next question are in its last message.
 - A new agent, `keel:researcher` (Sonnet, read-only, web): in planning, on a yes to an offer with its
   price, it reads documentation, package registries (npm, Packagist, deps.dev; GET requests only) and
   the web, and returns a report with dated data and its sources. The planner writes it into the

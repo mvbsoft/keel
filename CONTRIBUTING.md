@@ -30,9 +30,10 @@ tool calls. Every eval run is `claude -p`, where keel refuses `/keel:start-plann
 so the planning cases resume a short written conversation instead (`history.jsonl` in the case folder,
 with the fixed session id the fixture marks as planning a feature or working on a task). The five cases
 tagged `start-planning` resume `/keel:start-planning` as Claude Code expanded it, with keel at
-`/work/plugins/keel` as the Docker command below mounts it, and give the person's next words; a test
-keeps the expanded steps and the planning rules it read (`skills/_shared/planning.md`) equal to the
-current ones: after a change to either, run
+`/work/plugins/keel` as the Docker command below mounts it, with the tool calls behind keel's first
+reply, and give the person's next words; a test keeps the expanded steps and the files it read
+(`skills/_shared/preflight.md`, `skills/_shared/planning.md`) equal to the current ones: after a
+change to any of them, run
 `node plugins/keel/evals/_fixtures/start-planning-history.js` to write them again.
 
 ```bash

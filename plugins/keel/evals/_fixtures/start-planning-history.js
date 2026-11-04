@@ -1,9 +1,9 @@
 'use strict';
 // Writes history.jsonl of the cases tagged start-planning: the conversation in which the person typed
-// /keel:start-planning, as Claude Code records it (the command, then its expanded text), its read of
-// the planning rules, and keel's reply so far. keel refuses /keel:start-planning in every eval run, so
-// these cases resume it instead.
-// Run after a change to start-planning/SKILL.md or _shared/planning.md:
+// /keel:start-planning, as Claude Code records it (the command, then its expanded text), the tool calls
+// of its first reply (preflight and planning rules read, the scripts, the premise search), and keel's
+// reply so far. keel refuses /keel:start-planning in every eval run, so these cases resume it instead.
+// Run after a change to start-planning/SKILL.md, _shared/preflight.md or _shared/planning.md:
 // node plugins/keel/evals/_fixtures/start-planning-history.js
 const fs = require('node:fs');
 const path = require('node:path');
@@ -40,25 +40,54 @@ function conversation(turns) {
   }).join('\n') + '\n';
 }
 
-// The command's step 3: the planning rules read with the Read tool, as the conversation saw them. A
-// resumed run keeps only what the history holds, so without this read it would plan without the rules.
-function readRules() {
-  const text = fs.readFileSync(path.join(KEEL, 'skills', '_shared', 'planning.md'), 'utf8').replace(/\n$/, '');
-  const numbered = text.split('\n').map((l, i) => `${String(i + 1).padStart(6)}\t${l}`).join('\n');
+// One tool call of keel's first reply and its result, as Claude Code records them.
+function call(id, say, name, input, result) {
   return [
-    ['assistant', [{ type: 'tool_use', id: 'toolu_read_planning', name: 'Read', input: { file_path: `${PLUGIN_ROOT}/skills/_shared/planning.md` } }]],
-    ['user', [{ type: 'tool_result', tool_use_id: 'toolu_read_planning', content: numbered }]],
+    ['assistant', [{ type: 'text', text: say }, { type: 'tool_use', id: `toolu_${id}`, name, input }]],
+    ['user', [{ type: 'tool_result', tool_use_id: `toolu_${id}`, content: result }]],
   ];
 }
+
+// A keel file read with the Read tool, as the conversation saw it.
+function read(id, say, rel) {
+  const text = fs.readFileSync(path.join(KEEL, rel), 'utf8').replace(/\n$/, '');
+  const numbered = text.split('\n').map((l, i) => `${String(i + 1).padStart(6)}\t${l}`).join('\n');
+  return call(id, say, 'Read', { file_path: `${PLUGIN_ROOT}/${rel}` }, numbered);
+}
+
+const script = (id, say, name, args, result) =>
+  call(id, say, 'Bash', { command: `node "${PLUGIN_ROOT}/scripts/${name}" "." ${args}`, description: say }, result);
+
+// The steps behind keel's first reply, with the outputs they give on shop.js "planning-new" before its
+// draft and mark exist. A resumed run keeps only what the history holds: without the planning rules it
+// would plan without them, and without these calls it takes the reply's claims as unchecked and runs
+// the steps, the code search included, again.
+const STEPS = () => [
+  ...read('read_preflight', 'Reading the preflight steps.', 'skills/_shared/preflight.md'),
+  ...script('notes_check', 'Checking this conversation\'s lane.', 'notes.js', `check --session ${SID}`,
+    'note: missing\nmemory: missing\ntasks: 0 unfinished\nactive task: none\nsession start: not recorded\nnext session log: .keel/sessions/2026-11-02-001.md\n'),
+  ...script('mark_get', 'Checking whether this conversation already plans a feature.', 'plans.js', `mark get --session ${SID}`, 'planning: none\n'),
+  ...read('read_planning', 'Reading the planning rules.', 'skills/_shared/planning.md'),
+  ...script('settings', 'Reading the planning settings.', 'plans.js', 'settings',
+    'settings: .keel/local/plans/keel/settings.json\ndraft: pc\ndraft_dir: tickets (default)\nrepos: -\nplanning: .keel/config.json\nticket_prefix: INV\ntickets: repo\ntickets_dir: tickets (default)\nlanguage: en (default)\n'),
+  ...call('premise', 'Checking the premise: does anything in the shop send notifications today?', 'Grep',
+    { pattern: 'notif|email|mail|sms|push', path: 'src', '-i': true, '-n': true, output_mode: 'content' },
+    'src/auth.js:3:function requestReset(email) {\nsrc/auth.js:5:  tokens.set(token, email);\nsrc/auth.js:9:  const email = tokens.get(token);\nsrc/auth.js:11:  return { email: email.toLowerCase(), changed: true };'),
+  ...call('branches', 'Listing the branches the tasks could merge into.', 'Bash',
+    { command: 'git for-each-ref --format="%(refname:short)" refs/heads refs/remotes', description: 'List local and remote branches' }, 'main\norigin/main\n'),
+  ...script('new', 'Making the draft notification-system.', 'plans.js', 'new notification-system',
+    'created: .keel/local/plans/keel/notification-system/plan.md\ndraft: .keel/local/plans/keel/notification-system/ (this machine only)\nstatus: draft\nlanguage: en\n'),
+  ...script('mark_set', 'Marking this conversation as planning it.', 'plans.js', `mark set notification-system --session ${SID}`, 'planning: notification-system\n'),
+];
 
 const START = () => [
   ['user', `<command-message>keel:start-planning</command-message>\n<command-name>/keel:start-planning</command-name>\n<command-args>${ARGS}</command-args>`],
   ['user', [{ type: 'text', text: expanded() }], { isMeta: true }],
-  ...readRules(),
+  ...STEPS(),
   ['assistant', [
     'keel advises Opus for planning, since the plan shapes all the work after it; the model stays your choice (`/model`).',
     '',
-    'As I understand it: the shop should tell people about events that matter to them. Who gains: its customers and its staff. What is out: nothing named yet. Nothing in the shop sends notifications today.',
+    'As I understand it: the shop should tell people about events that matter to them. Who gains: its customers and its staff. What is out: nothing named yet. Nothing in the shop sends notifications today: the only match in `src/` is a password-reset token kept against an e-mail address (`src/auth.js:3-11`), and nothing is sent.',
     '',
     'Size: large, several conversations, each ended with /keel:end-planning. Name: `notification-system`; its tasks merge into `main`.',
     '',
