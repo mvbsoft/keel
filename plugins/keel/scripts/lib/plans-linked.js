@@ -295,4 +295,4 @@ function alignCommand(root, feature, { take, now = new Date() } = {}) {
   return [`align: ${feature}: ${chosen.prefix}'s overview taken`, ...out, ...notes];
 }
 
-module.exports = { linkedLines, alignCommand };
+module.exports = { linkedLines, alignCommand, listed };

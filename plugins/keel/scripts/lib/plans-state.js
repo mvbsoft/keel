@@ -330,11 +330,13 @@ function byKeys(d) {
   return keys;
 }
 
-// The hint for the branch behind a state, and whether it is stale.
+// The hint for the branch behind a state, the same as data (`via`, the date in Unix seconds), and whether
+// it is stale.
 function behind(d, v) {
   const r = d.byRef.get(v.ref) || v;
   const stale = r.date > 0 && d.now.getTime() - r.date * 1000 > FRESH_DAYS * DAY_MS;
-  return { hint: `branch ${short(v.ref)}${r.author ? `, ${clean(r.author, 40)}` : ''}${r.date ? `, ${ago(r.date, d.now)}` : ''}`, stale };
+  const via = { kind: 'branch', branch: short(v.ref), author: r.author ? clean(r.author, 40) : null, date: r.date || null };
+  return { hint: `branch ${via.branch}${via.author ? `, ${via.author}` : ''}${r.date ? `, ${ago(r.date, d.now)}` : ''}`, via, stale };
 }
 
 // A branch as git reads it for the states: the remote's when there is one, else the local one, or null.
@@ -362,8 +364,8 @@ function states(d) {
     e.marks = [];
     if (e.paths.length > 1) e.marks.push(`duplicate key (${e.paths.length} files)`);
     const inProgress = () => {
-      if (taskIds().has(e.key)) return { state: 3, hint: 'keel task' };
-      if (noteSet().has(e.key)) return { state: 3, hint: 'session (.keel/next-session.md)' };
+      if (taskIds().has(e.key)) return { state: 3, hint: 'keel task', via: { kind: 'task' } };
+      if (noteSet().has(e.key)) return { state: 3, hint: 'session (.keel/next-session.md)', via: { kind: 'session' } };
       return null;
     };
     // The target also for a ticket kept on this machine: its dependencies may be read from git history.
@@ -405,6 +407,7 @@ function states(d) {
       e.state = undone || merged || featureRefs.has(held.ref) ? 1 : 2;
       const b = behind(d, held);
       e.hint = b.hint;
+      e.via = b.via;
       // Reverted: a committed done already merged; a done only in the working tree is not merged yet.
       if (undone || (onTarget.length && doneOn.some((v) => !v.work && isAncestor(d, v.sha, target)))) e.marks.unshift('reverted');
       if (b.stale) e.marks.push('stale');
@@ -417,13 +420,13 @@ function states(d) {
     const c = featureCommits.get(e.feature);
     const ref = c.onBranches.get(e.key);
     if (!ref && c.onTarget.has(e.key)) {
-      Object.assign(e, { state: 3, hint: `commits with the key on ${e.mergeInto}, status not written` });
+      Object.assign(e, { state: 3, hint: `commits with the key on ${e.mergeInto}, status not written`, via: { kind: 'commits', branch: e.mergeInto } });
       continue;
     }
     const by = ref ? d.byRef.get(ref) || { ref } : keyRefs.get(e.key);
     if (by) {
       const b = behind(d, by);
-      Object.assign(e, { state: 3, hint: b.hint });
+      Object.assign(e, { state: 3, hint: b.hint, via: b.via });
       if (b.stale) e.marks.push('stale');
       continue;
     }
@@ -547,16 +550,23 @@ function ticketLine(e, next, marks = []) {
   return `  ${clean(e.shown, 40)}${e.title ? ` ${clean(e.title, 80)}` : ''} — ${[state, e.hint, ...e.marks, ...marks].filter(Boolean).join(' · ')}`;
 }
 
-// `--fetch`: the remote first (lib/plans-export.js fetched); other repositories are read as they are,
-// never fetched. arg: a feature, a key, or nothing (every feature with a ticket not done).
-function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
-  const notes = fetch ? require('./plans-export.js').fetched(root).notes.map((n) => n.replace(/; keys .*$/, '')) : [];
+// Every key's state here, and what nextOf needs: the other repositories' dependencies and the ones
+// found in history.
+function readStates(root, now) {
   const d = collect(root, now);
   const keys = states(d);
   const isForeign = neighbours().foreignTest(root, [...keys.keys()]);
   const foreign = (k) => !keys.has(k) && isForeign(k);
   const others = neighbours().neighbourStates(root, [...new Set([...keys.values()].flatMap((e) => e.depends))].filter(foreign), now);
   const gone = d.inRepo ? doneInHistory(d, keys, null, foreign) : new Map();
+  return { d, keys, others, gone };
+}
+
+// `--fetch`: the remote first (lib/plans-export.js fetched); other repositories are read as they are,
+// never fetched. arg: a feature, a key, or nothing (every feature with a ticket not done).
+function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
+  const notes = fetch ? require('./plans-export.js').fetched(root).notes.map((n) => n.replace(/; keys .*$/, '')) : [];
+  const { d, keys, others, gone } = readStates(root, now);
   if (!keys.size && !arg) return ['tickets: none', ...notes];
   const features = new Map();
   for (const e of [...keys.values()].sort((a, b) => byKey(a.key, b.key))) {
@@ -666,4 +676,6 @@ module.exports = {
   ticketsCommand, doneCommand, dropCommand, stateIn, keysHere, metBy, KEY, prefixOf, STATES,
   // for lib/plans-linked.js
   collect, states, ticketLine, serverData,
+  // for feature-page.js
+  readStates, nextOf, byKey,
 };

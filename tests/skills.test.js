@@ -65,7 +65,7 @@ test('configure is user-only and every file the flow names exists in the plugin'
   }
 });
 
-const COMMANDS = ['start-task', 'start-session', 'end-task', 'end-session', 'start-planning', 'end-planning', 'cleanup', 'tasks'];
+const COMMANDS = ['start-task', 'start-session', 'end-task', 'end-session', 'start-planning', 'end-planning', 'cleanup', 'tasks', 'feature-page'];
 
 test('the workflow commands and cleanup are user-only, check the config first and name only existing files', () => {
   const root = path.join(SKILLS, '..');
@@ -77,7 +77,7 @@ test('the workflow commands and cleanup are user-only, check the config first an
     assert.match(fields['allowed-tools'], /check-config\.js/);
     assert.match(body, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/check-config\.js" "\$\{CLAUDE_PROJECT_DIR\}" --profile`$/m, name);
     assert.match(body, /skills\/_shared\/preflight\.md/, `${name} reads the preflight`);
-    assert.ok(body.indexOf('preflight.md') < body.search(/intake\.md|handoff\.md|verify\.md|planning\.md|cleanup\.js|notes\.js|plans\.js/), `${name}: preflight comes first`);
+    assert.ok(body.indexOf('preflight.md') < body.search(/intake\.md|handoff\.md|verify\.md|planning\.md|cleanup\.js|notes\.js|plans\.js|feature-page\.js/), `${name}: preflight comes first`);
   }
   for (const file of [...COMMANDS.map((c) => `skills/${c}/SKILL.md`), 'skills/_shared/intake.md', 'skills/_shared/handoff.md', 'skills/_shared/planning.md', 'skills/_shared/git.md', 'skills/_shared/delegate.md', 'skills/_shared/migrate.md', 'templates/keel/plan.md']) {
     const body = fs.readFileSync(path.join(root, file), 'utf8');

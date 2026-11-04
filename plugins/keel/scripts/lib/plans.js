@@ -680,4 +680,6 @@ module.exports = {
   // for lib/plans-export.js
   base, needDraft, settle, stateOf, problems, tickets, ticketIds, writePlan, writeFile,
   branchesOf, mainBranch, PLAN_FILE, TICKET_FILE, fromTemplate, ticketProblems, cycles,
+  // for feature-page.js
+  mentionedFiles,
 };
