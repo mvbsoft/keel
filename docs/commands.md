@@ -204,7 +204,8 @@ The texts are those of the md files, which stay the source; keel puts them into 
 the page draws the markdown and code itself (libraries from cdnjs), so every feature looks the same.
 A feature on several repositories also shows the other repositories' tickets: read in their folders on
 this machine, else from the overview with the state unknown and a "not on this machine" mark; a
-dependency on such a ticket is unknown too, never shown as met.
+dependency on such a ticket is unknown too. A dependency shows its ticket's own state; one of another
+feature that waits for its feature merge gets an "only in the <feature> feature branch" mark.
 
 **Language.** `--lang`, else the language the page already has, else your conversation language.
 The labels come from keel's language files (English and Ukrainian today; English for another

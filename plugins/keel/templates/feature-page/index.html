@@ -615,6 +615,8 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
   const offText = (repo) => L('not_on_pc_title', { repo });
   const offBadge = (repo) => bubbleButton('pill off', [icon('alert'), el('span', '', L('not_on_pc'))], offText(repo));
   const offMark = (repo) => { const m = el('span', 'pill off', L('not_on_pc')); m.title = offText(repo); return m; };
+  const branchMark = (feature) => { const m = el('span', 'pill off', L('only_in_feature', { feature })); m.title = L('only_in_feature_title', { feature }); return m; };
+  const UNKNOWN_STATE = 'state unknown';
   function closeFloats() {
     document.querySelectorAll('.infowrap.open, .popwrap.open').forEach((w) => {
       w.classList.remove('open');
@@ -756,10 +758,14 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
       const other = byKey.get(d.key);
       // met null: the dependency's repository is not read on this machine, so its state is unknown.
       const unknown = d.met === null;
-      const state = unknown ? pill('s-unknown', L('state.unknown')) : pill(d.met ? 's-done' : '', d.met ? L('met') : L('not_met'));
-      const where = other ? (unknown ? other.repo : `${other.repo} · ${stateText(other.next ? 'next' : other.state)}`) : null;
+      const shown = other && other.next ? 'next' : d.state || (other ? other.state : UNKNOWN_STATE);
+      const group = other ? groupOf(other) : GROUP_OF[shown];
+      const state = unknown || !group || group === 'unknown' ? pill('s-unknown', L('state.unknown')) : pill(PILL[group], stateText(shown));
+      // Not met while it waits for the merge of its own feature: this ticket is in another feature,
+      // whose branch may hold that code already if it was pulled in by hand.
+      const elsewhere = d.met === false && d.state === 'waiting for the feature merge' ? branchMark(d.feature) : null;
       const row = btn('dep', [el('span', 'key', d.key), other ? el('span', '', other.title) : null, state,
-        where ? el('span', 'small muted', where) : null, unknown ? offMark(other ? other.repo : repoOfKey(d.key)) : null], () => { if (other) select(d.key, true); });
+        other ? el('span', 'small muted', other.repo) : null, unknown ? offMark(other ? other.repo : repoOfKey(d.key)) : elsewhere], () => { if (other) select(d.key, true); });
       if (!other) row.disabled = true;
       box.append(row);
     }

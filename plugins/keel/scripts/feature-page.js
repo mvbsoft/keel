@@ -161,10 +161,14 @@ function exportedData(root, feature, f, now) {
   const metThere = (s, feature) => (s.state === NOT_CHECKED ? null : met(s, feature));
   const depMet = (k, e) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, e.feature)
     : others.has(k) ? metThere(others.get(k), e.feature) : gone.get(`${e.target} ${k}`) === 'done');
+  // The page shows a dependency's own state; `feature` tells it whose feature branch the code waits in.
+  const depState = (k, states, target) => (keys.has(k) ? { state: STATES[keys.get(k).state], feature: keys.get(k).feature }
+    : states.has(k) ? { state: states.get(k).state, feature: states.get(k).feature || null }
+      : { state: target && gone.get(`${target} ${k}`) === 'done' ? 'done' : UNKNOWN, feature: null });
   const textOf = (list, key) => (list.find((t) => t.fm.key.toUpperCase() === key) || {}).text || null;
   const tickets = mine.map((e) => ticketOf(e.shown, textOf(f.list, e.key), {
     title: e.title, prefix: prefixOf(e.key), repo: repos[0].name, state: STATES[e.state], next: e === next, via: e.via || null,
-    depends: e.depends.map((k) => ({ key: k, met: depMet(k, e) })),
+    depends: e.depends.map((k) => ({ key: k, met: depMet(k, e), ...depState(k, others, e.target) })),
   }));
   for (const r of repos.slice(1)) {
     const theirs = overview ? listed(overview).filter((t) => prefixOf(t.key) === r.prefix) : [];
@@ -178,7 +182,7 @@ function exportedData(root, feature, f, now) {
     const theirMet = (k) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, feature) : stated.has(k) ? metThere(stated.get(k), feature) : null);
     for (const k of all) {
       const s = stated.get(k);
-      const t = ticketOf((s && s.shown) || k, textOf(list, k), { prefix: r.prefix, repo: r.name, state: s ? s.state : UNKNOWN, next: false, depends: depsOf(k).map((d) => ({ key: d, met: theirMet(d) })) });
+      const t = ticketOf((s && s.shown) || k, textOf(list, k), { prefix: r.prefix, repo: r.name, state: s ? s.state : UNKNOWN, next: false, depends: depsOf(k).map((d) => ({ key: d, met: theirMet(d), ...depState(d, stated) })) });
       if (!t.title) t.title = (theirs.find((x) => x.key === k) || {}).title || '';
       tickets.push(t);
     }

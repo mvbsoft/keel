@@ -217,7 +217,7 @@ gitTest('an exported feature: its texts, states, sizes and terms go into the pag
 
   const [one, two] = data.tickets;
   assert.deepEqual([one.key, one.state, one.next, two.key, two.state, two.next], ['API-1', 'waiting for the feature merge', false, 'API-2', 'to do', true]);
-  assert.deepEqual(two.depends, [{ key: 'API-1', met: true }], 'done on the feature branch holds no ticket of the feature back');
+  assert.deepEqual(two.depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE }], 'done on the feature branch holds no ticket of the feature back; the page shows its own state');
   assert.equal(two.title, 'Цифра непрочитаних на іконці чату');
   assert.deepEqual([two.files, two.criteria], [2, 3]);
   // The text as it is: a "## " inside a code block stays in its section.
@@ -355,8 +355,8 @@ gitTest('a feature on several repositories: the first of repos names the page; a
   const webTicket = data.tickets.find((t) => t.key === 'WEB-14');
   assert.deepEqual([webTicket.repo, webTicket.state, webTicket.title], ['web', 'to do', 'Цифра на сайті']);
   assert.ok(webTicket.sections.length > 0, 'its text from its folder');
-  assert.deepEqual(webTicket.depends, [{ key: 'API-1', met: true }, { key: 'API-2', met: false }, { key: 'WGT-3', met: null }], 'its depends_on, met as this repository reads them; one not read here: null');
-  assert.deepEqual(data.tickets.find((t) => t.key === 'API-2').depends, [{ key: 'API-1', met: true }, { key: 'WGT-3', met: null }], 'a dependency in a repository not on this machine is not shown met');
+  assert.deepEqual(webTicket.depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE }, { key: 'API-2', met: false, state: 'to do', feature: FEATURE }, { key: 'WGT-3', met: null, state: 'not checked', feature: null }], 'its depends_on, met as this repository reads them; one not read here: null');
+  assert.deepEqual(data.tickets.find((t) => t.key === 'API-2').depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE }, { key: 'WGT-3', met: null, state: 'not checked', feature: null }], 'a dependency in a repository not on this machine is not shown met');
   const wgt = data.tickets.find((t) => t.key === 'WGT-3');
   assert.deepEqual([wgt.repo, wgt.state, wgt.title, wgt.sections], ['widget', 'state unknown', 'Цифра у віджеті', null]);
 });
