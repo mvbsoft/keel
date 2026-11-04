@@ -77,9 +77,12 @@ button.chip:hover, button.chip[aria-expanded="true"] { border-color: var(--accen
 .s-waiting { background: var(--wait-soft); color: var(--wait); }
 .s-doing { background: var(--doing-soft); color: var(--doing); }
 .s-next { background: var(--accent-soft); color: var(--accent); }
-.s-unknown { background: none; border: 1px dashed var(--line); }
-/* "not on this machine": why a ticket's state is unknown. */
-.pill.off { font-size: 12px; padding: 1px 8px; cursor: help; color: var(--wait); border-color: var(--wait); }
+.s-unknown { background: var(--band); color: var(--muted); }
+/* A state, of a ticket or of a dependency: one shape, a dot in its colour and its word. */
+.pill.st::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.pill.st.s-unknown::before { background: none; box-shadow: inset 0 0 0 1.5px currentColor; }
+/* A mark, not a state: why a ticket's state is unknown ("not on this machine"). */
+.pill.off { font-size: 12px; padding: 1px 8px; cursor: help; background: none; color: var(--wait); border: 1px solid var(--wait); }
 .pill.off svg { width: 14px; height: 14px; }
 .item:has(.off) { grid-template-columns: 10px max-content minmax(0, 1fr) max-content; }
 .s-draft { background: var(--wait-soft); color: var(--wait); }
@@ -355,7 +358,7 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     return b;
   }
   const named = (secs, name) => ((secs || []).find((s) => s.name === name) || {}).text || '';
-  const pill = (cls, text) => el('span', `pill ${cls}`, text);
+  const pill = (cls, text) => el('span', `pill st ${cls}`, text);
   const byKey = new Map(data.tickets.map((t) => [t.key, t]));
 
   // Markdown to safe HTML; without the libraries (offline), the text as it is.
@@ -610,8 +613,8 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
   const isOff = (t) => Boolean(repoOf(t) && !repoOf(t).commit);
   const repoOfKey = (key) => (data.repos.find((r) => r.prefix === key.split('-')[0]) || { name: key.split('-')[0] }).name;
   const offText = (repo) => L('not_on_pc_title', { repo });
-  const offBadge = (repo) => bubbleButton('pill s-unknown off', [icon('alert'), el('span', '', L('not_on_pc'))], offText(repo));
-  const offMark = (repo) => { const m = el('span', 'pill s-unknown off', L('not_on_pc')); m.title = offText(repo); return m; };
+  const offBadge = (repo) => bubbleButton('pill off', [icon('alert'), el('span', '', L('not_on_pc'))], offText(repo));
+  const offMark = (repo) => { const m = el('span', 'pill off', L('not_on_pc')); m.title = offText(repo); return m; };
   function closeFloats() {
     document.querySelectorAll('.infowrap.open, .popwrap.open').forEach((w) => {
       w.classList.remove('open');
@@ -753,7 +756,7 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
       const other = byKey.get(d.key);
       // met null: the dependency's repository is not read on this machine, so its state is unknown.
       const unknown = d.met === null;
-      const state = unknown ? pill('s-unknown', L('state.unknown')) : pill(d.met ? 's-done' : '', d.met ? `✓ ${L('met')}` : L('not_met'));
+      const state = unknown ? pill('s-unknown', L('state.unknown')) : pill(d.met ? 's-done' : '', d.met ? L('met') : L('not_met'));
       const where = other ? (unknown ? other.repo : `${other.repo} · ${stateText(other.next ? 'next' : other.state)}`) : null;
       const row = btn('dep', [el('span', 'key', d.key), other ? el('span', '', other.title) : null, state,
         where ? el('span', 'small muted', where) : null, unknown ? offMark(other ? other.repo : repoOfKey(d.key)) : null], () => { if (other) select(d.key, true); });
