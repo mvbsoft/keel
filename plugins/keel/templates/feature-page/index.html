@@ -78,6 +78,10 @@ button.chip:hover, button.chip[aria-expanded="true"] { border-color: var(--accen
 .s-doing { background: var(--doing-soft); color: var(--doing); }
 .s-next { background: var(--accent-soft); color: var(--accent); }
 .s-unknown { background: none; border: 1px dashed var(--line); }
+/* "not on this machine": why a ticket's state is unknown. */
+.pill.off { font-size: 12px; padding: 1px 8px; cursor: help; color: var(--wait); border-color: var(--wait); }
+.pill.off svg { width: 14px; height: 14px; }
+.item:has(.off) { grid-template-columns: 10px max-content minmax(0, 1fr) max-content; }
 .s-draft { background: var(--wait-soft); color: var(--wait); }
 .s-risk { background: var(--risk-soft); color: var(--risk); }
 .key { font: 500 13px/1.4 var(--font-mono); padding: 1px 7px; border: 1px solid var(--line); border-radius: 6px; white-space: nowrap; }
@@ -580,22 +584,34 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
   }
   // ⓘ with its text in a tooltip: hover shows it, a click or tap pins it until a click elsewhere.
   let tipCount = 0;
-  const infoButton = (key) => {
+  // A button whose text shows as a tooltip: on hover with a mouse, on a tap on a phone.
+  const bubbleButton = (cls, kids, text, label) => {
     const wrap = el('span', 'infowrap');
-    const bubble = el('span', 'bubble', L(`info.${key}`));
+    const bubble = el('span', 'bubble', text);
     bubble.id = `info-${++tipCount}`;
     bubble.setAttribute('role', 'tooltip');
-    const b = btn('info', [icon('info')], (e) => {
+    const b = btn(cls, kids, (e) => {
       e.stopPropagation();
       const open = !wrap.classList.contains('open');
       closeFloats();
       wrap.classList.toggle('open', open);
       b.setAttribute('aria-expanded', String(open));
-    }, L('what_is'));
+    }, label);
     b.setAttribute('aria-expanded', 'false');
     b.setAttribute('aria-describedby', bubble.id);
     return add(wrap, b, bubble);
   };
+  const infoButton = (key) => bubbleButton('info', [icon('info')], L(`info.${key}`), L('what_is'));
+  // A ticket of a repository that is not on this machine: why its state is unknown. Inside another
+  // button (a list item, a dependency) only a mark with its text on hover: a button holds no button.
+  // A ticket's repository: by its key's prefix, else by its name (this repository's tickets under
+  // another prefix); null for one the page does not list. Names alone may repeat.
+  const repoOf = (t) => data.repos.find((r) => r.prefix === t.prefix) || data.repos.find((r) => r.name === t.repo) || null;
+  const isOff = (t) => Boolean(repoOf(t) && !repoOf(t).commit);
+  const repoOfKey = (key) => (data.repos.find((r) => r.prefix === key.split('-')[0]) || { name: key.split('-')[0] }).name;
+  const offText = (repo) => L('not_on_pc_title', { repo });
+  const offBadge = (repo) => bubbleButton('pill s-unknown off', [icon('alert'), el('span', '', L('not_on_pc'))], offText(repo));
+  const offMark = (repo) => { const m = el('span', 'pill s-unknown off', L('not_on_pc')); m.title = offText(repo); return m; };
   function closeFloats() {
     document.querySelectorAll('.infowrap.open, .popwrap.open').forEach((w) => {
       w.classList.remove('open');
@@ -616,7 +632,7 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
       el('h1', '', data.heading));
     const projects = popChip([icon('folders'), el('span', '', L('projects', { n: data.repos.length }))], (p) => {
       for (const r of data.repos) {
-        const n = data.tickets.filter((t) => t.prefix === r.prefix).length;
+        const n = data.tickets.filter((t) => repoOf(t) === r).length;
         p.append(add(el('div', 'r'), el('b', '', r.name), el('span', 'small muted mono', r.prefix), el('span', 'small muted', `${L('ticket_count', { n })}${r.commit ? '' : ` · ${L('not_on_pc')}`}`)));
       }
     });
@@ -697,15 +713,19 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     if (!data.tickets.length) return null;
     const card = add(el('nav', 'card list'), el('h2', '', L('tickets')));
     card.setAttribute('aria-label', L('tickets'));
-    for (const r of data.repos) {
-      const mine = data.tickets.filter((t) => t.prefix === r.prefix);
+    // By repository; a ticket of a repository the page does not list (a draft's repo: that plan.md
+    // lacks) goes into a group named by its repo, so every ticket is in the list once.
+    const groups = data.repos.map((r) => ({ name: r.name, list: data.tickets.filter((t) => repoOf(t) === r) }));
+    for (const name of new Set(data.tickets.filter((t) => !repoOf(t)).map((t) => t.repo))) groups.push({ name, list: data.tickets.filter((t) => !repoOf(t) && t.repo === name) });
+    for (const { name, list: mine } of groups) {
       if (!mine.length) continue;
-      card.append(add(el('div', 'grp'), el('span', '', r.name), el('span', 'sp'), el('span', 'cnt', L('ticket_count', { n: mine.length }))));
+      card.append(add(el('div', 'grp'), el('span', '', name), el('span', 'sp'), el('span', 'cnt', L('ticket_count', { n: mine.length }))));
       for (const t of mine) {
         const dot = el('span', `dot ${groupOf(t)}`);
         dot.title = stateText(t.next ? 'next' : t.state);
-        const b = btn('item', [dot, el('span', 'k', t.key), el('span', 'tt', t.title || t.key)], () => select(t.key, true));
-        b.title = `${t.key} · ${t.title} · ${dot.title}`;
+        const off = isOff(t);
+        const b = btn('item', [dot, el('span', 'k', t.key), el('span', 'tt', t.title || t.key), off ? offMark(t.repo) : null], () => select(t.key, true));
+        b.title = `${t.key} · ${t.title} · ${dot.title}${off ? ` · ${offText(t.repo)}` : ''}`;
         items.set(t.key, b);
         card.append(b);
       }
@@ -731,8 +751,12 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     if (!t.depends.length) box.append(el('p', 'muted', L('no_deps')));
     for (const d of t.depends) {
       const other = byKey.get(d.key);
-      const row = btn('dep', [el('span', 'key', d.key), other ? el('span', '', other.title) : null, pill(d.met ? 's-done' : '', d.met ? `✓ ${L('met')}` : L('not_met')),
-        other ? el('span', 'small muted', `${other.repo} · ${stateText(other.next ? 'next' : other.state)}`) : null], () => { if (other) select(d.key, true); });
+      // met null: the dependency's repository is not read on this machine, so its state is unknown.
+      const unknown = d.met === null;
+      const state = unknown ? pill('s-unknown', L('state.unknown')) : pill(d.met ? 's-done' : '', d.met ? `✓ ${L('met')}` : L('not_met'));
+      const where = other ? (unknown ? other.repo : `${other.repo} · ${stateText(other.next ? 'next' : other.state)}`) : null;
+      const row = btn('dep', [el('span', 'key', d.key), other ? el('span', '', other.title) : null, state,
+        where ? el('span', 'small muted', where) : null, unknown ? offMark(other ? other.repo : repoOfKey(d.key)) : null], () => { if (other) select(d.key, true); });
       if (!other) row.disabled = true;
       box.append(row);
     }
@@ -791,13 +815,18 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     detail.textContent = '';
     const back = btn('back', [icon('arrowLeft'), el('span', '', L('back'))], () => { document.body.classList.remove('reading'); const i = items.get(t.key); if (i) i.focus(); });
     const g = groupOf(t);
-    const top = add(el('div', 'rowline'), pill(PILL[g], stateText(t.next ? 'next' : t.state)), el('span', 'key', t.key), el('span', 'chip', t.repo), el('span', 'sp'));
+    const top = add(el('div', 'rowline'), pill(PILL[g], stateText(t.next ? 'next' : t.state)), el('span', 'key', t.key), el('span', 'chip', t.repo),
+      isOff(t) ? offBadge(t.repo) : null, el('span', 'sp'));
     if (t.md) top.append(btn('btn', [icon('file'), el('span', '', L('show_md'))], () => mdFile(t)));
     const meta = el('div', 'rowline');
     meta.append(...viaChips(t.via));
     if (t.files) meta.append(add(el('span', 'chip'), icon('folder'), el('span', '', L('files', { n: t.files }))));
     if (t.criteria) meta.append(add(el('span', 'chip'), icon('check'), el('span', '', L('criteria', { n: t.criteria }))));
-    for (const d of t.depends) meta.append(add(el('span', 'chip'), icon('link'), el('span', '', `${L('after')} ${d.key}${d.met ? ' ✓' : ''}`)));
+    for (const d of t.depends) {
+      const c = add(el('span', 'chip'), icon('link'), el('span', '', `${L('after')} ${d.key}${d.met ? ' ✓' : d.met === null ? ' ?' : ''}`));
+      if (d.met === null) c.title = `${L('state.unknown')}: ${offText(byKey.has(d.key) ? byKey.get(d.key).repo : repoOfKey(d.key))}`;
+      meta.append(c);
+    }
     const title = el('h2', 'ttl', t.title || t.key);
     title.tabIndex = -1;
     add(detail, back, add(el('div', 'dhead'), top, title, meta.childNodes.length ? meta : null));
@@ -819,7 +848,8 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     enrich(detail);
   }
 
-  // `focus`: the person chose it (a click or a key), so the ticket comes into view.
+  // `focus`: the person opened it (a click, Enter, the first #KEY), so the ticket comes into view; the
+  // arrow keys pass false and move only through the list.
   function select(key, focus) {
     const t = byKey.get(key);
     if (!t) return;
@@ -839,7 +869,7 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     if (e.key === 'Escape') { closeFloats(); closeSheet(); return; }
     if (!['ArrowUp', 'ArrowDown'].includes(e.key) || document.getElementById('sheet') || (e.target.closest && e.target.closest('input, textarea, select'))) return;
     if (!matchMedia('(min-width: 1100px)').matches) return;
-    const keys = data.tickets.map((t) => t.key);
+    const keys = [...items.keys()];
     const i = keys.indexOf(current) + (e.key === 'ArrowDown' ? 1 : -1);
     if (i < 0 || i >= keys.length) return;
     e.preventDefault();
@@ -854,7 +884,9 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
   add(app, add(el('div', 'layout'), side, data.tickets.length ? col : null), el('footer', '', L('footer')));
   enrich(side);
   // The ticket shown first: the one the link names (#API-122), else the one in work, else the next.
-  const fromLink = location.hash && byKey.has(decodeURIComponent(location.hash.slice(1))) ? decodeURIComponent(location.hash.slice(1)) : null;
+  let asked = '';
+  try { asked = decodeURIComponent(location.hash.slice(1)).toUpperCase(); } catch { /* a broken link: the default ticket */ }
+  const fromLink = byKey.has(asked) ? asked : null;
   const first = fromLink || (data.tickets.find((t) => t.state === 'in progress') || data.tickets.find((t) => t.next) || data.tickets[0] || {}).key;
   if (first) select(first, Boolean(fromLink));
 })();

@@ -93,9 +93,11 @@ All notable changes to keel are listed here. The format follows
   `--lang`, else the page's own, else the conversation's; its labels come from `locales/` (new
   `page.*` keys), and texts in another language than the tickets' are translated by Claude on the
   page only and kept in it, so an update translates only what changed. The page is titled
-  `keel:feature:<PREFIX>:<feature>` (the first of the overview's `repos`) and found again in the account by that title and a hash of the main
-  repository's remote, so running it again from any machine or repository of the feature updates the
-  same page; nothing is kept on this machine. No feature named: the current branch's.
+  `keel:feature:<PREFIX>:<feature>` (the first of the overview's `repos`) and found again in the
+  account by that title and a hash of the main repository's remote, so running it again from any
+  machine or repository of the feature updates the same page; nothing is kept on this machine. A
+  ticket of a repository that is not on this machine is marked so, its state and any dependency on
+  it unknown. No feature named: the current branch's.
 
 ### Changed
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,

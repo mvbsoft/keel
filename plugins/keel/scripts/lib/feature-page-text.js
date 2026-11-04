@@ -7,11 +7,10 @@
 const crypto = require('node:crypto');
 const { catalog } = require('./i18n.js');
 
-// "uk", "uk-UA", "Ukrainian" -> "uk"; "de" -> "de"; anything else -> null.
+// "uk", "uk-UA", "pt_BR" -> the language part; a name such as "German" or anything else -> null.
 function langCode(value) {
-  const word = String(value || '').trim().toLowerCase().split(/[-_\s]/)[0];
-  if (/^[a-z]{2,3}$/.test(word)) return word;
-  return /^[a-z]{4,}$/.test(word) ? word.slice(0, 2) : null;
+  const m = /^([a-z]{2,3})(?:[-_][a-z0-9]{2,8})?$/.exec(String(value || '').trim().toLowerCase());
+  return m ? m[1] : null;
 }
 
 // The page.* labels in `code`, English for every key its catalog lacks; `own`: the catalog has them.
@@ -69,4 +68,4 @@ function readPage(html) {
   return { marker: meta('keel-feature-repo'), lang: langCode(meta('keel-feature-lang')), translations };
 }
 
-module.exports = { langCode, labelsFor, hashOf, missing, translate, readPage };
+module.exports = { langCode, labelsFor, missing, translate, readPage };

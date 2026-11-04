@@ -48,20 +48,26 @@ so an update translates only what changed.
    Then run `node "<keel>/scripts/feature-page.js" "<project>" peek "<that file>"` (`marker:` and
    `language:` of that page).
    - A `marker:` value in step 3 → read the candidates in that order and stop at the first whose
-     `marker:` is the same: the page to update, its file the earlier page. None has it and a page titled
-     `title` exists → another project has that title: the new page takes `--taken`.
-   - `marker: none (<why>)` → one candidate: it is the page to update. Several → ask which (their
-     links) or a new page.
+     `marker:` is the same: the page to update, its file the earlier page. None has it:
+     - a candidate with `marker: none` (made where the main repository was not on the machine) →
+       ask, with its link, whether it is this feature's page: yes → the page to update (the update
+       writes the marker); no → as below;
+     - else a page titled `title` exists → another project has that title: the new page takes `--taken`.
+   - `marker: none (<why>)` → the candidates with `marker: none` too: one → the page to update;
+     several → ask which (their links) or a new page. Only candidates with a marker → they may be
+     another project's pages: ask, with their links, whether one is this feature's page. A new page
+     here takes `--taken` when a page titled `title` exists.
    - No candidate and the listing may hold more pages than it shows (**A** `200 of <N>`; **B** 500
      entries) → ask: "I did not find the page among your latest ones. Give its link, or I make a new
-     one." A link → read it the
-     same way; its title is `title` or `title if taken` (and with a marker, the marker matches) →
-     update it, else say why and make a new one.
+     one." A link → read it the same way; its title is `title` or `title if taken` → decide by its
+     marker as above for that one page; else say why and make a new one.
    - No candidate otherwise → a new page.
+   - The page to update is titled `title if taken` → every build in step 5 takes `--taken`, so the
+     update keeps that title.
 5. Build it: `node "<keel>/scripts/feature-page.js" "<project>" [<feature>] [--lang <code>] [--previous "<the earlier page's file>"] [--taken]`.
    - `translate: <file> (...)` → Read that file and translate each text from `from` to `to`: the
      words only; markdown, line breaks, code blocks, inline code, paths, URLs, keys such as API-121
-     and D1 stay as they are. Write `translated.json` beside it, `{ "<id>": "<translated text>" }`
+     and D1, and the Boundaries labels `always:`, `ask first:`, `never:` stay as they are. Write `translated.json` beside it, `{ "<id>": "<translated text>" }`
      for every text, then run `node "<keel>/scripts/feature-page.js" "<project>" apply`. Refused →
      fix what it names and run apply again. Its `page:` line is the page.
    - Else its `page:` line is the page. `language:` says the page's language; labels in English

@@ -203,7 +203,8 @@ ticket.
 The texts are those of the md files, which stay the source; keel puts them into a fixed template and
 the page draws the markdown and code itself (libraries from cdnjs), so every feature looks the same.
 A feature on several repositories also shows the other repositories' tickets: read in their folders on
-this machine, else from the overview with the state unknown.
+this machine, else from the overview with the state unknown and a "not on this machine" mark; a
+dependency on such a ticket is unknown too, never shown as met.
 
 **Language.** `--lang`, else the language the page already has, else your conversation language.
 The labels come from keel's language files (English and Ukrainian today; English for another
@@ -213,10 +214,12 @@ update translates only what changed. Translating costs tokens; the same language
 
 The page is titled `keel:feature:<PREFIX>:<feature>`, PREFIX being the first of the overview's
 `repos` (or this repository's ticket prefix), so it has the same title from every repository of the
-feature. keel looks it up among your latest 200 pages and updates it; it carries a hash of the main
-repository's remote address (without credentials), so another project's page with the same title is
-never overwritten: yours then is `keel:feature:<PREFIX>:<feature>:<repository>`. Not found among 200
-while you have more → keel asks for its link or makes a new one. Nothing is kept on this machine: the
+feature. keel looks it up among your latest pages (200, or 500 with the artifact server's tools) and
+updates it; it carries a hash of the main repository's remote address (without credentials), so
+another project's page with the same title is never overwritten: yours then is
+`keel:feature:<PREFIX>:<feature>:<repository>`. A hash missing on one side (the main repository not
+on that machine, or with no remote) → keel asks before it updates that page. Not found while you
+have more → keel asks for its link or makes a new one. Nothing is kept on this machine: the
 page is built in `.keel/local/tmp/` and removed after publishing. It needs Claude Code signed in to a
 claude.ai account; with an API key there is no page. Each run costs about $0.1-0.4 (an estimate:
 reading the page and the generated file); the run's own cost is the last line of its report.

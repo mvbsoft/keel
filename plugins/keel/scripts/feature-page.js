@@ -30,10 +30,10 @@ const plans = require('./lib/plans.js');
 const { featureFolder } = require('./lib/plans-export.js');
 const { mapTracked } = require('./lib/plans-export-repos.js');
 const { readStates, collect, states, nextOf, byKey, prefixOf, metBy, STATES } = require('./lib/plans-state.js');
-const { neighbourStates, met } = require('./lib/plans-neighbours.js');
-const { listed } = require('./lib/plans-linked.js');
+const { neighbourStates, met, NOT_CHECKED } = require('./lib/plans-neighbours.js');
+const { listed, placeOf, ownPrefixes, UNKNOWN } = require('./lib/plans-linked.js');
 const { settings, PREFIX } = require('./lib/plans-settings.js');
-const { planRepos, isFolder, isRepoTop, headOf } = require('./lib/plans-repos.js');
+const { planRepos, headOf } = require('./lib/plans-repos.js');
 const { outsideFences, heading, repoName } = require('./lib/plans-format.js');
 const { git, read, frontmatter, clean } = require('./lib/repo-read.js');
 const { safeLocalPath } = require('./lib/safe-path.js');
@@ -44,7 +44,6 @@ const { langCode, labelsFor, missing, translate, readPage } = require('./lib/fea
 
 const TEMPLATE = path.join(__dirname, '..', 'templates', 'feature-page', 'index.html');
 const DONE = STATES[0];
-const UNKNOWN = 'state unknown';
 
 const refuse = (why) => [`feature-page: refused (${why})`];
 const lf = (text) => String(text).replace(/\r\n/g, '\n');
@@ -79,8 +78,10 @@ function sizeOf(secs) {
 function termsOf(secs) {
   const out = [];
   for (const l of named(secs, 'Terms').split('\n')) {
-    const m = /^\s*[-*]\s+(?:\*\*|__)?`?([^`*_\n:—–]{1,60}?)`?(?:\*\*|__)?\s*(?::|—|–|\s-\s)\s*(\S.*)$/.exec(l);
-    if (m) out.push({ term: m[1].trim(), text: m[2].trim() });
+    const m = /^\s*[-*]\s+(?:\*\*|__)?`?([^`*\n:—–]{1,60}?)`?(?:\*\*|__)?\s*(?::|—|–|\s-\s)\s*(\S.*)$/.exec(l);
+    const term = m ? m[1].trim() : '';
+    // An empty term would match everywhere on the page and stop its hints.
+    if (term) out.push({ term, text: m[2].trim() });
   }
   return out;
 }
@@ -112,20 +113,14 @@ function markerOf(folder, prefix) {
   return { marker: crypto.createHash('sha256').update(remoteKey(url)).digest('hex').slice(0, 16) };
 }
 
-// Another repository's folder from this machine's repos map, or null. A map in git names none: a
-// cloned repository does not choose which folders keel reads (as lib/plans-linked.js).
-function folderOf(root, prefix, tracked) {
-  const f = settings(root).repos[prefix];
-  return !tracked && f && isFolder(f) && isRepoTop(f) ? f : null;
-}
-
-// The feature's repositories, this project's first: [{ prefix, name, folder, commit }].
+// The feature's repositories, this project's first: [{ prefix, name, folder, commit }]. Another
+// repository's folder is read only as lib/plans-linked.js allows it.
 function reposOf(root, own, prefixes, overview) {
   const tracked = mapTracked(root);
   const lines = overview ? listed(overview) : [];
   const out = [{ prefix: own, name: repoName(root), folder: root, commit: headOf(root) }];
   for (const prefix of prefixes.filter((p) => PREFIX.test(p) && p !== own)) {
-    const folder = folderOf(root, prefix, tracked);
+    const folder = placeOf(root, prefix, tracked).folder || null;
     const fromOverview = (lines.find((t) => prefixOf(t.key) === prefix && t.repo) || {}).repo;
     out.push({ prefix, name: folder ? repoName(folder) : clean(fromOverview || prefix, 60), folder, commit: folder ? headOf(folder) : null });
   }
@@ -143,7 +138,7 @@ function draftData(root, d) {
   const repos = reposOf(root, own || prefixes[0], prefixes, null);
   const nameOf = (p) => (repos.find((r) => r.prefix === p) || { name: p }).name;
   const tickets = plans.tickets(d).map((t) => {
-    const prefix = given(t.fm.repo) ? t.fm.repo.trim() : own;
+    const prefix = given(t.fm.repo) ? t.fm.repo.trim().toUpperCase() : own;
     return ticketOf(t.id, t.text, { prefix, repo: nameOf(prefix), state: 'draft', next: false, depends: plans.ticketIds(t.fm.depends_on).map((k) => ({ key: k, met: false })) });
   });
   return { stage: `draft${plans.stateOf(d) === 'ready' ? ' (ready)' : ''}`, overviewText: d.text, overviewFile: 'plan.md', prefixes, own, repos, tickets, research: researchOf(d.folder), language: given(d.fm.language) ? d.fm.language : settings(root).language };
@@ -156,12 +151,16 @@ function exportedData(root, feature, f, now) {
   const readme = read(path.join(f.folder, 'README.md'));
   const overview = readme !== null && frontmatter(readme).type === 'feature' ? readme : null;
   const own = settings(root).ticket_prefix || prefixOf(mine.length ? mine[0].key : f.list[0].fm.key.toUpperCase());
-  const ownPrefixes = new Set([own, ...mine.map((e) => prefixOf(e.key))]);
+  const mineToo = new Set([own, ...ownPrefixes(root, mine)]);
   const prefixes = overview ? planRepos(frontmatter(overview)) : [];
-  const repos = reposOf(root, own, prefixes.filter((p) => !ownPrefixes.has(p) || p === own), overview);
-  // A dependency is met as nextOf reads it: done, or waiting for the merge of this same feature.
+  // The overview's Tickets lines may name a repository its repos: lacks: it is listed too.
+  const linkedPrefixes = [...new Set([...prefixes, ...(overview ? listed(overview).map((t) => prefixOf(t.key)) : [])])];
+  const repos = reposOf(root, own, linkedPrefixes.filter((p) => !mineToo.has(p) || p === own), overview);
+  // A dependency is met as nextOf reads it: done, or waiting for the merge of this same feature. One
+  // in a repository not read here is null: nextOf lets it pass, the page shows it not checked.
+  const metThere = (s, feature) => (s.state === NOT_CHECKED ? null : met(s, feature));
   const depMet = (k, e) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, e.feature)
-    : others.has(k) ? met(others.get(k), e.feature) : gone.get(`${e.target} ${k}`) === 'done');
+    : others.has(k) ? metThere(others.get(k), e.feature) : gone.get(`${e.target} ${k}`) === 'done');
   const textOf = (list, key) => (list.find((t) => t.fm.key.toUpperCase() === key) || {}).text || null;
   const tickets = mine.map((e) => ticketOf(e.shown, textOf(f.list, e.key), {
     title: e.title, prefix: prefixOf(e.key), repo: repos[0].name, state: STATES[e.state], next: e === next, via: e.via || null,
@@ -176,7 +175,7 @@ function exportedData(root, feature, f, now) {
     const depsOf = (k) => (fileOf(k) ? plans.ticketIds(fileOf(k).fm.depends_on).map((x) => x.toUpperCase()) : []);
     const deps = [...new Set(all.flatMap(depsOf))].filter((k) => !keys.has(k));
     const stated = r.folder && all.length ? neighbourStates(root, [...new Set([...all, ...deps])], now) : new Map();
-    const theirMet = (k) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, feature) : stated.has(k) ? met(stated.get(k), feature) : false);
+    const theirMet = (k) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, feature) : stated.has(k) ? metThere(stated.get(k), feature) : null);
     for (const k of all) {
       const s = stated.get(k);
       const t = ticketOf((s && s.shown) || k, textOf(list, k), { prefix: r.prefix, repo: r.name, state: s ? s.state : UNKNOWN, next: false, depends: depsOf(k).map((d) => ({ key: d, met: theirMet(d) })) });
@@ -269,9 +268,11 @@ const TRANSLATED = 'translated.json';
 
 // The page file: the template with the data, its marker, language and the translations it used.
 function render(dir, page, marker, known) {
+  // translate() replaces the texts inside `page` itself, before the page goes into the template.
   const used = page.language === page.source ? {} : translate(page, known);
   if (Object.keys(used).length) page.translatedFrom = page.source;
-  // "<" as <: a "</script>" in a ticket's text cannot close a data block.
+  // "<" as the escape <: a "</script>" in a ticket's text cannot close a data block. Replacement functions,
+  // not strings: a text with $& or $' must not be read as a replacement pattern.
   const json = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
   const html = fs.readFileSync(TEMPLATE, 'utf8')
     .replace('{{TITLE}}', () => escapeHtml(page.title)).replace('{{MARKER}}', () => marker || '').replace('{{LANG}}', () => page.language)
@@ -338,4 +339,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { build, applyTranslations, cleanPage, sectionsOf, termsOf, remoteKey };
+module.exports = { termsOf, remoteKey };

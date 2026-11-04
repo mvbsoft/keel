@@ -9,7 +9,9 @@ const { execFileSync, spawnSync } = require('node:child_process');
 const { tempDir } = require('./fixtures/tmp.js');
 
 const SCRIPTS = path.join(__dirname, '..', 'plugins', 'keel', 'scripts');
-const { remoteKey } = require(path.join(SCRIPTS, 'feature-page.js'));
+const vm = require('node:vm');
+const { remoteKey, termsOf } = require(path.join(SCRIPTS, 'feature-page.js'));
+const { langCode } = require(path.join(SCRIPTS, 'lib', 'feature-page-text.js'));
 
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const gitTest = (name, fn) => test(name, { skip: !hasGit && 'git is not installed' }, fn);
@@ -316,6 +318,7 @@ gitTest('the page\'s language: the conversation\'s; texts in another language wa
   assert.match(line(run(api, FEATURE, '--lang', 'uk', '--previous', saved), 'page'), /index\.html$/, 'the tickets\' own language: no translation');
   assert.match(line(run(api, FEATURE, '--lang', 'de'), 'language'), /^de \(labels in English: no page labels in this language\); texts in uk$/);
   assert.match(run(api, FEATURE, '--lang', 'x1')[0], /^feature-page: refused \("x1" is no language code/);
+  assert.match(run(api, FEATURE, '--lang', 'German')[0], /^feature-page: refused \("German" is no language code/, 'a name is not turned into a code');
 });
 
 test('remoteKey: scheme, credentials, .git and the host\'s case go', () => {
@@ -330,7 +333,10 @@ gitTest('a feature on several repositories: the first of repos names the page; a
   const overview = OVERVIEW('repos: [API, WEB, WGT]\n').replace('## Tickets\n', '## Tickets\n- WEB-14 Цифра на сайті (web)\n- WGT-3 Цифра у віджеті (widget)\n');
   const api = exported(tmp, { overview });
   const web = repo(tmp, 'web', 'WEB', 'git@github.com:Team/web.git');
-  write(web, `${T}/WEB-14-badge.md`, BARE('WEB-14').replace(/API-1|message.created/g, 'x').replace('# [WEB-14] Подія x', '# [WEB-14] Цифра на сайті').replace('depends_on: []', 'depends_on: [API-1, API-2]'));
+  // API-2 and WEB-14 also wait for WGT-3, whose repository is not on this machine.
+  write(api, `${T}/API-2-badge.md`, FULL('API-2', 'todo', '[API-1, WGT-3]'));
+  git(api, 'commit', '-q', '-am', 'API-2 waits for the widget');
+  write(web, `${T}/WEB-14-badge.md`, BARE('WEB-14').replace(/API-1|message.created/g, 'x').replace('# [WEB-14] Подія x', '# [WEB-14] Цифра на сайті').replace('depends_on: []', 'depends_on: [API-1, API-2, WGT-3]'));
   write(web, `${T}/README.md`, overview);
   git(web, 'add', '-A');
   git(web, 'commit', '-q', '-m', 'Add the notify tickets');
@@ -349,7 +355,8 @@ gitTest('a feature on several repositories: the first of repos names the page; a
   const webTicket = data.tickets.find((t) => t.key === 'WEB-14');
   assert.deepEqual([webTicket.repo, webTicket.state, webTicket.title], ['web', 'to do', 'Цифра на сайті']);
   assert.ok(webTicket.sections.length > 0, 'its text from its folder');
-  assert.deepEqual(webTicket.depends, [{ key: 'API-1', met: true }, { key: 'API-2', met: false }], 'its depends_on, met as this repository reads them');
+  assert.deepEqual(webTicket.depends, [{ key: 'API-1', met: true }, { key: 'API-2', met: false }, { key: 'WGT-3', met: null }], 'its depends_on, met as this repository reads them; one not read here: null');
+  assert.deepEqual(data.tickets.find((t) => t.key === 'API-2').depends, [{ key: 'API-1', met: true }, { key: 'WGT-3', met: null }], 'a dependency in a repository not on this machine is not shown met');
   const wgt = data.tickets.find((t) => t.key === 'WGT-3');
   assert.deepEqual([wgt.repo, wgt.state, wgt.title, wgt.sections], ['widget', 'state unknown', 'Цифра у віджеті', null]);
 });
@@ -390,4 +397,57 @@ gitTest('no feature named: the current branch\'s, else none with the list; clean
   assert.deepEqual(run(api, 'clean'), ['clean: removed .keel/local/tmp/feature-page']);
   assert.ok(!fs.existsSync(path.join(api, '.keel', 'local', 'tmp', 'feature-page')));
   assert.deepEqual(run(api, 'clean'), ['clean: nothing to remove']);
+});
+
+gitTest('every ticket gets its repository: a second prefix here is this one\'s; a repository only the Tickets lines name; a map that gives another prefix to this project is not read', () => {
+  const tmp = tempDir('keel-page-');
+  const overview = OVERVIEW('repos: [API, WEB]\n').replace('## Tickets\n', '## Tickets\n- WEB-14 Цифра на сайті (web)\n- MOB-5 Прийом push (mobile)\n');
+  const api = exported(tmp, { overview });
+  write(api, `${T}/OLD-7-legacy.md`, BARE('OLD-7'));
+  git(api, 'add', '-A');
+  git(api, 'commit', '-q', '-m', 'An older ticket');
+  assert.match(plans(api, 'settings', 'set', '--repo', `WEB=${api}`)[0], /^settings: /);
+  const out = run(api, FEATURE);
+  assert.match(line(out, 'as of'), /^api [0-9a-f]+, web not on this machine, mobile not on this machine$/);
+  const { data } = pageData(line(out, 'page'));
+  assert.deepEqual(data.tickets.map((t) => [t.key, t.repo, t.state]), [['API-1', 'api', 'waiting for the feature merge'], ['API-2', 'api', 'to do'], ['OLD-7', 'api', 'to do'], ['WEB-14', 'web', 'state unknown'], ['MOB-5', 'mobile', 'state unknown']]);
+});
+
+gitTest('in progress by a keel task or by the session note: the page says which', () => {
+  const tmp = tempDir('keel-page-');
+  const api = exported(tmp);
+  const via = () => pageData(line(run(api, FEATURE), 'page')).data.tickets[1];
+  write(api, '.keel/tasks/API-2/task.md', '---\nid: API-2\ntitle: t\nstatus: active\nupdated: 2026-10-26\n---\n');
+  assert.deepEqual([via().state, via().via], ['in progress', { kind: 'task' }]);
+  fs.rmSync(path.join(api, '.keel', 'tasks'), { recursive: true });
+  write(api, '.keel/next-session.md', '---\nstatus: in-progress\nkeys: API-2\n---\n');
+  assert.deepEqual([via().state, via().via], ['in progress', { kind: 'session' }]);
+});
+
+test('langCode takes language codes only; termsOf keeps snake_case terms and drops an empty one', () => {
+  assert.deepEqual(['uk', 'uk-UA', 'pt_BR', 'DE', 'German', 'Ukrainian', '', 'x1'].map(langCode), ['uk', 'uk', 'pt', 'de', null, null, null, null]);
+  const terms = termsOf([{ name: 'Terms', text: '- `ticket_prefix` — the key prefix\n-  — nothing\n- __bold__: text' }]);
+  assert.deepEqual(terms, [{ term: 'ticket_prefix', text: 'the key prefix' }, { term: 'bold', text: 'text' }]);
+});
+
+test('the page template: its script parses, every label it names exists, and it knows every state the scripts write', () => {
+  const html = fs.readFileSync(path.join(SCRIPTS, '..', 'templates', 'feature-page', 'index.html'), 'utf8');
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  assert.equal(scripts.length, 1, 'one script of its own');
+  assert.doesNotThrow(() => new vm.Script(scripts[0], { filename: 'index.html' }));
+  const catalogs = ['en', 'uk'].map((code) => [code, JSON.parse(fs.readFileSync(path.join(SCRIPTS, '..', 'locales', `${code}.json`), 'utf8'))]);
+  const labels = new Set([...scripts[0].matchAll(/\bL\('([^']+)'/g)].map((m) => m[1]));
+  assert.ok(labels.size > 30);
+  for (const [code, cat] of catalogs) for (const k of labels) assert.ok(`page.${k}` in cat, `${code}: page.${k}`);
+  const stateKeys = vm.runInNewContext(`(${/const STATE_KEYS = (\{[\s\S]*?\});/.exec(scripts[0])[1]})`);
+  const { STATES } = require(path.join(SCRIPTS, 'lib', 'plans-state.js'));
+  const { NOT_CHECKED } = require(path.join(SCRIPTS, 'lib', 'plans-neighbours.js'));
+  const { UNKNOWN } = require(path.join(SCRIPTS, 'lib', 'plans-linked.js'));
+  // Each ticket state also has its group: the counts, the bar and the colour.
+  const groupOf = vm.runInNewContext(`(${/const GROUP_OF = (\{[\s\S]*?\});/.exec(scripts[0])[1]})`);
+  for (const state of [...STATES, 'draft']) assert.ok(state in groupOf, `the page groups "${state}"`);
+  for (const state of [...STATES, UNKNOWN, NOT_CHECKED, 'not found', 'draft', 'draft (ready)', 'exported']) {
+    assert.ok(state in stateKeys, `the page knows "${state}"`);
+    for (const [code, cat] of catalogs) assert.ok(`page.state.${stateKeys[state]}` in cat, `${code}: page.state.${stateKeys[state]}`);
+  }
 });

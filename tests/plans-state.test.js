@@ -172,6 +172,8 @@ gitTest('tickets: commits with the key on merge_into after the folder came there
   const out = run(work, 'tickets');
   assert.equal(line(out, 'PROJ-60'), '  PROJ-60 Ticket PROJ-60 — in progress · commits with the key on main, status not written');
   assert.equal(line(out, 'PROJ-61'), '  PROJ-61 Ticket PROJ-61 — next', 'a commit from before the folder came does not count');
+  const { readStates } = require(path.join(SCRIPTS, 'lib', 'plans-state.js'));
+  assert.deepEqual(readStates(work, new Date()).keys.get('PROJ-60').via, { kind: 'commits', branch: 'main' }, 'the feature page\'s "in progress now" names where');
 });
 
 gitTest('tickets: a squash merge is done; a merged branch whose folder was removed since is done', () => {
