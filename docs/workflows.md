@@ -379,6 +379,8 @@ is out, and checks in the code that what the feature relies on is there. Then:
   conversation → the draft on this machine for now, another copy (`git worktree add`), or your risk.
 
 **The work.** One question per message, answerable in a line; options come with a recommendation.
+keel writes the draft first and then replies, so the answer and the next question are in its last
+message.
 keel keeps `plan.md` true as you go: In plain words (the whole feature for a person), Level, Decisions (`D1. decision - why`), Contract, Out of scope, Design sketch,
 Terms, What was gathered, Open questions (`Q1. question - what depends on it`; an answered Q becomes a
 D), Tickets, Stubs (may go), Next action. Tickets are written at once, their sections always in this
@@ -399,7 +401,8 @@ offers what to look up, with the price said as an estimate, all on one yes: the 
 on Haiku (cheap) that finds where the feature meets the code: the stack, the modules and data it
 touches, what it can reuse; and, when the feature leans on outside know-how (a library, a protocol, an
 outside service), how others do it: the researcher, a helper on Sonnet that reads the web (dearer).
-Take all, some or none (then the questions start at once). What it finds goes into `plan.md`, What
+Take all, some or none (then the questions start at once, and keel does not search the code
+in its place). What it finds goes into `plan.md`, What
 was gathered, short and with `file:line`; the questions after it are
 concrete ("`chat/` already has a WebSocket: send through it, or a channel of its own?"), and none asks
 what the gathered facts or the project's docs already answer. The next conversation on the draft

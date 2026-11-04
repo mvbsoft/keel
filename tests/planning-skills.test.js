@@ -69,6 +69,8 @@ test('planning work: one question per message with a recommendation, D and Q rec
   const work = section('Work');
   assert.match(work, /\*\*One question per message\*\*/);
   assert.match(work, /options come\s+with your recommendation and why/);
+  // The person reads the last message: an answer said before the draft is written gets buried.
+  assert.ok(work.replace(/\s+/g, ' ').includes('Write the draft first, then reply: the answer and the next question are in the last message, after the tool calls.'));
   // Offers come as levels on a signal, not as 2-3 approaches on every choice.
   assert.doesNotMatch(work, /2-3 approaches/);
   assert.match(work, /The first question gets no answer \(no\s+one is there\) → stop/, 'the fallback when the hooks cannot tell there is no person');
@@ -110,6 +112,8 @@ test('planning gathers before it asks: an offer with its price on one yes, the f
   assert.ok(work.includes('**A draft continued** reads What was gathered first and never searches for it again'));
   // Research the planner offered and the user took is allowed, not only research the user asked for.
   assert.ok(flat(section('Rules')).includes('A pricier model or web research only when the user asks or says yes to an offer of it'));
+  // A skipped or unanswered offer is not a yes: no searches of the planner's own in its place.
+  assert.ok(flat(section('Rules')).includes('The user skipped the gathering or has not answered its offer → no searches to prepare the offer or the levels; say what is not known.'));
   const text = flat(start());
   assert.ok(text.includes('read `plan.md` only (not the tickets): the ticket list, open Q, What was gathered, Next action'));
   assert.ok(text.includes('new: the gathering offer when it fits, else the first open question'));

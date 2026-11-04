@@ -18,14 +18,16 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
 - **No code.** Planning writes only the draft; while this conversation plans, keel's hook refuses
   changes to other project files. Facts about the code: a few searches yourself, or `keel:context` for
   a wider look (the gathering in "Work"). A pricier model or web research only when the user asks or
-  says yes to an offer of it.
+  says yes to an offer of it. The user skipped the gathering or has not answered its offer → no
+  searches to prepare the offer or the levels; say what is not known.
 - **Git only with a yes.** Every branch, commit and push waits for the user's yes; a no → keel does
   nothing (the user may do it). Planning never opens or offers a pull request.
 
 ## Work
 - **One question per message** (AskUserQuestion when it exists), answerable in a line; options come
-  with your recommendation and why. The first question gets no answer (no one is there) → stop:
-  planning is a conversation with a person.
+  with your recommendation and why. Write the draft first, then reply: the answer and the next
+  question are in the last message, after the tool calls.
+  The first question gets no answer (no one is there) → stop: planning is a conversation with a person.
 - **Gather before the questions.** A new feature told in a line or two, one sized large, or one whose
   `repos:` names another repository → before
   its first question, one message offers what to look up first, each item with its price said as an
