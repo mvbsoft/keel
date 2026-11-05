@@ -100,7 +100,12 @@ All notable changes to keel are listed here. The format follows
   ticket of a repository that is not on this machine is marked so, its state and any dependency on
   it unknown; one of this repository whose file is only on another branch is read from there and
   marked so. The page is a snapshot: its feature card says when it was built and gives the command
-  that updates it, with a Copy button. No feature named: the current branch's.
+  that updates it, with a Copy button. No feature named: the current branch's. A path of this machine
+  in the feature's files is never published: the page is refused with each one named.
+- `plans.js check`, and with it the export, reports a path of this machine anywhere in a feature's
+  files: the plan or overview, a ticket, a research report (a drive such as `C:\`, `/home/<user>`,
+  `/Users/<user>`, `/root`, `/mnt/c/`, the project's or a neighbouring repository's folder). Paths
+  in a feature go from the repository's root, so they hold on every machine.
 
 ### Changed
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,

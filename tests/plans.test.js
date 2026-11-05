@@ -236,6 +236,48 @@ test('check: missing sections, empty criteria, TBD and <...> outside code, missi
   assert.ok(!out.some((l) => /src\/app\.js|Array|example\.com/.test(l)), out.join('\n'));
 });
 
+test('check: a path of this machine in any file of the feature is a problem: Windows, Linux, macOS, WSL, the project folder', () => {
+  const dir = project();
+  filled(dir, 's3-connection', 2);
+  const planFile = `${LOCAL}/s3-connection/plan.md`;
+  const t1 = `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`;
+  write(dir, planFile, readRel(dir, planFile).replace('Files go to S3.', 'Files go to S3, as O:/projects/api/src/s3.js does.'));
+  write(dir, t1, readRel(dir, t1).replace('Do one thing.', [
+    'Do one thing, like C:\\Users\\ann\\app\\upload.js does.',
+    'Read /home/dev/api/src/s3.js and `/Users/ann/web/app.js`.',
+    '```bash\ncd /mnt/c/work/api\n```',
+    `See ${path.join(dir, 'src', 'app.js')}.`,
+    'Not paths: <https://example.com/home/page>, http://localhost:3000/x, src/home/x.js, ~/.claude/keel, a:b/c.',
+  ].join('\n')));
+  write(dir, `${LOCAL}/s3-connection/research/r1-s3.md`, '# S3\n\nThe SDK cache sits in /root/.npm/_cacache.\n');
+  const out = run(dir, 'check', 's3-connection');
+  const expected = [
+    'plan.md: local path O:/projects/api/src/s3.js (line',
+    'T1: local path C:\\Users\\ann\\app\\upload.js (line',
+    'T1: local path /home/dev/api/src/s3.js (line',
+    'T1: local path /Users/ann/web/app.js (line',
+    'T1: local path /mnt/c/work/api (line',
+    `T1: local path ${path.join(dir, 'src', 'app.js')} (line`,
+    'research/r1-s3.md: local path /root/.npm/_cacache (line 3)',
+  ];
+  for (const e of expected) assert.ok(out.some((l) => l.startsWith(`- ${e}`)), `${e}\n${out.join('\n')}`);
+  assert.equal(out[0], `check: ${expected.length} problems`, out.join('\n'));
+});
+
+test('check: an exported feature with a path of this machine in a ticket, its overview or a report', () => {
+  const dir = project();
+  const folder = `${LOCAL}/s3-connection/tickets`;
+  write(dir, `${folder}/PROJ-1-client.md`, EXPORTED('PROJ-1').replace('Do one thing.', 'Do it as /home/dev/api/client.js does.'));
+  write(dir, `${folder}/README.md`, '---\ntype: feature\n---\n\n# S3\n\nThe old code: D:\\work\\api\\s3.\n');
+  write(dir, `${folder}/research/sdk.md`, '# SDK\n\nSee /Users/ann/notes/sdk.md\n');
+  assert.deepEqual(run(dir, 'check', 's3-connection'), [
+    'check: 3 problems',
+    `- PROJ-1: local path /home/dev/api/client.js (line ${EXPORTED('PROJ-1').split('\n').indexOf('Do one thing.') + 1})`,
+    '- README.md: local path D:\\work\\api\\s3 (line 7)',
+    '- research/sdk.md: local path /Users/ann/notes/sdk.md (line 3)',
+  ]);
+});
+
 test('check: the ticket sections in their order, the three Boundaries labels, criteria as a "- [ ]" list; Example and Correct the priors are optional', () => {
   const dir = project();
   filled(dir, 's3-connection', 4);

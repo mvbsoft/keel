@@ -45,7 +45,7 @@ function neighbourStates(root, keys, now = new Date()) {
 // (lib/plans-state.js metBy); not checked does not hold it back.
 const met = (s, feature) => s.state === NOT_CHECKED || metBy(s.state, s.feature, feature);
 
-// "API-121 done (O:/projects/api, server data from <date>)", or "API-121 not checked (<why>)".
+// "API-121 done (/path/to/api, server data from <date>)", or "API-121 not checked (<why>)".
 const stateText = (k, s) => `${clean(s.shown || k, 40)} ${s.state} (${s.why || `${s.folder}, ${s.data}`})`;
 
 // The output line for a dependency that could not be checked.

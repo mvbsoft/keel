@@ -227,7 +227,8 @@ remote, and two projects with the same prefix and feature name never share a pag
 page up among your latest ones (200, or 500 with the artifact server's tools) by the code at the end
 of its title and updates it, renaming it when the heading or the repositories changed. A feature
 exported before the code gets one, written into its tickets in this working tree: commit and push
-them. Not found while you have more → keel asks for its link or makes a new one. Nothing is kept on this machine: the
+them. Not found while you have more → keel asks for its link or makes a new one. A path of this machine in the feature's files (a ticket, the overview, a report) is never
+published: keel names each one and stops; write it from the repository's root. Nothing is kept on this machine: the
 page is built in `.keel/local/tmp/` and removed after publishing. It needs Claude Code signed in to a
 claude.ai account; with an API key there is no page. Each run costs about $0.1-0.4 (an estimate:
 reading the page and the generated file); the run's own cost is the last line of its report.
