@@ -459,6 +459,25 @@ gitTest('a ticket of this repository only on another branch: its text from that 
   assert.equal(data.tickets.find((t) => t.key === 'API-2').onBranch, null, 'one in the working tree');
 });
 
+gitTest('a research report with no heading is shown by its file name', () => {
+  const tmp = tempDir('keel-page-');
+  const api = exported(tmp);
+  write(api, `${T}/research/notes.md`, 'Лише текст, без заголовка.\n');
+  const { data } = pageData(line(run(api, FEATURE), 'page'));
+  assert.deepEqual(data.research.map((r) => [r.name, r.title]), [['notes.md', 'notes.md'], ['websocket.md', 'WebSocket чи опитування']]);
+});
+
+gitTest('a draft and an exported feature of the same name: the page is the draft\'s', () => {
+  const tmp = tempDir('keel-page-');
+  const api = exported(tmp);
+  const draft = path.join(api, '.keel', 'local', 'plans', 'keel', FEATURE);
+  write(draft, 'plan.md', `---\ntype: plan\nfeature: ${FEATURE}\nstatus: draft\npage: 0a1b2c3d\n---\n\n# Нова чернетка\n\n## In plain words\nЧернетка.\n`);
+  write(draft, 'tickets/T1-export.md', FULL('T1').replace(/^---[\s\S]*?---/, '---\nid: T1\ndepends_on: []\n---'));
+  const out = run(api, FEATURE);
+  assert.equal(line(out, 'feature'), `${FEATURE}, draft, 1 tickets`);
+  assert.equal(line(out, 'title'), '[API] - Нова чернетка (0a1b2c3d)');
+});
+
 gitTest('no path of this machine on the page: the script adds none, and a feature file with one is refused', () => {
   const tmp = tempDir('keel-page-');
   const api = exported(tmp);

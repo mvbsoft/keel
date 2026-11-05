@@ -394,6 +394,15 @@ test('report --last-turn: no calibration, no share', () => {
   assert.equal(reportWorld().report('--last-turn'), 'this command: $10.00 (1 request)');
 });
 
+test('report --last-turn: before any user turn, the work so far; nothing at all, no session', () => {
+  const w = reportWorld();
+  const only = (id, rows) => writeSession(w.root, { id, cwd: w.project, projDir: store.projectFolderName(w.project), rows });
+  only('rep-2', [{ t: w.start + MIN, model: OPUS, tok: { in: 2e6 } }]);
+  assert.equal(w.report('--last-turn', '--session', 'rep-2'), 'this command: $10.00 (1 request)');
+  only('rep-3', []);
+  assert.equal(w.report('--last-turn', '--session', 'rep-3'), 'usage: no session found');
+});
+
 test('report: Ukrainian text with --lang uk', () => {
   const w = reportWorld();
   const text = w.report('--lang', 'uk');
