@@ -382,7 +382,8 @@ function draftSet(root, feature, o) {
 // The text a placeholder search reads: no code blocks, no inline code, no links in angle brackets.
 const prose = (text) => lf(text).replace(/^```[\s\S]*?^```/gm, (m) => m.replace(/[^\n]/g, ' ')).replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length)).replace(/<https?:[^>\s]*>/g, (m) => ' '.repeat(m.length));
 
-// "TBD" or "<...>" left in the text after the front matter, with its line.
+// "TBD" or "<...>" left in the text after the front matter, with its line. A "<" followed by a
+// space or "=" is a comparison ("< 30 s", "x <= 3"), not a placeholder.
 function placeholders(text) {
   const all = lf(text);
   const fmEnd = /^---\n[\s\S]*?\n---\n?/.exec(all);
@@ -390,7 +391,7 @@ function placeholders(text) {
   const out = [];
   prose(all).split('\n').forEach((line, i) => {
     if (i < skip) return;
-    const m = /\bTBD\b/.exec(line) || /<[^<>\n]*>/.exec(line);
+    const m = /\bTBD\b/.exec(line) || /<(?![\s=])[^<>\n]*>/.exec(line);
     if (m) out.push(`${clean(m[0], 40)} (line ${i + 1})`);
   });
   return out;
