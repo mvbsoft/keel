@@ -74,6 +74,10 @@
 //   drop <feature>                        a feature whose every ticket is done: its folder to keel's trash
 //                                         (a repository folder only off the branch it merges into; then
 //                                         commit <feature>)
+//   brief <feature> <file>                a brief of /keel:start-task
+//                                         (.keel/local/plans/briefs/<name>-brief.md) into the draft's plan.md: Goal, Files, Decisions and why, Open
+//                                         questions to In plain words, What was gathered, Decisions (D<n>),
+//                                         Open questions (Q<n>); the brief to keel's trash
 //   settings                              the planning settings: this machine's
 //                                         (.keel/local/plans/keel/settings.json) and the project's
 //                                         (.keel/config.json planning); `planning: planning is not set up`
@@ -89,7 +93,7 @@ const path = require('node:path');
 const { parseArgs } = require('./lib/project.js');
 const plans = require('./lib/plans.js');
 
-const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, set, stale, repos, report, export, commit, push, tickets, align, done, drop, settings, mark';
+const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, set, stale, repos, report, export, commit, push, tickets, align, done, drop, brief, settings, mark';
 
 // A flag followed by a word takes it as its value (lib/project.js): `done --undo PROJ-1` names PROJ-1.
 const flagged = (pos, opts, flag) => ({ on: opts[flag] !== undefined, arg: pos[2] ?? (typeof opts[flag] === 'string' ? opts[flag] : undefined) });
@@ -123,6 +127,7 @@ function run(root, pos, opts) {
   if (command === 'align') return require('./lib/plans-linked.js').alignCommand(root, feature, { take: opts.take });
   if (command === 'done') { const f = flagged(pos, opts, 'undo'); return require('./lib/plans-state.js').doneCommand(root, f.arg, f.on); }
   if (command === 'drop') return require('./lib/plans-state.js').dropCommand(root, feature);
+  if (command === 'brief') return require('./lib/plans-brief.js').briefCommand(root, feature, pos[3]);
   if (command === 'settings') {
     const settings = require('./lib/plans-settings.js');
     if (!pos[2]) return settings.settingsShow(root);

@@ -166,10 +166,37 @@ feature branch keel only commits, pulls the branch and pushes: the feature branc
 tickets, asks: a new ticket branch from the feature branch (recommended), commit and push to the
 feature branch (you work on it alone), or no commit.
 
-**Too big for a task.** When you say the task is too big, or its plan comes out very big, keel offers
-"Plan this as a feature instead?". On yes you type `/keel:start-planning`; the plan in this chat is its
-source. A task folder already created goes to keel's trash first, only while no code changed (its own
-branch is deleted only on its own yes). Code changed → hand off first, then plan in a new conversation.
+**Too big for a task.** When the task's plan comes out very big, keel offers to plan it as a feature
+with one question: 1) a new chat (recommended when this one is long), 2) plan here, 3) do not split,
+or your own way. When you say it is too big or ask to split it, in any words, that is the yes: keel
+does not ask whether, and "do not split" is not offered.
+- **New chat**: keel writes what this chat found into a brief,
+  `.keel/local/plans/briefs/<name>-brief.md` on this machine (Goal, Files, Decisions and why, Open
+  questions; `<name>` is the feature name it proposes), and gives you the command to type in a new
+  chat:
+  `/keel:start-planning .keel/local/plans/briefs/<name>-brief.md`. keel cannot type it for you.
+- **Here**: you type `/keel:start-planning` in this chat; the plan in this chat is its source.
+- **Do not split**: it stays one task. keel records your choice in task.md, so it does not ask again
+  in this task, also after a resume; the next big task is asked anew.
+
+A task folder already created goes to keel's trash first while no code changed (its own branch is
+deleted only on its own yes). When code has changed, keel says what is done and advises by it, and
+you choose:
+- the work done runs on its own (its tests pass): finish it as a task. keel writes the brief of the
+  rest first, then you type `/keel:end-task`, then `/keel:start-planning` with the brief;
+- it is half of something: either (a) the work goes on in a branch of its own, the feature's: the
+  task's branch, or, when the task works directly on a shared branch (the main branch, a feature
+  branch), a new one from it (`<KEY>-<short-name>` for a planned ticket, else the feature's name), so
+  a half never lands in a shared branch. keel writes the brief ("already done on branch X: ..."),
+  moves the task to keel's trash (its code and branch stay), and on your yes commits the work in
+  progress there and pushes it, so another machine sees it; planning goes on in that branch and its
+  first ticket continues it. Or (b) bring it to a working state, finish the task, and plan the rest
+  with a brief.
+
+`/keel:start-planning` with a brief takes its content into the plan (the Goal grows into In plain
+words, Files into What was gathered, decisions and open questions into theirs), moves the brief to
+keel's trash (`/keel:cleanup restore` puts it back), and starts from the open questions without asking
+again what is settled.
 
 ### End a task: `/keel:end-task`
 
@@ -359,6 +386,7 @@ conversation writes only the draft, and keel's hook refuses changes to other pro
 | `/keel:start-planning csv-export` | Continues that draft: its open questions, the review findings without a decision, which files its tickets name changed since, a summary in 3-6 lines and the Next action. |
 | `/keel:start-planning continue the CSV export` | Looks for the words in the drafts' names and In plain words: one match → "Continue `csv-export`?"; several or none → the list. |
 | `/keel:start-planning <idea, link or file>` | A new feature (below). |
+| `/keel:start-planning .keel/local/plans/briefs/<name>-brief.md` | A new feature from a brief of `/keel:start-task` ([too big for a task](#start-a-planned-ticket)): its content goes into the plan, the brief to keel's trash; planning starts from its open questions. |
 
 **A new feature.** keel says once that it advises Opus for planning (the model stays your choice,
 `/model`), reads the source as `/keel:start-task` reads a link, retells the goal, who gains and what

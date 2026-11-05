@@ -2,7 +2,7 @@
 // Builds the eval project in the current folder: a small configured shop with git and a bare remote
 // in .git/eval-remote.git (inside the workspace, so the sandboxed run can push to it).
 // Usage: node shop.js <base | tasks | finish | session | messy | overbuilt | planning | planning-openq |
-//                      planning-ready | planning-repo | planning-new | planned | task-active>
+//                      planning-ready | planning-repo | planning-new | planning-brief | planned | task-active>
 //   base            no tasks, no note
 //   tasks           handed-off tasks CAN-123 (discount, Jira link) and fix-reset-500 on their branches; on main
 //   finish          task CAN-200 done and committed on its branch, checked out there
@@ -25,6 +25,8 @@
 //   planning-repo   as planning, the draft in the repository (draft repo): tickets/csv-export/ not committed
 //   planning-new    a new draft notification-system on this machine, as plans.js new writes it, nothing
 //                   gathered or asked yet; the chat SID plans it; on main
+//   planning-brief  as planning-new, the draft made from start-task's brief (notification-system-brief.md):
+//                   plans.js brief moved its sections into plan.md and the brief to keel's trash
 //   planned         csv-export exported into tickets/csv-export/ (INV-1..INV-4, branch csv-export, merge_into
 //                   main) and merged into main: INV-1 done on origin/main, INV-2 in progress (branch
 //                   INV-2-download-button, its tip by Dana Smith), INV-3 done on its branch INV-3-date-range
@@ -671,6 +673,17 @@ function planningNew() {
   plans('mark', 'set', 'notification-system', '--session', SID);
 }
 
+// A feature start-task handed over in a brief: start-planning made its draft from it and marked the chat.
+function planningBrief() {
+  invoices();
+  plans('settings', 'set', '--draft', 'pc');
+  const brief = '.keel/local/plans/briefs/notification-system-brief.md';
+  write(brief, fs.readFileSync(path.join(__dirname, 'notification-system-brief.md'), 'utf8'));
+  plans('new', 'notification-system');
+  plans('brief', 'notification-system', brief);
+  plans('mark', 'set', 'notification-system', '--session', SID);
+}
+
 // Commits as another person: the in-progress hint names the branch tip's author.
 const commitAs = (name, email, msg) => { git('add', '-A'); git('-c', `user.name=${name}`, '-c', `user.email=${email}`, 'commit', '-q', '-m', msg); };
 
@@ -736,6 +749,7 @@ else if (variant === 'planning-openq') planning({ openq: true });
 else if (variant === 'planning-ready') planningReady();
 else if (variant === 'planning-repo') planning({ where: 'repo' });
 else if (variant === 'planning-new') planningNew();
+else if (variant === 'planning-brief') planningBrief();
 else if (variant === 'planned') planned();
 else if (variant === 'task-active') taskActive();
 else if (variant !== 'base') throw new Error(`unknown variant "${variant}"`);

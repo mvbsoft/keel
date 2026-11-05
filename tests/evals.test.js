@@ -14,7 +14,7 @@ const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 // The chat the planning cases resume: shop.js marks it, each case's history.jsonl keeps its id.
 const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(SHOP, 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planned', 'task-active'];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active'];
 
 const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
@@ -135,6 +135,15 @@ const STATE = {
     assert.match(script('plans.js', work, 'list'), /^- notification-system: draft · open Q 0 · tickets 0 · .* \(this machine only\)$/m);
     assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: notification-system$/m);
   },
+  // The draft made from the brief: its open question counts, the brief is in keel's trash.
+  'planning-brief': (work) => {
+    assert.match(script('plans.js', work, 'list'), /^- notification-system: draft · open Q 1 · tickets 0 · .* \(this machine only\)$/m);
+    assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: notification-system$/m);
+    const plan = fs.readFileSync(path.join(work, '.keel', 'local', 'plans', 'keel', 'notification-system', 'plan.md'), 'utf8');
+    assert.match(plan, /^D1\. Mail goes through the company's SMTP server - no new mail service account$/m);
+    assert.match(plan, /^- src\/payment\.js:4 charge\(\) returns status paid/m, 'Files went into What was gathered');
+    assert.ok(!fs.existsSync(path.join(work, '.keel', 'local', 'plans', 'briefs', 'notification-system-brief.md')), 'the brief left for the trash');
+  },
   planned: (work) => {
     const out = script('plans.js', work, 'tickets', '--fetch');
     assert.match(out, /^ {2}INV-1 .* — done$/m, out);
@@ -159,7 +168,7 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
   const expect = { base: ['main', 0, ''], tasks: ['main', 0, ''], finish: ['CAN-200-free-shipping', 1, ''], session: ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
     planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'], 'planning-new': ['main', 0, ''],
-    planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''] };
+    'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {
     const work = tempDir(`keel-eval-${variant}-`);

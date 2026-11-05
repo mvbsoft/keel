@@ -560,23 +560,6 @@ test('start-task: a ticket\'s task id is its key exactly; its feature branch com
   assert.match(intake, /A planned ticket: its\s+branch options are in "Planned ticket" below/, 'step 6 hands the branch choice over');
 });
 
-test('start-task: a task turns into planning only while no code changed; the user types /keel:start-planning', () => {
-  const intake = shared('intake.md');
-  assert.match(intake, /Too big for one task \(the user says so in any words, or the Plan Mode plan is very big\) → "Task to\s+planning" below/);
-  const t = part(intake, '## Task to planning');
-  assert.match(t, /Lanes never mix: the task ends completely before planning starts/);
-  assert.match(t, /The user\s+asking to plan it as a feature is the yes to this question: do not ask it then\./, 'no second question when the user asked for it');
-  assert.match(t, /No `task new` yet \(step 7 item 2\) → on yes, ask the user to type `\/keel:start-planning`/);
-  assert.match(t, /only while no code changed: `git diff --name-only <started>` \(the task file's\s+`started:`\) and `git ls-files --others --exclude-standard` list nothing outside `\.keel\/`/);
-  order(t, 'task drop <id>', 'switch --name <base>', 'the task ends first');
-  // The yes may be the user's own request: the drop is said, not left implied.
-  assert.match(t, /On yes, say "<id> goes to keel's trash" and run\s+`node "<keel>\/scripts\/notes\.js" "<project>" task drop <id>`/);
-  order(t, 'switch --name <base>', 'delete-branch --name <branch>', 'git-flow.js refuses to delete the current branch');
-  assert.match(t, /A branch of\s+its own \(`branch` differs from `base`\) is deleted only on its own yes/, 'a ticket\'s shared feature branch is never deleted here');
-  order(t, 'delete-branch --name <branch>', 'Then ask the user to type `/keel:start-planning`');
-  assert.match(t, /Code changed → hand off first \(`\/keel:end-task hand off`\), then `\/keel:start-planning` in a new\s+conversation/);
-});
-
 test('end-task: a planned ticket is marked done right after the folder deletion, before git, only on a passed verification', () => {
   const text = skill('end-task');
   const done = '`node "<keel>/scripts/plans.js" "<project>" done <id>`';

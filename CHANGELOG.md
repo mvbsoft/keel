@@ -112,8 +112,20 @@ All notable changes to keel are listed here. The format follows
   after the text it shows, after a sentence naming it, its labels and state names in the plan's
   language; one simple action gets none. The ticket reviewer's `plain-words` check notes a process
   told only in words. In plain words still has no word limit, so pictures count against nothing.
+- A task too big for one can be planned in a new chat without losing what this one found: keel
+  writes a brief, `.keel/local/plans/briefs/<name>-brief.md` (Goal, Files, Decisions and why,
+  Open questions), and gives the exact `/keel:start-planning` command. Planning from a brief takes its
+  content into `plan.md` with the new `plans.js brief`, which moves the brief to keel's trash, and
+  starts from its open questions.
 
 ### Changed
+- `/keel:start-task` asks once how to go on with a task too big for one: a new chat with a brief,
+  plan here, do not split, or another way. Asked to split it, it does not ask whether and does not
+  offer "do not split"; "do not split" is recorded in `task.md`, so a resumed task is not asked
+  again. With code already changed it no longer hands the task off: it says what is done and
+  advises; work that runs on its own is finished as a task first, and half of something may go on
+  in a branch of its own as the feature's branch (the task's own, or a new one when the task works
+  directly on a shared branch; committed and pushed as work in progress, the task to keel's trash).
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,
   then to start anyway; for another repository's dependency: take the next ticket / wait for it /
   start anyway, and for one not checked: start anyway / take another ticket.

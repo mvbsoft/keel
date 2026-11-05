@@ -46,8 +46,8 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   own?"), and none asks what the gathered facts or the project's docs already answer. The facts a
   ticket needs go into its Where to look and Boundaries, the conclusions into Decisions: What was
   gathered stays in the draft and is not exported.
-- **A draft continued** reads What was gathered first and never searches for it again; a fact it
-  lacks → look it up and add it there.
+- **A draft continued**, or one made from a brief, reads What was gathered first and never searches
+  for it again (no gathering offer); a fact it lacks → look it up and add it there.
 - **Reuse first.** Before planning new code for a capability: the project's own code → its installed
   packages (manifest and lock file) → the framework and the platform → a small, living package →
   write it ourselves; stop at the first good answer. The first three are searches in files; only the
@@ -246,6 +246,9 @@ A yes to a new branch, in both git modes: `git switch -c <branch> <the plan's me
 Code may ask). It carries the uncommitted planning files along; never from another task's branch: its
 unmerged commits would travel with them. git refuses (a file would be overwritten) → tell its reason
 and wait.
+One exception: a feature whose brief says it goes on in a dropped task's branch (its work in progress
+is meant to travel) has that branch as the plan's `branch:` and needs no new one; being on it is
+being on the plan's branch.
 
 ## Commit and push (a repository draft or exported tickets)
 Branch hints first (`plans.js commit` refuses on the main branch). Then ask "Commit the planning
