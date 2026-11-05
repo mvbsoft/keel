@@ -27,8 +27,9 @@ Current state of this project:
    `/keel:tasks drop <id>`, or `/keel:start-task <id>` then `/keel:end-task` to finish it; say nothing
    about age otherwise. End with: "Continue one with `/keel:start-task <id>`." No tasks → say so.
    Then the planned tickets: `node "<keel>/scripts/plans.js" "<project>" tickets`. Not
-   `tickets: none` → a block "Planned": each feature and its ticket lines as printed (states and hints
-   in the conversation language; keys, branches and names stay), the data-date line
+   `tickets: none` → a block "Planned": each feature and its ticket lines as printed (states, hints and
+   marks such as `<KEY> only in feature branch <b>` in the conversation language; keys, branches and
+   names stay), the data-date line
    (`server data from <date>`, `no remote` or `never fetched`), and "Start the next one with
    `/keel:start-task <KEY>`" with the key of its `next:` line (`next: none` → no such line). A
    feature whose every ticket is `done` or `waiting for the feature merge` (all done in its feature

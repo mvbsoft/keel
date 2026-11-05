@@ -615,7 +615,19 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
   const offText = (repo) => L('not_on_pc_title', { repo });
   const offBadge = (repo) => bubbleButton('pill off', [icon('alert'), el('span', '', L('not_on_pc'))], offText(repo));
   const offMark = (repo) => { const m = el('span', 'pill off', L('not_on_pc')); m.title = offText(repo); return m; };
-  const branchMark = (feature) => { const m = el('span', 'pill off', L('only_in_feature', { feature })); m.title = L('only_in_feature_title', { feature }); return m; };
+  // Where a dependency's code is, when that says more than its state (scripts/lib/plans-state.js whereOf):
+  // in this feature branch already, in another branch, or on this machine's main only. `v`: the
+  // dependency's and the waiting ticket's keys.
+  function whereMark(w, v) {
+    if (!w || !['yours', 'feature', 'local', 'ticket'].includes(w.kind)) return null;
+    const x = { ...w, ...v };
+    const [text, title] = w.kind === 'yours' ? [L('where_yours', x), L('where_yours_title', x)]
+      : w.kind === 'feature' ? [w.word === 'feature branch' ? L('where_feature', x) : L('where_branch', x), w.pull ? L('where_pull_title', x) : L('where_wait_title', x)]
+        : w.kind === 'local' ? [L('where_local', x), L('where_local_title', x)] : [L('where_ticket', x), L('where_ticket_title', x)];
+    const m = el('span', 'pill off', text);
+    m.title = title;
+    return m;
+  }
   const UNKNOWN_STATE = 'state unknown';
   function closeFloats() {
     document.querySelectorAll('.infowrap.open, .popwrap.open').forEach((w) => {
@@ -761,9 +773,7 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
       const shown = other && other.next ? 'next' : d.state || (other ? other.state : UNKNOWN_STATE);
       const group = other ? groupOf(other) : GROUP_OF[shown];
       const state = unknown || !group || group === 'unknown' ? pill('s-unknown', L('state.unknown')) : pill(PILL[group], stateText(shown));
-      // Not met while it waits for the merge of its own feature: this ticket is in another feature,
-      // whose branch may hold that code already if it was pulled in by hand.
-      const elsewhere = d.met === false && d.state === 'waiting for the feature merge' ? branchMark(d.feature) : null;
+      const elsewhere = whereMark(d.where, { key: d.key, ticket: t.key });
       const row = btn('dep', [el('span', 'key', d.key), other ? el('span', '', other.title) : null, state,
         other ? el('span', 'small muted', other.repo) : null, unknown ? offMark(other ? other.repo : repoOfKey(d.key)) : elsewhere], () => { if (other) select(d.key, true); });
       if (!other) row.disabled = true;

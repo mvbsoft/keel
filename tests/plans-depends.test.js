@@ -95,7 +95,7 @@ gitTest('tickets: another repository\'s dependency is read from its folder; not 
   // checked, yet the first free one after WEB-14 and WEB-15. WEB-17: API-121 waiting for the merge of the same
   // feature, API-140 done on api's main. WEB-18: API-123 not in api.
   assert.equal(line(out, 'WEB-14'), '  WEB-14 Ticket WEB-14 — to do');
-  assert.equal(line(out, 'WEB-15'), '  WEB-15 Ticket WEB-15 — to do');
+  assert.equal(line(out, 'WEB-15'), '  WEB-15 Ticket WEB-15 — to do · API-130 only in feature branch other-work');
   assert.equal(line(out, 'WEB-16'), '  WEB-16 Ticket WEB-16 — next · MOB-3 not checked');
   assert.equal(line(out, 'WEB-17'), '  WEB-17 Ticket WEB-17 — to do');
   assert.equal(out.at(-1), 'next: WEB-16 (message-notify)');
@@ -120,6 +120,16 @@ gitTest('tickets: another repository\'s dependency is read from its folder; not 
   run(web, 'settings', 'set', '--repo', `API=${slash(api)}-gone`);
   assert.ok(run(web, 'tickets', 'WEB-14').includes(`  depends: API-122 not checked (${slash(api)}-gone is not on this machine)`));
   assert.equal(run(web, 'tickets').at(-1), 'next: WEB-14 (message-notify)');
+});
+
+gitTest('tickets: where another repository\'s dependency is; its code cannot be pulled in from here', () => {
+  const { api, web } = twoRepos();
+  const where = (key) => run(web, 'tickets', key).filter((l) => l.startsWith('  where: '));
+  assert.deepEqual(where('WEB-14'), [`  where: API-122 is not started in ${slash(api)}: wait for it`]);
+  assert.deepEqual(where('WEB-15'), [`  where: API-130 is ready in feature branch other-work in ${slash(api)}, not in its main: wait for its merge`]);
+  assert.deepEqual(where('WEB-17'), [], 'waiting for the merge of the same feature, and done: nothing to wait for');
+  assert.deepEqual(where('WEB-16'), [], 'not checked: its depends line says why');
+  assert.deepEqual(where('WEB-18'), [], 'not found: its depends line says so');
 });
 
 gitTest('check and ticket on an exported feature: a key missing in the other repository is a problem, one not checked a note', () => {

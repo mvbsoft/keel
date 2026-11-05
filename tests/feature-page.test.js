@@ -217,7 +217,7 @@ gitTest('an exported feature: its texts, states, sizes and terms go into the pag
 
   const [one, two] = data.tickets;
   assert.deepEqual([one.key, one.state, one.next, two.key, two.state, two.next], ['API-1', 'waiting for the feature merge', false, 'API-2', 'to do', true]);
-  assert.deepEqual(two.depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE }], 'done on the feature branch holds no ticket of the feature back; the page shows its own state');
+  assert.deepEqual(two.depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE, where: null }], 'done on the feature branch holds no ticket of the feature back; the page shows its own state');
   assert.equal(two.title, 'Цифра непрочитаних на іконці чату');
   assert.deepEqual([two.files, two.criteria], [2, 3]);
   // The text as it is: a "## " inside a code block stays in its section.
@@ -355,8 +355,8 @@ gitTest('a feature on several repositories: the first of repos names the page; a
   const webTicket = data.tickets.find((t) => t.key === 'WEB-14');
   assert.deepEqual([webTicket.repo, webTicket.state, webTicket.title], ['web', 'to do', 'Цифра на сайті']);
   assert.ok(webTicket.sections.length > 0, 'its text from its folder');
-  assert.deepEqual(webTicket.depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE }, { key: 'API-2', met: false, state: 'to do', feature: FEATURE }, { key: 'WGT-3', met: null, state: 'not checked', feature: null }], 'its depends_on, met as this repository reads them; one not read here: null');
-  assert.deepEqual(data.tickets.find((t) => t.key === 'API-2').depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE }, { key: 'WGT-3', met: null, state: 'not checked', feature: null }], 'a dependency in a repository not on this machine is not shown met');
+  assert.deepEqual(webTicket.depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE, where: null }, { key: 'API-2', met: false, state: 'to do', feature: FEATURE, where: { kind: 'todo' } }, { key: 'WGT-3', met: null, state: 'not checked', feature: null, where: null }], 'its depends_on, met as this repository reads them; one not read here: null');
+  assert.deepEqual(data.tickets.find((t) => t.key === 'API-2').depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE, where: null }, { key: 'WGT-3', met: null, state: 'not checked', feature: null, where: null }], 'a dependency in a repository not on this machine is not shown met');
   const wgt = data.tickets.find((t) => t.key === 'WGT-3');
   assert.deepEqual([wgt.repo, wgt.state, wgt.title, wgt.sections], ['widget', 'state unknown', 'Цифра у віджеті', null]);
 });
@@ -422,6 +422,25 @@ gitTest('in progress by a keel task or by the session note: the page says which'
   fs.rmSync(path.join(api, '.keel', 'tasks'), { recursive: true });
   write(api, '.keel/next-session.md', '---\nstatus: in-progress\nkeys: API-2\n---\n');
   assert.deepEqual([via().state, via().via], ['in progress', { kind: 'session' }]);
+});
+
+gitTest('a dependency of another feature: where its code is, and met once it is in this feature branch', () => {
+  const tmp = tempDir('keel-page-');
+  const api = exported(tmp);
+  git(api, 'checkout', '-q', '-b', 'chat', 'main');
+  write(api, 'tickets/chat/API-7-send.md', BARE('API-7', 'done').replace(new RegExp(FEATURE, 'g'), 'chat'));
+  write(api, 'src/send.js', '1\n');
+  git(api, 'add', '-A');
+  git(api, 'commit', '-q', '-m', 'API-7: send');
+  git(api, 'checkout', '-q', FEATURE);
+  write(api, `${T}/API-3-list.md`, BARE('API-3').replace('depends_on: []', 'depends_on: [API-7]'));
+  git(api, 'add', '-A');
+  git(api, 'commit', '-q', '-m', 'Add API-3');
+  const deps = () => pageData(line(run(api, FEATURE), 'page')).data.tickets.find((t) => t.key === 'API-3').depends;
+  assert.deepEqual(deps(), [{ key: 'API-7', met: false, state: 'waiting for the feature merge', feature: 'chat',
+    where: { kind: 'feature', branch: 'chat', word: 'feature branch', into: 'main', pull: FEATURE } }], 'ready in another feature branch: wait for main or pull it into this one');
+  git(api, 'merge', '-q', '--no-edit', 'chat');
+  assert.deepEqual(deps(), [{ key: 'API-7', met: true, state: 'waiting for the feature merge', feature: 'chat', where: { kind: 'yours', branch: FEATURE } }], 'pulled into this feature branch: it may start');
 });
 
 test('langCode takes language codes only; termsOf keeps snake_case terms and drops an empty one', () => {
