@@ -20,6 +20,7 @@
 //   tickets in its folder.
 // Nothing here prints a draft's text beyond its name, state, counts and the problems check finds.
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { checkConfig } = require('./config.js');
@@ -395,6 +396,53 @@ function placeholders(text) {
   return out;
 }
 
+// A path of this machine: a drive (C:\ or C:/, also in file:///C:/), a UNC share, a home folder of
+// Linux or macOS (/home/<user>, /root, /Users/<user>), a Windows drive in WSL (/mnt/c/), or one of
+// `folders`. Not a path: http://x, src/home/a.js, ~/.claude (no letter, word or dot before it).
+const LOCAL_PATH = /(?<![A-Za-z0-9])[A-Za-z]:[\\/]|(?<![\w\\])\\\\[\w.$-]+\\|(?<![\w.~/-])\/(?:home\/[^/\s]|Users\/[^/\s]|root(?![\w.-])|mnt\/[a-z]\/)/g;
+const PATH_END = /^[^\s`'"<>()[\]{}|,;]+/;
+
+// The folders of this machine a feature file must not name: the project, the neighbouring
+// repositories of the repos map and the home folder (a project in /srv or /opt matches no pattern).
+function machineFolders(root) {
+  const all = [root, ...Object.values(settings(root).repos || {}), os.homedir()];
+  return [...new Set(all.filter((f) => typeof f === 'string').map((f) => f.replace(/\\/g, '/').replace(/\/+$/, '')).filter((f) => f.length > 3))];
+}
+
+// Every path of this machine in `text`, with its line: "C:\Users\ann\a.js (line 4)".
+function localPaths(text, folders = []) {
+  const win = process.platform === 'win32';
+  const out = [];
+  lf(text).split('\n').forEach((line, i) => {
+    const slashed = line.replace(/\\/g, '/');
+    const look = win ? slashed.toLowerCase() : slashed;
+    const starts = [...line.matchAll(LOCAL_PATH)].map((m) => m.index);
+    for (const f of folders) {
+      const want = win ? f.toLowerCase() : f;
+      for (let j = look.indexOf(want); j >= 0; j = look.indexOf(want, j + 1)) starts.push(j);
+    }
+    let end = -1;
+    for (const at of [...new Set(starts)].sort((a, b) => a - b)) {
+      if (at < end) continue;
+      const p = PATH_END.exec(line.slice(at))[0].replace(/[.:]+$/, '');
+      end = at + p.length;
+      out.push(`${clean(p, 200)} (line ${i + 1})`);
+    }
+  });
+  return out;
+}
+
+// The paths of this machine in a feature's files, one problem each.
+const localProblems = (label, text, folders) => localPaths(text, folders).map((p) => `${label}: local path ${p}`);
+
+// The research reports of a feature folder (research/*.md), each as { name, text }.
+function researchTexts(folder) {
+  const dir = path.join(folder, 'research');
+  let names = [];
+  try { names = fs.readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile() && /\.md$/i.test(e.name)).map((e) => e.name).sort(); } catch { /* none */ }
+  return names.map((name) => ({ name: `research/${name}`, text: read(path.join(dir, name)) || '' }));
+}
+
 // The files "Where to look" names: inline code or a bare path:line, without the line part.
 function mentionedFiles(text) {
   const found = new Set();
@@ -431,6 +479,7 @@ function ticketProblems(root, label, text, filesRoot = root) {
   const out = ticketStructure(label, text);
   const secs = sections(text);
   for (const p of placeholders(text)) out.push(`${label}: placeholder ${p}`);
+  out.push(...localProblems(label, text, machineFolders(root)));
   if (filesRoot === null) return out;
   const own = filesRoot === root;
   for (const f of mentionedFiles(secs['Where to look'] || '')) {
@@ -444,6 +493,9 @@ function ticketProblems(root, label, text, filesRoot = root) {
 function problems(root, d) {
   const out = planStructure(d.text);
   for (const p of placeholders(d.text)) out.push(`plan.md: placeholder ${p}`);
+  const folders = machineFolders(root);
+  out.push(...localProblems(PLAN_FILE, d.text, folders));
+  for (const r of researchTexts(d.folder)) out.push(...localProblems(r.name, r.text, folders));
   const s = settings(root);
   out.push(...repos().planReposProblems(d.fm, s.ticket_prefix));
   const planned = repos().planRepos(d.fm);
@@ -685,5 +737,5 @@ module.exports = {
   base, needDraft, settle, stateOf, problems, tickets, ticketIds, writePlan, writeFile,
   branchesOf, mainBranch, PLAN_FILE, TICKET_FILE, fromTemplate, ticketProblems, cycles,
   // for feature-page.js
-  mentionedFiles, pageCode, PAGE_CODE,
+  mentionedFiles, pageCode, PAGE_CODE, machineFolders, localPaths, localProblems, researchTexts,
 };

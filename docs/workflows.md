@@ -495,7 +495,7 @@ a new event in `api` and a badge in `web`; each ticket is for one repository onl
 | `/keel:end-planning` | Open questions or structure problems → hands over, with the reason in one line; otherwise asks "Final review and export, or hand over?". |
 
 **Final.** 1) The gates: no open questions, a clean structure check (the `# [id] title` heading, each section
-once and in its order, headings inside code blocks being text, the three Boundaries labels, acceptance criteria as a `- [ ]` list, no TBD, the named files exist,
+once and in its order, headings inside code blocks being text, the three Boundaries labels, acceptance criteria as a `- [ ]` list, no TBD, the named files exist, no path of this machine in the plan, a ticket or a report (`C:\…`, `/home/<user>/…`, `/Users/<user>/…`, `/mnt/c/…`, the project or a neighbouring repository by its folder: paths go from the repository's root),
 dependencies without cycles; style is the ticket reviewer's advice and never blocks), and a decision for every finding; else keel
 shows what blocks and offers to hand over. 2) Ticket reviews of the tickets not reviewed as they are
 (`keel:ticket-reviewer`, up to 4 tickets per call), then one review of the whole plan
@@ -584,7 +584,7 @@ key (`depends_on: [API-121]` in `WEB-14`): a key whose prefix is neither this pr
 prefix nor that of a ticket here. keel finds that repository's folder on this machine in the
 [`repos` map](settings.md#planning-settings) and reads the ticket's state there the same way, from
 that folder's git and files, with no network: the state is as of that repository's last fetch, which
-the `depends:` line names (`API-121 waiting for the feature merge (O:/projects/api, server data from
+the `depends:` line names (`API-121 waiting for the feature merge (/path/to/api, server data from
 <date>)`); `--fetch` fetches only this project. It counts as for a ticket here: `done`, or
 `waiting for the feature merge` in a feature of the same name. With no folder for the prefix in the
 map, or a folder that is not on this machine or not a git repository, the dependency is
@@ -605,7 +605,7 @@ repository widget has more tickets", the overview's Tickets lines with the state
 
 ```
 next: API-122 (message-notify)
-linked: message-notify in web (WEB; O:/projects/web, server data from 2026-10-27T09:12:00Z)
+linked: message-notify in web (WEB; /path/to/web, server data from 2026-10-27T09:12:00Z)
   WEB-14 Unread badge — in progress · branch message-notify, Ann Lee, 2 days ago
   WEB-15 Sound — to do
 linked: message-notify: the repository widget (WGT) has more tickets, state unknown (no folder for WGT in the repos map: ...):

@@ -40,7 +40,9 @@ so an update translates only what changed.
    - `feature: none (<why>)` → say why in plain words. `features: none` → there is no planned feature
      here (`/keel:start-planning` plans one); stop. Else ask which feature (AskUserQuestion, from the
      `features:` list) and run again with it.
-   - `feature-page: refused (<why>)` or `unavailable` → say why in plain words and stop.
+   - `feature-page: refused (<why>)` or `unavailable` → say why in plain words and stop. Refused for
+     paths of this machine: show the `- ` lines below it (file, path, line); they are fixed in those
+     files, never on the page.
 4. Find the page. List your own pages: **A** `action: list`, mine, `limit` 200; **B**
    `list_artifacts`, `limit` 500, the entries marked mine. This feature's page is the one whose title
    ends with ` (<code>)`, the `code:` line; the rest of its title may have changed.
