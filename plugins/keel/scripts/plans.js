@@ -61,7 +61,8 @@
 //                                         push failed on the network or access: `retry:` and the command
 //   tickets [<feature> | <KEY>] [--fetch] the exported tickets' state: no argument, every feature with a
 //                                         ticket not done; one feature (and its branch); one key (and
-//                                         its file and dependencies); `next:` the ticket to take next.
+//                                         its file, dependencies and where their code is); `next:` the
+//                                         ticket to take next.
 //                                         No argument: then `linked:` lines, the tickets of each
 //                                         feature's other repositories (lib/plans-linked.js).
 //                                         --fetch: git fetch --prune first

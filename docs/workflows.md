@@ -559,11 +559,25 @@ conversation language):
 | `to do` | none of these |
 
 `next` marks the first `to do` ticket of a feature whose dependencies are done (or waiting for the
-feature merge). Marks after the state: `reverted` (done on a branch merged once, then taken back),
+feature merge in the same feature, or already in its own feature branch). Marks after the state: `reverted` (done on a branch merged once, then taken back),
 `stale` (the branch behind the state has no commit for 30 days), `duplicate key` (several files). Each
 line names the branch, author and age behind it. Branches without a commit in 30 days are not read,
 except each ticket's own `branch` and `merge_into`. Tickets on this machine: `done` in the file,
 `in progress` by a task or the note here, else `to do`.
+
+**Where a dependency's code is.** For a `to do` ticket, `/keel:start-task` and the key view
+(`plans.js tickets <KEY>`) say where each dependency that holds it back is, read from git on every run,
+and the feature list marks it (`PROJ-1 only in feature branch chat`):
+
+| The dependency's code | keel says | The ticket |
+|---|---|---|
+| already in this ticket's feature branch (through main, or merged in by hand) | `PROJ-1 is in your feature branch notify: PROJ-5 can start` | may start |
+| only in another feature's branch | `PROJ-1 is ready in feature branch chat, not in main. To start PROJ-5: wait for its merge into main, or pull it into notify: git merge chat` | you decide |
+| only in its ticket branch | `PROJ-2 is ready in ticket branch PROJ-2-read, not in feature branch chat yet: wait for that merge` | waits |
+| in progress, or not started | `PROJ-3 is in progress (branch PROJ-3-edit, ...): wait for it`, `PROJ-4 is not started: wait for it` | waits |
+
+A dependency in another repository cannot be merged in from here: its line names that repository and
+says only to wait.
 
 **Dependencies in other repositories.** `depends_on` may name a ticket of another repository by its
 key (`depends_on: [API-121]` in `WEB-14`): a key whose prefix is neither this project's planning

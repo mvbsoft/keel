@@ -538,7 +538,7 @@ test('start-task: each ticket state has its answer; waiting is never free, done 
   assert.match(p, /`in progress` or `waiting for \.\.\.` → say the branch, author and date of its hint and ask: continue\s+it \(on that branch\) \/ start over \/ take another ticket/);
   assert.match(p, /A waiting ticket is never offered as free;\s+with `stale` ask "Nobody touched it for 30 days: treat it as free\?"/);
   assert.match(p, /`reverted` → say "The branch\s+was merged once and that merge was reverted; merging it again brings nothing back: it needs a\s+revert of that revert, or new commits\."/);
-  assert.match(p, /a `depends:` ticket of this repository `waiting for merge into the feature branch`, or one of\s+another feature that is not done \(not `not found`\) → ask: start from that ticket's branch \/ wait\s+for its merge \/ start anyway/);
+  assert.match(p, /a `depends:` ticket of this repository `waiting for merge into the feature branch`, or one of\s+another feature that is not done \(not `not found`\) → its `where:` line says where its code is: say\s+it in plain words\. `\.\.\. or pull it into <b>: git merge <x>` → ask: wait for its merge \/ pull it in\s+\(`git merge <x>` on `<b>`, after step 3's branch\) \/ start anyway; another `where:` → ask: wait for\s+it \/ start anyway\. `\.\.\. is in your feature branch <b>: <KEY> can start` → say so, nothing to ask/);
   assert.match(p, /`done` → say so; start it again only on a yes/);
   assert.match(p, /a `depends:` ticket of the same feature `to do` or `in progress`, or any `not found` → say which,\s+and ask: take the next ticket \/ start anyway/);
   // A squash merge after the tickets were removed leaves no ticket file in merge_into's history.
