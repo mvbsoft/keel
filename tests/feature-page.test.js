@@ -444,6 +444,21 @@ gitTest('a dependency of another feature: where its code is, and met once it is 
   assert.deepEqual(deps(), [{ key: 'API-7', met: true, state: 'waiting for the feature merge', feature: 'chat', where: { kind: 'yours', branch: FEATURE } }], 'pulled into this feature branch: it may start');
 });
 
+gitTest('a ticket of this repository only on another branch: its text from that branch, and which branch', () => {
+  const tmp = tempDir('keel-page-');
+  const api = exported(tmp);
+  git(api, 'checkout', '-q', '-b', 'api-3-badge');
+  write(api, `${T}/API-3-list.md`, FULL('API-3').replace('# [API-3] Цифра непрочитаних на іконці чату', '# [API-3] Список непрочитаних'));
+  git(api, 'add', '-A');
+  git(api, 'commit', '-q', '-m', 'Add API-3');
+  git(api, 'checkout', '-q', FEATURE);
+  const { data } = pageData(line(run(api, FEATURE), 'page'));
+  const three = data.tickets.find((t) => t.key === 'API-3');
+  assert.deepEqual([three.title, three.repo, three.onBranch, three.criteria], ['Список непрочитаних', 'api', 'api-3-badge', 3]);
+  assert.ok(three.sections.length > 0 && three.md.includes('# [API-3] Список непрочитаних'), 'the whole ticket, read from git');
+  assert.equal(data.tickets.find((t) => t.key === 'API-2').onBranch, null, 'one in the working tree');
+});
+
 test('langCode takes language codes only; termsOf keeps snake_case terms and drops an empty one', () => {
   assert.deepEqual(['uk', 'uk-UA', 'pt_BR', 'DE', 'German', 'Ukrainian', '', 'x1'].map(langCode), ['uk', 'uk', 'pt', 'de', null, null, null, null]);
   const terms = termsOf([{ name: 'Terms', text: '- `ticket_prefix` — the key prefix\n-  — nothing\n- __bold__: text' }]);
@@ -458,6 +473,14 @@ test('the page template: its script parses, every label it names exists, and it 
   const catalogs = ['en', 'uk'].map((code) => [code, JSON.parse(fs.readFileSync(path.join(SCRIPTS, '..', 'locales', `${code}.json`), 'utf8'))]);
   const labels = new Set([...scripts[0].matchAll(/\bL\('([^']+)'/g)].map((m) => m[1]));
   assert.ok(labels.size > 30);
+  // How to update the page: the command with this feature's name, and a button that copies it.
+  assert.match(scripts[0], /const refresh = `\/keel:feature-page \$\{data\.feature\}`;/);
+  assert.match(scripts[0], /navigator\.clipboard\.writeText\(refresh\)/);
+  for (const k of ['refresh', 'copy', 'copied', 'copy_failed']) assert.ok(labels.has(k), k);
+  // A mark's explanation is a bubble like ⓘ, not the browser's tooltip, which a phone never shows; so a
+  // dependency row is a box with its button and its marks beside it, not one button.
+  assert.doesNotMatch(scripts[0], /\b[mc]\.title = /, 'a mark or chip with a browser tooltip');
+  assert.match(scripts[0], /const row = el\('div', 'dep'\)/);
   for (const [code, cat] of catalogs) for (const k of labels) assert.ok(`page.${k}` in cat, `${code}: page.${k}`);
   const stateKeys = vm.runInNewContext(`(${/const STATE_KEYS = (\{[\s\S]*?\});/.exec(scripts[0])[1]})`);
   const { STATES } = require(path.join(SCRIPTS, 'lib', 'plans-state.js'));

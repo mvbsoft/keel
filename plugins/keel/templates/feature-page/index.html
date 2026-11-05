@@ -57,6 +57,7 @@ button { font: inherit; color: inherit; }
 .mono { font-family: var(--font-mono); }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
+.refresh { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin-top: 10px; }
 .rowline { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; min-width: 0; }
 .ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -157,7 +158,7 @@ button.chip:hover, button.chip[aria-expanded="true"] { border-color: var(--accen
 .infowrap .bubble { position: absolute; top: calc(100% + 6px); right: -4px; z-index: 40; width: max-content; max-width: min(320px, calc(100vw - 72px));
   background: var(--ink); color: var(--card); font: 400 14px/1.5 var(--font-body); letter-spacing: 0; text-transform: none; text-align: left;
   padding: 10px 12px; border-radius: 10px; box-shadow: 0 6px 24px rgb(0 0 0 / .25); visibility: hidden; opacity: 0; }
-.infowrap.open .bubble, .infowrap:has(.info:focus-visible) .bubble { visibility: visible; opacity: 1; }
+.infowrap.open .bubble, .infowrap:has(button:focus-visible) .bubble { visibility: visible; opacity: 1; }
 @media (hover: hover) { .infowrap:hover .bubble { visibility: visible; opacity: 1; } }
 .goal { display: flex; gap: 8px; align-items: baseline; font-size: 15px; padding-top: 6px; border-top: 1px solid var(--line); }
 .goal .lb { color: var(--faint); flex: none; font-size: 13px; }
@@ -174,8 +175,10 @@ button.chip:hover, button.chip[aria-expanded="true"] { border-color: var(--accen
 .dec .what { font-weight: 600; }
 .dec .why { grid-column: 2; color: var(--muted); font-size: 15px; }
 .dref { font: inherit; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 5px; padding: 0 4px; cursor: pointer; }
-.dep { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: none; text-align: left; cursor: pointer; width: 100%; }
-.dep:hover { border-color: var(--accent); }
+.dep { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.dep:has(.depmain:not(:disabled):hover) { border-color: var(--accent); }
+.depmain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; flex: 1; min-width: 0; border: 0; padding: 0; background: none; text-align: left; cursor: pointer; }
+.depmain:disabled { cursor: default; }
 
 .md { display: flex; flex-direction: column; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
 .md ul, .md ol { padding-left: 1.3em; display: flex; flex-direction: column; gap: 4px; }
@@ -604,8 +607,9 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     return add(wrap, b, bubble);
   };
   const infoButton = (key) => bubbleButton('info', [icon('info')], L(`info.${key}`), L('what_is'));
-  // A ticket of a repository that is not on this machine: why its state is unknown. Inside another
-  // button (a list item, a dependency) only a mark with its text on hover: a button holds no button.
+  // A ticket of a repository that is not on this machine: why its state is unknown. A mark explains
+  // itself in a bubble like ⓘ; inside a list item, itself a button, it is plain text: a button holds no
+  // button, and the ticket's header explains it.
   // A ticket's repository: by its key's prefix, else by its name (this repository's tickets under
   // another prefix); null for one the page does not list. Names alone may repeat.
   const repoOf = (t) => data.repos.find((r) => r.prefix === t.prefix) || data.repos.find((r) => r.name === t.repo) || null;
@@ -613,7 +617,10 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
   const repoOfKey = (key) => (data.repos.find((r) => r.prefix === key.split('-')[0]) || { name: key.split('-')[0] }).name;
   const offText = (repo) => L('not_on_pc_title', { repo });
   const offBadge = (repo) => bubbleButton('pill off', [icon('alert'), el('span', '', L('not_on_pc'))], offText(repo));
-  const offMark = (repo) => { const m = el('span', 'pill off', L('not_on_pc')); m.title = offText(repo); return m; };
+  const offMark = () => el('span', 'pill off', L('not_on_pc'));
+  // A ticket of this repository whose file is only on another branch: its text is read from there.
+  const branchMark = (branch) => el('span', 'pill off', L('on_branch', { branch }));
+  const branchBadge = (branch) => bubbleButton('pill off', [el('span', '', L('on_branch', { branch }))], L('on_branch_title', { branch }));
   // Where a dependency's code is, when that says more than its state (scripts/lib/plans-state.js whereOf):
   // in this feature branch already, in another branch, or on this machine's main only. `v`: the
   // dependency's and the waiting ticket's keys.
@@ -623,9 +630,7 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     const [text, title] = w.kind === 'yours' ? [L('where_yours', x), L('where_yours_title', x)]
       : w.kind === 'feature' ? [w.word === 'feature branch' ? L('where_feature', x) : L('where_branch', x), w.pull ? L('where_pull_title', x) : L('where_wait_title', x)]
         : w.kind === 'local' ? [L('where_local', x), L('where_local_title', x)] : [L('where_ticket', x), L('where_ticket_title', x)];
-    const m = el('span', 'pill off', text);
-    m.title = title;
-    return m;
+    return bubbleButton('pill off', [el('span', '', text)], title);
   }
   const UNKNOWN_STATE = 'state unknown';
   function closeFloats() {
@@ -654,12 +659,28 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     });
     const when = new Date(data.generated);
     const date = when.toLocaleDateString(data.language, { day: 'numeric', month: 'short', year: 'numeric' });
+    const builtAt = when.toLocaleString(data.language, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const asOf = popChip([icon('commit'), el('span', '', L('as_of', { date }))], (p) => {
       p.append(el('span', 'small muted', L('as_of_title')));
       for (const r of data.repos) p.append(add(el('div', 'r'), el('b', '', r.name), r.commit ? el('span', 'key', r.commit) : el('span', 'small muted', L('not_on_pc'))));
-      p.append(el('span', 'small muted', L('built', { date: when.toLocaleString(data.language, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) })));
+      p.append(el('span', 'small muted', L('built', { date: builtAt })));
     });
     card.append(add(el('div', 'rowline chips'), projects, asOf));
+    // The page cannot reach the machine it was built on, so it gives the command that updates it. A
+    // copy the browser refuses selects the command for copying by hand.
+    const refresh = `/keel:feature-page ${data.feature}`;
+    const cmd = el('code', 'key', refresh);
+    const copy = btn('btn', [el('span', '', L('copy'))], () => {
+      const failed = () => {
+        copy.firstChild.textContent = L('copy_failed');
+        const r = document.createRange();
+        r.selectNodeContents(cmd);
+        getSelection().removeAllRanges();
+        getSelection().addRange(r);
+      };
+      try { navigator.clipboard.writeText(refresh).then(() => { copy.firstChild.textContent = L('copied'); }, failed); } catch { failed(); }
+    });
+    card.append(add(el('div', 'refresh small'), icon('terminal'), el('span', 'muted', L('refresh', { date: builtAt })), cmd, copy));
     const o = data.overview;
     const plain = o ? named(o.sections, 'In plain words') : '';
     if (plain) {
@@ -740,7 +761,7 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
         const dot = el('span', `dot ${groupOf(t)}`);
         dot.title = stateText(t.next ? 'next' : t.state);
         const off = isOff(t);
-        const b = btn('item', [dot, el('span', 'k', t.key), el('span', 'tt', t.title || t.key), off ? offMark(t.repo) : null], () => select(t.key, true));
+        const b = btn('item', [dot, el('span', 'k', t.key), el('span', 'tt', t.title || t.key), off ? offMark() : t.onBranch ? branchMark(t.onBranch) : null], () => select(t.key, true));
         b.title = `${t.key} · ${t.title} · ${dot.title}${off ? ` · ${offText(t.repo)}` : ''}`;
         items.set(t.key, b);
         card.append(b);
@@ -773,10 +794,11 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
       const group = other ? groupOf(other) : GROUP_OF[shown];
       const state = unknown || !group || group === 'unknown' ? pill('s-unknown', L('state.unknown')) : pill(PILL[group], stateText(shown));
       const elsewhere = whereMark(d.where, { key: d.key, ticket: t.key });
-      const row = btn('dep', [el('span', 'key', d.key), other ? el('span', '', other.title) : null, state,
-        other ? el('span', 'small muted', other.repo) : null, unknown ? offMark(other ? other.repo : repoOfKey(d.key)) : elsewhere], () => { if (other) select(d.key, true); });
-      if (!other) row.disabled = true;
-      box.append(row);
+      const main = btn('depmain', [el('span', 'key', d.key), other ? el('span', '', other.title) : null, state,
+        other ? el('span', 'small muted', other.repo) : null], () => { if (other) select(d.key, true); });
+      if (!other) main.disabled = true;
+      const row = el('div', 'dep');
+      box.append(add(row, main, unknown ? offBadge(other ? other.repo : repoOfKey(d.key)) : elsewhere));
     }
     return box;
   }
@@ -799,7 +821,7 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     else if (v.author || when) out.push(['commit', L('via_last_when', { when: v.author || when })]);
     return out;
   }
-  const viaChips = (v) => viaParts(v).map(([ic, text, why]) => { const c = add(el('span', 'chip'), icon(ic), el('span', '', text)); if (why) c.title = why; return c; });
+  const viaChips = (v) => viaParts(v).map(([ic, text, why]) => (why ? bubbleButton('chip', [icon(ic), el('span', '', text)], why) : add(el('span', 'chip'), icon(ic), el('span', '', text))));
   function whyBlock(t) {
     const text = named(t.sections, 'Why');
     if (!text) return null;
@@ -834,16 +856,15 @@ footer { color: var(--faint); font-size: 13px; text-align: center; padding-top: 
     const back = btn('back', [icon('arrowLeft'), el('span', '', L('back'))], () => { document.body.classList.remove('reading'); const i = items.get(t.key); if (i) i.focus(); });
     const g = groupOf(t);
     const top = add(el('div', 'rowline'), pill(PILL[g], stateText(t.next ? 'next' : t.state)), el('span', 'key', t.key), el('span', 'chip', t.repo),
-      isOff(t) ? offBadge(t.repo) : null, el('span', 'sp'));
+      isOff(t) ? offBadge(t.repo) : t.onBranch ? branchBadge(t.onBranch) : null, el('span', 'sp'));
     if (t.md) top.append(btn('btn', [icon('file'), el('span', '', L('show_md'))], () => mdFile(t)));
     const meta = el('div', 'rowline');
     meta.append(...viaChips(t.via));
     if (t.files) meta.append(add(el('span', 'chip'), icon('folder'), el('span', '', L('files', { n: t.files }))));
     if (t.criteria) meta.append(add(el('span', 'chip'), icon('check'), el('span', '', L('criteria', { n: t.criteria }))));
     for (const d of t.depends) {
-      const c = add(el('span', 'chip'), icon('link'), el('span', '', `${L('after')} ${d.key}${d.met ? ' ✓' : d.met === null ? ' ?' : ''}`));
-      if (d.met === null) c.title = `${L('state.unknown')}: ${offText(byKey.has(d.key) ? byKey.get(d.key).repo : repoOfKey(d.key))}`;
-      meta.append(c);
+      const kids = [icon('link'), el('span', '', `${L('after')} ${d.key}${d.met ? ' ✓' : d.met === null ? ' ?' : ''}`)];
+      meta.append(d.met === null ? bubbleButton('chip', kids, `${L('state.unknown')}: ${offText(byKey.has(d.key) ? byKey.get(d.key).repo : repoOfKey(d.key))}`) : add(el('span', 'chip'), ...kids));
     }
     const title = el('h2', 'ttl', t.title || t.key);
     title.tabIndex = -1;

@@ -158,13 +158,24 @@ function exportedData(root, feature, f, now) {
     : states.has(k) ? { state: states.get(k).state, feature: states.get(k).feature || null }
       : { state: target && gone.get(`${target} ${k}`) === 'done' ? 'done' : UNKNOWN, feature: null });
   const textOf = (list, key) => (list.find((t) => t.fm.key.toUpperCase() === key) || {}).text || null;
-  const tickets = mine.map((e) => ticketOf(e.shown, textOf(f.list, e.key), {
-    title: e.title, prefix: prefixOf(e.key), repo: repos[0].name, state: STATES[e.state], next: e === next, via: e.via || null,
-    depends: e.depends.map((k) => {
-      const where = whereTo(k, e, others);
-      return { key: k, met: depMet(k, e, where), ...depState(k, others, e.target), where };
-    }),
-  }));
+  // A ticket with no file in this working tree: its text from the newest branch that has it, by the
+  // commit read (`./`: the path is the project's, which may be a sub-folder of the repository).
+  const elsewhere = (e) => {
+    const at = e.found.filter((x) => !x.view.work).sort((a, b) => b.view.date - a.view.date)[0];
+    const text = at ? git(root, ['cat-file', 'blob', `${at.view.sha}:./${at.path}`]) : null;
+    return text === null ? null : { text, branch: at.view.ref.replace(/^refs\/(heads|remotes)\//, '') };
+  };
+  const tickets = mine.map((e) => {
+    const here = textOf(f.list, e.key);
+    const away = here === null ? elsewhere(e) : null;
+    return ticketOf(e.shown, here === null && away ? away.text : here, {
+      title: e.title, prefix: prefixOf(e.key), repo: repos[0].name, state: STATES[e.state], next: e === next, via: e.via || null, onBranch: away ? away.branch : null,
+      depends: e.depends.map((k) => {
+        const where = whereTo(k, e, others);
+        return { key: k, met: depMet(k, e, where), ...depState(k, others, e.target), where };
+      }),
+    });
+  });
   const codes = f.list.map((t) => codeIn(t.fm));
   for (const r of repos.slice(1)) {
     const theirs = overview ? listed(overview).filter((t) => prefixOf(t.key) === r.prefix) : [];

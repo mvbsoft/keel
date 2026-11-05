@@ -98,7 +98,9 @@ All notable changes to keel are listed here. The format follows
   running it again from any machine or repository of the feature updates the same page; nothing is
   kept on this machine. A
   ticket of a repository that is not on this machine is marked so, its state and any dependency on
-  it unknown. No feature named: the current branch's.
+  it unknown; one of this repository whose file is only on another branch is read from there and
+  marked so. The page is a snapshot: its feature card says when it was built and gives the command
+  that updates it, with a Copy button. No feature named: the current branch's.
 
 ### Changed
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,

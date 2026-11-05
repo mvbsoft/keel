@@ -204,11 +204,13 @@ The texts are those of the md files, which stay the source; keel puts them into 
 the page draws the markdown and code itself (libraries from cdnjs), so every feature looks the same.
 A feature on several repositories also shows the other repositories' tickets: read in their folders on
 this machine, else from the overview with the state unknown and a "not on this machine" mark; a
-dependency on such a ticket is unknown too. A dependency shows its ticket's own state and, when it
+dependency on such a ticket is unknown too. A ticket of this repository whose file is only on another
+branch is read from that branch and marked "only on branch <branch>". A dependency shows its ticket's own state and, when it
 holds the ticket back or was merged in by hand, where its code is: "ready in the <branch> feature
 branch, not in main" (on hover: wait for that merge, or pull it into your branch with `git merge`),
 "ready in the <branch> ticket branch", or "already in your branch". The page shows git as it was when
-it was built or updated.
+it was built or updated: it does not update itself. Its feature card says when it was built and gives
+the command that updates it, `/keel:feature-page <feature>`, with a Copy button.
 
 **Language.** `--lang`, else the language the page already has, else your conversation language.
 The labels come from keel's language files (English and Ukrainian today; English for another
