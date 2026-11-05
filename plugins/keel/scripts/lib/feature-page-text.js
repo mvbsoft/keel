@@ -56,7 +56,7 @@ function translate(page, known) {
   return used;
 }
 
-// What an earlier page says of itself: its repository marker, language and translations.
+// What an earlier page says of itself: its language and translations.
 function readPage(html) {
   const meta = (name) => (new RegExp(`<meta name="${name}" content="([^"]*)">`).exec(html) || [])[1] || null;
   let translations = { lang: null, items: {} };
@@ -65,7 +65,7 @@ function readPage(html) {
     const t = m ? JSON.parse(m[1]) : null;
     if (t && typeof t.lang === 'string' && t.items && typeof t.items === 'object') translations = { lang: t.lang, items: t.items };
   } catch { /* an unreadable block: translate again */ }
-  return { marker: meta('keel-feature-repo'), lang: langCode(meta('keel-feature-lang')), translations };
+  return { lang: langCode(meta('keel-feature-lang')), translations };
 }
 
 module.exports = { langCode, labelsFor, missing, translate, readPage };

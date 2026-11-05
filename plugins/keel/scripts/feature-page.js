@@ -6,26 +6,23 @@
 //   research/ in its folder). An exported feature's states come from lib/plans-state.js; the tickets of
 //   its other repositories are read in their folders from this machine's repos map, else only their
 //   overview lines are shown, state unknown.
-// - The page's title, the same from every repository of the feature: keel:feature:<PREFIX>:<feature>,
-//   PREFIX the first of the overview's (plan.md's) repos, else this project's ticket prefix. Its marker
-//   tells pages of two projects with that title apart: a hash of the main repository's remote URL
-//   without scheme and credentials. The second project's page takes the title if taken,
-//   keel:feature:<PREFIX>:<feature>:<repository name>.
+// - The page's title, the same from every machine and repository of the feature:
+//   [<PREFIX>, ...] - <the overview's heading> (<code>): the prefixes of the repositories with tickets,
+//   the heading cut to 80 characters, and the feature's code (`page:` in plan.md and in every exported
+//   ticket, lib/plans.js), by which the page is found again. A feature exported before the code gets
+//   one, written into its tickets here; a draft without one, into plan.md.
 // - Its language: --lang, else the earlier page's (--previous, that page saved to a file), else the
 //   conversation's. Labels come from locales/<code>.json; texts in another language than the
 //   tickets' wait in translate.json for Claude, and `apply` puts the translations in
 //   (lib/feature-page-text.js). The page keeps them, so the next update translates only new texts.
 // Nothing is kept: the page goes to .keel/local/tmp/feature-page/ and `clean` removes it after the
-// publish. Reads git and the files only.
-// Usage: node feature-page.js <projectDir> [<feature>] [--taken] [--lang <code>] [--previous <file>]
-//                                         the page; no feature: the current branch's; --taken: titled
-//                                         with the title if taken
+// publish. Reads git and the files only, but for the code a feature without one gets (see above).
+// Usage: node feature-page.js <projectDir> [<feature>] [--lang <code>] [--previous <file>]
+//                                         the page; no feature: the current branch's
 //        node feature-page.js <projectDir> apply         puts translated.json into the waiting page
-//        node feature-page.js <projectDir> peek <file>   an earlier page's marker and language
 //        node feature-page.js <projectDir> clean         removes the page's folder
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const plans = require('./lib/plans.js');
 const { featureFolder } = require('./lib/plans-export.js');
 const { mapTracked } = require('./lib/plans-export-repos.js');
@@ -37,9 +34,9 @@ const { planRepos, headOf } = require('./lib/plans-repos.js');
 const { outsideFences, heading, repoName } = require('./lib/plans-format.js');
 const { git, read, frontmatter, clean } = require('./lib/repo-read.js');
 const { safeLocalPath } = require('./lib/safe-path.js');
-const { pickRemote } = require('./git-flow.js');
 const { parseArgs } = require('./lib/project.js');
 const { effectiveOptions } = require('./lib/options.js');
+const { setFront } = require('./lib/tasks.js');
 const { langCode, labelsFor, missing, translate, readPage } = require('./lib/feature-page-text.js');
 
 const TEMPLATE = path.join(__dirname, '..', 'templates', 'feature-page', 'index.html');
@@ -93,25 +90,11 @@ function researchOf(folder) {
   return names.map((name) => { const text = read(path.join(dir, name)) || ''; return { name, title: titleOf(text) || name, sections: sectionsOf(text) }; });
 }
 
-// The remote URL without scheme, credentials (a URL may hold a token) and .git, the host in lower case:
-// git@Host:team/web.git, https://user:token@host/team/web and ssh://git@host/team/web/ give host/team/web.
-function remoteKey(url) {
-  let s = url.trim();
-  const scp = /^(?:[^@/]+@)?([^/:]+):(?!\/)(.+)$/.exec(s);
-  if (scp && !s.includes('://')) s = `${scp[1]}/${scp[2]}`;
-  else s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/^[^@/]*@/, '');
-  s = s.replace(/\/+$/, '').replace(/\.git$/i, '');
-  const i = s.indexOf('/');
-  return i < 0 ? s.toLowerCase() : s.slice(0, i).toLowerCase() + s.slice(i);
-}
-
-function markerOf(folder, prefix) {
-  if (!folder) return { why: `the main repository ${prefix} is not on this machine` };
-  const remote = pickRemote((git(folder, ['remote']) || '').split('\n').filter(Boolean));
-  const url = remote ? git(folder, ['remote', 'get-url', remote]) : null;
-  if (!url) return { why: `the main repository ${prefix} has no remote` };
-  return { marker: crypto.createHash('sha256').update(remoteKey(url)).digest('hex').slice(0, 16) };
-}
+// The code a file's front matter holds, or null.
+const codeIn = (fm) => (plans.PAGE_CODE.test(fm.page || '') ? fm.page : null);
+// The text with `page: <code>` after its `feature:` line, else at the end of its front matter.
+const withCode = (text, code) => (/^feature:.*$/m.test(text) ? text.replace(/^feature:.*$/m, (l) => `${l}\npage: ${code}`) : setFront(text, { page: code }));
+const TITLE_HEADING_MAX = 80;
 
 // The feature's repositories, this project's first: [{ prefix, name, folder, commit }]. Another
 // repository's folder is read only as lib/plans-linked.js allows it.
@@ -132,7 +115,9 @@ const ticketOf = (key, text, extra) => {
   return { key, title: text ? heading(text)[1] : '', sections, md: text ? lf(text) : null, ...(sections ? sizeOf(sections) : { files: 0, criteria: 0 }), ...extra };
 };
 
-function draftData(root, d) {
+function draftData(root, found) {
+  // A draft made before plans carried the code gets one; it is keel's own file and no edit of the plan.
+  const d = codeIn(found.fm) ? found : plans.writePlan(root, found, { page: plans.pageCode() });
   const own = settings(root).ticket_prefix;
   const prefixes = planRepos(d.fm);
   const repos = reposOf(root, own || prefixes[0], prefixes, null);
@@ -141,7 +126,7 @@ function draftData(root, d) {
     const prefix = given(t.fm.repo) ? t.fm.repo.trim().toUpperCase() : own;
     return ticketOf(t.id, t.text, { prefix, repo: nameOf(prefix), state: 'draft', next: false, depends: plans.ticketIds(t.fm.depends_on).map((k) => ({ key: k, met: false })) });
   });
-  return { stage: `draft${plans.stateOf(d) === 'ready' ? ' (ready)' : ''}`, overviewText: d.text, overviewFile: 'plan.md', prefixes, own, repos, tickets, research: researchOf(d.folder), language: given(d.fm.language) ? d.fm.language : settings(root).language };
+  return { code: d.fm.page, written: [], stage: `draft${plans.stateOf(d) === 'ready' ? ' (ready)' : ''}`, overviewText: d.text, overviewFile: 'plan.md', prefixes, own, repos, tickets, research: researchOf(d.folder), language: given(d.fm.language) ? d.fm.language : settings(root).language };
 }
 
 function exportedData(root, feature, f, now) {
@@ -180,10 +165,12 @@ function exportedData(root, feature, f, now) {
       return { key: k, met: depMet(k, e, where), ...depState(k, others, e.target), where };
     }),
   }));
+  const codes = f.list.map((t) => codeIn(t.fm));
   for (const r of repos.slice(1)) {
     const theirs = overview ? listed(overview).filter((t) => prefixOf(t.key) === r.prefix) : [];
     const there = r.folder ? featureFolder(r.folder, feature) : null;
     const list = there ? there.list : [];
+    codes.push(...list.map((t) => codeIn(t.fm)));
     const all = [...new Set([...theirs.map((t) => t.key), ...list.map((t) => t.fm.key.toUpperCase())])].sort(byKey);
     const fileOf = (k) => list.find((t) => t.fm.key.toUpperCase() === k);
     const depsOf = (k) => (fileOf(k) ? plans.ticketIds(fileOf(k).fm.depends_on).map((x) => x.toUpperCase()) : []);
@@ -199,7 +186,19 @@ function exportedData(root, feature, f, now) {
       tickets.push(t);
     }
   }
-  return { stage: 'exported', overviewText: overview, overviewFile: 'README.md', prefixes, own, repos, tickets, research: researchOf(f.folder), language: settings(root).language };
+  // The tickets here first, then another repository's on this machine; none: exported before the code,
+  // so a new one goes into this working tree's tickets.
+  // shortcut: another repository's tickets are not written; built there first, it may take another code.
+  let code = codes.find(Boolean) || null;
+  const written = [];
+  if (!code) {
+    code = plans.pageCode();
+    for (const t of f.list) {
+      plans.writeFile(root, { local: f.local }, t.file, withCode(t.text, code));
+      written.push(path.relative(root, t.file).split(path.sep).join('/'));
+    }
+  }
+  return { code, written, stage: 'exported', overviewText: overview, overviewFile: 'README.md', prefixes, own, repos, tickets, research: researchOf(f.folder), language: settings(root).language };
 }
 
 // The feature of the current branch: a draft whose branch (or name) it is, or exported tickets whose
@@ -213,9 +212,8 @@ function currentFeature(root, now) {
   return { branch, all, on };
 }
 
-// `taken`: the page carries the title if taken (another project's page has the title). `lang`: the
-// page's language, else the earlier page's (`previous`, its file), else the conversation's.
-function build(root, arg, { taken = false, now = new Date(), lang = null, previous = null } = {}) {
+// `lang`: the page's language, else the earlier page's (`previous`, its file), else the conversation's.
+function build(root, arg, { now = new Date(), lang = null, previous = null } = {}) {
   let feature = arg;
   if (feature === undefined) {
     const c = currentFeature(root, now);
@@ -229,13 +227,20 @@ function build(root, arg, { taken = false, now = new Date(), lang = null, previo
   const draft = plans.listDrafts(root).find((d) => d.feature === feature && ['draft', 'ready'].includes(plans.stateOf(d)));
   const f = draft ? null : featureFolder(root, feature);
   if (!draft && !f) return refuse(`no draft and no exported tickets of ${feature} in this working tree; on another branch: switch to it first`);
-  const data = draft ? draftData(root, draft) : exportedData(root, feature, f, now);
+  let data;
+  try { data = draft ? draftData(root, draft) : exportedData(root, feature, f, now); } catch (e) { return refuse(e.message); }
   const prefix = [...data.prefixes, data.own].find((p) => PREFIX.test(p || ''));
   if (!prefix) return refuse('no ticket prefix: /keel:configure planning');
-  const main = data.repos.find((r) => r.prefix === prefix) || { name: prefix, folder: null };
-  const m = markerOf(main.folder, prefix);
-  const title = `keel:feature:${prefix}:${feature}`;
-  const ifTaken = `${title}:${main.name}`;
+  // A ticket's repository as the page finds it: by its prefix, else by its name.
+  const repoOfTicket = (t) => data.repos.find((r) => r.prefix === t.prefix) || data.repos.find((r) => r.name === t.repo);
+  // In the overview's repos: order, so every repository of the feature gives the same title.
+  const rank = (p) => (data.prefixes.includes(p) ? data.prefixes.indexOf(p) : data.prefixes.length);
+  const withTickets = data.repos.filter((r) => data.tickets.some((t) => repoOfTicket(t) === r)).map((r) => r.prefix)
+    .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  const heading = (data.overviewText && titleOf(data.overviewText)) || feature;
+  const chars = [...heading.trim()];
+  const shown = chars.length > TITLE_HEADING_MAX ? `${chars.slice(0, TITLE_HEADING_MAX - 1).join('').trimEnd()}…` : chars.join('');
+  const title = `[${(withTickets.length ? withTickets : [prefix]).join(', ')}] - ${shown} (${data.code})`;
   if (lang && !langCode(lang)) return refuse(`"${clean(String(lang), 40)}" is no language code: give one such as en, uk, de`);
   const earlier = previous ? read(previous) : null;
   if (previous && earlier === null) return refuse(`cannot read ${previous}`);
@@ -245,9 +250,9 @@ function build(root, arg, { taken = false, now = new Date(), lang = null, previo
   const { labels, own } = labelsFor(pageLang);
   const secs = data.overviewText ? sectionsOf(data.overviewText) : [];
   const page = {
-    feature, title: taken ? ifTaken : title, stage: data.stage, generated: now.toISOString(),
+    feature, title, stage: data.stage, generated: now.toISOString(),
     language: pageLang, source, labels,
-    heading: (data.overviewText && titleOf(data.overviewText)) || feature,
+    heading,
     repos: data.repos.map((r) => ({ prefix: r.prefix, name: r.name, commit: r.commit })),
     overview: data.overviewText ? { file: data.overviewFile, sections: secs } : null,
     terms: termsOf(secs), tickets: data.tickets, research: data.research,
@@ -257,9 +262,8 @@ function build(root, arg, { taken = false, now = new Date(), lang = null, previo
   const done = data.tickets.filter((t) => t.state === DONE).length;
   const info = [
     `title: ${title}`,
-    `title if taken: ${ifTaken}`,
-    `page title: ${page.title}`,
-    m.marker ? `marker: ${m.marker}` : `marker: none (${m.why})`,
+    `code: ${data.code}`,
+    ...(data.written.length ? [`code written: ${data.written.join(', ')} (commit and push them, so every machine finds this page)`] : []),
     `feature: ${feature}, ${data.stage}, ${data.tickets.length} tickets${data.stage === 'exported' ? ` (${done} done)` : ''}`,
     `as of: ${data.repos.map((r) => `${r.name} ${r.commit || 'not on this machine'}`).join(', ')}`,
     `language: ${pageLang}${own ? '' : ' (labels in English: no page labels in this language)'}; texts in ${source}`,
@@ -269,9 +273,9 @@ function build(root, arg, { taken = false, now = new Date(), lang = null, previo
     dir = pageDir(root);
     fs.mkdirSync(dir, { recursive: true });
     for (const name of ['index.html', PENDING, TO_TRANSLATE, TRANSLATED]) fs.rmSync(path.join(dir, name), { force: true });
-    if (!todo.length) return [`page: ${render(dir, page, m.marker, known)}`, ...info];
+    if (!todo.length) return [`page: ${render(dir, page, known)}`, ...info];
     // The texts to translate wait with the page until `apply` brings their translations.
-    fs.writeFileSync(path.join(dir, PENDING), JSON.stringify({ page, marker: m.marker || '', known }));
+    fs.writeFileSync(path.join(dir, PENDING), JSON.stringify({ page, known }));
     fs.writeFileSync(path.join(dir, TO_TRANSLATE), JSON.stringify({ from: source, to: pageLang, texts: todo }, null, 1));
   } catch (e) { return refuse(e.message); }
   const words = todo.reduce((n, t) => n + t.text.split(/\s+/).length, 0);
@@ -282,8 +286,8 @@ const PENDING = 'pending.json';
 const TO_TRANSLATE = 'translate.json';
 const TRANSLATED = 'translated.json';
 
-// The page file: the template with the data, its marker, language and the translations it used.
-function render(dir, page, marker, known) {
+// The page file: the template with the data, its language and the translations it used.
+function render(dir, page, known) {
   // translate() replaces the texts inside `page` itself, before the page goes into the template.
   const used = page.language === page.source ? {} : translate(page, known);
   if (Object.keys(used).length) page.translatedFrom = page.source;
@@ -291,7 +295,7 @@ function render(dir, page, marker, known) {
   // not strings: a text with $& or $' must not be read as a replacement pattern.
   const json = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
   const html = fs.readFileSync(TEMPLATE, 'utf8')
-    .replace('{{TITLE}}', () => escapeHtml(page.title)).replace('{{MARKER}}', () => marker || '').replace('{{LANG}}', () => page.language)
+    .replace('{{TITLE}}', () => escapeHtml(page.title)).replace('{{LANG}}', () => page.language)
     .replace('{{DATA}}', () => json(page)).replace('{{TRANSLATIONS}}', () => json({ lang: page.language, items: used }));
   const file = path.join(dir, 'index.html');
   fs.writeFileSync(file, html);
@@ -313,7 +317,7 @@ function applyTranslations(root) {
   for (const t of asked.texts) known[t.id] = given[t.id];
   let file;
   try {
-    file = render(dir, waiting.page, waiting.marker, known);
+    file = render(dir, waiting.page, known);
     for (const name of [PENDING, TO_TRANSLATE, TRANSLATED]) fs.rmSync(path.join(dir, name), { force: true });
   } catch (e) { return refuse(e.message); }
   return [`page: ${file}`, `translated: ${asked.texts.length} texts, ${asked.from} to ${asked.to}`];
@@ -321,14 +325,6 @@ function applyTranslations(root) {
 
 function readJsonOr(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
-}
-
-// An earlier page saved to a file: whose repository it is and its language.
-function peek(file) {
-  const html = read(file);
-  if (html === null) return refuse(`cannot read ${file}`);
-  const p = readPage(html);
-  return [`marker: ${p.marker || 'none'}`, `language: ${p.lang || 'none'}`, `translations: ${Object.keys(p.translations.items).length}${p.translations.lang ? ` (${p.translations.lang})` : ''}`];
 }
 
 function cleanPage(root) {
@@ -343,11 +339,10 @@ if (require.main === module) {
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
     const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
-    // A flag followed by a word takes it as its value: `--taken message-notify` names the feature.
-    const feature = pos[1] ?? (typeof opts.taken === 'string' ? opts.taken : undefined);
+    const feature = pos[1];
     const str = (v) => (typeof v === 'string' ? v : null);
-    lines = feature === 'clean' ? cleanPage(root) : feature === 'apply' ? applyTranslations(root) : feature === 'peek' ? peek(pos[2] || '')
-      : build(root, feature, { taken: opts.taken !== undefined, lang: str(opts.lang), previous: str(opts.previous) });
+    lines = feature === 'clean' ? cleanPage(root) : feature === 'apply' ? applyTranslations(root)
+      : build(root, feature, { lang: str(opts.lang), previous: str(opts.previous) });
   } catch (e) {
     lines = [`feature-page: unavailable (${e.message})`];
   }
@@ -355,4 +350,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { termsOf, remoteKey };
+module.exports = { termsOf };

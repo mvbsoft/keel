@@ -88,16 +88,17 @@ test('the workflow commands and cleanup are user-only, check the config first an
   }
 });
 
-test('feature-page: may run the scripts it names, keeps a taken title on update and asks before a page with a different marker', () => {
+test('feature-page: may run the scripts it names, finds its page by the feature\'s code and keeps the title current', () => {
   const { fields, body } = parse('feature-page');
   const runs = [...body.matchAll(/node "<keel>\/scripts\/([\w-]+\.js)"( report)?/g)].map((m) => `${m[1]}"${m[2] || ''}`);
   assert.deepEqual([...new Set(runs)].sort(), ['feature-page.js"', 'usage.js" report']);
   for (const run of new Set(runs)) {
     for (const shell of ['Bash', 'PowerShell']) assert.ok(fields['allowed-tools'].includes(`${shell}(node "\${CLAUDE_PLUGIN_ROOT}/scripts/${run} *)`), `${shell}: ${run} is allowed`);
   }
-  assert.match(body, /titled `title if taken` → every build in step 5 takes `--taken`/);
-  assert.match(body, /`marker: none \(<why>\)` → the candidates with `marker: none` too/);
-  assert.match(body, /a candidate with `marker: none`[^\n]*\n[^\n]*ask, with its link/);
+  assert.match(body, /This feature's page is the one whose title\s+ends with ` \(<code>\)`, the `code:` line/);
+  assert.match(body, /An update whose title is not the `title:` line any more[^\n]*\n[^\n]*title too: \*\*B\*\* `title`/);
+  assert.match(body, /`code written: <files> \(\.\.\.\)`[\s\S]*commit and push them, so every machine finds this page/);
+  assert.doesNotMatch(body, /--taken|marker|title if taken/);
   for (const name of ['list_artifacts', 'read_artifact', 'get_artifact', 'publish_files']) assert.ok(body.includes(`\`${name}\``), name);
 });
 

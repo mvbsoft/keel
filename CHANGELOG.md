@@ -93,9 +93,10 @@ All notable changes to keel are listed here. The format follows
   `--lang`, else the page's own, else the conversation's; its labels come from `locales/` (new
   `page.*` keys), and texts in another language than the tickets' are translated by Claude on the
   page only and kept in it, so an update translates only what changed. The page is titled
-  `keel:feature:<PREFIX>:<feature>` (the first of the overview's `repos`) and found again in the
-  account by that title and a hash of the main repository's remote, so running it again from any
-  machine or repository of the feature updates the same page; nothing is kept on this machine. A
+  `[API, WEB] - <the overview's heading> (<code>)` and found again in the account by that code: a
+  random one each draft gets (`page:` in `plan.md`), which the export writes into every ticket, so
+  running it again from any machine or repository of the feature updates the same page; nothing is
+  kept on this machine. A
   ticket of a repository that is not on this machine is marked so, its state and any dependency on
   it unknown. No feature named: the current branch's.
 
@@ -103,6 +104,12 @@ All notable changes to keel are listed here. The format follows
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,
   then to start anyway; for another repository's dependency: take the next ticket / wait for it /
   start anyway, and for one not checked: start anyway / take another ticket.
+- A to do ticket held back by a dependency learns where that code is, from git: already in its own
+  feature branch (then it may start, and can be next), only in another feature's branch (wait for its
+  merge into main, or pull it in with `git merge <branch>`), only in its ticket branch, in progress or
+  not started (wait). `plans.js tickets <KEY>` prints a `where:` line each, the feature list marks
+  `<KEY> only in feature branch <b>`, `/keel:start-task` offers wait / pull it in / start anyway, and
+  the feature page shows it beside the dependency.
 - Planning no longer offers 2-3 approaches on every choice. An elementary task, or one with none of
   the reasons below, gets one simple answer; a feature with a reason for more (several variants today, a database or network, a public
   API, money, access, security, a stated scale, or simply a large one) gets 2-5 levels, each with what

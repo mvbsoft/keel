@@ -317,6 +317,7 @@ gitTest('export on this machine: keys after the highest, tickets and README in t
   assert.deepEqual(run(work, 'export', 's3-storage'), ['plans: export refused (.keel/config.json is invalid ($.planning: missing "ticket_prefix"), so its planning section is not used: /keel:configure)']);
   planning(work, { ticket_prefix: 'PROJ' });
   const folder = `${LOCAL}/s3-storage/tickets`;
+  const code = /^page: ([0-9a-f]{8})$/m.exec(readRel(work, `${LOCAL}/s3-storage/plan.md`))[1];
   const out = run(work, 'export', 's3-storage');
   assert.deepEqual(out, [
     `exported: ${folder}/ (2 tickets)`,
@@ -329,7 +330,7 @@ gitTest('export on this machine: keys after the highest, tickets and README in t
   ]);
   assert.match(line(out, 'draft: '), /^draft: moved to keel's trash: batch \d{8}-\d{6}/);
   const t2 = readRel(work, `${folder}/PROJ-102-ticket-2.md`);
-  assert.ok(t2.startsWith('---\ntype: ticket\nkey: PROJ-102\nstatus: todo\nfeature: s3-storage\nbranch: feat/s3\nmerge_into: main\ndepends_on: [PROJ-101]\n---\n\n# [PROJ-102] Title of PROJ-102\n'), t2);
+  assert.ok(t2.startsWith(`---\ntype: ticket\nkey: PROJ-102\nstatus: todo\nfeature: s3-storage\npage: ${code}\nbranch: feat/s3\nmerge_into: main\ndepends_on: [PROJ-101]\n---\n\n# [PROJ-102] Title of PROJ-102\n`), t2);
   assert.match(t2, /^Do one thing after PROJ-101; not T10, T20 or xT1\.$/m, 'only the draft\'s T-numbers, whole words');
   assert.doesNotMatch(t2, /review_hash|^id:/m);
   const readme = readRel(work, `${folder}/README.md`);
@@ -767,7 +768,9 @@ gitTest('ticket on an exported feature: the next key after a fetch, beside the o
   assert.deepEqual(run(work, 'ticket', 's3-storage', '--title', 'Delete files', '--depends', 'proj-2,PROJ-7'), ['created: tickets/s3-storage/PROJ-8-delete-files.md', 'ticket: PROJ-8', 'overview: tickets/s3-storage/README.md']);
   assert.match(readRel(work, 'tickets/s3-storage/README.md'), /^- PROJ-8 Delete files \(\S+\)$/m, 'the overview names the later ticket');
   const t = readRel(work, 'tickets/s3-storage/PROJ-8-delete-files.md');
-  assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-8\nstatus: todo\nfeature: s3-storage\nbranch: s3-storage\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-7]\n---\n\n# [PROJ-8] Delete files\n'), t);
+  // The feature's page code from the tickets beside it.
+  const code = /^page: ([0-9a-f]{8})$/m.exec(readRel(work, 'tickets/s3-storage/PROJ-2-ticket-2.md'))[1];
+  assert.ok(t.startsWith(`---\ntype: ticket\nkey: PROJ-8\nstatus: todo\nfeature: s3-storage\npage: ${code}\nbranch: s3-storage\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-7]\n---\n\n# [PROJ-8] Delete files\n`), t);
   assert.deepEqual(run(work, 'ticket', 's3-storage', '--title', 'X', '--depends', 'PROJ-70'), ['plans: ticket refused (--depends: no ticket PROJ-70)']);
   assert.ok(run(work, 'check', 's3-storage').some((l) => /^- PROJ-8: placeholder /.test(l)));
   body(work, 'tickets/s3-storage/PROJ-8-delete-files.md', TICKET_BODY('PROJ-8'));

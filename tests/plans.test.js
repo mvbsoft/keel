@@ -133,6 +133,10 @@ test('new: a draft on this machine with plan.md (type plan, status draft), refus
   for (const f of ['type: plan', 'status: draft', 'feature: s3-connection', 'language: uk', 'last_ticket: 0', 'ready_hash: -']) assert.match(plan, new RegExp(`^${f}$`, 'm'), f);
   assert.match(plan, /^# s3-connection$/m);
   assert.doesNotMatch(plan, /<!--/, 'template comments are removed');
+  // The feature's code for its page: random, one per draft.
+  assert.match(plan, /^feature: s3-connection\npage: [0-9a-f]{8}$/m);
+  run(dir, 'new', 'csv-report');
+  assert.notEqual(/^page: (\w+)$/m.exec(readRel(dir, `${LOCAL}/csv-report/plan.md`))[1], /^page: (\w+)$/m.exec(plan)[1]);
   assert.match(run(dir, 'new', 's3-connection')[0], /refused \(a draft "s3-connection" exists \(draft, .*this machine only/);
   // A feature folder in the repository takes the name for a draft on this machine too.
   write(dir, 'tickets/csv-export/PROJ-1-x.md', '---\ntype: ticket\nkey: PROJ-1\n---\n');
@@ -320,6 +324,9 @@ test('state: ready only when clean, no open questions and all reviewed; an edit 
   assert.match(readRel(dir, plan), /^ready_hash: [0-9a-f]{12}$/m);
   assert.match(line(run(dir, 'list'), '- s3-connection'), /^- s3-connection: ready · /);
   assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)'], 'check leaves an unchanged ready plan alone');
+  // The page's code is no edit of the plan.
+  write(dir, plan, readRel(dir, plan).replace(/^page: .*$/m, 'page: 0badc0de'));
+  assert.match(line(run(dir, 'list'), '- s3-connection'), /^- s3-connection: ready · /);
   // An edit after ready: the list shows a draft, check writes it.
   body(dir, plan, PLAN_BODY('Upload and list files.'));
   assert.match(line(run(dir, 'list'), '- s3-connection'), /^- s3-connection: draft \(changed after ready\) · /);
@@ -449,7 +456,7 @@ test('mark: set, get and clear this chat\'s planning mark', () => {
 });
 
 // An exported ticket as export writes it.
-const EXPORTED = (key, deps = '', status = 'todo') => `---\ntype: ticket\nkey: ${key}\nstatus: ${status}\nfeature: s3-connection\nbranch: feat/s3\nmerge_into: main\ndepends_on: [${deps}]\n---\n\n${TICKET_BODY(key)}`;
+const EXPORTED = (key, deps = '', status = 'todo') => `---\ntype: ticket\nkey: ${key}\nstatus: ${status}\nfeature: s3-connection\npage: 5e7a01c3\nbranch: feat/s3\nmerge_into: main\ndepends_on: [${deps}]\n---\n\n${TICKET_BODY(key)}`;
 
 test('an exported feature on this machine: mark set, ticket with the next key and check work in its folder', () => {
   const dir = project();
@@ -469,7 +476,7 @@ test('an exported feature on this machine: mark set, ticket with the next key an
     `created: ${folder}/PROJ-6-delete-files.md`, 'ticket: PROJ-6', `overview: ${folder}/README.md`, 'fetch: not a git repository; keys from the files here only',
   ]);
   const t = readRel(dir, `${folder}/PROJ-6-delete-files.md`);
-  assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-6\nstatus: todo\nfeature: s3-connection\nbranch: feat/s3\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-5]\n---\n\n# [PROJ-6] Delete files\n\n## In plain words\n'), t);
+  assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-6\nstatus: todo\nfeature: s3-connection\npage: 5e7a01c3\nbranch: feat/s3\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-5]\n---\n\n# [PROJ-6] Delete files\n\n## In plain words\n'), t);
   const unfilled = run(dir, 'check', 's3-connection');
   assert.match(unfilled[0], /^check: \d+ problems$/);
   assert.ok(unfilled.some((l) => /^- PROJ-6: placeholder /.test(l)), 'the template\'s placeholders are problems, as in a draft');
