@@ -119,7 +119,8 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   (`- always:`, `- ask first:`, `- never:` for this ticket, each with why in a few words: "never: the
   whole text in the event - it also goes to the push services"), Correct the priors (the obvious but
   wrong way and the right one; may go), Where to look (`file:line` you checked, and what it has to do
-  with this ticket), Out of scope (what this ticket does not do, and where it is done instead), Why
+  with this ticket; every path in the feature's files goes from its repository's root, never a folder
+  of this machine), Out of scope (what this ticket does not do, and where it is done instead), Why
   (the D it follows, with its words), Dependencies (why; the list is `depends_on`). The technical part
   (all but In plain words and Example) is 150-500 words, one goal, no implementation steps; plain
   markdown, no HTML. T-numbers are never reused.

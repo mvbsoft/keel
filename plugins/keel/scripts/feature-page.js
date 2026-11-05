@@ -126,7 +126,7 @@ function draftData(root, found) {
     const prefix = given(t.fm.repo) ? t.fm.repo.trim().toUpperCase() : own;
     return ticketOf(t.id, t.text, { prefix, repo: nameOf(prefix), state: 'draft', next: false, depends: plans.ticketIds(t.fm.depends_on).map((k) => ({ key: k, met: false })) });
   });
-  return { code: d.fm.page, written: [], stage: `draft${plans.stateOf(d) === 'ready' ? ' (ready)' : ''}`, overviewText: d.text, overviewFile: 'plan.md', prefixes, own, repos, tickets, research: researchOf(d.folder), language: given(d.fm.language) ? d.fm.language : settings(root).language };
+  return { code: d.fm.page, written: [], stage: `draft${plans.stateOf(d) === 'ready' ? ' (ready)' : ''}`, overviewText: d.text, overviewFile: 'plan.md', prefixes, own, repos, tickets, research: researchOf(d.folder), folder: d.folder, language: given(d.fm.language) ? d.fm.language : settings(root).language };
 }
 
 function exportedData(root, feature, f, now) {
@@ -209,7 +209,7 @@ function exportedData(root, feature, f, now) {
       written.push(path.relative(root, t.file).split(path.sep).join('/'));
     }
   }
-  return { code, written, stage: 'exported', overviewText: overview, overviewFile: 'README.md', prefixes, own, repos, tickets, research: researchOf(f.folder), language: settings(root).language };
+  return { code, written, stage: 'exported', overviewText: overview, overviewFile: 'README.md', prefixes, own, repos, tickets, research: researchOf(f.folder), folder: f.folder, language: settings(root).language };
 }
 
 // The feature of the current branch: a draft whose branch (or name) it is, or exported tickets whose
@@ -240,6 +240,17 @@ function build(root, arg, { now = new Date(), lang = null, previous = null } = {
   if (!draft && !f) return refuse(`no draft and no exported tickets of ${feature} in this working tree; on another branch: switch to it first`);
   let data;
   try { data = draft ? draftData(root, draft) : exportedData(root, feature, f, now); } catch (e) { return refuse(e.message); }
+  // The page leaves this machine: a feature file that names one of its folders is fixed first.
+  const folders = plans.machineFolders(root);
+  const local = [
+    ...(data.overviewText ? plans.localProblems(data.overviewFile, data.overviewText, folders) : []),
+    ...data.tickets.flatMap((t) => (t.md ? plans.localProblems(t.key, t.md, folders) : [])),
+    ...plans.researchTexts(data.folder).flatMap((r) => plans.localProblems(r.name, r.text, folders)),
+  ];
+  if (local.length) {
+    try { fs.rmSync(path.join(pageDir(root), 'index.html'), { force: true }); } catch { /* none */ }
+    return [...refuse(`${local.length} paths of this machine in the feature's files; write them from the repository's root`), ...local.map((p) => `- ${p}`)];
+  }
   const prefix = [...data.prefixes, data.own].find((p) => PREFIX.test(p || ''));
   if (!prefix) return refuse('no ticket prefix: /keel:configure planning');
   // A ticket's repository as the page finds it: by its prefix, else by its name.

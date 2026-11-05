@@ -258,6 +258,10 @@ function exportedProblems(root, f) {
     }
   }
   for (const c of plans.cycles(list.map((t) => ({ id: t.id, fm: { depends_on: t.deps.join(',') } })))) out.push(`dependency cycle: ${c}`);
+  const folders = plans.machineFolders(root);
+  const overview = read(path.join(f.folder, 'README.md'));
+  if (overview !== null) out.push(...plans.localProblems('README.md', overview, folders));
+  for (const r of plans.researchTexts(f.folder)) out.push(...plans.localProblems(r.name, r.text, folders));
   return { out, count: list.length, notes };
 }
 

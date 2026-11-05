@@ -459,6 +459,25 @@ gitTest('a ticket of this repository only on another branch: its text from that 
   assert.equal(data.tickets.find((t) => t.key === 'API-2').onBranch, null, 'one in the working tree');
 });
 
+gitTest('no path of this machine on the page: the script adds none, and a feature file with one is refused', () => {
+  const tmp = tempDir('keel-page-');
+  const api = exported(tmp);
+  const file = line(run(api, FEATURE), 'page');
+  const html = fs.readFileSync(file, 'utf8');
+  const forms = (p) => [p, p.split(path.sep).join('/'), JSON.stringify(p).slice(1, -1)];
+  for (const p of [api, tmp, require('node:os').homedir()]) {
+    for (const f of forms(p)) assert.ok(!html.includes(f), `${f} on the page`);
+  }
+  const ticket = `${T}/API-2-badge.md`;
+  write(api, ticket, fs.readFileSync(path.join(api, ticket), 'utf8').replace('## Where to look', 'Як у C:\\Users\\ann\\api\\src\\chat.js.\n\n## Where to look'));
+  write(api, `${T}/research/websocket.md`, '# WebSocket\n\nПриклад у /home/dev/api/ws.js\n');
+  const out = run(api, FEATURE);
+  assert.equal(out[0], 'feature-page: refused (2 paths of this machine in the feature\'s files; write them from the repository\'s root)', out.join('\n'));
+  assert.match(out[1], /^- API-2: local path C:\\Users\\ann\\api\\src\\chat\.js \(line \d+\)$/);
+  assert.equal(out[2], '- research/websocket.md: local path /home/dev/api/ws.js (line 3)');
+  assert.ok(!fs.existsSync(file), 'no page is left to publish');
+});
+
 test('langCode takes language codes only; termsOf keeps snake_case terms and drops an empty one', () => {
   assert.deepEqual(['uk', 'uk-UA', 'pt_BR', 'DE', 'German', 'Ukrainian', '', 'x1'].map(langCode), ['uk', 'uk', 'pt', 'de', null, null, null, null]);
   const terms = termsOf([{ name: 'Terms', text: '- `ticket_prefix` — the key prefix\n-  — nothing\n- __bold__: text' }]);
