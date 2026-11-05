@@ -38,6 +38,8 @@
   "report.unpriced": "нова модель без ціни ({models}) — запустіть оновлення цін: /keel:configure prices",
   "report.cross_check": "звірка: наша оцінка ${ours}, власна сума Claude Code ${cc}",
   "report.none": "usage: сесію не знайдено",
+  "report.last_turn": "ця команда: {usd} ({requests})",
+  "report.last_turn_week": ", приблизно {pct} % тижневого ліміту",
 
   "calibration.head": "калібрування",
   "calibration.weekly": "тиждень",
