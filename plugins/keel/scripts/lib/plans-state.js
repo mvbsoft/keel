@@ -27,8 +27,10 @@
 // - Marks: reverted (done on a branch already merged into merge_into, whose file says todo again or
 //   whose folder a revert took away),
 //   stale (the branch behind the state has no commit for 30 days), duplicate key (several files).
-// - Next, per feature: the first to do by key number whose depends_on are each done, or waiting for
-//   the feature merge in the same feature (its code is already on the feature branch). A dependency no
+// - Next, per feature: the first to do by key number whose depends_on are each done, waiting for the
+//   feature merge in the same feature (its code is already on the feature branch), or done on the
+//   ticket's own feature branch (merged in by hand or with main). A to do ticket's key view adds a
+//   `where:` line per dependency that holds it back or was merged in by hand. A dependency no
 //   read branch has a file for (its feature finished, its tickets dropped and merged) counts as done when
 //   the last version of its file before a commit deleted it on the dependent ticket's merge_into says done
 //   (not when a revert of a merge deleted it, or the deletion came with a merge reverted since); else it
@@ -362,6 +364,7 @@ function states(d) {
   const removals = new Map();
   for (const e of keys.values()) {
     e.marks = [];
+    e.tips = [];
     if (e.paths.length > 1) e.marks.push(`duplicate key (${e.paths.length} files)`);
     const inProgress = () => {
       if (taskIds().has(e.key)) return { state: 3, hint: 'keel task', via: { kind: 'task' } };
@@ -385,6 +388,7 @@ function states(d) {
       && (f.view.work || !undoneBy.some((u) => (u.sha !== f.view.sha || u.work) && isAncestor(d, f.view.sha, u.sha)))).map((f) => f.view);
     if (onTarget.some((f) => f.fm.status === 'done')) { e.state = 0; continue; }
     const tips = [`refs/heads/${e.branch}`, ...(d.remote ? [`refs/remotes/${d.remote}/${e.branch}`] : [])].filter((r) => d.byRef.has(r));
+    e.tips = tips;
     // Merged into the target, which has no file for the key: done, unless the folder left the target with
     // a revert the feature branch does not have (the merge was undone, the tickets were not removed). A
     // status written in the working tree and not committed is never merged.
@@ -405,6 +409,9 @@ function states(d) {
       // on the feature branch.
       const merged = !featureRefs.has(held.ref) && !held.work && !e.found.some((f) => tips.includes(f.view.ref)) && tips.some((r) => isAncestor(d, held.sha, r));
       e.state = undone || merged || featureRefs.has(held.ref) ? 1 : 2;
+      // The branch that has the code: the one the done is on, but the feature branch for a ticket branch
+      // merged into it.
+      e.at = merged && !undone ? e.branch : short(held.ref);
       const b = behind(d, held);
       e.hint = b.hint;
       e.via = b.via;
@@ -506,8 +513,7 @@ function stateIn(folder, list, now = new Date(), d = collect(folder, now)) {
     const target = d.main ? targetRef(d, d.main) : null;
     const missing = list.filter((k) => !keys.has(k));
     const gone = d.inRepo && target && missing.length ? doneInHistory(d, keys, new Map([[target, new Set(missing)]])) : new Map();
-    const of = (e) => ({ state: STATES[e.state], shown: e.shown, feature: e.feature });
-    return new Map(list.map((k) => [k, keys.has(k) ? of(keys.get(k)) : { state: gone.get(`${target} ${k}`) || 'not found' }]));
+    return new Map(list.map((k) => [k, keys.has(k) ? stateOf(keys.get(k)) : { state: gone.get(`${target} ${k}`) || 'not found' }]));
   };
   // `d`: that folder's collect() when the caller has it already (lib/plans-linked.js).
   const out = read(d);
@@ -521,18 +527,62 @@ function stateIn(folder, list, now = new Date(), d = collect(folder, now)) {
 // The keys of this project's tickets (the working tree, recent and named branches, this machine's).
 const keysHere = (root) => [...byKeys(collect(root, new Date())).keys()];
 
+// A key's state as a dependency is read, by name: where its code is (`at`, for the two waiting states)
+// and the hint of its branch.
+const stateOf = (e) => ({ state: STATES[e.state], shown: e.shown, feature: e.feature, branch: e.branch, mergeInto: e.mergeInto, at: e.at || null, hint: e.hint || null });
+
 // Whether a dependency lets a ticket of `feature` start: done, or waiting for the merge of a feature of
 // the same name (its code is on that feature branch). States by name.
 const metBy = (state, depFeature, feature) => state === STATES[0] || (state === STATES[1] && depFeature === feature);
 
+// Whether a dependency of this project says done on ticket e's own feature branch (local or the
+// remote's): its code is there, by a merge of main or of its branch by hand.
+const inBranch = (dep, e) => dep.found.some((f) => f.fm.status === 'done' && e.tips.includes(f.view.ref));
+
+// Where a dependency's code is for ticket e, when that says more than its state (`s`, stateOf or another
+// repository's): yours (on e's feature branch, so e may start), feature (on another feature's branch),
+// local (done on the local merge_into, not pushed), ticket (on a ticket branch), progress, todo; null
+// when it is done or waits for the merge of e's own feature, and for not found or not checked.
+function whereOf(s, e, yours = false) {
+  if (metBy(s.state, s.feature, e.feature)) return null;
+  if (yours) return { kind: 'yours', branch: e.branch };
+  // A done on a ticket branch whose merge was reverted waits on that branch, not on the feature branch.
+  const word = s.at === s.branch || String(s.at).endsWith(`/${s.branch}`) ? 'feature branch' : 'branch';
+  if (s.state === STATES[1]) return { kind: s.at === s.mergeInto ? 'local' : 'feature', branch: s.at, word, into: s.mergeInto };
+  if (s.state === STATES[2]) return { kind: 'ticket', branch: s.at, word: 'ticket branch', into: s.branch };
+  if (s.state === STATES[3]) return { kind: 'progress', hint: s.hint };
+  if (s.state === STATES[4]) return { kind: 'todo' };
+  return null;
+}
+
+// whereOf for dependency k of ticket e: this project's (`keys`) or another repository's (`others`).
+const depWhere = (keys, others, e, k) => (others.has(k) ? whereOf(others.get(k), e)
+  : keys.has(k) ? whereOf(stateOf(keys.get(k)), e, inBranch(keys.get(k), e)) : null);
+
+// The where: line of the ticket view. `repo`: another repository's folder, whose code is not merged
+// from here.
+function whereLine(k, w, e, repo = null) {
+  const there = repo ? ` in ${repo}` : '';
+  if (w.kind === 'yours') return `${k} is in your feature branch ${w.branch}: ${e.shown} can start`;
+  if (w.kind === 'feature') {
+    return repo ? `${k} is ready in ${w.word} ${w.branch}${there}, not in its ${w.into}: wait for its merge`
+      : `${k} is ready in ${w.word} ${w.branch}, not in ${w.into}. To start ${e.shown}: wait for its merge into ${w.into}, or pull it into ${e.branch}: git merge ${w.branch}`;
+  }
+  if (w.kind === 'local') return `${k} is done in the local ${w.branch}${there}, not pushed yet: wait for its push`;
+  if (w.kind === 'ticket') return `${k} is ready in ticket branch ${w.branch}${there}, not in feature branch ${w.into} yet: wait for that merge`;
+  if (w.kind === 'progress') return `${k} is in progress${there}${w.hint ? ` (${w.hint})` : ''}: wait for it`;
+  return `${k} is not started${there}: wait for it`;
+}
+
 // The next ticket of each feature: the first to do whose dependencies are done (also one found done in
-// history), or waiting for the feature merge in the same feature; another repository's
-// (`others`, lib/plans-neighbours.js) the same way, and one not checked does not hold it back.
+// history), waiting for the feature merge in the same feature, or done on its own feature branch;
+// another repository's (`others`, lib/plans-neighbours.js) by its state, and one not checked does not
+// hold it back.
 function nextOf(keys, list, gone, others) {
   return list.find((e) => e.state === 4 && e.depends.every((k) => {
     const dep = keys.get(k);
     if (others.has(k)) return neighbours().met(others.get(k), e.feature);
-    return dep ? metBy(STATES[dep.state], dep.feature, e.feature) : gone.get(`${e.target} ${k}`) === 'done';
+    return dep ? metBy(STATES[dep.state], dep.feature, e.feature) || inBranch(dep, e) : gone.get(`${e.target} ${k}`) === 'done';
   })) || null;
 }
 
@@ -591,8 +641,14 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
     out.push(`${f} (${done} of ${list.length} done${waiting ? `, ${waiting} waiting for merge` : ''})`);
     const lines = asKey ? list.filter((e) => e.key === asKey) : list;
     if (arg) out.push(`  branch: ${lines[0].branch} -> ${lines[0].mergeInto}`);
+    // A to do ticket's dependencies that are not checked, or whose code waits in another branch.
+    const marks = (e) => (e.state !== 4 ? [] : e.depends.map((k) => {
+      if (others.has(k) && others.get(k).state === neighbours().NOT_CHECKED) return `${k} not checked`;
+      const w = depWhere(keys, others, e, k);
+      return w && (w.kind === 'feature' || w.kind === 'ticket') ? `${k} only in ${w.word} ${w.branch}` : null;
+    }).filter(Boolean));
     for (const e of lines) {
-      out.push(ticketLine(e, own, e.state === 4 ? e.depends.filter((k) => others.has(k) && others.get(k).state === neighbours().NOT_CHECKED).map((k) => `${k} not checked`) : []));
+      out.push(ticketLine(e, own, marks(e)));
       if (!asKey) continue;
       for (const p of e.paths) {
         const where = e.found.find((x) => x.path === p && x.view.work) || e.pc.find((x) => x.path === p) ? null : e.found.find((x) => x.path === p).view.ref;
@@ -600,6 +656,10 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
       }
       const dep = (k) => (others.has(k) ? neighbours().stateText(k, others.get(k)) : `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : gone.get(`${e.target} ${k}`) || 'not found'}`);
       if (e.depends.length) out.push(`  depends: ${e.depends.map(dep).join(', ')}`);
+      for (const k of e.state === 4 ? e.depends : []) {
+        const w = depWhere(keys, others, e, k);
+        if (w) out.push(`  where: ${whereLine(keys.has(k) ? keys.get(k).shown : others.get(k).shown || k, w, e, others.has(k) ? others.get(k).folder : null)}`);
+      }
     }
     count += lines.length;
   }
@@ -673,7 +733,7 @@ function dropCommand(root, feature) {
 }
 
 module.exports = {
-  ticketsCommand, doneCommand, dropCommand, stateIn, keysHere, metBy, KEY, prefixOf, STATES,
+  ticketsCommand, doneCommand, dropCommand, stateIn, keysHere, metBy, depWhere, KEY, prefixOf, STATES,
   // for lib/plans-linked.js
   collect, states, ticketLine, serverData,
   // for feature-page.js

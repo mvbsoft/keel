@@ -237,8 +237,10 @@ from git (0 tokens). Each call is `node "<keel>/scripts/plans.js" "<project>" ti
      was merged once and that merge was reverted; merging it again brings nothing back: it needs a
      revert of that revert, or new commits.";
    - a `depends:` ticket of this repository `waiting for merge into the feature branch`, or one of
-     another feature that is not done (not `not found`) → ask: start from that ticket's branch / wait
-     for its merge / start anyway;
+     another feature that is not done (not `not found`) → its `where:` line says where its code is: say
+     it in plain words. `... or pull it into <b>: git merge <x>` → ask: wait for its merge / pull it in
+     (`git merge <x>` on `<b>`, after step 3's branch) / start anyway; another `where:` → ask: wait for
+     it / start anyway. `... is in your feature branch <b>: <KEY> can start` → say so, nothing to ask;
    - a `depends:` ticket of another repository (its state is followed by `(<folder>, <server data>)`,
      read from that folder's git, never fetched) that is not done (not `not found`), and the ticket is
      not `next` (`next` counts one waiting for the merge of the same feature as met) → say which, its

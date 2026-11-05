@@ -140,7 +140,7 @@ const STATE = {
     assert.match(out, /^ {2}INV-1 .* — done$/m, out);
     assert.match(out, /^ {2}INV-2 .* — in progress · branch INV-2-[\w-]+, Dana Smith, /m, out);
     assert.match(out, /^ {2}INV-3 .* — waiting for merge into the feature branch · /m, out);
-    assert.match(out, /^ {2}INV-4 .* — to do$/m, out);
+    assert.match(out, /^ {2}INV-4 .* — to do · INV-3 only in ticket branch INV-3-[\w-]+$/m, out);
     assert.match(script('plans.js', work, 'tickets', 'INV-4', '--fetch'), /^ {2}depends: INV-3 waiting for merge into the feature branch$/m);
   },
   'task-active': (work, git) => {

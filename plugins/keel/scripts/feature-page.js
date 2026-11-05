@@ -26,7 +26,7 @@ const path = require('node:path');
 const plans = require('./lib/plans.js');
 const { featureFolder } = require('./lib/plans-export.js');
 const { mapTracked } = require('./lib/plans-export-repos.js');
-const { readStates, collect, states, nextOf, byKey, prefixOf, metBy, STATES } = require('./lib/plans-state.js');
+const { readStates, collect, states, nextOf, byKey, prefixOf, metBy, depWhere, STATES } = require('./lib/plans-state.js');
 const { neighbourStates, met, NOT_CHECKED } = require('./lib/plans-neighbours.js');
 const { listed, placeOf, ownPrefixes, UNKNOWN } = require('./lib/plans-linked.js');
 const { settings, PREFIX } = require('./lib/plans-settings.js');
@@ -141,10 +141,17 @@ function exportedData(root, feature, f, now) {
   // The overview's Tickets lines may name a repository its repos: lacks: it is listed too.
   const linkedPrefixes = [...new Set([...prefixes, ...(overview ? listed(overview).map((t) => prefixOf(t.key)) : [])])];
   const repos = reposOf(root, own, linkedPrefixes.filter((p) => !mineToo.has(p) || p === own), overview);
-  // A dependency is met as nextOf reads it: done, or waiting for the merge of this same feature. One
-  // in a repository not read here is null: nextOf lets it pass, the page shows it not checked.
+  // Where a dependency's code is (lib/plans-state.js depWhere); `pull`: the feature branch to merge it
+  // into, for one of this repository waiting in another feature branch.
+  const whereTo = (k, e, stated) => {
+    const w = depWhere(keys, stated, e, k);
+    return w && w.kind === 'feature' ? { ...w, pull: keys.has(k) && e.branch ? e.branch : null } : w;
+  };
+  // A dependency is met as nextOf reads it: done, waiting for the merge of this same feature, or already
+  // in this feature branch. One in a repository not read here is null: nextOf lets it pass, the page
+  // shows it not checked.
   const metThere = (s, feature) => (s.state === NOT_CHECKED ? null : met(s, feature));
-  const depMet = (k, e) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, e.feature)
+  const depMet = (k, e, where) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, e.feature) || Boolean(where && where.kind === 'yours')
     : others.has(k) ? metThere(others.get(k), e.feature) : gone.get(`${e.target} ${k}`) === 'done');
   // The page shows a dependency's own state; `feature` tells it whose feature branch the code waits in.
   const depState = (k, states, target) => (keys.has(k) ? { state: STATES[keys.get(k).state], feature: keys.get(k).feature }
@@ -163,7 +170,10 @@ function exportedData(root, feature, f, now) {
     const away = here === null ? elsewhere(e) : null;
     return ticketOf(e.shown, here === null && away ? away.text : here, {
       title: e.title, prefix: prefixOf(e.key), repo: repos[0].name, state: STATES[e.state], next: e === next, via: e.via || null, onBranch: away ? away.branch : null,
-      depends: e.depends.map((k) => ({ key: k, met: depMet(k, e), ...depState(k, others, e.target) })),
+      depends: e.depends.map((k) => {
+        const where = whereTo(k, e, others);
+        return { key: k, met: depMet(k, e, where), ...depState(k, others, e.target), where };
+      }),
     });
   });
   const codes = f.list.map((t) => codeIn(t.fm));
@@ -180,7 +190,9 @@ function exportedData(root, feature, f, now) {
     const theirMet = (k) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, feature) : stated.has(k) ? metThere(stated.get(k), feature) : null);
     for (const k of all) {
       const s = stated.get(k);
-      const t = ticketOf((s && s.shown) || k, textOf(list, k), { prefix: r.prefix, repo: r.name, state: s ? s.state : UNKNOWN, next: false, depends: depsOf(k).map((d) => ({ key: d, met: theirMet(d), ...depState(d, stated) })) });
+      // A ticket there: its feature branch is not read here, so a dependency is never in it.
+      const there = { feature, branch: null, tips: [] };
+      const t = ticketOf((s && s.shown) || k, textOf(list, k), { prefix: r.prefix, repo: r.name, state: s ? s.state : UNKNOWN, next: false, depends: depsOf(k).map((d) => ({ key: d, met: theirMet(d), ...depState(d, stated), where: whereTo(d, there, stated) })) });
       if (!t.title) t.title = (theirs.find((x) => x.key === k) || {}).title || '';
       tickets.push(t);
     }
