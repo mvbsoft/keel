@@ -6,7 +6,8 @@
 //             builds the day documents that changed since the last sync, writes them to <out> (a folder
 //             under <project>/.keel/local/usage/, default usage/out) and prints the ArtifactData batch spec as JSON
 //   ack       [--batch <n>] [--failed <docId>]...   marks the prepared writes (or those of batch n) as written (versions go up by one)
-//   report    [--session <id>] [--in <dir>] [--lang uk|en] [--project <dir>]   the end report for a session; also
+//   report    [--session <id>] [--in <dir>] [--lang uk|en] [--project <dir>] [--last-turn]   the end report for a session
+//             (--last-turn: one line, the latest user turn only); also
 //             keeps page_template in step with the page's meta/settings read into <in>
 //   snapshot  --src desktop --five-hour <n> --seven-day <n> [--five-hour-resets <iso>] [--seven-day-resets <iso>] [--session <id>]
 //   calibrate [--in <dir>]   the calibration table (points, rates, machines still to sync)
@@ -486,8 +487,19 @@ function report(opts) {
   const nowMs = Date.now();
   const { summary, wallet } = store.sessionSummary(ref, { projectsRoot: base, machine, usageDir: usageDir() });
   const cal = wallet === 'subscription' ? calibration(inFolder(opts), machine, nowMs) : { result: calibrate({}), snapshots: [] };
+  if (opts['last-turn']) return lastTurnText(t, summary, wallet, cal.result);
   const cc = [...readSnapshots(usageDir())].reverse().find((s) => s.session_id === summary.id && typeof s.cost_usd === 'number');
   return renderReport({ t, summary, wallet, cal, snapshots: cal.snapshots, cc: cc ? cc.cost_usd : null });
+}
+
+// The latest user turn: a command's own cost when it ran as one turn (the session's total is the
+// whole conversation).
+function lastTurnText(t, summary, wallet, cal) {
+  const turn = [...summary.turns].reverse().find((x) => x.t != null);
+  if (!turn) return t('report.none');
+  const s = wallet === 'subscription' ? share(turn.usd, cal.weekly.rate) : null;
+  return t('report.last_turn', { usd: usd(turn.usd), requests: `${turn.requests} ${t('report.requests', { n: turn.requests })}` })
+    + (s === null ? '' : t('report.last_turn_week', { pct: pct1(s) }));
 }
 
 function calibrateText(opts) {

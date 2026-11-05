@@ -381,6 +381,28 @@ test('report: the cross-check line appears only when Claude Code\'s own total di
   assert.doesNotMatch(w.report(), /cross-check/);
 });
 
+test('report --last-turn: one line, the latest user turn and its share of the week', () => {
+  const w = reportWorld();
+  const { now, snap } = w;
+  w.snaps([snap(now - 4 * HOUR, 10, 10), snap(now - HOUR, 30, 12)]);
+  // $20 for the session, 2 % of the week: 1 % = $10; the last turn is $10, 1.0 %.
+  assert.equal(w.report('--last-turn'), 'this command: $10.00 (1 request), about 1.0 % of the weekly limit');
+  assert.equal(w.report('--last-turn', '--lang', 'uk'), 'ця команда: $10.00 (1 запит), приблизно 1.0 % тижневого ліміту');
+});
+
+test('report --last-turn: no calibration, no share', () => {
+  assert.equal(reportWorld().report('--last-turn'), 'this command: $10.00 (1 request)');
+});
+
+test('report --last-turn: before any user turn, the work so far; nothing at all, no session', () => {
+  const w = reportWorld();
+  const only = (id, rows) => writeSession(w.root, { id, cwd: w.project, projDir: store.projectFolderName(w.project), rows });
+  only('rep-2', [{ t: w.start + MIN, model: OPUS, tok: { in: 2e6 } }]);
+  assert.equal(w.report('--last-turn', '--session', 'rep-2'), 'this command: $10.00 (1 request)');
+  only('rep-3', []);
+  assert.equal(w.report('--last-turn', '--session', 'rep-3'), 'usage: no session found');
+});
+
 test('report: Ukrainian text with --lang uk', () => {
   const w = reportWorld();
   const text = w.report('--lang', 'uk');

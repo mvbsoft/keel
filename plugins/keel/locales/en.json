@@ -38,6 +38,8 @@
   "report.unpriced": "new model without a price ({models}) — run price update: /keel:configure prices",
   "report.cross_check": "cross-check: our estimate ${ours}, Claude Code's own total ${cc}",
   "report.none": "usage: no session found",
+  "report.last_turn": "this command: {usd} ({requests})",
+  "report.last_turn_week": ", about {pct} % of the weekly limit",
 
   "calibration.head": "calibration",
   "calibration.weekly": "weekly",
