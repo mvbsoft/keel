@@ -343,6 +343,16 @@ test('check: a mermaid diagram and a table in In plain words pass, and the overv
   assert.ok(overview.startsWith(`## In plain words\n${diagram}\n\n${table.replace('T1', 'PROJ-1')}\n`), overview);
 });
 
+test('check: a comparison with < and > on one line is not a placeholder, a <name> still is', () => {
+  const dir = project();
+  filled(dir, 's3-connection');
+  const table = 'When a push goes out:\n\n| Wait | Messages |\n|---|---|\n| < 30 s | > 1 min |\n| x <= 3 | y > 2 |';
+  body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(table));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)']);
+  body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(`${table}\n\nSent by <who>.`));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 28)']);
+});
+
 test('check: the unfilled templates show only their placeholders', () => {
   const dir = project();
   run(dir, 'new', 's3-connection');

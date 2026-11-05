@@ -162,6 +162,8 @@ All notable changes to keel are listed here. The format follows
 - The cost report counts a message that starts with a system reminder, such as the desktop app's
   "Linked sessions now" note, as your turn, and its preview skips the reminder; before, a long session
   started from another one showed a single turn.
+- `plans.js check` no longer reports a comparison such as `| < 30 s | > 1 min |` or `x <= 3 | y > 2`
+  as an unfilled `<...>` placeholder; a `<` followed by a space or `=` is not one.
 
 ### Removed
 - `language`, `export`, `export_dir` and `prefix` in `.keel/local/plans/keel/settings.json`, and their
