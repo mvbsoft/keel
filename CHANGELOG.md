@@ -106,6 +106,12 @@ All notable changes to keel are listed here. The format follows
   files: the plan or overview, a ticket, a research report (a drive such as `C:\`, `/home/<user>`,
   `/Users/<user>`, `/root`, `/mnt/c/`, the project's or a neighbouring repository's folder). Paths
   in a feature go from the repository's root, so they hold on every machine.
+- Planning draws where a picture explains better than words: In plain words of the plan (and so of
+  the feature overview) and of each ticket gets a `mermaid` diagram for steps between people and parts
+  of the system, states or branches, or a markdown table for options side by side. It stands right
+  after the text it shows, after a sentence naming it, its labels and state names in the plan's
+  language; one simple action gets none. The ticket reviewer's `plain-words` check notes a process
+  told only in words. In plain words still has no word limit, so pictures count against nothing.
 
 ### Changed
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,

@@ -94,6 +94,25 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   Open questions (`Q1. question - what depends on it`; an answered Q leaves the list and becomes a D),
   Tickets (one line per ticket: `T3 title`), Stubs, Next action. Sections stay, empty when there is
   nothing to say (Stubs may go); no TBD and no `<...>`.
+- **Pictures in In plain words.** The plan's and each ticket's In plain words show the work with a
+  picture where it says more than words: steps between people and parts of the system → a `mermaid`
+  block with `sequenceDiagram`; states → `stateDiagram-v2`; branches → `flowchart`; options or
+  cases side by side → a markdown table. A picture stands right after the text it shows, never at the
+  end of the section after what is not done or how we know it is done, and right before it one
+  sentence names what it shows ("The link's path:"). Its labels are short, in the plan's language,
+  without HTML; state names too (`Trial` → `Пробна` in a Ukrainian plan). One simple action ("a button
+  downloads the list") needs none; one or two pictures per section at most.
+  Olya's three messages within 30 seconds become one push:
+  ```mermaid
+  sequenceDiagram
+    participant O as Olya
+    participant S as Server
+    participant Q as Queue
+    participant P as FCM and APNs
+    O->>S: 3 messages in 10 s
+    S->>Q: one push per chat, waits 30 s
+    Q->>P: one push "3 new messages"
+  ```
 - **Three views before the tickets.** Before writing them, look at the plan as three colleagues
   would: the product and its users (what people really need; what to add or drop), the architect
   (simpler or sturdier; what the code or a package already has), operations and security (load,
@@ -109,8 +128,8 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   Every section is for a reader who has not seen the feature: short, but in whole sentences, with
   concrete people and values; a term, a T or a D number comes with its words ("D1: one event for
   every client"), never alone. Fill its sections in this order: In plain words (the whole task for a
-  person, without code or paths: what changes for them, how it works step by step, what is in and what
-  is not, examples; as long as it needs), Example (what happens → what we see; may go), Goal (1-2
+  person, without code or paths (a diagram or a table is fine): what changes for them, how it works
+  step by step, what is in and what is not, examples; as long as it needs), Example (what happens → what we see; may go), Goal (1-2
   sentences: what changes, and how to tell it is done), Acceptance criteria (a `- [ ]` list, one
   behaviour per item, each a sentence "situation → what we see" that an action checks: "Olya sends a
   message to a chat Petro is in → Petro gets the event with her name and the first 100 characters;

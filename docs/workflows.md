@@ -385,7 +385,7 @@ message.
 keel keeps `plan.md` true as you go: In plain words (the whole feature for a person), Level, Decisions (`D1. decision - why`), Contract, Out of scope, Design sketch,
 Terms, What was gathered, Open questions (`Q1. question - what depends on it`; an answered Q becomes a
 D), Tickets, Stubs (may go), Next action. Tickets are written at once, their sections always in this
-order: In plain words (the whole task in plain words, without code or paths, as long as it needs),
+order: In plain words (the whole task in plain words, without code or paths but with a diagram or a table where it helps, as long as it needs),
 Example (may go), Goal, Acceptance criteria (a `- [ ]` list, each item a sentence "situation → what
 we see" with concrete people and values), How to check, Boundaries (`- always:`, `- ask first:`,
 `- never:`, each with why in a few words), Correct the priors (the obvious wrong way; may go), Where
@@ -396,6 +396,13 @@ implementation steps. The ticket reviewer checks that a newcomer understands eac
 `T1`, `T2`...; a T-number is never reused. More than about 15 tickets → keel offers to split the
 feature. keel looks up code facts itself; a pricier model or web research only when you ask or say
 yes to an offer of it.
+
+**Pictures in In plain words.** Where a picture explains the work better than words, In plain words of
+the plan and of a ticket has one, right after the text it shows and after a sentence naming it: a `mermaid` diagram for steps
+between people and parts of the system (`sequenceDiagram`), states (`stateDiagram-v2`) or branches
+(`flowchart`), a markdown table for options side by side. One simple action gets none. The diagrams
+and tables pass `plans.js check` and go into the feature overview as they are; In plain words has no
+word limit, so they never count against one. The ticket reviewer notes a process told only in words.
 
 **Gathering before the questions.** When the feature is told in a line or two, or is large, keel first
 offers what to look up, with the price said as an estimate, all on one yes: the project map, a helper

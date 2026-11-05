@@ -82,6 +82,14 @@ test('planning work: one question per message with a recommendation, D and Q rec
   const flat = work.replace(/\s+/g, ' ');
   for (const n of [...PLAN_SECTIONS, ...TICKET_SECTIONS]) assert.ok(flat.includes(n), n);
   assert.match(flat, /its sections in this order: In plain words \(/);
+  // Pictures in In plain words of the plan and the tickets: which kind for what, a sentence each, none for one action.
+  assert.match(flat, /\*\*Pictures in In plain words\.\*\* The plan's and each ticket's In plain words show the work with a picture/);
+  for (const kind of ['`sequenceDiagram`', '`stateDiagram-v2`', '`flowchart`', 'a markdown table']) assert.ok(flat.includes(kind), kind);
+  assert.match(flat, /A picture stands right after the text it shows, never at the end of the section/);
+  assert.match(flat, /right before it one sentence names what it shows/);
+  assert.match(flat, /state names too/);
+  assert.match(flat, /One simple action \("a button downloads the list"\) needs none/);
+  assert.match(work, /```mermaid\n\s+sequenceDiagram\n/);
   assert.match(work, /a `- \[ \]` list/);
   assert.match(work, /`- always:`, `- ask first:`, `- never:`/);
   assert.match(work, /The technical part\s+\(all but In plain words and Example\) is 150-500 words/);
@@ -92,6 +100,14 @@ test('planning work: one question per message with a recommendation, D and Q rec
   assert.match(work, /no implementation steps/);
   assert.match(work, /More than about 15 tickets → offer to split the feature/);
   assert.match(work, /`plans\.js state <f> abandoned`/);
+});
+
+test('the plan and ticket templates ask for a picture in In plain words', () => {
+  for (const file of ['plan.md', 'ticket.md']) {
+    const text = read('templates', 'keel', 'planning', file);
+    const plain = text.slice(text.indexOf('## In plain words'), text.indexOf('\n## ', text.indexOf('## In plain words') + 3));
+    assert.match(plain, /a mermaid diagram or a table where it shows the work better than words, after a sentence naming it/, file);
+  }
 });
 
 test('planning gathers before it asks: an offer with its price on one yes, the findings in What was gathered, read again instead of a new search', () => {

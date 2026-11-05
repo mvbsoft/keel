@@ -28,7 +28,7 @@ depends_on. No TBD and no <...> left in the text. Comments are removed when the 
 # <feature>
 
 ## In plain words
-<the whole feature in plain words: what and why, how it will work, an example, what is not done, how we know it is done>
+<the whole feature in plain words: what and why, how it will work (here a mermaid diagram or a table where it shows the work better than words, after a sentence naming it), an example, what is not done, how we know it is done>
 
 ## Level
 <which level of how many, and what the scale means in plain words; what this level builds; what is put off for later and why>
