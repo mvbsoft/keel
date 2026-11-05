@@ -83,6 +83,24 @@ All notable changes to keel are listed here. The format follows
   the versions and the sections where they differ, defaults to the newest change (the main
   repository's on the same time), and `--take <PREFIX>` writes the chosen one into the other
   repositories' overviews; the commit and push stay on the user's yes.
+- `/keel:feature-page [<feature>] [--lang <code>]` makes a private page of a planned feature in your
+  claude.ai account, to read on a computer or a phone: on the left the overview, what is in progress
+  or next with the tickets' count by state, and the list of tickets; on the right the chosen ticket,
+  its sections as blocks with an explanation each, its decisions and its dependencies with their
+  states, and its md file as GitHub draws it, mermaid diagrams included. The new `feature-page.js`
+  puts the md texts as they are into a fixed template; the page renders the markdown and the code
+  itself, with libraries from cdnjs at exact versions, in both themes. The page's language is
+  `--lang`, else the page's own, else the conversation's; its labels come from `locales/` (new
+  `page.*` keys), and texts in another language than the tickets' are translated by Claude on the
+  page only and kept in it, so an update translates only what changed. The page is titled
+  `[API, WEB] - <the overview's heading> (<code>)` and found again in the account by that code: a
+  random one each draft gets (`page:` in `plan.md`), which the export writes into every ticket, so
+  running it again from any machine or repository of the feature updates the same page; nothing is
+  kept on this machine. A
+  ticket of a repository that is not on this machine is marked so, its state and any dependency on
+  it unknown; one of this repository whose file is only on another branch is read from there and
+  marked so. The page is a snapshot: its feature card says when it was built and gives the command
+  that updates it, with a Copy button. No feature named: the current branch's.
 
 ### Changed
 - `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,

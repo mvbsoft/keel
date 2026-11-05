@@ -7,7 +7,8 @@
 // - plan.md (front matter `type: plan`, `status`, `branch`, `merge_into`, `last_ticket`...),
 //   tickets/T<n>-<slug>.md (front matter `id`, `repo`, `depends_on`, `review_hash`), reviews/ (written by the
 //   conversation). `branch` (the feature branch) and `merge_into` (where the feature merges) go into
-//   every exported ticket (lib/plans-export.js).
+//   every exported ticket (lib/plans-export.js), and so does `page`, the feature's random code that
+//   names its page (feature-page.js) the same from every machine and repository.
 // - States: draft -> ready -> exported, draft or ready -> abandoned, ready -> draft. A plan changed
 //   after `ready` (its ready_hash no longer matches) is a draft again.
 // - Settings: lib/plans-settings.js. The planning chat marks:
@@ -147,11 +148,14 @@ function lastChange(folder) {
 // A ticket's review hash: its text without the review_hash line.
 const frontOnly = (text, re) => lf(text).replace(/^---\n[\s\S]*?\n---/, (fm) => fm.replace(re, ''));
 const ticketHash = (text) => sha(frontOnly(text, /^review_hash:.*\n?/gm).trimEnd());
+// The code of a feature's page: 8 random hex digits, written once and kept with the feature.
+const pageCode = () => crypto.randomBytes(4).toString('hex');
+const PAGE_CODE = /^[0-9a-f]{8}$/;
 
-// The whole draft but its state: plan.md without status and ready_hash, and every ticket. reviews/
-// records decisions and does not count.
+// The whole draft but its state: plan.md without status, ready_hash and the page's code, and every
+// ticket. reviews/ records decisions and does not count.
 function draftHash(d) {
-  const plan = frontOnly(d.text, /^(status|ready_hash):.*\n?/gm);
+  const plan = frontOnly(d.text, /^(status|ready_hash|page):.*\n?/gm);
   return sha([plan, ...tickets(d).map((t) => `\n--- ${t.name}\n${lf(t.text)}`)].join(''));
 }
 
@@ -261,7 +265,7 @@ function draftNew(root, feature, now = new Date()) {
   // A draft committed on its feature branch is not seen from another branch: that branch takes the name.
   if (!local && featureBranchElsewhere(root, feature)) return refuse('new', `branch ${feature} exists and may hold this draft: switch to it, or pick another name`);
   const head = git(root, ['rev-parse', '--short', 'HEAD']);
-  const front = { type: 'plan', status: 'draft', feature, language: s.language, export: '-', branch: feature, merge_into: mainBranch(root) || '-', repos: '-', created: dateOf(now), after_commit: head || '-', after_commit_repos: '-', last_ticket: 0, ready_hash: '-' };
+  const front = { type: 'plan', status: 'draft', feature, page: pageCode(), language: s.language, export: '-', branch: feature, merge_into: mainBranch(root) || '-', repos: '-', created: dateOf(now), after_commit: head || '-', after_commit_repos: '-', last_ticket: 0, ready_hash: '-' };
   const t = fromTemplate(PLAN_FILE, front);
   const d = { feature, folder, local, text: '', fm: {} };
   try { writeFile(root, d, path.join(folder, PLAN_FILE), t.text(t.body.replace(/^# .*$/m, () => `# ${feature}`))); } catch (e) { return refuse('new', e.message); }
@@ -680,4 +684,6 @@ module.exports = {
   // for lib/plans-export.js
   base, needDraft, settle, stateOf, problems, tickets, ticketIds, writePlan, writeFile,
   branchesOf, mainBranch, PLAN_FILE, TICKET_FILE, fromTemplate, ticketProblems, cycles,
+  // for feature-page.js
+  mentionedFiles, pageCode, PAGE_CODE,
 };

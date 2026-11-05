@@ -110,4 +110,4 @@ function repoName(root) {
   return clean(m ? m[1] : path.basename(path.resolve(root)), 60);
 }
 
-module.exports = { TICKET_SECTIONS, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName };
+module.exports = { TICKET_SECTIONS, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName, outsideFences, heading };
