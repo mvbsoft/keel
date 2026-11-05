@@ -198,6 +198,7 @@ The full walkthrough: [Getting started](docs/getting-started.md).
 | `/keel:end-session [instruction]` | verify the session, write the note for next time, git | `/keel:end-session we continue tomorrow, prepare` |
 | `/keel:start-planning [idea, link, file or feature]` | plan a feature in its own conversation: one question at a time, decisions and short tickets, no code | `/keel:start-planning CSV export of invoices` |
 | `/keel:end-planning [instruction]` | hand the plan over for later, or review it and export the tickets into the feature folder | `/keel:end-planning final review and export` |
+| `/keel:feature-page [feature] [--lang code]` | a private page of a planned feature in your claude.ai account: overview, tickets with their states, research; in your language | `/keel:feature-page csv-export` |
 | `/keel:cleanup [restore \| empty-trash]` | move leftovers to keel's trash, put them back, or empty old trash | `/keel:cleanup` |
 | `/keel:help` | a short table of the commands | `/keel:help` |
 

@@ -2,6 +2,7 @@
 type: plan
 status: <draft | ready | exported | abandoned>
 feature: <feature name: the folder name>
+page: <the code of the feature's page, 8 random hex digits, written by plans.js new; it goes into every exported ticket; keep it>
 language: <language of the plan and its tickets>
 export: <where the tickets went: pc | repo, written by plans.js export, or ->
 branch: <the feature branch, written into every exported ticket; plans.js set changes it>

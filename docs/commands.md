@@ -22,6 +22,7 @@ levels: [verification](verification.md).
 | [`/keel:end-session`](#keelend-session) | end a session: verify, write the note, git |
 | [`/keel:start-planning`](#keelstart-planning) | plan a feature: questions, decisions and short tickets, no code |
 | [`/keel:end-planning`](#keelend-planning) | hand the plan over, or review it and export the tickets |
+| [`/keel:feature-page`](#keelfeature-page) | a private page of a planned feature in your claude.ai account, to read |
 | [`/keel:cleanup`](#keelcleanup) | move leftovers to keel's trash, put them back, empty old trash |
 | [`/keel:usage`](#keelusage) | the link to your private usage page, opened |
 | [`/keel:usage-clear`](#keelusage-clear) | deletes all data on the usage page, after a warning and your yes |
@@ -177,6 +178,58 @@ question; then it asks where the draft lives (this machine or the repository). N
 
 Planning files are committed and pushed only after your yes and Claude Code's own prompt. The report:
 Done, Reviews, Git, What next, Costs. Every case: [ways of working](workflows.md#end-keelend-planning).
+
+## `/keel:feature-page`
+
+`/keel:feature-page [feature] [--lang <code>]`
+
+| You type | keel does |
+|---|---|
+| `/keel:feature-page csv-export` | makes the page of the feature `csv-export`, or updates the one made before, and gives its link |
+| `/keel:feature-page` | the same for the feature of the current branch; none or several → asks which |
+| `/keel:feature-page csv-export --lang en` | the same page in English from now on |
+
+The page is private, in your claude.ai account. On a computer it has two columns. On the left: the
+feature (its projects and the commits it is a snapshot of open on a click), the overview in short
+with buttons for its sections, decisions, terms and research; what is in progress now (else what is
+next), with a bar and the tickets' count by state; and the list of tickets by repository. On the
+right: the chosen ticket, the one in progress at first, its sections as blocks: In plain words with
+the goal, the trap, Done when, How to check, Boundaries with Out of scope, Where to look, Why with the
+decisions it names, and Dependencies with their states (a click opens that ticket). Each block has an
+ⓘ whose hint says what it holds; "MD file" shows the file as GitHub draws it, diagrams included. On
+a phone the list comes first and a ticket opens over it. A link ending in `#API-122` opens that
+ticket.
+
+The texts are those of the md files, which stay the source; keel puts them into a fixed template and
+the page draws the markdown and code itself (libraries from cdnjs), so every feature looks the same.
+A feature on several repositories also shows the other repositories' tickets: read in their folders on
+this machine, else from the overview with the state unknown and a "not on this machine" mark; a
+dependency on such a ticket is unknown too. A ticket of this repository whose file is only on another
+branch is read from that branch and marked "only on branch <branch>". A dependency shows its ticket's
+own state; one of another feature that waits for its feature merge gets an "only in the <feature>
+feature branch" mark. The page shows git as it was when it was built or updated: it does not update
+itself. Its feature card says when it was built and gives the command that updates it,
+`/keel:feature-page <feature>`, with a Copy button.
+
+**Language.** `--lang`, else the language the page already has, else your conversation language.
+The labels come from keel's language files (English and Ukrainian today; English for another
+language). When the page's language is not the tickets', Claude translates the texts on the page only,
+never the md files; the page keeps each translation with a fingerprint of its original, so the next
+update translates only what changed. Translating costs tokens; the same language costs nothing extra.
+
+The page is titled `[API, WEB] - <the overview's heading> (3f9a2c1b)`: the ticket prefixes of the
+repositories with tickets, the heading (cut to 80 characters) and the feature's code. The code is
+random, made once with the draft (`page:` in `plan.md`) and written by the export into every ticket
+of the feature, so it travels with the feature in git: every machine and every repository of the
+feature finds the same page, whether or not the other repositories are on that machine or have a
+remote, and two projects with the same prefix and feature name never share a page. keel looks the
+page up among your latest ones (200, or 500 with the artifact server's tools) by the code at the end
+of its title and updates it, renaming it when the heading or the repositories changed. A feature
+exported before the code gets one, written into its tickets in this working tree: commit and push
+them. Not found while you have more → keel asks for its link or makes a new one. Nothing is kept on this machine: the
+page is built in `.keel/local/tmp/` and removed after publishing. It needs Claude Code signed in to a
+claude.ai account; with an API key there is no page. Each run costs about $0.1-0.4 (an estimate:
+reading the page and the generated file); the run's own cost is the last line of its report.
 
 ## `/keel:cleanup`
 

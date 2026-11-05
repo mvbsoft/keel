@@ -14,7 +14,8 @@ keel has three lanes of work:
 - **Planning comes before the code.** A feature that needs several tasks is first talked through in
   its own conversation: one question at a time, decisions and short tickets, no code. It ends in a
   feature folder of tickets that tasks or a session then do. Think of a blueprint before the build.
-  Commands: `/keel:start-planning`, `/keel:end-planning`.
+  Commands: `/keel:start-planning`, `/keel:end-planning`; `/keel:feature-page` shows a planned
+  feature as a page to read.
 
 **How to choose:** "done" within 1-3 sittings → a task. A plan for weeks, with items for "later" → a
 session. A feature for several tasks that is not thought through yet → plan it first.

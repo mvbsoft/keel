@@ -226,7 +226,8 @@ function exportedTicket(root, feature, f, { title, slug, deps, repo }) {
   const shown = at.root === root ? rel(root, file) : file.split(path.sep).join('/');
   if (fs.existsSync(file)) return refuse(what, `${shown} exists`);
   const t = plans.fromTemplate('ticket.md', {
-    type: 'ticket', key, status: 'todo', feature: sibling.fm.feature || feature, branch: sibling.fm.branch || '-',
+    type: 'ticket', key, status: 'todo', feature: sibling.fm.feature || feature,
+    ...(plans.PAGE_CODE.test(sibling.fm.page || '') ? { page: sibling.fm.page } : {}), branch: sibling.fm.branch || '-',
     merge_into: sibling.fm.merge_into || '-', depends_on: `[${depends.join(', ')}]`,
   });
   try { plans.writeFile(at.root, { local: at.f.local }, file, t.text(t.body.replace(/^# .*$/m, () => `# [${key}] ${title}`))); } catch (e) { return refuse(what, e.message); }

@@ -187,11 +187,13 @@ function exportFeature(root, feature, { stop = () => {}, asIs = [] } = {}) {
   // T-numbers replaced in one pass, only those of the draft (T1 is never part of T10).
   const swap = (text) => text.replace(/\bT(\d+)\b/g, (m) => keys.get(m) || m);
   const byPrefix = new Map(targets.map((t) => [t.prefix, t]));
+  // A draft made before plans carried the code gets one here.
+  const page = plans.PAGE_CODE.test(d.fm.page || '') ? d.fm.page : plans.pageCode();
   const files = all.map((x) => {
     const t = byPrefix.get(repoOf(x));
     const key = keys.get(x.id);
     const deps = plans.ticketIds(x.fm.depends_on).map((k) => keys.get(k) || k);
-    const front = { type: 'ticket', key, status: 'todo', feature, branch, merge_into: t.mergeInto, depends_on: `[${deps.join(', ')}]` };
+    const front = { type: 'ticket', key, status: 'todo', feature, page, branch, merge_into: t.mergeInto, depends_on: `[${deps.join(', ')}]` };
     return { id: x.id, key, prefix: t.prefix, repo: t.name, name: `${key}-${x.name.replace(/^T\d+-/, '')}`, text: frontText(front) + swap(bodyOf(x.text)) };
   });
   let readme = null;
