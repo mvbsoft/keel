@@ -146,6 +146,8 @@ test('the planning reviewers check what the plan-findings schema names, with evi
   assert.match(ticket, /`clear-to-newcomer`: a reader who has not seen the feature understands every other section/);
   assert.match(ticket, /a `clear-to-newcomer` "no"\s+in Goal or Acceptance criteria: one cannot tell when it is done\); \*\*minor\*\*/);
   assert.match(ticket, /\*\*minor\*\*: wording, a\s+`clear-to-newcomer` "no" in another section, and `plain-words` and `markdown`, which are advice/);
+  // A process told only in words, where a diagram or a table would show it, is a plain-words "no".
+  assert.match(ticket, /`plain-words`:[^]*told only in\s+words, are a "no" when a mermaid diagram or a table would show them[^]*One simple action needs none\.\n- `clear-to-newcomer`/);
   for (const [body, limit] of [[ticket, 'At most 5 per ticket'], [plan, 'At most 10']]) {
     assert.match(body, /<keel>\/schemas\/plan-findings\.schema\.json/);
     assert.ok(body.includes(limit), limit);

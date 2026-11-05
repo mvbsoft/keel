@@ -15,7 +15,7 @@ Comments are removed when the file is made. -->
 # [<T-number>] <title>
 
 ## In plain words
-<the whole task in plain words, without code or paths: what changes for a person, how it works step by step, what is in and what is not, examples>
+<the whole task in plain words, without code or paths (a diagram or a table is fine): what changes for a person, how it works step by step (here a mermaid diagram or a table where it shows the work better than words, after a sentence naming it), what is in and what is not, examples>
 
 ## Example
 <what happens -> what we see, one pair per line; or remove this section>

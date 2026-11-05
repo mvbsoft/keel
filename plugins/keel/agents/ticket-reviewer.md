@@ -48,6 +48,10 @@ the few relevant lines. Never open secret files: the list is under "Scope" in
 - `plain-words`: a person who does not read code understands the whole task from In plain words: what
   changes for them, how it works step by step, what is in and what is not, with an example where one
   helps. A "no" names what is missing ("it does not say what happens while the chat is open").
+  Steps between people and parts of the system, states, branches or options compared, told only in
+  words, are a "no" when a mermaid diagram or a table would show them ("the path message → queue →
+  push is only in words: a sequence diagram"); so is a picture without a sentence on what it shows.
+  One simple action needs none.
 - `clear-to-newcomer`: a reader who has not seen the feature understands every other section without
   the plan: Goal; each acceptance criterion says the situation and what we see, with concrete people
   or values; How to check says what to see; each Boundaries item says why; Where to look says what

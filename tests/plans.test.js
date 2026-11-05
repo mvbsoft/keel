@@ -329,6 +329,20 @@ test('check: headings in a code block are text; a section twice, a missing or em
   ]);
 });
 
+test('check: a mermaid diagram and a table in In plain words pass, and the overview keeps them as they are', () => {
+  const dir = project();
+  filled(dir, 's3-connection');
+  const diagram = 'Three messages in 10 s become one push:\n```mermaid\nsequenceDiagram\n  participant O as Olya\n  participant S as Server\n  O->>S: 3 messages in 10 s\n  S-->>O: one push after 30 s\n```';
+  const table = 'Two ways to send:\n\n| Way | Pushes for 3 messages |\n|---|---|\n| one by one | 3 |\n| grouped, T1 | 1 |';
+  const plain = `${diagram}\n\n${table}`;
+  body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(plain));
+  body(dir, `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`, TICKET_BODY('T1').replace('A file you upload lands in the bucket, and you can download it again.', plain));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)']);
+  const { overviewSections } = require(path.join(SCRIPTS, 'lib', 'plans-format.js'));
+  const overview = overviewSections(PLAN_BODY(plain), [], (s) => s.replace(/\bT1\b/g, 'PROJ-1'));
+  assert.ok(overview.startsWith(`## In plain words\n${diagram}\n\n${table.replace('T1', 'PROJ-1')}\n`), overview);
+});
+
 test('check: the unfilled templates show only their placeholders', () => {
   const dir = project();
   run(dir, 'new', 's3-connection');
