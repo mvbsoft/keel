@@ -41,7 +41,9 @@ Current state of this project:
      and ask which to continue, or what the new feature is; no drafts → ask "What feature do we plan?"
      (an idea, a link, a file or your own words);
    - a draft's exact name → continue it (step 6);
-   - a link or a file → a new feature from it (step 5);
+   - a link or a file → a new feature from it (step 5; a brief
+     `.keel/local/plans/briefs/<name>-brief.md`, written by /keel:start-task for a task too big for
+     one: step 5 "From a brief");
    - a single name with no draft → `plans.js tickets <it>` first: it lists tickets → an exported
      feature (below); `tickets: none ...` → the next case;
    - other words → `plans.js find "<words>"`: `find: 1 match` → "Continue `<f>`?"; several → show
@@ -78,6 +80,12 @@ Current state of this project:
      there and continue that draft (step 6); no → another name). A merge branch other
      than `git.main_branch`, or a branch name other than `<f>` → `plans.js set <f> --branch <b> --merge-into <m>` (`branch:` and `merge_into:` lines).
      Other repositories chosen → `plans.js set <f> --repos "<PREFIX>,..."` ("Several repositories" item 4).
+   - **From a brief**: what it settles is not asked again. The retell comes from its Goal, the name
+     proposed is `<name>`, and a branch its Decisions and why names ("goes on in branch <b> and merges
+     into <m>") replaces the main-branch question: after `plans.js new`, `plans.js set <f> --branch <b>
+     --merge-into <m>`. Then `plans.js brief <f> <the brief>`: its sections go into `plan.md` (Goal →
+     In plain words, Files → What was gathered, Decisions and why → Decisions, Open questions → Open
+     questions) and the brief to keel's trash; say its lines.
 6. **Continue a draft.** `plans.js check <f>` and `plans.js review <f>`; read `plan.md` only (not the
    tickets): the ticket list, open Q, What was gathered, Next action; and in `reviews/` the findings without a decision.
    Stale? `plans.js stale <f>`: show its `stale:` lines as they are (one more per other repository).
@@ -87,5 +95,6 @@ Current state of this project:
    `planning: <f> (exported: <folder>)`). Say in one line: this conversation now
    plans `<f>`; task and session commands wait for /keel:end-planning; no code changes here.
 8. Work as planning.md "Work" says, from the Next action (new: the gathering offer when
-   it fits, else the first open question). When the user
+   it fits, else the first open question; from a brief: first grow In plain words from its Goal into
+   the whole feature, write it, and show its text in the reply, then its first open question). When the user
    wants to stop: "/keel:end-planning hands over, or reviews and exports the tickets."

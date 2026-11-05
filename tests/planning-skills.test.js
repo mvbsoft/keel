@@ -125,7 +125,7 @@ test('planning gathers before it asks: an offer with its price on one yes, the f
   before(work, 'the project map, one `keel:context` call', 'each other repository of `repos:`, one `keel:context` call each', 'the map, then the other repositories');
   assert.ok(work.includes('none asks what the gathered facts or the project\'s docs already answer'));
   assert.ok(work.includes('What was gathered stays in the draft and is not exported'));
-  assert.ok(work.includes('**A draft continued** reads What was gathered first and never searches for it again'));
+  assert.ok(work.includes('**A draft continued**, or one made from a brief, reads What was gathered first and never searches for it again (no gathering offer)'));
   // Research the planner offered and the user took is allowed, not only research the user asked for.
   assert.ok(flat(section('Rules')).includes('A pricier model or web research only when the user asks or says yes to an offer of it'));
   // A skipped or unanswered offer is not a yes: no searches of the planner's own in its place.

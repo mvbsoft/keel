@@ -35,8 +35,9 @@
 // - cleanup.js: everything but `empty-trash` (moving to keel's trash and back can be undone; deleting
 //   the trash cannot).
 // - plans.js: everything but `commit` and `push`; its other steps write only the planning files (the
-//   drafts, the exported tickets and their status, settings and chat marks), and `drop` moves a feature
-//   folder whose tickets are all done to keel's trash, which can be undone. commit or push anywhere
+//   drafts, the exported tickets and their status, settings and chat marks), `drop` moves a feature
+//   folder whose tickets are all done to keel's trash and `brief` a brief of /keel:start-task, both of
+//   which can be undone. commit or push anywhere
 //   else in its command asks too (the shell may pass that step in another order).
 // Refused with the reason, so the model sends the plain form: a command joined with shell operators
 // (outside quotes) that names keel's folder; a keel script whose arguments the hook cannot read; a step

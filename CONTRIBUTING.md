@@ -22,18 +22,18 @@ Claude Code CLI (`claude plugin validate --strict .` checks the marketplace file
 keel's instructions (the retell and the "new?" question, lanes, the end-task menu, the level question
 before any review agent, a recorded verification before a task folder moves, the session note, the
 planning lane: end-planning's modes and gates, ticket states on start-task, a task that turns into
-planning, the gathering, the levels and the package comparison in planning) and the coding standards. 37 of the 38 cases build a small shop project with git (`evals/_fixtures/shop.js`;
+planning, the gathering, the levels and the package comparison in planning) and the coding standards. 39 of the 40 cases build a small shop project with git (`evals/_fixtures/shop.js`;
 `help-lists-every-command` needs none). Each case runs one keel command in Claude Code, or a plain
 request for the two cases tagged `standards`; a case tagged `lanes` may also give a plain request or a
 bare command (`/start-task`), which the lane guards must stop too. Each case grades the reply and the
 tool calls. Every eval run is `claude -p`, where keel refuses `/keel:start-planning` without a person,
 so the planning cases resume a short written conversation instead (`history.jsonl` in the case folder,
-with the fixed session id the fixture marks as planning a feature or working on a task). The five cases
+with the fixed session id the fixture marks as planning a feature or working on a task). The six cases
 tagged `start-planning` resume `/keel:start-planning` as Claude Code expanded it, with keel at
 `/work/plugins/keel` as the Docker command below mounts it, with the tool calls behind keel's first
 reply, and give the person's next words; a test keeps the expanded steps and the files it read
 (`skills/_shared/preflight.md`, `skills/_shared/planning.md`) equal to the current ones: after a
-change to any of them, run
+change to any of them (or to the brief one of them reads, `evals/_fixtures/notification-system-brief.md`), run
 `node plugins/keel/evals/_fixtures/start-planning-history.js` to write them again.
 
 ```bash

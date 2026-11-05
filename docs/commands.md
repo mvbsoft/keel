@@ -96,7 +96,8 @@ Then one combined question (the retell, "continuation of X?" or "new, right?", a
 questions or a brainstorm offer, a plan with the branch to work in (a new branch from the current one,
 recommended; the current branch; or your own git steps, which keel runs in both git modes), the task
 folder, and the code. A task that turns out too big: keel offers to plan it as a feature instead,
-while no code changed. Every case, including continuing a task and a planned ticket:
+in a new chat with a brief of what was found, or here; with code already changed it advises by what
+is done. Every case, including continuing a task and a planned ticket:
 [ways of working](workflows.md#start-a-task-keelstart-task).
 
 ## `/keel:end-task`
@@ -160,6 +161,7 @@ Every case: [ways of working](workflows.md#end-a-session-keelend-session).
 |---|---|
 | `/keel:start-planning` | lists the drafts (feature, state, open questions, tickets, last change, where) and asks which to continue or what the new feature is |
 | `/keel:start-planning CSV export of invoices` (or a link, or a file) | a new feature: the retell, its size, a name, where its tasks merge; told in a line or two or large, an offer to gather first (the project map, with its price); then one question at a time |
+| `/keel:start-planning .keel/local/plans/briefs/<name>-brief.md` | a new feature from the brief `/keel:start-task` wrote for a task too big for one: its content goes into the plan, the brief to keel's trash, and planning starts from its open questions without asking again what it settles |
 | `/keel:start-planning csv-export` (or "continue the CSV export") | continues that draft from its Next action; an exported feature reopens its tickets for editing |
 
 Without the project's planning settings (`/keel:configure planning`) the first run stops before any

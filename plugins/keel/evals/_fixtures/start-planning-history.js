@@ -3,7 +3,8 @@
 // /keel:start-planning, as Claude Code records it (the command, then its expanded text), the tool calls
 // of its first reply (preflight and planning rules read, the scripts, the premise search), and keel's
 // reply so far. keel refuses /keel:start-planning in every eval run, so these cases resume it instead.
-// Run after a change to start-planning/SKILL.md, _shared/preflight.md or _shared/planning.md:
+// Run after a change to start-planning/SKILL.md, _shared/preflight.md, _shared/planning.md or
+// notification-system-brief.md:
 // node plugins/keel/evals/_fixtures/start-planning-history.js
 const fs = require('node:fs');
 const path = require('node:path');
@@ -14,16 +15,21 @@ const SID = '11111111-2222-4333-8444-555555555555';
 // Where the Docker command in CONTRIBUTING mounts the repository: the eval run loads keel from there.
 const PLUGIN_ROOT = '/work/plugins/keel';
 const ARGS = 'develop a notification system';
+// The brief /keel:start-task wrote for the same feature (shop.js planning-brief makes the draft from it).
+const BRIEF = '.keel/local/plans/briefs/notification-system-brief.md';
+const BRIEF_TEXT = fs.readFileSync(path.join(__dirname, 'notification-system-brief.md'), 'utf8');
+// The trash batch the history says the brief went to (the fixture's own batch has its run's time).
+const BATCH = '20261105-100000';
 
 // SKILL.md as Claude Code expands it: front matter dropped, placeholders filled, the `!` line run.
-function expanded() {
+function expanded(args = ARGS) {
   const skill = fs.readFileSync(path.join(KEEL, 'skills', 'start-planning', 'SKILL.md'), 'utf8').replace(/^---\n[\s\S]*?\n---\n\n?/, '');
   return `Base directory for this skill: ${PLUGIN_ROOT}/skills/start-planning\n\n` + skill
     .replaceAll('${CLAUDE_PLUGIN_ROOT}', PLUGIN_ROOT)
     .replaceAll('${CLAUDE_PROJECT_DIR}', '.')
     .replaceAll('${CLAUDE_SESSION_ID}', SID)
     .replaceAll('${user_config.conversation_language}', 'English')
-    .replaceAll('$ARGUMENTS', ARGS)
+    .replaceAll('$ARGUMENTS', args)
     .replace(/^!`node .*check-config\.js.*`$/m, 'keel-config: ok\nprofile: ok');
 }
 
@@ -48,21 +54,20 @@ function call(id, say, name, input, result) {
   ];
 }
 
-// A keel file read with the Read tool, as the conversation saw it.
-function read(id, say, rel) {
-  const text = fs.readFileSync(path.join(KEEL, rel), 'utf8').replace(/\n$/, '');
-  const numbered = text.split('\n').map((l, i) => `${String(i + 1).padStart(6)}\t${l}`).join('\n');
-  return call(id, say, 'Read', { file_path: `${PLUGIN_ROOT}/${rel}` }, numbered);
+// A keel file read with the Read tool, as the conversation saw it (another file: its text and path).
+function read(id, say, rel, text = fs.readFileSync(path.join(KEEL, rel), 'utf8'), file = `${PLUGIN_ROOT}/${rel}`) {
+  const numbered = text.replace(/\n$/, '').split('\n').map((l, i) => `${String(i + 1).padStart(6)}\t${l}`).join('\n');
+  return call(id, say, 'Read', { file_path: file }, numbered);
 }
 
 const script = (id, say, name, args, result) =>
   call(id, say, 'Bash', { command: `node "${PLUGIN_ROOT}/scripts/${name}" "." ${args}`, description: say }, result);
 
-// The steps behind keel's first reply, with the outputs they give on shop.js "planning-new" before its
-// draft and mark exist. A resumed run keeps only what the history holds: without the planning rules it
-// would plan without them, and without these calls it takes the reply's claims as unchecked and runs
-// the steps, the code search included, again.
-const STEPS = () => [
+// The steps behind keel's first reply, as shop.js "planning-new" gives them before the draft and mark
+// exist (a brief: read first, moved into the new draft). A resumed run keeps only the history: without
+// the planning rules it plans without them, without these calls it takes the reply as unchecked and
+// runs the steps, the code search included, again.
+const STEPS = ({ brief = false } = {}) => [
   ...read('read_preflight', 'Reading the preflight steps.', 'skills/_shared/preflight.md'),
   ...script('notes_check', 'Checking this conversation\'s lane.', 'notes.js', `check --session ${SID}`,
     'note: missing\nmemory: missing\ntasks: 0 unfinished\nactive task: none\nsession start: not recorded\nnext session log: .keel/sessions/2026-11-02-001.md\n'),
@@ -70,6 +75,7 @@ const STEPS = () => [
   ...read('read_planning', 'Reading the planning rules.', 'skills/_shared/planning.md'),
   ...script('settings', 'Reading the planning settings.', 'plans.js', 'settings',
     'settings: .keel/local/plans/keel/settings.json\ndraft: pc\ndraft_dir: tickets (default)\nrepos: -\nplanning: .keel/config.json\nticket_prefix: INV\ntickets: repo\ntickets_dir: tickets (default)\nlanguage: en (default)\n'),
+  ...(brief ? read('read_brief', 'Reading the brief.', BRIEF, BRIEF_TEXT, `/tmp/work/${BRIEF}`) : []),
   ...call('premise', 'Checking the premise: does anything in the shop send notifications today?', 'Grep',
     { pattern: 'notif|email|mail|sms|push', path: 'src', '-i': true, '-n': true, output_mode: 'content' },
     'src/auth.js:3:function requestReset(email) {\nsrc/auth.js:5:  tokens.set(token, email);\nsrc/auth.js:9:  const email = tokens.get(token);\nsrc/auth.js:11:  return { email: email.toLowerCase(), changed: true };'),
@@ -77,6 +83,8 @@ const STEPS = () => [
     { command: 'git for-each-ref --format="%(refname:short)" refs/heads refs/remotes', description: 'List local and remote branches' }, 'main\norigin/main\n'),
   ...script('new', 'Making the draft notification-system.', 'plans.js', 'new notification-system',
     'created: .keel/local/plans/keel/notification-system/plan.md\ndraft: .keel/local/plans/keel/notification-system/ (this machine only)\nstatus: draft\nlanguage: en\n'),
+  ...(brief ? script('brief', 'Moving the brief into the draft.', 'plans.js', `brief notification-system ${BRIEF}`,
+    `brief: ${BRIEF} -> .keel/local/plans/keel/notification-system/plan.md (In plain words, What was gathered, Decisions, Open questions)\nmoved to keel's trash: batch ${BATCH} (/keel:cleanup restore ${BATCH} puts it back)\n`) : []),
   ...script('mark_set', 'Marking this conversation as planning it.', 'plans.js', `mark set notification-system --session ${SID}`, 'planning: notification-system\n'),
 ];
 
@@ -90,6 +98,24 @@ const START = () => [
     'As I understand it: the shop should tell people about events that matter to them. Who gains: its customers and its staff. What is out: nothing named yet. Nothing in the shop sends notifications today: the only match in `src/` is a password-reset token kept against an e-mail address (`src/auth.js:3-11`), and nothing is sent.',
     '',
     'Size: large, several conversations, each ended with /keel:end-planning. Name: `notification-system`; its tasks merge into `main`.',
+    '',
+    'This conversation now plans notification-system: task and session commands wait for /keel:end-planning; no code changes here.',
+  ].join('\n')],
+];
+// Planning from the brief: what it settles is not asked again, so the next step is In plain words and the
+// brief's open question.
+const START_BRIEF = () => [
+  ['user', `<command-message>keel:start-planning</command-message>\n<command-name>/keel:start-planning</command-name>\n<command-args>${BRIEF}</command-args>`],
+  ['user', [{ type: 'text', text: expanded(BRIEF) }], { isMeta: true }],
+  ...STEPS({ brief: true }),
+  ['assistant', [
+    'keel advises Opus for planning, since the plan shapes all the work after it; the model stays your choice (`/model`).',
+    '',
+    'From the brief: customers get an e-mail when their order is paid or shipped and can turn these e-mails off; staff see new orders without reloading the staff page. The premise holds: `src/payment.js:4` gives the paid status, and nothing in `src/` sends e-mail today.',
+    '',
+    'Size: large, several conversations, each ended with /keel:end-planning. Name: `notification-system`; its tasks merge into `main`.',
+    '',
+    `The brief's goal, files, decisions and open question are now in the draft's plan.md; the brief went to keel's trash (batch ${BATCH}).`,
     '',
     'This conversation now plans notification-system: task and session commands wait for /keel:end-planning; no code changes here.',
   ].join('\n')],
@@ -140,6 +166,7 @@ const CASES = {
   'start-planning-offers-levels': () => conversation([...START(), ...OFFER, ...GOAL]),
   'start-planning-elementary-choice': () => conversation([...START(), ...OFFER, ...GOAL, ...LEVELS, ...SNOOZE]),
   'start-planning-compares-packages': () => conversation([...START(), ...OFFER, ...GOAL, ...LEVELS, ...RESEARCH]),
+  'start-planning-from-brief': () => conversation(START_BRIEF()),
 };
 
 if (require.main === module) {

@@ -49,8 +49,9 @@ with your yes.
   more?), the check command, a summary and the next action.
 - **A key led by a session:** "this is led by /keel:start-session".
 - **A planned ticket** (`next ticket` or its key): keel shows its state and offers its feature branch;
-  then it goes on as a new task. A task that turns out too big can become planning while no code has
-  changed (after code changes: once it is handed off).
+  then it goes on as a new task. A task that turns out too big becomes planning, here or in a new chat
+  with a brief of what was found (after code changes: once the work done is finished as a task, or
+  with the task's branch as the feature's).
 
 More: [start a task](workflows.md#start-a-task-keelstart-task).
 
