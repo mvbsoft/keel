@@ -109,7 +109,7 @@ keel adds its coding standards to every conversation in a set-up project (the fi
 
 ## Planning
 
-How planning goes, the export and the ticket states: [ways of working](workflows.md#planning).
+How planning goes, the export and the ticket states: [planning](planning.md).
 
 | Situation | What keel does | Guaranteed by |
 |---|---|---|

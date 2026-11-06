@@ -119,6 +119,8 @@ All notable changes to keel are listed here. The format follows
   starts from its open questions.
 
 ### Changed
+- Planning has its own page, [docs/planning.md](docs/planning.md); [docs/workflows.md](docs/workflows.md)
+  keeps tasks and sessions and links to it.
 - `/keel:start-task` asks once how to go on with a task too big for one: a new chat with a brief,
   plan here, do not split, or another way. Asked to split it, it does not ask whether and does not
   offer "do not split"; "do not split" is recorded in `task.md`, so a resumed task is not asked

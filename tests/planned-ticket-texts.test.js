@@ -201,7 +201,7 @@ test('git advice: keys are allowed inside ticket files; a planned ticket works o
 
 test('every plans.js output line the task and session instructions quote is printed by the scripts', () => {
   const file = (...p) => path.join(PLUGIN, 'scripts', ...p);
-  const source = [['plans.js'], ['lib', 'plans-state.js']].map((p) => (fs.existsSync(file(...p)) ? fs.readFileSync(file(...p), 'utf8') : '')).join('\n');
+  const source = [['plans.js'], ['lib', 'plans-state.js'], ['lib', 'plans-state-read.js'], ['lib', 'plans-state-rules.js']].map((p) => (fs.existsSync(file(...p)) ? fs.readFileSync(file(...p), 'utf8') : '')).join('\n');
   const text = [shared('intake.md'), shared('handoff.md'), shared('git.md'), skill('end-task'), skill('end-session'), skill('tasks')].join('\n');
   // Quoted as `<line start>...` in the instructions; printed from a template literal in the scripts.
   const lines = [['`next:', 'next: '], ['`next: none`', "'next: none'"], ['`tickets: none`', "'tickets: none'"], ['`tickets: none (no ticket or feature <x>)`', '`tickets: none (no ticket or feature '],

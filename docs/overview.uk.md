@@ -91,7 +91,7 @@ keel діє лише в проєкті, який ви налаштували ч�
 агентам-рецензентам перевірити тікети, які ще не пройшли рев'ю в теперішньому вигляді, а потім увесь
 план, і переносить тікети в папку фічі зі справжніми ключами. Далі `/keel:start-task наступний тікет`
 виконує їх по одному, або `/keel:start-session <фіча>` бере їх по одному в сесії.
-Докладно: [планування](workflows.uk.md#планування), [start-planning](commands.uk.md#keelstart-planning),
+Докладно: [планування](planning.uk.md), [start-planning](commands.uk.md#keelstart-planning),
 [end-planning](commands.uk.md#keelend-planning).
 
 ## 7. Звіт наприкінці

@@ -95,7 +95,7 @@ tomorrow` reviews the changed tickets and saves where planning stands; `/keel:en
 and export` has reviewer agents check the tickets not yet reviewed as they are now, and then the whole
 plan, and exports the tickets into the feature folder with real keys. Then `/keel:start-task next
 ticket` builds them one by one, or `/keel:start-session <feature>` takes them one by one in a session.
-More: [planning](workflows.md#planning), [start-planning](commands.md#keelstart-planning),
+More: [planning](planning.md), [start-planning](commands.md#keelstart-planning),
 [end-planning](commands.md#keelend-planning).
 
 ## 7. The report at the end

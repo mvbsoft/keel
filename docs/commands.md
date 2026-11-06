@@ -120,7 +120,7 @@ Every case: [ways of working](workflows.md#end-a-task-keelend-task).
 
 | You type | keel does |
 |---|---|
-| `/keel:tasks` | Lists the unfinished tasks of this working tree and of every branch (as of the last fetch): `<id> · <title>`, then Source, State (active or handed off, how long ago, steps done of total, branch), Next and Files; a "Base moved" line when the base branch got new commits since the handoff. A task handed off 30 days ago or more: keel offers to finish it or drop it. It ends with "Continue one with `/keel:start-task <id>`". Then a "Planned" block: each feature with planned tickets not done, every ticket's state, when the server data was fetched, and "Start the next one with `/keel:start-task <KEY>`"; a feature whose every ticket is `done` or `waiting for the feature merge` gets the offer of its [end](workflows.md#end-of-a-feature). A feature on several repositories then gets an "Other repositories" block: its tickets there with their states, or, for a repository not on this machine, the overview's list with the state unknown; when the feature's overview differs between repositories, keel says so in one line and offers to align it ([tickets of linked repositories](workflows.md#ticket-states)). |
+| `/keel:tasks` | Lists the unfinished tasks of this working tree and of every branch (as of the last fetch): `<id> · <title>`, then Source, State (active or handed off, how long ago, steps done of total, branch), Next and Files; a "Base moved" line when the base branch got new commits since the handoff. A task handed off 30 days ago or more: keel offers to finish it or drop it. It ends with "Continue one with `/keel:start-task <id>`". Then a "Planned" block: each feature with planned tickets not done, every ticket's state, when the server data was fetched, and "Start the next one with `/keel:start-task <KEY>`"; a feature whose every ticket is `done` or `waiting for the feature merge` gets the offer of its [end](planning.md#end-of-a-feature). A feature on several repositories then gets an "Other repositories" block: its tickets there with their states, or, for a repository not on this machine, the overview's list with the state unknown; when the feature's overview differs between repositories, keel says so in one line and offers to align it ([tickets of linked repositories](planning.md#ticket-states)). |
 | `/keel:tasks CAN-123` | Shows that task: goal, state, open questions and the next action, in 3-6 lines. It reads the task file also from another branch. |
 | `/keel:tasks drop CAN-123` | Explains everything the task left: its folder, its branch (local, pushed), the commits not in the base branch, the changed files and the docs among them. Asks what to remove: everything or which parts. Then each removal on its own, the folder first, and Claude Code itself asks you to confirm the folder and the branch. The folder goes to keel's trash (`/keel:cleanup restore` brings it back); when its branch stays, the removal is committed on that branch. The branch is deleted locally (`git branch -D`) and, if it was pushed, on the remote; after a local delete keel prints the `git branch <name> <commit>` command that brings it back, and after a remote delete the remote branch's last commit and `git push <remote> <commit>:refs/heads/<name>`, which brings it back while that commit is still in your repository. The main branch and the current one are refused (switch away first). Changes already in the base branch are only reverted (`git revert`), never rewritten. In manual git keel gives the commit, branch and revert commands instead of running them. |
 
@@ -166,7 +166,7 @@ Every case: [ways of working](workflows.md#end-a-session-keelend-session).
 
 Without the project's planning settings (`/keel:configure planning`) the first run stops before any
 question; then it asks where the draft lives (this machine or the repository). No code: the conversation writes only the draft. Every case:
-[ways of working](workflows.md#planning).
+[planning](planning.md).
 
 ## `/keel:end-planning`
 
@@ -179,7 +179,7 @@ question; then it asks where the draft lives (this machine or the repository). N
 | `/keel:end-planning` | open questions or structure problems → hand over, with the reason; otherwise asks "Final review and export, or hand over?" |
 
 Planning files are committed and pushed only after your yes and Claude Code's own prompt. The report:
-Done, Reviews, Git, What next, Costs. Every case: [ways of working](workflows.md#end-keelend-planning).
+Done, Reviews, Git, What next, Costs. Every case: [planning](planning.md#end-keelend-planning).
 
 ## `/keel:feature-page`
 

@@ -36,7 +36,7 @@ function outsideFences(lines) {
 
 // Each top-level list item ("- x", "* x", "1. x") becomes "<prefix><n>. x", n the next number after
 // the highest the section already has that the brief does not use itself. An item already numbered
-// ("D3", "- D3", "- **D3**", read as lib/plans.js openQuestions reads them) keeps its number unless
+// ("D3", "- D3", "- **D3**", read as lib/plans-drafts.js openQuestions reads them) keeps its number unless
 // the section has it, then it takes the next one. Other lines and fenced blocks stay as they are.
 function numbered(text, prefix, existing) {
   const own = new RegExp(`^\\s*(?:[-*]\\s+)?(\\*\\*)?${prefix}(\\d+)\\b`);
