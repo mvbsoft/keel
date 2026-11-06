@@ -241,7 +241,7 @@ test('check: a path of this machine in any file of the feature is a problem: Win
   filled(dir, 's3-connection', 2);
   const planFile = `${LOCAL}/s3-connection/plan.md`;
   const t1 = `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`;
-  write(dir, planFile, readRel(dir, planFile).replace('Files go to S3.', 'Files go to S3, as O:/projects/api/src/s3.js does.'));
+  write(dir, planFile, readRel(dir, planFile).replace('Files go to S3.', 'Files go to S3, as D:/work/api/src/s3.js does.'));
   write(dir, t1, readRel(dir, t1).replace('Do one thing.', [
     'Do one thing, like C:\\Users\\ann\\app\\upload.js does.',
     'Read /home/dev/api/src/s3.js and `/Users/ann/web/app.js`.',
@@ -252,7 +252,7 @@ test('check: a path of this machine in any file of the feature is a problem: Win
   write(dir, `${LOCAL}/s3-connection/research/r1-s3.md`, '# S3\n\nThe SDK cache sits in /root/.npm/_cacache.\n');
   const out = run(dir, 'check', 's3-connection');
   const expected = [
-    'plan.md: local path O:/projects/api/src/s3.js (line',
+    'plan.md: local path D:/work/api/src/s3.js (line',
     'T1: local path C:\\Users\\ann\\app\\upload.js (line',
     'T1: local path /home/dev/api/src/s3.js (line',
     'T1: local path /Users/ann/web/app.js (line',
