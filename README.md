@@ -212,6 +212,7 @@ Every variant: [Commands](docs/commands.md).
 | install, update or remove keel, or fix a problem | [Install](docs/install.md) |
 | set up a project and run a first task | [Getting started](docs/getting-started.md) |
 | know what to type in each situation | [Ways of working](docs/workflows.md) |
+| plan a feature before the code | [Planning](docs/planning.md) |
 | know what keel does in each situation and what guarantees it | [How keel behaves](docs/behavior.md) |
 | look up a command and its variants | [Commands](docs/commands.md) |
 | pick a verification level | [Verification](docs/verification.md) |
