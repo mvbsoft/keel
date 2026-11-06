@@ -10,7 +10,7 @@ const { tempDir } = require('./fixtures/tmp.js');
 
 const SCRIPTS = path.join(__dirname, '..', 'plugins', 'keel', 'scripts');
 const vm = require('node:vm');
-const { termsOf } = require(path.join(SCRIPTS, 'feature-page.js'));
+const { termsOf, PAGE_ASSETS } = require(path.join(SCRIPTS, 'feature-page.js'));
 const { langCode, readPage } = require(path.join(SCRIPTS, 'lib', 'feature-page-text.js'));
 
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
@@ -253,6 +253,36 @@ gitTest('an exported feature: its texts, states, sizes and terms go into the pag
   assert.equal((html.match(/<\/script>/g) || []).length, 6);
   assert.ok(!html.includes('s3cret'));
   assert.ok(!html.includes(tmp) && !html.includes(tmp.split(path.sep).join('/')), 'no local path on the page');
+});
+
+gitTest('the page\'s other files lie beside it as they are, and the page loads no local file that is not there', () => {
+  const tmp = tempDir('keel-page-');
+  const file = line(run(exported(tmp), FEATURE), 'page');
+  const dir = path.dirname(file);
+  const template = path.join(__dirname, '..', 'plugins', 'keel', 'templates', 'feature-page');
+  assert.deepEqual(fs.readdirSync(dir).sort(), fs.readdirSync(template).sort());
+  for (const name of fs.readdirSync(template).filter((n) => n !== 'index.html')) {
+    assert.equal(fs.readFileSync(path.join(dir, name), 'utf8'), fs.readFileSync(path.join(template, name), 'utf8'), name);
+  }
+  const html = fs.readFileSync(file, 'utf8');
+  const local = [...html.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((u) => !/^https?:/.test(u));
+  assert.ok(local.includes('style.css'), local.join(', '));
+  for (const name of local) assert.ok(fs.existsSync(path.join(dir, name)), `${name} is loaded by the page but is not beside it`);
+});
+
+test('the page\'s other files: the list, the template and both ways of publishing name the same files', () => {
+  const template = path.join(__dirname, '..', 'plugins', 'keel', 'templates', 'feature-page');
+  assert.deepEqual([...PAGE_ASSETS].sort(), fs.readdirSync(template).filter((n) => n !== 'index.html').sort());
+  const skill = fs.readFileSync(path.join(__dirname, '..', 'plugins', 'keel', 'skills', 'feature-page', 'SKILL.md'), 'utf8');
+  const step = skill.slice(skill.indexOf('6. Read the whole page file'), skill.indexOf('7. Tell the result'));
+  const a = step.slice(step.indexOf('- **A**'), step.indexOf('- **B**'));
+  const b = step.slice(step.indexOf('- **B**'));
+  for (const name of PAGE_ASSETS) {
+    const n = name.replace(/\./g, '\\.');
+    assert.match(step, new RegExp(`Read the whole page file and the \`${n}\``), `step 6 reads ${name}`);
+    assert.match(a, new RegExp(`"${n}":`), `A publishes ${name}`);
+    assert.match(b, new RegExp(`"as":\\s+"${n}"`), `B publishes ${name}`);
+  }
 });
 
 gitTest('the code: the tickets\' own, whatever the remote; a feature exported without one gets one written into its tickets here', () => {
