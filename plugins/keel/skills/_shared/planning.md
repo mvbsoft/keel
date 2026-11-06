@@ -54,7 +54,8 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   registry needs the web: `keel:researcher` on a yes, its price said in words, at most 2 packages.
   An elementary task stops after the first step: nothing there → write it ourselves, no package
   named. Show the choice as `<keel>/skills/_shared/packages.md`
-  "Offer" says (read only that section).
+  "Offer" says (read only that section). In the chat, each package's data names where it comes from
+  (the registry, deps.dev or a page) and the date it was read, or says "not checked".
 - **Levels.** An elementary task or choice (a closed set of cases, variation only by parameters, a
   one-shot transform, imagined variants: "1d 2h" to seconds is a function of a few lines with a table
   of units, not a class with validators), and any task with none of the signals below, gets one
@@ -85,8 +86,9 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   prompt: the question, the candidates (at most 2 packages) or what to compare, the project's stack and
   versions from its manifest, `<keel>`, `<project>` and the plan's language. Its reply → first write
   it as it is into `research/<topic>.md` in the draft folder (`<topic>`: English words joined by `-`;
-  also a report with "not checked" in it), then show the choice; a ticket that follows it names the
-  file in Why. The research folder goes with the tickets on export.
+  also a report with "not checked" in it), then show the choice with the report's sources and
+  dates; a ticket that follows it names the file in Why. The research folder goes with the tickets
+  on export.
 - Keep `plan.md` true as you go: In plain words (the whole feature for a person: what and why, how it
   will work, an example, what is not done, how we know it is done), Level,
   Decisions (`D1. decision - why`), Contract (APIs, events and formats between repositories), Out of
