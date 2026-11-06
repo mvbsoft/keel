@@ -22,6 +22,7 @@ levels: [verification](verification.md).
 | [`/keel:end-session`](#keelend-session) | end a session: verify, write the note, git |
 | [`/keel:start-planning`](#keelstart-planning) | plan a feature: questions, decisions and short tickets, no code |
 | [`/keel:end-planning`](#keelend-planning) | hand the plan over, or review it and export the tickets |
+| [`/keel:feature-page`](#keelfeature-page) | a private page of a planned feature in your claude.ai account, to read |
 | [`/keel:cleanup`](#keelcleanup) | move leftovers to keel's trash, put them back, empty old trash |
 | [`/keel:usage`](#keelusage) | the link to your private usage page, opened |
 | [`/keel:usage-clear`](#keelusage-clear) | deletes all data on the usage page, after a warning and your yes |
@@ -42,7 +43,7 @@ first commit of the current state, and stop on a no.
 | `/keel:configure` when the config is out of date or broken | Repairs it: asks only about fields a newer keel added, or lists each problem with a proposed fix, and keeps everything else. |
 | `/keel:configure machine` | Only this machine's settings, for every project: the conversation language, the machine values of the Claude Code settings, usage and costs. Writes no `.keel/` files. |
 | `/keel:configure check` | Says, without changing any setting, whether the project changed since the last configure in ways its settings depend on, which sections to run again and why (each with the fact, for example a new `npm run test:e2e` keel does not run, or a main branch that is gone), and the command that runs only those. Package versions alone never count. One script does the comparison, so the answer costs about one reply. On a machine without a record of the last configure it rebuilds one from the commit of `.keel/` (a few seconds, once). [More](#keelconfigure-check). |
-| `/keel:configure <section>[,<section>...]` | Only those sections again, in a configured project, in section order, and the files are written once at the end: `/keel:configure gates,git` (or `3,4`). Sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`. `prices` has an agent read the official pricing page and shows the differences; `migration` moves another notes system into keel. |
+| `/keel:configure <section>[,<section>...]` | Only those sections again, in a configured project, in section order, and the files are written once at the end: `/keel:configure gates,git` (or `3,4`). Sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`; `planning` asks only the planning settings (ticket prefix, where the tickets live, their language). `prices` has an agent read the official pricing page and shows the differences; `migration` moves another notes system into keel. |
 
 Nothing is written without your yes. A project setup writes `.keel/config.json`, `.keel/profile.json`
 and `.keel/.gitignore`; with your yes also the Claude Code settings it recommends (each file backed up
@@ -95,7 +96,8 @@ Then one combined question (the retell, "continuation of X?" or "new, right?", a
 questions or a brainstorm offer, a plan with the branch to work in (a new branch from the current one,
 recommended; the current branch; or your own git steps, which keel runs in both git modes), the task
 folder, and the code. A task that turns out too big: keel offers to plan it as a feature instead,
-while no code changed. Every case, including continuing a task and a planned ticket:
+in a new chat with a brief of what was found, or here; with code already changed it advises by what
+is done. Every case, including continuing a task and a planned ticket:
 [ways of working](workflows.md#start-a-task-keelstart-task).
 
 ## `/keel:end-task`
@@ -118,7 +120,7 @@ Every case: [ways of working](workflows.md#end-a-task-keelend-task).
 
 | You type | keel does |
 |---|---|
-| `/keel:tasks` | Lists the unfinished tasks of this working tree and of every branch (as of the last fetch): `<id> · <title>`, then Source, State (active or handed off, how long ago, steps done of total, branch), Next and Files; a "Base moved" line when the base branch got new commits since the handoff. A task handed off 30 days ago or more: keel offers to finish it or drop it. It ends with "Continue one with `/keel:start-task <id>`". Then a "Planned" block: each feature with planned tickets not done, every ticket's state, when the server data was fetched, and "Start the next one with `/keel:start-task <KEY>`"; a feature whose every ticket is `done` or `waiting for the feature merge` gets the offer of its [end](workflows.md#end-of-a-feature). |
+| `/keel:tasks` | Lists the unfinished tasks of this working tree and of every branch (as of the last fetch): `<id> · <title>`, then Source, State (active or handed off, how long ago, steps done of total, branch), Next and Files; a "Base moved" line when the base branch got new commits since the handoff. A task handed off 30 days ago or more: keel offers to finish it or drop it. It ends with "Continue one with `/keel:start-task <id>`". Then a "Planned" block: each feature with planned tickets not done, every ticket's state, when the server data was fetched, and "Start the next one with `/keel:start-task <KEY>`"; a feature whose every ticket is `done` or `waiting for the feature merge` gets the offer of its [end](planning.md#end-of-a-feature). A feature on several repositories then gets an "Other repositories" block: its tickets there with their states, or, for a repository not on this machine, the overview's list with the state unknown; when the feature's overview differs between repositories, keel says so in one line and offers to align it ([tickets of linked repositories](planning.md#ticket-states)). |
 | `/keel:tasks CAN-123` | Shows that task: goal, state, open questions and the next action, in 3-6 lines. It reads the task file also from another branch. |
 | `/keel:tasks drop CAN-123` | Explains everything the task left: its folder, its branch (local, pushed), the commits not in the base branch, the changed files and the docs among them. Asks what to remove: everything or which parts. Then each removal on its own, the folder first, and Claude Code itself asks you to confirm the folder and the branch. The folder goes to keel's trash (`/keel:cleanup restore` brings it back); when its branch stays, the removal is committed on that branch. The branch is deleted locally (`git branch -D`) and, if it was pushed, on the remote; after a local delete keel prints the `git branch <name> <commit>` command that brings it back, and after a remote delete the remote branch's last commit and `git push <remote> <commit>:refs/heads/<name>`, which brings it back while that commit is still in your repository. The main branch and the current one are refused (switch away first). Changes already in the base branch are only reverted (`git revert`), never rewritten. In manual git keel gives the commit, branch and revert commands instead of running them. |
 
@@ -158,12 +160,13 @@ Every case: [ways of working](workflows.md#end-a-session-keelend-session).
 | You type | keel does |
 |---|---|
 | `/keel:start-planning` | lists the drafts (feature, state, open questions, tickets, last change, where) and asks which to continue or what the new feature is |
-| `/keel:start-planning CSV export of invoices` (or a link, or a file) | a new feature: the retell, its size, a name, where its tasks merge, then one question at a time |
+| `/keel:start-planning CSV export of invoices` (or a link, or a file) | a new feature: the retell, its size, a name, where its tasks merge; told in a line or two or large, an offer to gather first (the project map, with its price); then one question at a time |
+| `/keel:start-planning .keel/local/plans/briefs/<name>-brief.md` | a new feature from the brief `/keel:start-task` wrote for a task too big for one: its content goes into the plan, the brief to keel's trash, and planning starts from its open questions without asking again what it settles |
 | `/keel:start-planning csv-export` (or "continue the CSV export") | continues that draft from its Next action; an exported feature reopens its tickets for editing |
 
-The first run in a project asks the tickets' language and where the draft lives (this machine or the
-repository). No code: the conversation writes only the draft. Every case:
-[ways of working](workflows.md#planning).
+Without the project's planning settings (`/keel:configure planning`) the first run stops before any
+question; then it asks where the draft lives (this machine or the repository). No code: the conversation writes only the draft. Every case:
+[planning](planning.md).
 
 ## `/keel:end-planning`
 
@@ -176,7 +179,61 @@ repository). No code: the conversation writes only the draft. Every case:
 | `/keel:end-planning` | open questions or structure problems → hand over, with the reason; otherwise asks "Final review and export, or hand over?" |
 
 Planning files are committed and pushed only after your yes and Claude Code's own prompt. The report:
-Done, Reviews, Git, What next, Costs. Every case: [ways of working](workflows.md#end-keelend-planning).
+Done, Reviews, Git, What next, Costs. Every case: [planning](planning.md#end-keelend-planning).
+
+## `/keel:feature-page`
+
+`/keel:feature-page [feature] [--lang <code>]`
+
+| You type | keel does |
+|---|---|
+| `/keel:feature-page csv-export` | makes the page of the feature `csv-export`, or updates the one made before, and gives its link |
+| `/keel:feature-page` | the same for the feature of the current branch; none or several → asks which |
+| `/keel:feature-page csv-export --lang en` | the same page in English from now on |
+
+The page is private, in your claude.ai account. On a computer it has two columns. On the left: the
+feature (its projects and the commits it is a snapshot of open on a click), the overview in short
+with buttons for its sections, decisions, terms and research; what is in progress now (else what is
+next), with a bar and the tickets' count by state; and the list of tickets by repository. On the
+right: the chosen ticket, the one in progress at first, its sections as blocks: In plain words with
+the goal, the trap, Done when, How to check, Boundaries with Out of scope, Where to look, Why with the
+decisions it names, and Dependencies with their states (a click opens that ticket). Each block has an
+ⓘ whose hint says what it holds; "MD file" shows the file as GitHub draws it, diagrams included. On
+a phone the list comes first and a ticket opens over it. A link ending in `#API-122` opens that
+ticket.
+
+The texts are those of the md files, which stay the source; keel puts them into a fixed template and
+the page draws the markdown and code itself (libraries from cdnjs), so every feature looks the same.
+A feature on several repositories also shows the other repositories' tickets: read in their folders on
+this machine, else from the overview with the state unknown and a "not on this machine" mark; a
+dependency on such a ticket is unknown too. A ticket of this repository whose file is only on another
+branch is read from that branch and marked "only on branch <branch>". A dependency shows its ticket's own state and, when it
+holds the ticket back or was merged in by hand, where its code is: "ready in the <branch> feature
+branch, not in main" (on hover: wait for that merge, or pull it into your branch with `git merge`),
+"ready in the <branch> ticket branch", or "already in your branch". The page shows git as it was when
+it was built or updated: it does not update itself. Its feature card says when it was built and gives
+the command that updates it, `/keel:feature-page <feature>`, with a Copy button.
+
+**Language.** `--lang`, else the language the page already has, else your conversation language.
+The labels come from keel's language files (English and Ukrainian today; English for another
+language). When the page's language is not the tickets', Claude translates the texts on the page only,
+never the md files; the page keeps each translation with a fingerprint of its original, so the next
+update translates only what changed. Translating costs tokens; the same language costs nothing extra.
+
+The page is titled `[API, WEB] - <the overview's heading> (3f9a2c1b)`: the ticket prefixes of the
+repositories with tickets, the heading (cut to 80 characters) and the feature's code. The code is
+random, made once with the draft (`page:` in `plan.md`) and written by the export into every ticket
+of the feature, so it travels with the feature in git: every machine and every repository of the
+feature finds the same page, whether or not the other repositories are on that machine or have a
+remote, and two projects with the same prefix and feature name never share a page. keel looks the
+page up among your latest ones (200, or 500 with the artifact server's tools) by the code at the end
+of its title and updates it, renaming it when the heading or the repositories changed. A feature
+exported before the code gets one, written into its tickets in this working tree: commit and push
+them. Not found while you have more → keel asks for its link or makes a new one. A path of this machine in the feature's files (a ticket, the overview, a report) is never
+published: keel names each one and stops; write it from the repository's root. Nothing is kept on this machine: the
+page is built in `.keel/local/tmp/` and removed after publishing. It needs Claude Code signed in to a
+claude.ai account; with an API key there is no page. Each run costs about $0.1-0.4 (an estimate:
+reading the page and the generated file); the run's own cost is the last line of its report.
 
 ## `/keel:cleanup`
 

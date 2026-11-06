@@ -1,516 +1,50 @@
 'use strict';
 // plans.js tickets, done and drop: the state of exported tickets, worked out from git and the files
 // (no tokens), and the two steps that end a ticket and a feature.
-// - Finding tickets: .md files with a key in the name (PROJ-101-upload.md) whose front matter says
-//   `type: ticket` with a `key`, and every .md beside them (a hand-made upload.md in the feature folder),
-//   in any folder of the project; the ticket folder of the settings is not needed. Read in the working
-//   tree, in every local and remote branch with a commit in the last 30 days, and always in each
-//   ticket's own `branch` and `merge_into`: one ls-tree per distinct tree, one cat-file --batch for every
-//   distinct candidate file. Plus this machine's tickets (.keel/local/plans/keel/<feature>/tickets/).
-// - The working tree stands for the current branch: a status written and not yet committed counts.
-// - State of a key, the first that holds:
-//   done                          status done on <remote>/<merge_into> (no remote: the local one), or on
-//                                 a branch merged into it that has no file for the key (folder removed,
-//                                 not by a revert of that merge)
-//   waiting for the feature merge done on the feature branch (or on the local merge_into), or on a
-//                                 ticket branch merged into a feature branch that no longer has the ticket
-//   waiting for merge into the feature branch   done on any other branch
-//   in progress                   a commit with the key that changes more than the ticket's folder, on a
-//                                 branch not merged into merge_into, or on merge_into since the folder
-//                                 was first added anywhere (done by hand, status not written); a commit
-//                                 that changes only ticket folders and .keel/ does not count; a branch of any age
-//                                 named with the key; an unfinished keel task with the key as id; the
-//                                 key in `keys:` of .keel/next-session.md
-//   to do                         none of these
-//   A ticket on this machine: done in its file, in progress by a task or the note, else to do. Keys
-//   compare without case.
-// - Marks: reverted (done on a branch already merged into merge_into, whose file says todo again or
-//   whose folder a revert took away),
-//   stale (the branch behind the state has no commit for 30 days), duplicate key (several files).
-// - Next, per feature: the first to do by key number whose depends_on are each done, or waiting for
-//   the feature merge in the same feature (its code is already on the feature branch). A dependency no
-//   read branch has a file for (its feature finished, its tickets dropped and merged) counts as done when
-//   the last version of its file before a commit deleted it on the dependent ticket's merge_into says done
-//   (not when a revert of a merge deleted it, or the deletion came with a merge reverted since); else it
-//   is in progress when a commit with the key on merge_into's own line changes the project outside ticket
-//   folders and .keel/ (a squash merge after the drop), else not found. A merge applied again after its
-//   revert (a revert of the revert) is still read as undone: the dependency then shows as not done.
+// - Finding and reading the tickets: lib/plans-state-read.js; the state of each key and the next
+//   ticket: lib/plans-state-rules.js.
 // Reads only, except `done` (one status line of a ticket in the working tree) and `drop` (the feature
 // folder to keel's trash).
-const fs = require('node:fs');
 const path = require('node:path');
 const plans = require('./plans.js');
-const { git, read, frontmatter, clean } = require('./repo-read.js');
+const { git, read, clean } = require('./repo-read.js');
 const { moveToTrash } = require('./trash.js');
-const { listTasks, setFront, readBlobs } = require('./tasks.js');
-const { TRACKER, noteKeys } = require('../notes.js');
-const { pickRemote, sameBranch } = require('../git-flow.js');
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const FRESH_DAYS = 30;
-// A file name that holds a key: PROJ-101.md, PROJ-101-upload.md.
-const KEY_NAME = /(^|\/)[A-Za-z][A-Za-z0-9]+-\d+(-[^/]*)?\.md$/;
-const KEY = /^[A-Za-z][A-Za-z0-9]+-\d+$/;
-const LOCAL = '.keel/local/';
-// How deep a project that is not a git repository is walked for ticket files.
-const WALK_DEPTH = 6;
-const STATES = ['done', 'waiting for the feature merge', 'waiting for merge into the feature branch', 'in progress', 'to do'];
+const { setFront } = require('./tasks.js');
+const { sameBranch } = require('../git-flow.js');
+const { collect, serverData, pickTickets, workPaths, pcTickets, KEY, dirOf, upper, prefixOf, byKey } = require('./plans-state-read.js');
+const { STATES, short, states, doneInHistory, stateIn, keysHere, metBy, depWhere, whereLine, nextOf } = require('./plans-state-rules.js');
+// Loaded when used: lib/plans-neighbours.js reads other repositories with this file's code.
+const neighbours = () => require('./plans-neighbours.js');
 
 const refuse = (what, why) => [`plans: ${what} refused (${why})`];
 const rel = (root, file) => path.relative(root, file).split(path.sep).join('/');
-const dirOf = (p) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
-const upper = (k) => String(k).toUpperCase();
-const short = (ref) => ref.replace(/^refs\/(heads|remotes)\//, '');
 const given = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '-';
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-const prefixOf = (key) => key.slice(0, key.lastIndexOf('-'));
-const numberOf = (key) => Number(key.slice(key.lastIndexOf('-') + 1));
-const byKey = (a, b) => prefixOf(a).localeCompare(prefixOf(b)) || numberOf(a) - numberOf(b);
-const keyList = (value) => String(value || '').replace(/[[\]]/g, '').split(/[\s,;]+/).filter((x) => KEY.test(x)).map(upper);
-
-function ago(seconds, now) {
-  const days = Math.max(0, Math.floor((now.getTime() - seconds * 1000) / DAY_MS));
-  return days === 0 ? 'today' : days === 1 ? '1 day ago' : `${days} days ago`;
-}
-
-// --- reading the tickets ---
-
-// A ticket's fields from its text, or null when it is not one.
-function ticketOf(text) {
-  const fm = frontmatter(text || '');
-  if (fm.type !== 'ticket' || !KEY.test(fm.key || '')) return null;
-  const h = /^# (.+)$/m.exec(String(text).replace(/^---\r?\n[\s\S]*?\r?\n---/, ''));
-  return { key: upper(fm.key), shown: fm.key, fm, title: h ? h[1].replace(/^\[[^\]]*\]\s*/, '').trim() : '' };
-}
-
-// The paths whose text is read: key-named .md files and every .md in their folders. keel's own
-// .keel/local/ is never a repository ticket folder.
-function candidates(paths) {
-  const named = paths.filter((p) => KEY_NAME.test(p) && !p.startsWith(LOCAL));
-  const dirs = new Set(named.map(dirOf));
-  return paths.filter((p) => /\.md$/i.test(p) && !p.startsWith(LOCAL) && dirs.has(dirOf(p)));
-}
-
-// The tickets among the paths: key-named files confirmed by their front matter, then the other .md files
-// in the folders where one was confirmed.
-function pickTickets(paths, textOf) {
-  const list = candidates(paths);
-  const out = [];
-  const folders = new Set();
-  for (const p of list.filter((x) => KEY_NAME.test(x))) {
-    const t = ticketOf(textOf(p));
-    if (t) { out.push({ ...t, path: p }); folders.add(dirOf(p)); }
-  }
-  for (const p of list.filter((x) => !KEY_NAME.test(x) && folders.has(dirOf(x)))) {
-    const t = ticketOf(textOf(p));
-    if (t) out.push({ ...t, path: p });
-  }
-  return out;
-}
-
-// The tickets of each commit (sha -> tickets), filled into `cache`: one cat-file --batch-check finds the
-// project's tree in every commit (`./`: the project may be a sub-folder of the repository), one ls-tree
-// per tree not read yet, one cat-file --batch for the candidate files not read yet. --full-tree: from a
-// sub-folder, ls-tree would list only the paths under that folder's name inside the project's tree.
-function readCommits(root, cache, shas) {
-  const fresh = [...new Set(shas)].filter((c) => !cache.commits.has(c));
-  if (!fresh.length) return;
-  const answers = (git(root, ['cat-file', '--batch-check=%(objectname) %(objecttype)'], fresh.map((c) => `${c}:./\n`).join('')) || '').split('\n');
-  const treeOf = new Map(fresh.map((c, i) => [c, (/^([0-9a-f]+) tree$/.exec(answers[i] || '') || [])[1] || null]));
-  const listed = new Map();
-  for (const tree of treeOf.values()) {
-    if (!tree || cache.trees.has(tree) || listed.has(tree)) continue;
-    const files = new Map();
-    for (const entry of (git(root, ['ls-tree', '-r', '-z', '--full-tree', tree]) || '').split('\0')) {
-      // Regular files only: a committed link (120000) is never read as a ticket.
-      const m = /^100(?:644|755) blob ([0-9a-f]+)\t([\s\S]+)$/.exec(entry);
-      if (m) files.set(m[2], m[1]);
-    }
-    listed.set(tree, files);
-  }
-  const wanted = new Set();
-  for (const files of listed.values()) for (const p of candidates([...files.keys()])) if (!cache.blobs.has(files.get(p))) wanted.add(files.get(p));
-  for (const [sha, text] of readBlobs(root, [...wanted])) cache.blobs.set(sha, text);
-  for (const [tree, files] of listed) cache.trees.set(tree, pickTickets([...files.keys()], (p) => cache.blobs.get(files.get(p)) ?? null));
-  for (const [c, tree] of treeOf) cache.commits.set(c, tree ? cache.trees.get(tree) : []);
-}
-
-// The project's files in the working tree: git's list (tracked and untracked, not ignored), or a short
-// walk when the project is not a git repository.
-function workPaths(root, inRepo) {
-  if (inRepo) return [...new Set((git(root, ['ls-files', '-z', '-co', '--exclude-standard']) || '').split('\0').filter(Boolean))];
-  const out = [];
-  const walk = (dir, prefix, depth) => {
-    let entries = [];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-    for (const e of entries) {
-      if (e.isFile()) out.push(`${prefix}${e.name}`);
-      else if (e.isDirectory() && depth < WALK_DEPTH && !e.name.startsWith('.') && e.name !== 'node_modules') walk(path.join(dir, e.name), `${prefix}${e.name}/`, depth + 1);
-    }
-  };
-  walk(root, '', 0);
-  return out;
-}
-
-// This machine's exported tickets: .keel/local/plans/keel/<feature>/tickets/*.md.
-function pcTickets(root) {
-  let dirs = [];
-  try { dirs = fs.readdirSync(plans.base(root), { withFileTypes: true }).filter((e) => e.isDirectory() && plans.validFeature(e.name)).map((e) => e.name); } catch { /* none */ }
-  const out = [];
-  for (const feature of dirs) {
-    const folder = path.join(plans.base(root), feature, 'tickets');
-    let names = [];
-    try { names = fs.readdirSync(folder, { withFileTypes: true }).filter((e) => e.isFile() && /\.md$/i.test(e.name)).map((e) => e.name); } catch { /* none */ }
-    for (const name of names) {
-      const t = ticketOf(read(path.join(folder, name)));
-      if (t) out.push({ ...t, path: rel(root, path.join(folder, name)), feature, pc: true });
-    }
-  }
-  return out;
-}
-
-// Local and remote branches (not <remote>/HEAD): ref, tip, its commit time and author.
-function listRefs(root) {
-  const text = git(root, ['for-each-ref', '--format=%(objectname)%00%(committerdate:unix)%00%(authorname)%00%(refname)', 'refs/heads', 'refs/remotes']) || '';
-  return text.split('\n').map((l) => l.split('\0')).filter((f) => f.length === 4 && !/^refs\/remotes\/[^/]+\/HEAD$/.test(f[3]))
-    .map(([sha, date, author, ref]) => ({ ref, sha, date: Number(date) || 0, author }));
-}
-
-// Everything the states are worked out from. A view is one place the tickets were read: a branch, or
-// the working tree in place of the current branch.
-function collect(root, now) {
-  const inRepo = git(root, ['rev-parse', '--git-dir']) !== null;
-  const remote = inRepo ? pickRemote((git(root, ['remote']) || '').split('\n').filter(Boolean)) : null;
-  const refs = inRepo ? listRefs(root) : [];
-  const byRef = new Map(refs.map((r) => [r.ref, r]));
-  const current = inRepo ? git(root, ['symbolic-ref', '-q', 'HEAD']) : null;
-  const tip = current && byRef.get(current);
-  const work = { ref: current || 'HEAD', sha: inRepo ? git(root, ['rev-parse', '-q', '--verify', 'HEAD']) : null, date: tip ? tip.date : 0, author: tip ? tip.author : '', work: true };
-  work.tickets = pickTickets(workPaths(root, inRepo), (p) => read(path.join(root, p)));
-  const cache = { commits: new Map(), trees: new Map(), blobs: new Map() };
-  const views = [work];
-  const add = (list) => {
-    readCommits(root, cache, list.map((r) => r.sha));
-    for (const r of list) views.push({ ...r, tickets: cache.commits.get(r.sha) || [] });
-  };
-  const freshFrom = now.getTime() / 1000 - FRESH_DAYS * DAY_MS / 1000;
-  add(refs.filter((r) => r.ref !== current && r.date >= freshFrom));
-  // Each ticket's own branch and merge_into, whatever their age.
-  const named = new Set();
-  for (const v of views) {
-    for (const t of v.tickets) {
-      for (const b of [t.fm.branch, t.fm.merge_into].filter(given)) {
-        named.add(`refs/heads/${b}`);
-        if (remote) named.add(`refs/remotes/${remote}/${b}`);
-      }
-    }
-  }
-  const seen = new Set(views.map((v) => v.ref));
-  add([...named].filter((r) => byRef.has(r) && !seen.has(r)).map((r) => byRef.get(r)));
-  return { root, now, inRepo, remote, refs, byRef, current, views, pc: pcTickets(root), main: plans.mainBranch(root), ancestors: new Map() };
-}
-
-// --- the states ---
-
-// Whether commit a is in b's history; each pair is asked once per run.
-function isAncestor(d, a, b) {
-  if (!a || !b) return false;
-  const k = `${a} ${b}`;
-  if (!d.ancestors.has(k)) d.ancestors.set(k, git(d.root, ['merge-base', '--is-ancestor', a, b]) !== null);
-  return d.ancestors.get(k);
-}
-const greps = (keys) => ['-i', '-F', ...keys.map((k) => `--grep=${k}`)];
-// The project outside the ticket folders and keel's own .keel/ (task files, notes): a commit that changes
-// only those is no work on a key.
-const outside = (folders) => ['--', '.', ':(exclude,literal).keel', ...folders.filter(Boolean).map((f) => `:(exclude,literal)${f}`)];
-
-// The keys of `keys` the messages name (notes.js TRACKER), each with the first record that names it.
-function keysIn(records, keys, field) {
-  const found = new Map();
-  for (const r of records) {
-    for (const m of r.body.matchAll(TRACKER)) {
-      const k = upper(m[1]);
-      if (keys.includes(k) && !found.has(k)) found.set(k, r[field]);
-    }
-  }
-  return found;
-}
-const records = (text) => String(text || '').split('\x1e').map((r) => r.replace(/^\n/, '')).filter(Boolean).map((r) => { const i = r.indexOf('\0'); return { ref: r.slice(0, i), body: r.slice(i + 1) }; });
-
-// The branches git log reads: every view but a working tree whose branch has no commit yet.
-const readRefs = (d) => [...new Set(d.views.filter((v) => !v.work || d.byRef.has(v.ref)).map((v) => v.ref))];
-// Revisions go to git on stdin: hundreds of branches would pass the length a command line may have.
-const stdin = (revs) => `${revs.join('\n')}\n`;
-
-// Commits with a key that change something outside every ticket folder: on the read branches but not on
-// the target (key -> the branch that has it), and on the target since the feature folder was first added
-// on any read branch (keys): work done there by hand, before or after the feature merged.
-function keyCommits(d, keys, own, all, target) {
-  const refs = readRefs(d).filter((r) => r !== target);
-  const onBranches = refs.length
-    ? keysIn(records(git(d.root, ['log', '--source', '--format=%S%x00%B%x1e', ...greps(keys), '--stdin', ...outside(all)], stdin([...refs, ...(target ? [`^${target}`] : [])]))), keys, 'ref')
-    : new Map();
-  let onTarget = new Map();
-  const shown = own.filter(Boolean);
-  if (target && shown.length) {
-    const times = (git(d.root, ['log', '--format=%ct', '--diff-filter=A', '--stdin', '--', ...shown.map((f) => `:(literal)${f}`)], stdin(readRefs(d))) || '').split('\n').map(Number).filter((t) => t > 0);
-    const first = times.reduce((a, b) => Math.min(a, b), Infinity);
-    if (first !== Infinity) onTarget = keysIn(records(git(d.root, ['log', '--format=%x00%B%x1e', ...greps(keys), `--since=@${first}`, target, ...outside(all)])), keys, 'ref');
-  }
-  return { onBranches, onTarget };
-}
-
-// The commit that last removed the feature's folders from the target: { sha, subject }, or null.
-function removal(d, folders, target) {
-  const shown = folders.filter(Boolean);
-  if (!shown.length) return null;
-  const out = git(d.root, ['log', '-1', '--diff-filter=D', '--format=%H%x00%s', target, '--', ...shown.map((f) => `:(literal)${f}`)]);
-  if (!out) return null;
-  const [sha, subject] = out.split('\0');
-  return { sha, subject: subject || '' };
-}
-
-// The reverts on the target's own line (first parents), once per target: revert sha -> whether it
-// reverted a merge, and those merges with their first parent.
-function revertsOn(d, target) {
-  if (!d.reverts) d.reverts = new Map();
-  if (d.reverts.has(target)) return d.reverts.get(target);
-  const pairs = [];
-  for (const r of (git(d.root, ['log', '--first-parent', '--format=%H%x00%B%x1e', '--grep=This reverts commit', target]) || '').split('\x1e')) {
-    const i = r.indexOf('\0');
-    const m = i < 0 ? null : /This reverts commit ([0-9a-f]{7,40})/.exec(r.slice(i + 1));
-    if (m) pairs.push([r.slice(0, i).trim(), m[1]]);
-  }
-  const parents = pairs.length ? (git(d.root, ['rev-list', '--no-walk', '--parents', '--stdin'], stdin(pairs.map((p) => p[1]))) || '').split('\n').map((l) => l.split(' ')) : [];
-  const out = { reverts: new Map(), merges: [] };
-  for (const [revert, reverted] of pairs) {
-    const hit = parents.find((l) => l[0].startsWith(reverted));
-    const merge = Boolean(hit) && hit.length > 2;
-    out.reverts.set(revert, merge);
-    if (merge) out.merges.push({ sha: hit[0], first: hit[1] });
-  }
-  d.reverts.set(target, out);
-  return out;
-}
-
-// Whether commit c came to the target with a merge that a later revert undid: c is on the merged side of
-// that merge (in its history, not in its first parent's). A merge applied again (a revert of the revert)
-// still counts as undone: a limit, the dependent ticket then names the key as not done.
-const revertedIn = (d, c, target) => revertsOn(d, target).merges.some((m) => isAncestor(d, c, m.sha) && !isAncestor(d, c, m.first));
-
-// One entry per key: its files, where they are, and the fields of the one that speaks for it (the
-// working tree's, else the newest branch's).
-function byKeys(d) {
-  const keys = new Map();
-  const entry = (t) => {
-    if (!keys.has(t.key)) keys.set(t.key, { key: t.key, found: [], pc: [] });
-    return keys.get(t.key);
-  };
-  for (const v of d.views) for (const t of v.tickets) entry(t).found.push({ ...t, view: v });
-  for (const t of d.pc) entry(t).pc.push(t);
-  for (const e of keys.values()) {
-    const newest = [...e.found].sort((a, b) => Number(b.view.work === true) - Number(a.view.work === true) || b.view.date - a.view.date)[0];
-    const rep = newest || e.pc[0];
-    e.rep = rep;
-    e.shown = rep.shown;
-    e.title = rep.title;
-    e.feature = rep.pc ? rep.feature : given(rep.fm.feature) ? rep.fm.feature : path.posix.basename(dirOf(rep.path)) || '-';
-    e.branch = given(rep.fm.branch) ? rep.fm.branch : e.feature;
-    e.mergeInto = given(rep.fm.merge_into) ? rep.fm.merge_into : d.main || '-';
-    e.depends = keyList(rep.fm.depends_on);
-    e.paths = [...new Set([...e.found.map((f) => f.path), ...e.pc.map((t) => t.path)])];
-    e.folders = [...new Set(e.found.map((f) => dirOf(f.path)))];
-  }
-  return keys;
-}
-
-// The hint for the branch behind a state, and whether it is stale.
-function behind(d, v) {
-  const r = d.byRef.get(v.ref) || v;
-  const stale = r.date > 0 && d.now.getTime() - r.date * 1000 > FRESH_DAYS * DAY_MS;
-  return { hint: `branch ${short(v.ref)}${r.author ? `, ${clean(r.author, 40)}` : ''}${r.date ? `, ${ago(r.date, d.now)}` : ''}`, stale };
-}
-
-// Works out every key's state, marks and hint.
-function states(d) {
-  const keys = byKeys(d);
-  const featureCommits = new Map();
-  let tasks = null;
-  let note = null;
-  const taskIds = () => (tasks = tasks || new Set(listTasks(d.root).map((t) => upper(t.id))));
-  const noteSet = () => (note = note || new Set(noteKeys(d.root).map(upper)));
-  const keyRefs = new Map();
-  for (const r of d.refs) for (const m of short(r.ref).matchAll(TRACKER)) if (!keyRefs.has(upper(m[1]))) keyRefs.set(upper(m[1]), r);
-  // The ticket folders of each feature, and of all of them: a commit that only edits tickets is no work.
-  const folders = new Map();
-  for (const e of keys.values()) folders.set(e.feature, [...new Set([...(folders.get(e.feature) || []), ...e.folders])]);
-  const every = [...new Set([...folders.values()].flat())];
-  const removals = new Map();
-  const targetOf = (e) => {
-    if (d.remote && d.byRef.has(`refs/remotes/${d.remote}/${e.mergeInto}`)) return `refs/remotes/${d.remote}/${e.mergeInto}`;
-    return d.byRef.has(`refs/heads/${e.mergeInto}`) ? `refs/heads/${e.mergeInto}` : null;
-  };
-  for (const e of keys.values()) {
-    e.marks = [];
-    if (e.paths.length > 1) e.marks.push(`duplicate key (${e.paths.length} files)`);
-    const inProgress = () => {
-      if (taskIds().has(e.key)) return { state: 3, hint: 'keel task' };
-      if (noteSet().has(e.key)) return { state: 3, hint: 'session (.keel/next-session.md)' };
-      return null;
-    };
-    // The target also for a ticket kept on this machine: its dependencies may be read from git history.
-    const target = targetOf(e);
-    e.target = target;
-    if (!e.found.length) {
-      const s = e.pc.some((t) => t.fm.status === 'done') ? { state: 0 } : inProgress() || { state: 4 };
-      Object.assign(e, s);
-      continue;
-    }
-    const featureRefs = new Set([`refs/heads/${e.branch}`, ...(d.remote ? [`refs/remotes/${d.remote}/${e.branch}`] : []), ...(target && target !== `refs/heads/${e.mergeInto}` ? [`refs/heads/${e.mergeInto}`] : [])]);
-    const onTarget = e.found.filter((f) => f.view.ref === target);
-    // A done that a later commit or the working tree took back (done --undo) does not count. The target and
-    // the local merge_into are left out: a todo there after a merge is a revert, marked below.
-    const undoneBy = e.found.filter((f) => f.fm.status !== 'done' && f.view.ref !== target && f.view.ref !== `refs/heads/${e.mergeInto}`).map((f) => f.view);
-    const doneOn = e.found.filter((f) => f.fm.status === 'done' && f.view.ref !== target
-      && (f.view.work || !undoneBy.some((u) => (u.sha !== f.view.sha || u.work) && isAncestor(d, f.view.sha, u.sha)))).map((f) => f.view);
-    if (onTarget.some((f) => f.fm.status === 'done')) { e.state = 0; continue; }
-    const tips = [`refs/heads/${e.branch}`, ...(d.remote ? [`refs/remotes/${d.remote}/${e.branch}`] : [])].filter((r) => d.byRef.has(r));
-    // Merged into the target, which has no file for the key: done, unless the folder left the target with
-    // a revert the feature branch does not have (the merge was undone, the tickets were not removed). A
-    // status written in the working tree and not committed is never merged.
-    // Also undone: every merged done came with a merge reverted since (the drop went with it).
-    let undone = false;
-    const merged = target && !onTarget.length ? doneOn.filter((v) => !v.work && isAncestor(d, v.sha, target)) : [];
-    if (merged.length) {
-      const k = `${e.feature} ${target}`;
-      if (!removals.has(k)) removals.set(k, removal(d, folders.get(e.feature), target));
-      const gone = removals.get(k);
-      undone = (Boolean(gone) && gone.subject.startsWith('Revert "') && !tips.some((r) => isAncestor(d, gone.sha, r))) || merged.every((v) => revertedIn(d, v.sha, target));
-      if (!undone) { e.state = 0; continue; }
-    }
-    const newest = (list) => [...new Set(list)].sort((a, b) => b.date - a.date || Number(b.ref.startsWith('refs/heads/')) - Number(a.ref.startsWith('refs/heads/')))[0];
-    const held = newest(doneOn.filter((v) => featureRefs.has(v.ref))) || newest(doneOn);
-    if (held) {
-      // A ticket branch merged into a feature branch that no longer has the ticket (dropped): its code is
-      // on the feature branch.
-      const merged = !featureRefs.has(held.ref) && !held.work && !e.found.some((f) => tips.includes(f.view.ref)) && tips.some((r) => isAncestor(d, held.sha, r));
-      e.state = undone || merged || featureRefs.has(held.ref) ? 1 : 2;
-      const b = behind(d, held);
-      e.hint = b.hint;
-      // Reverted: a committed done already merged; a done only in the working tree is not merged yet.
-      if (undone || (onTarget.length && doneOn.some((v) => !v.work && isAncestor(d, v.sha, target)))) e.marks.unshift('reverted');
-      if (b.stale) e.marks.push('stale');
-      continue;
-    }
-    if (!featureCommits.has(e.feature)) {
-      const mates = [...keys.values()].filter((x) => x.feature === e.feature && x.found.length);
-      featureCommits.set(e.feature, d.inRepo ? keyCommits(d, mates.map((x) => x.key), folders.get(e.feature), every, target) : { onBranches: new Map(), onTarget: new Map() });
-    }
-    const c = featureCommits.get(e.feature);
-    const ref = c.onBranches.get(e.key);
-    if (!ref && c.onTarget.has(e.key)) {
-      Object.assign(e, { state: 3, hint: `commits with the key on ${e.mergeInto}, status not written` });
-      continue;
-    }
-    const by = ref ? d.byRef.get(ref) || { ref } : keyRefs.get(e.key);
-    if (by) {
-      const b = behind(d, by);
-      Object.assign(e, { state: 3, hint: b.hint });
-      if (b.stale) e.marks.push('stale');
-      continue;
-    }
-    Object.assign(e, inProgress() || { state: 4 });
-  }
-  return keys;
-}
-
-// Dependencies no read branch has a file for (a finished feature whose tickets were dropped and merged),
-// per dependent ticket's target, as "<target> <KEY>" -> done | in progress:
-// - done: the last version of the ticket file before a commit deleted it on the target says done. The
-//   deletions of key-named files are read newest first; one that is not that ticket (docs/PROJ-1-notes.md)
-//   is passed over, and so is a revert of a commit that is not a merge. A revert of a merge, or a deletion
-//   that came with a merge reverted since, means not done.
-// - in progress: not done, and a commit with the key on the target's own line changes the project outside
-//   ticket folders and .keel/ (a squash merge after the drop, work by hand).
-// One git log of deletions per target for all its keys, one cat-file --batch for every last version, the
-// reverts of the target (revertsOn), and one git log of key commits per target with keys still open.
-function doneInHistory(d, keys) {
-  const wanted = new Map();
-  for (const e of keys.values()) {
-    for (const k of e.target ? e.depends : []) {
-      if (keys.has(k)) continue;
-      if (!wanted.has(e.target)) wanted.set(e.target, new Set());
-      wanted.get(e.target).add(k);
-    }
-  }
-  const found = [];
-  for (const [target, set] of wanted) {
-    // Newest first: "\0<sha>\0<subject>\n\n<path>\n..." per commit, paths from the project folder and not
-    // quoted (core.quotePath: a path with non-ASCII letters would come back in quotes). One pathspec for
-    // every key (a key has a hyphen), the keys are picked here. --full-history: a feature branch merged
-    // without its folder would be left out of the walk.
-    const parts = (git(d.root, ['-c', 'core.quotePath=false', 'log', '--full-history', '--diff-filter=D', '--name-only', '--relative', '--format=%x00%H%x00%s', target, '--', ':(glob,icase)**/*-*.md']) || '').split('\0');
-    for (let i = 1; i + 1 < parts.length; i += 2) {
-      const [subject, ...paths] = parts[i + 1].split('\n');
-      for (const p of paths.filter(Boolean)) {
-        const m = /^([A-Za-z][A-Za-z0-9]+-\d+)(?:-[^/]*)?\.md$/.exec(path.posix.basename(p));
-        const k = m && upper(m[1]);
-        if (k && set.has(k)) found.push({ target, k, sha: parts[i], subject, name: `${parts[i]}^:./${p}` });
-      }
-    }
-  }
-  const blobs = readBlobs(d.root, [...new Set(found.map((f) => f.name))]);
-  const out = new Map();
-  const decided = new Set();
-  for (const f of found) {
-    const at = `${f.target} ${f.k}`;
-    const t = decided.has(at) ? null : ticketOf(blobs.get(f.name));
-    if (!t || t.key !== f.k) continue;
-    const reverts = revertsOn(d, f.target).reverts;
-    if (reverts.has(f.sha) ? !reverts.get(f.sha) : f.subject.startsWith('Revert "')) continue;
-    decided.add(at);
-    if (!reverts.has(f.sha) && !revertedIn(d, f.sha, f.target) && t.fm.status === 'done') out.set(at, 'done');
-  }
-  const folders = [...new Set([...keys.values()].flatMap((e) => e.folders))];
-  for (const [target, set] of wanted) {
-    const open = [...set].filter((k) => !out.has(`${target} ${k}`));
-    if (!open.length) continue;
-    const named = keysIn(records(git(d.root, ['log', '--first-parent', '--format=%x00%B%x1e', ...greps(open), target, ...outside(folders)])), open, 'ref');
-    for (const k of named.keys()) out.set(`${target} ${k}`, 'in progress');
-  }
-  return out;
-}
-
-// The next ticket of each feature: the first to do whose dependencies are done (also one found done in
-// history), or waiting for the feature merge in the same feature.
-function nextOf(keys, list, gone) {
-  return list.find((e) => e.state === 4 && e.depends.every((k) => {
-    const dep = keys.get(k);
-    return dep ? dep.state === 0 || (dep.state === 1 && dep.feature === e.feature) : gone.get(`${e.target} ${k}`) === 'done';
-  })) || null;
-}
 
 // --- tickets ---
 
-function serverData(d) {
-  if (!d.inRepo) return 'not a git repository';
-  if (!d.remote) return 'no remote';
-  const p = git(d.root, ['rev-parse', '--git-path', 'FETCH_HEAD']);
-  try { return `server data from ${new Date(fs.statSync(path.resolve(d.root, p)).mtimeMs).toISOString().replace(/\.\d{3}Z$/, 'Z')}`; } catch { return 'never fetched'; }
-}
-
-function ticketLine(e, next) {
+function ticketLine(e, next, marks = []) {
   const state = e === next ? 'next' : STATES[e.state];
-  return `  ${clean(e.shown, 40)}${e.title ? ` ${clean(e.title, 80)}` : ''} — ${[state, e.hint, ...e.marks].filter(Boolean).join(' · ')}`;
+  return `  ${clean(e.shown, 40)}${e.title ? ` ${clean(e.title, 80)}` : ''} — ${[state, e.hint, ...e.marks, ...marks].filter(Boolean).join(' · ')}`;
 }
 
-// `--fetch`: the remote first (lib/plans-export.js fetched). arg: a feature, a key, or nothing (every
-// feature with a ticket not done).
-function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
-  const notes = fetch ? require('./plans-export.js').fetched(root).notes.map((n) => n.replace(/; keys .*$/, '')) : [];
+// Every key's state here, and what nextOf needs: the other repositories' dependencies and the ones
+// found in history.
+function readStates(root, now) {
   const d = collect(root, now);
   const keys = states(d);
-  const gone = d.inRepo ? doneInHistory(d, keys) : new Map();
+  const isForeign = neighbours().foreignTest(root, [...keys.keys()]);
+  const foreign = (k) => !keys.has(k) && isForeign(k);
+  const others = neighbours().neighbourStates(root, [...new Set([...keys.values()].flatMap((e) => e.depends))].filter(foreign), now);
+  const gone = d.inRepo ? doneInHistory(d, keys, null, foreign) : new Map();
+  return { d, keys, others, gone };
+}
+
+// `--fetch`: the remote first (lib/plans-export.js fetched); other repositories are read as they are,
+// never fetched. arg: a feature, a key, or nothing (every feature with a ticket not done).
+function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
+  const notes = fetch ? require('./plans-export.js').fetched(root).notes.map((n) => n.replace(/; keys .*$/, '')) : [];
+  const { d, keys, others, gone } = readStates(root, now);
   if (!keys.size && !arg) return ['tickets: none', ...notes];
   const features = new Map();
   for (const e of [...keys.values()].sort((a, b) => byKey(a.key, b.key))) {
@@ -528,21 +62,32 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
   let next = null;
   for (const f of shown) {
     const list = features.get(f);
-    const own = nextOf(keys, list, gone);
+    const own = nextOf(keys, list, gone, others);
     if (!next && own) next = own;
     const done = list.filter((e) => e.state === 0).length;
     const waiting = list.filter((e) => e.state === 1 || e.state === 2).length;
     out.push(`${f} (${done} of ${list.length} done${waiting ? `, ${waiting} waiting for merge` : ''})`);
     const lines = asKey ? list.filter((e) => e.key === asKey) : list;
     if (arg) out.push(`  branch: ${lines[0].branch} -> ${lines[0].mergeInto}`);
+    // A to do ticket's dependencies that are not checked, or whose code waits in another branch.
+    const marks = (e) => (e.state !== 4 ? [] : e.depends.map((k) => {
+      if (others.has(k) && others.get(k).state === neighbours().NOT_CHECKED) return `${k} not checked`;
+      const w = depWhere(keys, others, e, k);
+      return w && (w.kind === 'feature' || w.kind === 'ticket') ? `${k} only in ${w.word} ${w.branch}` : null;
+    }).filter(Boolean));
     for (const e of lines) {
-      out.push(ticketLine(e, own));
+      out.push(ticketLine(e, own, marks(e)));
       if (!asKey) continue;
       for (const p of e.paths) {
         const where = e.found.find((x) => x.path === p && x.view.work) || e.pc.find((x) => x.path === p) ? null : e.found.find((x) => x.path === p).view.ref;
         out.push(`  file: ${where ? `${short(where)}:` : ''}${p}`);
       }
-      if (e.depends.length) out.push(`  depends: ${e.depends.map((k) => `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : gone.get(`${e.target} ${k}`) || 'not found'}`).join(', ')}`);
+      const dep = (k) => (others.has(k) ? neighbours().stateText(k, others.get(k)) : `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : gone.get(`${e.target} ${k}`) || 'not found'}`);
+      if (e.depends.length) out.push(`  depends: ${e.depends.map(dep).join(', ')}`);
+      for (const k of e.state === 4 ? e.depends : []) {
+        const w = depWhere(keys, others, e, k);
+        if (w) out.push(`  where: ${whereLine(keys.has(k) ? keys.get(k).shown : others.get(k).shown || k, w, e, others.has(k) ? others.get(k).folder : null)}`);
+      }
     }
     count += lines.length;
   }
@@ -550,6 +95,8 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
     `tickets: ${plural(shown.length, 'feature')}, ${plural(count, 'ticket')}; ${serverData(d)}`,
     ...out,
     next ? `next: ${next.shown} (${next.feature})` : 'next: none',
+    // Only with no argument: a feature or key view is read for its own repository's tickets.
+    ...(arg ? [] : require('./plans-linked.js').linkedLines(d, keys, now)),
     ...notes,
   ];
 }
@@ -613,4 +160,10 @@ function dropCommand(root, feature) {
   return r.moved.map((m) => `drop: ${m.path}/ -> trash ${r.batch}`);
 }
 
-module.exports = { ticketsCommand, doneCommand, dropCommand };
+module.exports = {
+  ticketsCommand, doneCommand, dropCommand, stateIn, keysHere, metBy, depWhere, KEY, prefixOf, STATES,
+  // for lib/plans-linked.js
+  collect, states, ticketLine, serverData,
+  // for feature-page.js
+  readStates, nextOf, byKey,
+};

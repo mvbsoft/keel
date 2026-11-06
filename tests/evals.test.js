@@ -12,10 +12,11 @@ const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const EVALS = path.join(PLUGIN, 'evals');
 const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
-// The chat the planning cases resume: shop.js marks it, each case's history.jsonl keeps its id.
-const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(SHOP, 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planned', 'task-active'];
+// The chat the planning cases resume: its id is SID in shop-base.js, each case's history.jsonl keeps it.
+const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(path.join(EVALS, '_fixtures', 'shop-base.js'), 'utf8'))[1];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh'];
 
+const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
 const front = (file) => {
   const m = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(fs.readFileSync(file, 'utf8'));
@@ -34,8 +35,14 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
     // A case tagged standards gives a plain request: it checks the coding standards keel adds to every
     // conversation, not a command. One tagged lanes may also give a plain request or a bare /name: the
     // lane guards stop both; a command it names is one of keel's.
+    const yaml = fs.existsSync(path.join(dir, 'case.yaml')) ? fs.readFileSync(path.join(dir, 'case.yaml'), 'utf8') : '';
     if (/\bstandards\b/.test(p.keys.tags || '')) assert.doesNotMatch(p.body, /^\/keel:/, `${name}: a plain request`);
-    else if (/\blanes\b/.test(p.keys.tags || '')) {
+    // One tagged start-planning goes on in a planning conversation its history started: keel refuses
+    // /keel:start-planning in every eval run, so the prompt is the person's next words.
+    else if (tagList(p.keys.tags).includes('start-planning')) {
+      assert.match(yaml, /^\s*history_file:/m, `${name}: resumes a written conversation`);
+      assert.doesNotMatch(p.body, /^\//, `${name}: the person's words, not a command`);
+    } else if (/\blanes\b/.test(p.keys.tags || '')) {
       const command = /^\/(?:keel:)?([a-z][a-z-]*)/.exec(p.body);
       if (p.body.startsWith('/')) assert.ok(command && fs.existsSync(path.join(PLUGIN, 'skills', command[1], 'SKILL.md')), `${name}: /${command ? command[1] : ''} is a keel command`);
     } else assert.match(p.body, /^\/keel:/, `${name}: the prompt is a keel command`);
@@ -46,13 +53,12 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
       assert.ok(['regex', 'tool_used', 'tool_order', 'file_exists', 'llm'].includes(keys.type), `${name}/${g}: type ${keys.type}`);
       for (const re of [keys.pattern, keys.input_match].filter(Boolean)) new RegExp(re.replace(/^'|'$/g, '')); // compiles
     }
-    if (fs.existsSync(path.join(dir, 'case.yaml'))) {
-      const yaml = fs.readFileSync(path.join(dir, 'case.yaml'), 'utf8');
+    if (yaml) {
       assert.match(yaml, /^schema_version: "1\.1"$/m, name);
       assert.match(yaml, new RegExp(`^name: ${name}$`, 'm'), name);
       assert.match(yaml, /scaffold_script: fixture\.sh/, name);
       assert.match(fs.readFileSync(path.join(dir, 'fixture.sh'), 'utf8'), new RegExp(`node "\\$\\(dirname "\\$0"\\)/\\.\\./_fixtures/shop\\.js" (${VARIANTS.join('|')})\\n$`), name);
-      // A written conversation the run resumes: every line a JSON record of the chat shop.js marks.
+      // A written conversation the run resumes: every line a JSON record of the chat with shop-base.js's SID.
       const history = /^\s*history_file:\s*["']?([^"'\s]+)["']?\s*$/m.exec(yaml);
       if (history) {
         const file = path.join(dir, history[1]);
@@ -62,10 +68,44 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
         for (const [i, l] of lines.entries()) {
           let r;
           assert.doesNotThrow(() => { r = JSON.parse(l); }, `${name}: ${history[1]} line ${i + 1} is JSON`);
-          assert.equal(r.sessionId, SID, `${name}: ${history[1]} line ${i + 1} is the chat shop.js marks`);
+          assert.equal(r.sessionId, SID, `${name}: ${history[1]} line ${i + 1} is the chat with shop-base.js's SID`);
         }
       }
     }
+  }
+});
+
+// A planning case's history holds /keel:start-planning as Claude Code expanded it, keel at /work/plugins/keel
+// (the Docker command mounts the repository at /work): its steps must be the command's current ones.
+test('a planning case resumes the current /keel:start-planning instructions', () => {
+  const refresh = 'run node plugins/keel/evals/_fixtures/start-planning-history.js';
+  const { CASES } = require(path.join(EVALS, '_fixtures', 'start-planning-history.js'));
+  const steps = (text) => text.slice(text.indexOf('\n1. Read '));
+  const skill = steps(fs.readFileSync(path.join(PLUGIN, 'skills', 'start-planning', 'SKILL.md'), 'utf8')).replaceAll('${CLAUDE_PLUGIN_ROOT}', '/work/plugins/keel');
+  const planning = cases.filter((n) => tagList(front(path.join(EVALS, n, 'prompt.md')).keys.tags).includes('start-planning'));
+  assert.ok(planning.length >= 2, planning.join(', '));
+  assert.deepEqual(Object.keys(CASES).sort(), [...planning].sort(), 'the history builder writes every start-planning case');
+  for (const name of planning) {
+    const text = fs.readFileSync(path.join(EVALS, name, 'history.jsonl'), 'utf8');
+    assert.equal(text, CASES[name](), `${name}: history.jsonl is stale: ${refresh}`);
+    const records = text.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+    const expanded = records.find((r) => r.isMeta && Array.isArray(r.message.content) && /^Base directory for this skill: \/work\/plugins\/keel\/skills\/start-planning\n/.test(r.message.content[0].text));
+    assert.ok(expanded, `${name}: start-planning expanded in the history`);
+    // A resumed run sees only the history: the planning rules are there as the command read them.
+    const reads = records.filter((r) => r.type === 'assistant').flatMap((r) => r.message.content).filter((b) => b.type === 'tool_use' && b.name === 'Read');
+    assert.ok(reads.some((b) => b.input.file_path === '/work/plugins/keel/skills/_shared/planning.md'), `${name}: the history reads planning.md`);
+    // keel's first reply states what its steps found; without their calls in the history the resumed
+    // run takes those claims as unchecked and runs the steps (and the code search) again.
+    const calls = records.slice(0, records.findIndex((r) => r.type === 'assistant' && r.message.stop_reason === 'end_turn'))
+      .filter((r) => r.type === 'assistant').flatMap((r) => r.message.content).filter((b) => b.type === 'tool_use');
+    const ran = (re) => calls.some((b) => b.name === 'Bash' && re.test(b.input.command));
+    assert.ok(reads.some((b) => b.input.file_path === '/work/plugins/keel/skills/_shared/preflight.md'), `${name}: the history reads preflight.md`);
+    assert.ok(ran(/scripts\/notes\.js" "\." check --session /), `${name}: the history runs the lane check`);
+    assert.ok(calls.some((b) => b.name === 'Grep'), `${name}: the history checks the premise in the code`);
+    assert.ok(ran(/scripts\/plans\.js" "\." new notification-system$/), `${name}: the history makes the draft`);
+    assert.ok(ran(/scripts\/plans\.js" "\." mark set notification-system --session /), `${name}: the history marks the chat`);
+    assert.match(expanded.message.content[0].text, /^- `<keel>` \(the plugin folder\): `\/work\/plugins\/keel`$/m, name);
+    assert.equal(steps(expanded.message.content[0].text), skill, `${name}: the history's start-planning steps are not the command's`);
   }
 });
 
@@ -86,17 +126,30 @@ const STATE = {
   'planning-ready': (work, git) => {
     draftState('ready · open Q 0', '\\.keel/local/plans/keel/csv-export/ \\(this machine only\\)')(work);
     const settings = script('plans.js', work, 'settings');
-    assert.match(settings, /^export: -$/m);
-    assert.match(settings, /^prefix: INV$/m);
+    assert.match(settings, /^tickets: repo$/m);
+    assert.match(settings, /^ticket_prefix: INV$/m);
     assert.match(git('show', 'HEAD:AGENTS.md'), /^No ticket or backlog files in this repository: tickets live in Jira\.$/m);
   },
   'planning-repo': draftState('draft · open Q 0', 'tickets/csv-export/'),
+  'planning-new': (work) => {
+    assert.match(script('plans.js', work, 'list'), /^- notification-system: draft · open Q 0 · tickets 0 · .* \(this machine only\)$/m);
+    assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: notification-system$/m);
+  },
+  // The draft made from the brief: its open question counts, the brief is in keel's trash.
+  'planning-brief': (work) => {
+    assert.match(script('plans.js', work, 'list'), /^- notification-system: draft · open Q 1 · tickets 0 · .* \(this machine only\)$/m);
+    assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: notification-system$/m);
+    const plan = fs.readFileSync(path.join(work, '.keel', 'local', 'plans', 'keel', 'notification-system', 'plan.md'), 'utf8');
+    assert.match(plan, /^D1\. Mail goes through the company's SMTP server - no new mail service account$/m);
+    assert.match(plan, /^- src\/payment\.js:4 charge\(\) returns status paid/m, 'Files went into What was gathered');
+    assert.ok(!fs.existsSync(path.join(work, '.keel', 'local', 'plans', 'briefs', 'notification-system-brief.md')), 'the brief left for the trash');
+  },
   planned: (work) => {
     const out = script('plans.js', work, 'tickets', '--fetch');
     assert.match(out, /^ {2}INV-1 .* — done$/m, out);
     assert.match(out, /^ {2}INV-2 .* — in progress · branch INV-2-[\w-]+, Dana Smith, /m, out);
     assert.match(out, /^ {2}INV-3 .* — waiting for merge into the feature branch · /m, out);
-    assert.match(out, /^ {2}INV-4 .* — to do$/m, out);
+    assert.match(out, /^ {2}INV-4 .* — to do · INV-3 only in ticket branch INV-3-[\w-]+$/m, out);
     assert.match(script('plans.js', work, 'tickets', 'INV-4', '--fetch'), /^ {2}depends: INV-3 waiting for merge into the feature branch$/m);
   },
   'task-active': (work, git) => {
@@ -109,13 +162,22 @@ const STATE = {
     assert.equal(started[1], git('rev-parse', 'main'));
     assert.match(git('diff', '--name-only', started[1]), /^src\/cart\.js$/m);
   },
+  // The plan was approved for a fresh conversation: the run is that one and asks delegate or here.
+  'task-fresh': (work, git) => {
+    git('switch', '-q', 'csv-report');
+    assert.match(fs.readFileSync(path.join(work, '.keel', 'tasks', 'csv-report', 'task.md'), 'utf8'), /^execution: fresh$/m);
+    const out = script('plan-steps.js', work, '.keel/tasks/csv-report/plan.md', '--remaining');
+    assert.match(out, /^suggest: delegate \(9 steps >= 8, 18 files >= 15\)$/m, out);
+    assert.match(out, /^ask: Left: 9 steps, ~18 files, at or over 8 steps or 15 files: .* delegate to implementers, or here\?/m);
+    assert.match(out, /^problems: none$/m, out);
+  },
 };
 
 test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
   const expect = { base: ['main', 0, ''], tasks: ['main', 0, ''], finish: ['CAN-200-free-shipping', 1, ''], session: ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
-    planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'],
-    planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''] };
+    planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'], 'planning-new': ['main', 0, ''],
+    'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''], 'task-fresh': ['main', 0, ''] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {
     const work = tempDir(`keel-eval-${variant}-`);
@@ -149,4 +211,6 @@ test('npm run eval runs the suite once per release, never in CI by default', () 
   assert.match(fs.readFileSync(path.join(__dirname, '..', '.gitignore'), 'utf8'), /^plugins\/keel\/evals\/results\/$/m);
   // A resumed history gets each run's transcript beside it, in the case folder.
   assert.match(fs.readFileSync(path.join(__dirname, '..', '.gitignore'), 'utf8'), /^plugins\/keel\/evals\/\*\/\*-\*-\*-\*-\*\.jsonl$/m);
+  // A run that calls an agent also gets a folder of the same name with the agents' transcripts.
+  assert.match(fs.readFileSync(path.join(__dirname, '..', '.gitignore'), 'utf8'), /^plugins\/keel\/evals\/\*\/\*-\*-\*-\*-\*\/$/m);
 });

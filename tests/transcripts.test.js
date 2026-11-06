@@ -139,6 +139,27 @@ test('a slash command the model answers is a turn, read as typed; one it never a
   assert.ok(!('command' in out.turns[1]));
 });
 
+test('a prompt after a leading system reminder is a turn without it; a reminder or notification alone is not', () => {
+  const root = tempRoot();
+  const main = path.join(root, 'p', 's1.jsonl');
+  const row = (r) => ({ sessionId: 's1', cwd: 'C:\\x\\proj', isSidechain: false, ...r });
+  const note = '<system-reminder>\nLinked sessions now: top = local_1 (idle)\n</system-reminder>';
+  writeJsonl(main, [
+    row(user(1, `${note}\n\nreal question`)),
+    row(asst('m1', [{ type: 'text', text: 'ok' }])),
+    row(user(5, note)),
+    row(user(6, `${note}\n<task-notification>agent done</task-notification>`)),
+    row(user(7, '<task-notification>agent done</task-notification>')),
+    row(user(10, [{ type: 'text', text: note }, { type: 'text', text: 'second question' }])),
+    row(asst('m3', [{ type: 'text', text: 'ok' }])),
+    row(user(15, `${note}${note}\n<command-message>keel:end-task</command-message>\n<command-name>/keel:end-task</command-name>\n<command-args>quick</command-args>`)),
+    row(asst('m4', [{ type: 'text', text: 'ok' }])),
+  ]);
+  const out = T.summarizeSession(main, { cost: price });
+  assert.deepEqual(out.turns.map((t) => t.text), ['real question', 'second question', '/keel:end-task quick']);
+  assert.deepEqual(out.keel_commands, ['end-task']);
+});
+
 test('keel_commands: the planning commands count, a longer name does not', () => {
   const root = tempRoot();
   const main = path.join(root, 'p', 's1.jsonl');

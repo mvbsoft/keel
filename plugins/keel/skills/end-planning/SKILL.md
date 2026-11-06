@@ -37,7 +37,8 @@ Current state of this project:
       review). Nothing changed → no review.
    2. Each finding: fix now or record it as a Q.
    3. Update `plan.md`: Open questions; Next action (where planning stands and the next step, so the
-      next conversation starts from it); front matter `after_commit` = `git rev-parse --short HEAD`.
+      next conversation starts from it); then `plans.js set <f> --after-commit` (`after_commit:`, and
+      `after_commit_repos:` for the plan's other repositories).
    4. A repository draft → planning.md "Commit and push".
 6. **B. Final.** A plan already `ready` in `plans.js list` (not "changed after ready") was reviewed
    as it is: go straight to Export (B.5).
@@ -49,18 +50,20 @@ Current state of this project:
       more. A finding deferred to a Q → the gates fail: offer mode A. Fixes after the last round →
       the user chooses: accept them as reviewed (`plans.js reviewed <f> <tickets>`) or mode A.
    4. `plans.js state <f> ready` → `status: ready`; refused → show its reason and offer mode A.
-   5. **Export.** `plans.js settings`. `export: -` (the first time) → ask where: the repository (a
-      ticket folder the project has, else `tickets`; the feature lands in `<folder>/<f>/`) or this
-      machine only (a draft in the repository exports there: say so, do not ask); then planning.md
-      "Project rules" for that choice. `prefix: -` → propose the first `comments.ticket_prefixes`
-      of `.keel/config.json`, else 3-4 capital letters from the repository name; the user confirms.
-      Save with `plans.js settings set --export <pc|repo> [--export-dir <dir>] --prefix <PROJ>`. Set
-      before → say the target and prefix in one line (the user may change them). Ask "Export the
-      <n> tickets now?"; no → the plan stays `ready` for the next end-planning.
-   6. `plans.js export <f>`: show `exported:`, its `- T<n> -> <KEY>: <file>` lines and `readme:`.
-      Refused → its reason; the plan stays `ready`. On this machine → say "These tickets are seen on
-      this machine only." In the repository → planning.md "Commit and push" (a draft's plan.md,
-      `reviews/` and T-files leave with that commit; without it they stay).
+   5. **Export.** `plans.js settings`: say the target (`tickets: repo` → `<tickets_dir>/<f>/`;
+      `tickets: pc` → this machine only) and the prefix (`ticket_prefix`) in one line, then
+      planning.md "Project rules" for that target. `planning: planning is not set up ...` → say
+      "Run `/keel:configure planning` in a new conversation (it does not run while this one plans),
+      then `/keel:start-planning <f>` and `/keel:end-planning`." and go to step 7: the plan stays
+      `ready`. A change of target or prefix is the team's setting: `/keel:configure planning`, the
+      same way. A plan on several repositories: also name its other repositories; each takes its own
+      settings. Ask "Export the <n> tickets now?"; no → the plan stays `ready`; later
+      `/keel:start-planning <f>`, then `/keel:end-planning`.
+   6. `plans.js export <f>`: show `exported:`, its `- T<n> -> <KEY>: <file>` lines, `readme:` and
+      `research:`. Refused → its reason; the plan stays `ready`; `not ready:` lines → planning.md
+      "Several repositories" item 8. On this machine → say "These tickets are seen on
+      this machine only." In the repository → planning.md "Commit and push" (the files its `draft:` line names
+      leave with that commit; without it they stay).
 7. **Always**, whatever happened above (also after a stop or a no):
    `plans.js mark clear --session <sid>` → `planning: none`. A question waiting for the user's answer
    ends the turn, not the command: steps 7-9 run once the answer is handled.

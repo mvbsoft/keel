@@ -50,7 +50,7 @@ project.
 
 ## Agents and models
 
-keel has 16 agents. Read-only agents cannot write; the ones that run code are checked after each run
+keel has 17 agents. Read-only agents cannot write; the ones that run code are checked after each run
 (see [safety](#safety)). The level decides who runs and sometimes on which model:
 [verification](verification.md#the-four-levels).
 
@@ -71,7 +71,8 @@ keel has 16 agents. Read-only agents cannot write; the ones that run code are ch
 | judge | merges the findings into one ranked list, adds none of its own | Sonnet; Opus at Maximum |
 | implementer | does one planned step when the work is delegated | the step's model: Haiku, Sonnet or Opus |
 | ticket-reviewer | in planning: reviews up to 4 tickets (draft or exported) each against a checklist and checks in the code what they rely on | Sonnet |
-| plan-reviewer | in planning: reviews the whole plan once at its final end (coverage, contradictions, order) | Sonnet |
+| plan-reviewer | in planning: reviews the whole plan once at its final end (coverage, with each acceptance criterion in exactly one ticket, contradictions, order) | Sonnet |
+| researcher | in planning, on your yes: reads documentation, package registries and the web (how others do it, which package fits) and returns a report with dated data | Sonnet |
 
 With `allow_opus` off every Opus agent above runs on Sonnet. keel never switches your conversation's model;
 which main model to use: [cost optimization](cost-optimization.md#1-choose-the-main-model).
@@ -79,8 +80,8 @@ which main model to use: [cost optimization](cost-optimization.md#1-choose-the-m
 ## Delegation
 
 When a plan passes the thresholds (8 steps or 15 files by default, `delegation.min_plan_steps` and
-`min_plan_files`), keel asks whether to do it in the conversation or hand the steps to implementer agents:
-one fresh agent per step, each on the model the step needs (Haiku when nothing is left to decide,
+`min_plan_files`), keel recommends a fresh conversation that starts from the saved plan, or hands the
+steps to implementer agents: one fresh agent per step, each on the model the step needs (Haiku when nothing is left to decide,
 Sonnet when the step leaves a decision, Opus for work that should not be split). The main conversation
 accepts each step after running its tests. Why steps should not be cut too small:
 [cost optimization](cost-optimization.md#4-do-not-split-a-plan-into-tiny-steps).
@@ -96,7 +97,7 @@ accepts each step after running its tests. Why steps should not be cut too small
 | `.keel/local/options.json` | this project's own values of `conversation_language`, `allow_opus` and `prompt_preview` (personal) | no |
 | `.keel/local/plans/claude/` | Claude Code's Plan Mode files | no |
 | `.keel/local/plans/keel/` | planning: drafts kept on this machine and tickets exported to this machine (`<feature>/tickets/`), the planning settings, which conversation plans which feature (`sessions/`), ticket review samples (`samples/`) | no |
-| `<draft_dir>/<feature>/`, `<export_dir>/<feature>/` | a feature's draft in the repository, and its exported tickets with their overview (`tickets/` by default) | when you commit them, on the feature's branch |
+| `<draft_dir>/<feature>/`, `<tickets_dir>/<feature>/` | a feature's draft in the repository, and its exported tickets with their overview (`tickets/` by default) | when you commit them, on the feature's branch |
 | `.keel/local/` | temporary agent files and saved agent reports, the token ledger, backups, the trash | no |
 
 On each machine keel also keeps `~/.claude/keel/`:
@@ -203,7 +204,9 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
   web fetch;
   `/keel:configure` runs Claude Code's `claude plugin list --json --available` to look for stack
   plugins in the marketplaces you added; a price update, only when you ask for one, has an agent read
-  the official pricing page.
+  the official pricing page; in planning, only after your yes to its offer, `keel:researcher` reads
+  package registries (npm, deps.dev, Packagist) and web pages, with queries of package names and
+  general words, never the project's code or paths.
 
 Reporting a vulnerability: [SECURITY.md](../SECURITY.md).
 

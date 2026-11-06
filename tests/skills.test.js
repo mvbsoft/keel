@@ -65,7 +65,7 @@ test('configure is user-only and every file the flow names exists in the plugin'
   }
 });
 
-const COMMANDS = ['start-task', 'start-session', 'end-task', 'end-session', 'start-planning', 'end-planning', 'cleanup', 'tasks'];
+const COMMANDS = ['start-task', 'start-session', 'end-task', 'end-session', 'start-planning', 'end-planning', 'cleanup', 'tasks', 'feature-page'];
 
 test('the workflow commands and cleanup are user-only, check the config first and name only existing files', () => {
   const root = path.join(SKILLS, '..');
@@ -77,7 +77,7 @@ test('the workflow commands and cleanup are user-only, check the config first an
     assert.match(fields['allowed-tools'], /check-config\.js/);
     assert.match(body, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/check-config\.js" "\$\{CLAUDE_PROJECT_DIR\}" --profile`$/m, name);
     assert.match(body, /skills\/_shared\/preflight\.md/, `${name} reads the preflight`);
-    assert.ok(body.indexOf('preflight.md') < body.search(/intake\.md|handoff\.md|verify\.md|planning\.md|cleanup\.js|notes\.js|plans\.js/), `${name}: preflight comes first`);
+    assert.ok(body.indexOf('preflight.md') < body.search(/intake\.md|handoff\.md|verify\.md|planning\.md|cleanup\.js|notes\.js|plans\.js|feature-page\.js/), `${name}: preflight comes first`);
   }
   for (const file of [...COMMANDS.map((c) => `skills/${c}/SKILL.md`), 'skills/_shared/intake.md', 'skills/_shared/handoff.md', 'skills/_shared/planning.md', 'skills/_shared/git.md', 'skills/_shared/delegate.md', 'skills/_shared/migrate.md', 'templates/keel/plan.md']) {
     const body = fs.readFileSync(path.join(root, file), 'utf8');
@@ -86,6 +86,20 @@ test('the workflow commands and cleanup are user-only, check the config first an
     }
     if (!file.endsWith('SKILL.md')) assert.doesNotMatch(body, /\$\{CLAUDE_PLUGIN_ROOT\}|\$\{user_config/, `${file} is read by the model: placeholders would stay unsubstituted`);
   }
+});
+
+test('feature-page: may run the scripts it names, finds its page by the feature\'s code and keeps the title current', () => {
+  const { fields, body } = parse('feature-page');
+  const runs = [...body.matchAll(/node "<keel>\/scripts\/([\w-]+\.js)"( report)?/g)].map((m) => `${m[1]}"${m[2] || ''}`);
+  assert.deepEqual([...new Set(runs)].sort(), ['feature-page.js"', 'usage.js" report']);
+  for (const run of new Set(runs)) {
+    for (const shell of ['Bash', 'PowerShell']) assert.ok(fields['allowed-tools'].includes(`${shell}(node "\${CLAUDE_PLUGIN_ROOT}/scripts/${run} *)`), `${shell}: ${run} is allowed`);
+  }
+  assert.match(body, /This feature's page is the one whose title\s+ends with ` \(<code>\)`, the `code:` line/);
+  assert.match(body, /An update whose title is not the `title:` line any more[^\n]*\n[^\n]*title too: \*\*B\*\* `title`/);
+  assert.match(body, /`code written: <files> \(\.\.\.\)`[\s\S]*commit and push them, so every machine finds this page/);
+  assert.doesNotMatch(body, /--taken|marker|title if taken/);
+  for (const name of ['list_artifacts', 'read_artifact', 'get_artifact', 'publish_files']) assert.ok(body.includes(`\`${name}\``), name);
 });
 
 test('end commands verify, then write the note and do git in the agreed order', () => {
@@ -123,7 +137,7 @@ test('the plan template has the Execution section that survives "clear context"'
   assert.match(exec, /git-flow\.js" "<project>" start --name/);
   assert.match(exec, /\/keel:end-task/);
   for (const section of ['## Files', '## Architecture', '## Libraries and framework', '## Tests', '## Likely verification level', '## Documentation', '## Steps']) assert.ok(plan.includes(section), section);
-  assert.ok(exec.includes('Execution: <here | delegate>'));
+  assert.ok(exec.includes('Execution: <here | delegate | fresh>'));
   assert.ok(exec.includes('skills/_shared/delegate.md'), 'delegation survives "clear context" through the plan');
   assert.ok(plan.indexOf('## Steps') < plan.indexOf('## Execution'));
 });
@@ -340,4 +354,13 @@ test('/keel:help: user-only, static, short, and its table names every keel comma
   assert.deepEqual([...rows].sort(), [...userOnly].sort(), 'every user command, once');
   assert.deepEqual([...COMMANDS, 'configure', 'help', 'usage', 'usage-clear'].sort(), [...userOnly].sort());
   assert.ok(body.split('\n').length < 30, 'short');
+});
+
+test('every command the user runs has its section in docs/commands.md and docs/commands.uk.md', () => {
+  const commands = fs.readdirSync(SKILLS).filter((n) => fs.existsSync(path.join(SKILLS, n, 'SKILL.md')) && parse(n).fields['disable-model-invocation'] === 'true');
+  assert.ok(commands.includes('feature-page') && commands.length >= 12, commands.join(', '));
+  for (const doc of ['commands.md', 'commands.uk.md']) {
+    const text = fs.readFileSync(path.join(__dirname, '..', 'docs', doc), 'utf8');
+    for (const name of commands) assert.match(text, new RegExp(`^## \`/keel:${name}\`$`, 'm'), `${doc}: /keel:${name}`);
+  }
 });

@@ -144,10 +144,12 @@ unfinished tasks). keel then:
    files, where each new thing lives, what the framework or installed packages already provide, the
    tests, the documentation to update and the likely verification level (at the end keel proposes a
    level from the actual change, which may differ). A large plan (8 steps or 15 files by default) also
-   proposes handing its steps to implementer agents; approving or changing the plan answers that, with
-   no separate question ([cost optimization](cost-optimization.md#5-delegation-thresholds)). With the
-   Claude Code setting "Yes, clear context" turned on during setup, approving the plan that way starts
-   the work in a fresh conversation from the plan alone.
+   says how to run it: in a fresh conversation (recommended), through implementer agents, or here;
+   approving or changing the plan answers that, with no separate question
+   ([cost optimization](cost-optimization.md#5-delegation-thresholds)). With the Claude Code setting
+   "Yes, clear context" turned on during setup, approving the plan that way starts the work in a fresh
+   conversation from the plan alone; otherwise keel saves the plan and asks you to type `/clear` and
+   `/keel:start-task <id>`.
 5. **Codes**, step by step, or through the implementer agents when the plan says so.
 
 The "Start?" question (or the plan's first Execution step) also names the branch you are on and asks
@@ -308,8 +310,9 @@ conversation of its own, and it writes no code:
 /keel:start-planning CSV export of invoices
 ```
 
-The first time in a project keel asks two things: the language of the tickets, and where the draft
-lives (on this machine, outside git, or in the repository, where colleagues see it). Then it retells
+Planning needs the project's ticket prefix and where the tickets live, set once by `/keel:configure`
+(or `/keel:configure planning`). The first time in a project keel then asks where the draft lives (on
+this machine, outside git, or in the repository, where colleagues see it). Then it retells
 the feature, checks in the code what it relies on, proposes a name and asks one question at a time.
 Your answers become decisions; the work becomes short tickets (T1, T2…) in the draft. With no argument,
 keel lists the drafts to continue. While a conversation plans, keel refuses the task, session, configure
@@ -324,7 +327,7 @@ decide each finding, keel exports the tickets into the feature folder with real 
 Then build the tickets, each in a fresh conversation (`/clear`): `/keel:start-task next ticket` takes
 the next free ticket and offers its feature branch; from there it is an ordinary task. Or
 `/keel:start-session <feature>` takes them one by one in a session. `/keel:tasks`
-shows the planned tickets too. Every case: [planning](workflows.md#planning).
+shows the planned tickets too. Every case: [planning](planning.md).
 
 ## 8. Clean up: `/keel:cleanup`
 
@@ -339,6 +342,7 @@ Every variant: [commands](commands.md#keelcleanup).
 ## Next
 
 - [Ways of working](workflows.md): what to type in each situation.
+- [Planning](planning.md): plan a feature before the code.
 - [Verification](verification.md): which level to choose.
 - [Cost optimization](cost-optimization.md): how to spend less.
 - [Settings](settings.md): change keel's defaults.

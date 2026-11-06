@@ -6,6 +6,195 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `.keel/config.json` has a `planning` section, the same for the whole team: the ticket prefix
+  (`ticket_prefix`), where exported tickets live (`tickets`: `repo` or `pc`; the researcher's reports
+  go with them) and their folder (`tickets_dir`, default `tickets`), and the tickets' language
+  (`language`, default `repo_language`). `/keel:configure` asks the prefix and where the tickets live,
+  quick setup too; detailed setup also asks the language. `/keel:configure planning` asks only these.
+- The planning settings on this machine keep `repos`, where the neighbouring repositories are by their
+  ticket prefix: `plans.js settings set --repo WEB=<absolute folder>`.
+- `comments.js` reports the planning ticket prefix in new comments and docs together with
+  `comments.ticket_prefixes`, read at each check; `/keel:configure check` no longer proposes it as a
+  tracker prefix.
+- Planning gathers before it asks: a new feature told in a line or two, or a large one, first gets an
+  offer of what to look up, with the price as an estimate, on one yes: the project map, a
+  `keel:context` helper on Haiku. Its findings go into `plan.md`, What was gathered, which a continued
+  draft reads instead of searching again; the questions after it build on what was found. Skipped or
+  not answered yet, it is not replaced by searches of keel's own. In planning keel writes the draft
+  first and then replies: the answer and the next question are in its last message.
+- A new agent, `keel:researcher` (Sonnet, read-only, web): in planning, on a yes to an offer with its
+  price, it reads documentation, package registries (npm, Packagist, deps.dev; GET requests only) and
+  the web, and returns a report with dated data and its sources. The planner writes it into the
+  draft's `research/<topic>.md`; "how others do it" joins the gathering offer.
+- Planning looks for what exists before it plans new code: the project's code, its installed
+  packages, the framework and platform, a small living package, then writing it ourselves. A package
+  choice is shown as a table with size, dependencies, license, releases and known vulnerabilities,
+  each with its source and date, "write it ourselves" always among the options, and a recommendation.
+- Planning designs for today's acceptance criteria: a request for everything at once gets a first
+  working slice, each ticket is a thin slice through the layers it needs, and a new dependency,
+  datastore, protocol, module boundary or public contract comes with an offer of a short ADR.
+- Planning looks at the plan with three views before it writes the tickets (the product and its
+  users, the architect, operations and security) and offers what may be missing; the user decides
+  each.
+- Export takes the draft's `research/` with the tickets, into `research/` beside them, on this
+  machine and in the repository; a file there that is not a `.md` report stops the export.
+- The plan reviewer's `coverage` check also maps the acceptance criteria: each behaviour `plan.md`
+  promises is checked in exactly one ticket.
+- `depends_on` takes tickets of other repositories by their key (`API-121` in a `WEB` ticket), in a
+  draft and in exported tickets. keel reads their state in that repository's folder on this machine
+  (the `repos` map) from its git and files, with no network, as of its last fetch, which the
+  `depends:` line of `plans.js tickets <KEY>` names; it counts as for a ticket here. A key absent from
+  that repository (on any of its branches) is a `plans.js check` problem and refuses
+  `plans.js ticket --depends`; with no folder in the map, or a folder not on this machine or not a git
+  repository, the dependency is `not checked`: a `note:` line and a mark on the ticket's line, never a
+  block, so the ticket can still be next.
+- Planning a feature on several repositories in one conversation. When a feature shows signs of
+  another repository, planning asks which projects it touches, from the new `plans.js repos`: the
+  `repos` map and the git repositories next to the project, each with its planning prefix (never the
+  project itself or another worktree of it). `plans.js set <f> --repos "WEB"` records them in `plan.md`
+  `repos: [API, WEB]`; a repository whose prefix is not set yet takes the one the user confirms. The
+  gathering offer then always includes each other repository: `keel:context` reads its rules and code
+  by its absolute folder. `plans.js ticket --repo WEB` marks a ticket `repo: WEB`; `plans.js check`
+  looks for its Where to look in that folder (none on this machine: a `note:`, never a problem),
+  `plans.js review` names the folder for the reviewers, and `plans.js stale` compares each
+  repository's tickets with its own commit, `after_commit_repos`, which `plans.js set <f>
+  --after-commit` records with `after_commit` at a hand-over. A repository not on this machine gets
+  stubs in `plan.md` `## Stubs` (a title and In plain words, no key), which the plan reviewer counts
+  as covered in its coverage check.
+- Exporting a feature on several repositories: `plans.js export` puts each repository's tickets into
+  that repository by its own planning settings (prefix, ticket place, main branch) and its own key
+  counter after its own `git fetch`, all or nothing across the repositories. Each gets the same
+  `README.md` overview, already from 1 ticket, with `repos:`, every repository's tickets, `## Stubs`
+  and `## Parts`; `research/` goes to each repository whose tickets or overview name the report.
+  Another repository must be ready (on the feature branch, clean tree, its prefix set, no active keel
+  task, no folder of the feature yet); the refusal says why per repository, and `--as-is "WEB"` lets
+  uncommitted changes or another branch stay. `plans.js commit|push <f> --repo WEB` commit and push in
+  another repository of the feature (its folder from this machine's `repos` map; a map tracked in git
+  is refused); Claude Code's window names the repository. The commit checks the keys in every
+  repository and renumbers a taken one in all of them; a push that fails on the network or access prints a `retry:` command.
+  `plans.js ticket <f> --repo WEB` on an exported feature adds a ticket with WEB's next key, and a
+  later ticket's line goes into the Tickets of every overview of the feature on this machine.
+- `plans.js tickets` (and `/keel:tasks`) shows, after `next:`, the `linked:` tickets of each feature
+  of this project in its other repositories: their states from that repository's git on this
+  machine, or, for one not here, the overview's Tickets list with the state unknown; a feature done
+  here but not there stays listed, other projects' own tickets do not show. An overview that differs
+  between the repositories gives one line with a pull hint. The new `plans.js align <feature>` shows
+  the versions and the sections where they differ, defaults to the newest change (the main
+  repository's on the same time), and `--take <PREFIX>` writes the chosen one into the other
+  repositories' overviews; the commit and push stay on the user's yes.
+- `/keel:feature-page [<feature>] [--lang <code>]` makes a private page of a planned feature in your
+  claude.ai account, to read on a computer or a phone: on the left the overview, what is in progress
+  or next with the tickets' count by state, and the list of tickets; on the right the chosen ticket,
+  its sections as blocks with an explanation each, its decisions and its dependencies with their
+  states, and its md file as GitHub draws it, mermaid diagrams included. The new `feature-page.js`
+  puts the md texts as they are into a fixed template; the page renders the markdown and the code
+  itself, with libraries from cdnjs at exact versions, in both themes. The page's language is
+  `--lang`, else the page's own, else the conversation's; its labels come from `locales/` (new
+  `page.*` keys), and texts in another language than the tickets' are translated by Claude on the
+  page only and kept in it, so an update translates only what changed. The page is titled
+  `[API, WEB] - <the overview's heading> (<code>)` and found again in the account by that code: a
+  random one each draft gets (`page:` in `plan.md`), which the export writes into every ticket, so
+  running it again from any machine or repository of the feature updates the same page; nothing is
+  kept on this machine. A
+  ticket of a repository that is not on this machine is marked so, its state and any dependency on
+  it unknown; one of this repository whose file is only on another branch is read from there and
+  marked so. The page is a snapshot: its feature card says when it was built and gives the command
+  that updates it, with a Copy button. No feature named: the current branch's. A path of this machine
+  in the feature's files is never published: the page is refused with each one named.
+- `plans.js check`, and with it the export, reports a path of this machine anywhere in a feature's
+  files: the plan or overview, a ticket, a research report (a drive such as `C:\`, `/home/<user>`,
+  `/Users/<user>`, `/root`, `/mnt/c/`, the project's or a neighbouring repository's folder). Paths
+  in a feature go from the repository's root, so they hold on every machine.
+- Planning draws where a picture explains better than words: In plain words of the plan (and so of
+  the feature overview) and of each ticket gets a `mermaid` diagram for steps between people and parts
+  of the system, states or branches, or a markdown table for options side by side. It stands right
+  after the text it shows, after a sentence naming it, its labels and state names in the plan's
+  language; one simple action gets none. The ticket reviewer's `plain-words` check notes a process
+  told only in words. In plain words still has no word limit, so pictures count against nothing.
+- A task too big for one can be planned in a new chat without losing what this one found: keel
+  writes a brief, `.keel/local/plans/briefs/<name>-brief.md` (Goal, Files, Decisions and why,
+  Open questions), and gives the exact `/keel:start-planning` command. Planning from a brief takes its
+  content into `plan.md` with the new `plans.js brief`, which moves the brief to keel's trash, and
+  starts from its open questions.
+
+### Changed
+- Planning has its own page, [docs/planning.md](docs/planning.md); [docs/workflows.md](docs/workflows.md)
+  keeps tasks and sessions and links to it.
+- `/keel:start-task` asks once how to go on with a task too big for one: a new chat with a brief,
+  plan here, do not split, or another way. Asked to split it, it does not ask whether and does not
+  offer "do not split"; "do not split" is recorded in `task.md`, so a resumed task is not asked
+  again. With code already changed it no longer hands the task off: it says what is done and
+  advises; work that runs on its own is finished as a task first, and half of something may go on
+  in a branch of its own as the feature's branch (the task's own, or a new one when the task works
+  directly on a shared branch; committed and pushed as work in progress, the task to keel's trash).
+- `/keel:start-task` on a ticket whose dependency is not done offers to take the next ticket first,
+  then to start anyway; for another repository's dependency: take the next ticket / wait for it /
+  start anyway, and for one not checked: start anyway / take another ticket.
+- A to do ticket held back by a dependency learns where that code is, from git: already in its own
+  feature branch (then it may start, and can be next), only in another feature's branch (wait for its
+  merge into main, or pull it in with `git merge <branch>`), only in its ticket branch, in progress or
+  not started (wait). `plans.js tickets <KEY>` prints a `where:` line each, the feature list marks
+  `<KEY> only in feature branch <b>`, `/keel:start-task` offers wait / pull it in / start anyway, and
+  the feature page shows it beside the dependency.
+- Planning no longer offers 2-3 approaches on every choice. An elementary task, or one with none of
+  the reasons below, gets one simple answer; a feature with a reason for more (several variants today, a database or network, a public
+  API, money, access, security, a stated scale, or simply a large one) gets 2-5 levels, each with what
+  is built, about how many tickets, the cost and risk now and the pain of adding it later. keel
+  recommends one, the user chooses, also a level it did not offer; the choice goes into Level.
+- `/keel:start-planning` says once on a new feature that keel advises Opus for planning; the model
+  stays the user's choice. A pricier model or web research also runs after a yes to an offer of it,
+  not only when the user asks.
+- `/keel:start-planning` stops before its first question while the project has no planning settings
+  and names `/keel:configure planning`; export is refused the same way. The first planning on a
+  machine asks only where the draft lives. The ticket prefix no longer falls back to the first of
+  `comments.ticket_prefixes`.
+- A planned ticket starts with In plain words: the whole task told for a person, without code or
+  paths, as long as it needs. Its sections always come in one order: In plain words, Example, Goal,
+  Acceptance criteria, How to check, Boundaries (`always`, `ask first`, `never`), Correct the priors,
+  Where to look, Out of scope, Why, Dependencies; Example and Correct the priors may be left out.
+  `plans.js check` checks the `# [id] title` heading (an empty title fails), each section once and
+  in its order (headings inside code blocks are text), the three Boundaries labels and the
+  acceptance criteria as a `- [ ]` list; the ticket reviewer advises on In plain words and on plain markdown without blocking,
+  and its size check leaves In plain words out of the 150-500 words.
+- Every section of a planned ticket is written for someone who has not seen the feature: short, but
+  in whole sentences, a D or T number with its words. Each acceptance criterion is a sentence
+  "situation → what we see" with concrete people and values, each Boundaries item says why, and the
+  technical part may take 150-500 words (was 150-400). The plan's Level says which of how many, what
+  the scale means, what this level builds and what is put off. The ticket reviewer has a new check,
+  `clear-to-newcomer`: a "no" in Goal or Acceptance criteria is important, elsewhere advice.
+- A planning draft's `plan.md` has In plain words, Level, Contract, What was gathered and an optional
+  Stubs instead of Summary and Problem / Goal; `plans.js find` reads In plain words.
+- The feature overview `README.md` takes the plan's In plain words, Level, Decisions, Contract, Out of
+  scope, Terms and Stubs (no more Design sketch) and lists the feature's tickets: key, title and
+  repository (the last part of the remote's URL, else the project folder's name), without states.
+  Tickets and plans in the earlier format fail `plans.js check`; nothing converts them.
+- A big plan (8 steps or 15 files, unchanged) is run in a fresh conversation first: the plan names the
+  choice (a fresh conversation, recommended; implementers from this conversation; here; or another
+  way) and approving it answers. For a task, approve with "Yes, clear context" or type `/clear` and
+  `/keel:start-task <id>`; for a session, `/clear` and `/keel:start-session`. What the planning
+  settled is written into `task.md` or the note first. The fresh conversation asks once, implementers
+  or here (`execution: fresh` until then); a resume with the choice made asks nothing.
+  `plan-steps.js` prints both wordings of the question.
+- A very big plan, 10 steps or 40 files (not a setting), goes to `/keel:start-task`'s planning as a
+  feature: `plan-steps.js` prints a `very big:` line.
+
+### Fixed
+- `comments.js` no longer stops when `comments.ticket_prefixes` is not a list; it is skipped.
+- A planning folder written with a double slash, such as `docs//plans`, is refused like `docs/plans`.
+- The cost report counts a message that starts with a system reminder, such as the desktop app's
+  "Linked sessions now" note, as your turn, and its preview skips the reminder; before, a long session
+  started from another one showed a single turn.
+- `plans.js check` no longer reports a comparison such as `| < 30 s | > 1 min |` or `x <= 3 | y > 2`
+  as an unfilled `<...>` placeholder; a `<` followed by a space or `=` is not one, and neither is
+  `| <30 s | >1 min |`, `<30 s, then >1 min` or anything in a code block indented under a list item,
+  such as a mermaid diagram.
+
+### Removed
+- `language`, `export`, `export_dir` and `prefix` in `.keel/local/plans/keel/settings.json`, and their
+  `plans.js settings set` options: the project's `planning` section replaces them. Values saved there
+  are not carried over: set them again with `/keel:configure planning`.
+
 ## [1.4.0] - 2026-10-27
 
 ### Added

@@ -7,7 +7,7 @@ status: <active | handed-off>
 branch: <task branch, or - in manual git>
 base: <branch the task starts from; default: the main branch>
 merge_into: <branch the work goes into; default: the main branch>
-execution: <here | delegate>
+execution: <here | delegate | fresh>
 plan: <inline | plan.md (in this folder) | absolute path of the plan file>
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>

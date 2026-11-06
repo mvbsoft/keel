@@ -20,7 +20,9 @@
 //   also when the user's allow rules would let it run: notes.js `task delete` (a finished task's folder
 //   to keel's trash; denied with the reason while no verification is recorded) and `task drop`,
 //   cleanup.js `empty-trash` (deletes for good), git-flow.js `delete-branch`, `merge` and `trust` (below),
-//   plans.js `commit` and `push` (planning files into git and onto the remote);
+//   plans.js `commit` and `push` (planning files into git and onto the remote; with --repo in another
+//   repository of the feature, whose folder the script takes from the project's repos map: the
+//   confirmation names it);
 // - git-flow.js: `status` always; the other steps only when the project's git mode is autonomous
 //   and the user confirmed these git settings on this machine (`trust`, which itself always prompts;
 //   a changed `git` section needs it again). `merge` asks in every mode, unless the mode is autonomous,
@@ -33,8 +35,9 @@
 // - cleanup.js: everything but `empty-trash` (moving to keel's trash and back can be undone; deleting
 //   the trash cannot).
 // - plans.js: everything but `commit` and `push`; its other steps write only the planning files (the
-//   drafts, the exported tickets and their status, settings and chat marks), and `drop` moves a feature
-//   folder whose tickets are all done to keel's trash, which can be undone. commit or push anywhere
+//   drafts, the exported tickets and their status, settings and chat marks), `drop` moves a feature
+//   folder whose tickets are all done to keel's trash and `brief` a brief of /keel:start-task, both of
+//   which can be undone. commit or push anywhere
 //   else in its command asks too (the shell may pass that step in another order).
 // Refused with the reason, so the model sends the plain form: a command joined with shell operators
 // (outside quotes) that names keel's folder; a keel script whose arguments the hook cannot read; a step
@@ -79,6 +82,20 @@ function taskPath(project, id) {
   let t = null;
   try { t = require('../scripts/lib/tasks.js').findTask(project, id); } catch { /* unreadable: the default */ }
   return t && t.folder ? `${path.relative(project, t.folder).split(path.sep).join('/')}/` : `.keel/tasks/${id}/`;
+}
+
+// The repository a plans.js commit or push works in, for its confirmation: the project, or `--repo`'s
+// folder from the project's repos map (the script takes it from there too).
+function plansRepo(project, repo) {
+  const { clean } = require('../scripts/lib/repo-read.js');
+  if (repo === undefined) return clean(norm(project), 200);
+  const prefix = clean(String(repo).trim().toUpperCase(), 20);
+  let s = null;
+  try { s = require('../scripts/lib/plans-settings.js').settings(project); } catch { /* unreadable: named so */ }
+  // This project's own prefix is the project: the script never looks it up in the map.
+  if (s && prefix === s.ticket_prefix) return clean(norm(project), 200);
+  const folder = (s && s.repos[prefix]) || null;
+  return `${prefix} (${folder ? clean(folder, 200) : 'no folder in the repos map'})`;
 }
 
 // The steps Claude Code confirms each time (or, for merge, unless the user turned that off).
@@ -246,7 +263,7 @@ function ownScript(name, argText, projectDir, bash) {
   // refused here. commit or push elsewhere in the command may be that step, passed by the shell in
   // another order, so it asks.
   if (name === 'plans.js') {
-    if (alwaysAsks(name, pos)) return decide('ask', say(pos[0], `confirm.plans_${pos[1]}`));
+    if (alwaysAsks(name, pos)) return decide('ask', say(pos[0], `confirm.plans_${pos[1]}`, { repo: plansRepo(pos[0], opts.repo) }));
     return argv.some((w) => PLANS_ASK.has(w)) ? decide('ask', say(pos[0], 'confirm.plans_word')) : allow('keel runs its own plans.js');
   }
   if (name === 'git-flow.js') {

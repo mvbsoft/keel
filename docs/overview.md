@@ -49,8 +49,9 @@ with your yes.
   more?), the check command, a summary and the next action.
 - **A key led by a session:** "this is led by /keel:start-session".
 - **A planned ticket** (`next ticket` or its key): keel shows its state and offers its feature branch;
-  then it goes on as a new task. A task that turns out too big can become planning while no code has
-  changed (after code changes: once it is handed off).
+  then it goes on as a new task. A task that turns out too big becomes planning, here or in a new chat
+  with a brief of what was found (after code changes: once the work done is finished as a task, or
+  with the task's branch as the feature's).
 
 More: [start a task](workflows.md#start-a-task-keelstart-task).
 
@@ -94,7 +95,7 @@ tomorrow` reviews the changed tickets and saves where planning stands; `/keel:en
 and export` has reviewer agents check the tickets not yet reviewed as they are now, and then the whole
 plan, and exports the tickets into the feature folder with real keys. Then `/keel:start-task next
 ticket` builds them one by one, or `/keel:start-session <feature>` takes them one by one in a session.
-More: [planning](workflows.md#planning), [start-planning](commands.md#keelstart-planning),
+More: [planning](planning.md), [start-planning](commands.md#keelstart-planning),
 [end-planning](commands.md#keelend-planning).
 
 ## 7. The report at the end
@@ -137,8 +138,9 @@ More: [verification](verification.md).
 
 ## 10. Delegation
 
-For a large plan, keel offers to hand its steps to implementer agents, one per step, each on the model
-the step needs (Haiku, Sonnet or Opus). The main conversation accepts each step after its tests.
+For a large plan, keel recommends running it in a fresh conversation from the saved plan; it can
+also hand its steps to implementer agents, one per step, each on the model the step needs (Haiku,
+Sonnet or Opus). The main conversation accepts each step after its tests.
 More: [cost optimization](cost-optimization.md#5-delegation-thresholds) and
 [under the hood](under-the-hood.md#delegation).
 

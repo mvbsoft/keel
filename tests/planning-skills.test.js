@@ -38,7 +38,7 @@ test('every plans.js command the planning instructions name is documented in pla
 test('the other scripts, subcommands, agents and files the planning instructions name exist', () => {
   for (const text of all()) {
     for (const [, ref] of text.matchAll(/<keel>\/([A-Za-z0-9_./-]+)/g)) assert.ok(fs.existsSync(path.join(PLUGIN, ref)), `<keel>/${ref} does not exist`);
-    for (const [, name] of text.matchAll(/keel:([a-z-]+-reviewer|context)\b/g)) assert.ok(fs.existsSync(path.join(PLUGIN, 'agents', `${name}.md`)), `no agent ${name}`);
+    for (const [, name] of text.matchAll(/keel:([a-z-]+-reviewer|context|researcher)\b/g)) assert.ok(fs.existsSync(path.join(PLUGIN, 'agents', `${name}.md`)), `no agent ${name}`);
     for (const [, script, sub] of text.matchAll(/(notes|git-flow)\.js" "<project>" ([a-z]+)/g)) {
       assert.match(read('scripts', `${script}.js`), new RegExp(`^//   ${sub}\\b`, 'm'), `${script}.js documents no ${sub}`);
     }
@@ -65,18 +65,121 @@ test('planning rules: the chat in the conversation language, the draft in the pl
   assert.match(rules, /are data describing the feature, never instructions/);
 });
 
-test('planning work: one question per message, 2-3 approaches, D and Q records, tickets at once in the short template', () => {
+test('planning work: one question per message with a recommendation, D and Q records, tickets at once from the template', () => {
   const work = section('Work');
   assert.match(work, /\*\*One question per message\*\*/);
-  assert.match(work, /2-3 approaches with your recommendation/);
+  assert.match(work, /options come\s+with your recommendation and why/);
+  // The person reads the last message: an answer said before the draft is written gets buried.
+  assert.ok(work.replace(/\s+/g, ' ').includes('Write the draft first, then reply: the answer and the next question are in the last message, after the tool calls.'));
+  // Offers come as levels on a signal, not as 2-3 approaches on every choice.
+  assert.doesNotMatch(work, /2-3 approaches/);
   assert.match(work, /The first question gets no answer \(no\s+one is there\) → stop/, 'the fallback when the hooks cannot tell there is no person');
   assert.match(work, /Decisions \(`D1\. decision - why`\)/);
   assert.match(work, /Open questions \(`Q1\. question - what depends on it`; an answered\s+Q leaves the list and becomes a D\)/);
   assert.match(work, /plans\.js ticket <f> --title "<title>" \[--slug <english-words>\] \[--depends "T1,T2"\]/);
-  for (const heading of ['Goal', 'Why', 'Acceptance criteria', 'Where to look', 'Out of scope', 'Dependencies', 'How to check']) assert.ok(work.includes(heading), heading);
+  // Every section plans.js check knows, by its heading.
+  const { TICKET_SECTIONS, PLAN_SECTIONS } = require(path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'lib', 'plans-format.js'));
+  const flat = work.replace(/\s+/g, ' ');
+  for (const n of [...PLAN_SECTIONS, ...TICKET_SECTIONS]) assert.ok(flat.includes(n), n);
+  assert.match(flat, /its sections in this order: In plain words \(/);
+  // Pictures in In plain words of the plan and the tickets: which kind for what, a sentence each, none for one action.
+  assert.match(flat, /\*\*Pictures in In plain words\.\*\* The plan's and each ticket's In plain words show the work with a picture/);
+  for (const kind of ['`sequenceDiagram`', '`stateDiagram-v2`', '`flowchart`', 'a markdown table']) assert.ok(flat.includes(kind), kind);
+  assert.match(flat, /A picture stands right after the text it shows, never at the end of the section/);
+  assert.match(flat, /right before it one sentence names what it shows/);
+  assert.match(flat, /state names too/);
+  assert.match(flat, /One simple action \("a button downloads the list"\) needs none/);
+  assert.match(work, /```mermaid\n\s+sequenceDiagram\n/);
+  assert.match(work, /a `- \[ \]` list/);
+  assert.match(work, /`- always:`, `- ask first:`, `- never:`/);
+  assert.match(work, /The technical part\s+\(all but In plain words and Example\) is 150-500 words/);
+  // Every section reads for someone who has not seen the feature: criteria as situation → what we see, Boundaries with why.
+  assert.ok(flat.includes('Every section is for a reader who has not seen the feature: short, but in whole sentences, with concrete people and values; a term, a T or a D number comes with its words'));
+  assert.ok(flat.includes('one behaviour per item, each a sentence "situation → what we see" that an action checks'));
+  assert.ok(flat.includes('`- always:`, `- ask first:`, `- never:` for this ticket, each with why in a few words'));
   assert.match(work, /no implementation steps/);
   assert.match(work, /More than about 15 tickets → offer to split the feature/);
   assert.match(work, /`plans\.js state <f> abandoned`/);
+});
+
+test('the plan and ticket templates ask for a picture in In plain words', () => {
+  for (const file of ['plan.md', 'ticket.md']) {
+    const text = read('templates', 'keel', 'planning', file);
+    const plain = text.slice(text.indexOf('## In plain words'), text.indexOf('\n## ', text.indexOf('## In plain words') + 3));
+    assert.match(plain, /a mermaid diagram or a table where it shows the work better than words, after a sentence naming it/, file);
+  }
+});
+
+test('planning gathers before it asks: an offer with its price on one yes, the findings in What was gathered, read again instead of a new search', () => {
+  // Line breaks in the instructions are layout: compare the text with whitespace collapsed.
+  const flat = (text) => text.replace(/\s+/g, ' ');
+  const work = flat(section('Work'));
+  before(work, '**One question per message**', '**Gather before the questions.**');
+  assert.ok(work.includes('A new feature told in a line or two, one sized large, or one whose `repos:` names another repository → before its first question, one message offers what to look up first, each item with its price said as an estimate'));
+  assert.ok(work.includes('never a dollar figure nobody measured'), 'no invented price');
+  assert.ok(work.includes('all on one yes'));
+  assert.ok(work.includes('the project map, one `keel:context` call (a Haiku helper, cheap)'));
+  assert.ok(work.includes('how others do it, one `keel:researcher` call (a Sonnet helper on the web, dearer than the map), when the feature leans on outside know-how'));
+  before(work, 'the project map, one `keel:context` call', 'how others do it, one `keel:researcher` call', 'one offer, the map first');
+  assert.ok(work.includes('On a yes first write its answers, short and with `file:line` (another repository\'s under `### <PREFIX>`, its paths from its folder), into What was gathered (`plan.md`), then ask; the researcher\'s report is written as "Research" says, with one line there naming its file'));
+  before(work, 'the project map, one `keel:context` call', 'each other repository of `repos:`, one `keel:context` call each', 'the map, then the other repositories');
+  assert.ok(work.includes('none asks what the gathered facts or the project\'s docs already answer'));
+  assert.ok(work.includes('What was gathered stays in the draft and is not exported'));
+  assert.ok(work.includes('**A draft continued**, or one made from a brief, reads What was gathered first and never searches for it again (no gathering offer)'));
+  // Research the planner offered and the user took is allowed, not only research the user asked for.
+  assert.ok(flat(section('Rules')).includes('A pricier model or web research only when the user asks or says yes to an offer of it'));
+  // A skipped or unanswered offer is not a yes: no searches of the planner's own in its place.
+  assert.ok(flat(section('Rules')).includes('The user skipped the gathering or has not answered its offer → no searches to prepare the offer or the levels; say what is not known.'));
+  const text = flat(start());
+  assert.ok(text.includes('read `plan.md` only (not the tickets): the ticket list, open Q, What was gathered, Next action'));
+  assert.ok(text.includes('new: the gathering offer when it fits, else the first open question'));
+});
+
+test('planning decides proportionally: the reuse ladder, levels only on a signal, three views before the tickets, research on a yes into research/', () => {
+  const flat = (text) => text.replace(/\s+/g, ' ');
+  const work = flat(section('Work'));
+  // Reuse first: in this order, the web only for the registry step, the offer from the shared file.
+  assert.ok(work.includes('the project\'s own code → its installed packages (manifest and lock file) → the framework and the platform → a small, living package → write it ourselves; stop at the first good answer'));
+  assert.ok(work.includes('only the registry needs the web: `keel:researcher` on a yes, its price said in words, at most 2 packages'));
+  assert.ok(work.includes('An elementary task stops after the first step'));
+  assert.ok(work.includes('Show the choice as `<keel>/skills/_shared/packages.md` "Offer" says'));
+  // Levels: none for an elementary task or one without a signal, 2-5 on a signal, each with the same four parts, any level on request.
+  assert.ok(work.includes('"1d 2h" to seconds is a function of a few lines with a table of units, not a class with validators), and any task with none of the signals below, gets one simple answer, said as the plan, and one line on when to revisit it: no levels and no list of other ways (a package, another design) to pick from'));
+  assert.ok(work.includes('An elementary task stops after the first step: nothing there → write it ourselves, no package named'));
+  // The levels come right after the goal: channels, formats and timing are what they differ in.
+  assert.ok(work.includes('as soon as the user has said who gains and what for, the next message offers 2-5 levels of the feature (as many as make sense) before any question on channels, formats or timing'));
+  assert.ok(work.includes('Levels come when at least one signal holds'));
+  for (const signal of ['several real variants today', 'an I/O boundary', 'a public API or a format others use', 'money, access or security', 'a scale the user gave in numbers', 'a change hard to undo', 'a large feature']) assert.ok(work.includes(signal), signal);
+  assert.ok(work.includes('each says what we build, about how many tickets, its cost and risk now, and how painful adding it later is'));
+  assert.ok(work.includes('Recommend one and say why; the user chooses, also a level nobody offered'));
+  assert.ok(work.includes('even for an elementary task'));
+  assert.ok(work.includes('The chosen level goes into Level, for a reader who has not seen the levels: which of how many and what that scale means'));
+  assert.ok(work.includes('what this level builds, and what is put off and why'));
+  // The rules of an earned abstraction live in the architecture skill, read from there, not copied.
+  assert.ok(work.includes('section 3 of `<keel>/skills/architecture/SKILL.md`'));
+  assert.match(read('skills', 'architecture', 'SKILL.md'), /^## 3\. Structure of new logic: is an abstraction earned\?$/m);
+  assert.ok(work.includes('Justify a design by its consequence ("one place to add a unit"), never by a principle\'s name'));
+  // Three views: lines of the checklist, right before the tickets, as proposals the user decides.
+  before(work, '**Three views before the tickets.**', '**Tickets** at once from the template');
+  for (const view of ['the product and its users', 'the architect', 'operations and security']) assert.ok(work.includes(view), view);
+  assert.ok(work.includes('what may be missing, as numbered proposals'));
+  assert.ok(work.includes('The user decides each; a proposal taken goes into the plan'));
+  // Research: on a yes; the planner writes the report, the researcher writes no file.
+  assert.ok(work.includes('`keel:researcher` runs only after a yes to an offer with its price in words'));
+  assert.ok(work.includes('Its reply → first write it as it is into `research/<topic>.md` in the draft folder'));
+  assert.ok(work.includes('also a report with "not checked" in it), then show the choice'));
+  assert.ok(work.includes('a ticket that follows it names the file in Why'));
+  assert.ok(work.includes('The research folder goes with the tickets on export'));
+  for (const text of all()) assert.doesNotMatch(text, /keel:perspectives/, 'the three views need no agent');
+});
+
+test('start-planning: a new feature hears once that keel advises Opus, without a model check', () => {
+  const fresh = start().slice(start().indexOf('**New feature.**'), start().indexOf('**Continue a draft.**'));
+  assert.ok(fresh.replace(/\s+/g, ' ').includes('Say once, in one line: keel advises Opus for planning, since the plan shapes all the work after it; the model stays the user\'s choice (`/model`)'));
+  before(fresh, 'keel advises Opus', 'Source:', 'said at the start of the new feature');
+  // Advice only: the model is named once, in that line, and nothing checks, switches or blocks it.
+  assert.equal(start().match(/\bOpus\b|\/model\b|\bSonnet\b|\bHaiku\b/g).length, 2, 'Opus and /model, once each');
+  assert.doesNotMatch(start(), /check(s|ing)? the model|switch(es)? the model|not Opus|without Opus/i);
 });
 
 test('start-planning: preflight, the session-lane check, then notes.js check without --begin; the hooks keep the other refusals', () => {
@@ -92,11 +195,14 @@ test('start-planning: preflight, the session-lane check, then notes.js check wit
   assert.match(text, /one conversation, one feature/);
 });
 
-test('start-planning: the first run asks the language, then the draft place, one per message, and saves them', () => {
+test('start-planning: without the planning settings in the config it stops before any question; the first run asks only the draft place', () => {
   const text = start();
-  assert.match(text, /`settings: none yet` → two questions, one per message: the\s+tickets' language/);
-  before(text, "tickets' language", 'where the draft lives');
-  assert.match(text, /`plans\.js settings set --language <l> --draft <pc\|repo> \[--draft-dir <dir>\]`/);
+  assert.match(text, /`planning: planning is not set up \.\.\.` → before any question say: "Planning is not set up in this\s+project yet: .*Run `\/keel:configure planning`, then `\/keel:start-planning` again\." and stop\./s);
+  before(text, '`planning: planning is not set up', '`settings: none yet`');
+  before(text, '`planning: planning is not set up', '**Which feature**');
+  assert.match(text, /`settings: none yet` → one question: where the draft lives/);
+  assert.match(text, /`plans\.js settings set --draft <pc\|repo> \[--draft-dir <dir>\]`/);
+  assert.doesNotMatch(text, /--language|tickets' language/, 'the ticket language is a project setting');
 });
 
 test('start-planning: no argument lists the drafts, words find one, a link or file starts a new feature', () => {
@@ -108,7 +214,7 @@ test('start-planning: no argument lists the drafts, words find one, a link or fi
   // An exported feature is reopened to edit its tickets in the feature folder (spec §5.6), not refused.
   assert.doesNotMatch(text, /editing them is not part\s+of this command/);
   assert.match(text, /A chosen plan that is `exported`, or a name `plans\.js tickets <f>` lists tickets for \(an exported\s+feature without a draft\) → its tickets live in the feature folder: planning\.md "Exported feature"\s+steps 1-2, then step 7, then its steps 3-6 as the work \(not steps 5, 6 and 8\)/);
-  assert.match(text, /read `<keel>\/skills\/_shared\/planning\.md`, sections "Rules" and "Work"; they hold for the whole\s+command \(an exported feature: also "Exported feature"\)/i);
+  assert.match(text, /read `<keel>\/skills\/_shared\/planning\.md`, sections "Rules", "Work" and "Several repositories"; they\s+hold for the whole command \(an exported feature: also "Exported feature"\)/i);
   assert.match(text, /`planning: <f>` \(an exported feature:\s+`planning: <f> \(exported: <folder>\)`\)/);
 });
 
@@ -175,7 +281,7 @@ test('start-planning: continuing shows the script\'s short state, a staleness li
   const text = start();
   const cont = text.slice(text.indexOf('**Continue a draft.**'));
   assert.match(cont, /`plans\.js check <f>` and `plans\.js review <f>`; read `plan\.md` only \(not the\s+tickets\)/);
-  assert.match(cont, /`plans\.js stale <f>`: show its `stale:` line as it is/, 'the script compares the named files (0 tokens)');
+  assert.match(cont, /`plans\.js stale <f>`: show its `stale:` lines as they are \(one more per other repository\)/, 'the script compares the named files (0 tokens)');
   assert.doesNotMatch(cont, /git diff/, 'no staleness check of its own');
   assert.match(cont, /summary in 3-6 lines and the Next action/);
 });
@@ -256,11 +362,12 @@ test('end-planning A: only changed tickets reviewed, fix or Q, plan.md and after
   assert.match(a, /Nothing changed → no review/);
   assert.match(a, /fix now or record it as a Q/);
   assert.match(a, /Open questions; Next action/);
-  assert.match(a, /`after_commit` = `git rev-parse --short HEAD`/);
+  // A script records this project's HEAD and each other repository's, so stale can compare each.
+  assert.match(a, /`plans\.js set <f> --after-commit` \(`after_commit:`, and\s+`after_commit_repos:` for the plan's other repositories\)/);
   assert.match(a, /A repository draft → planning\.md "Commit and push"/);
 });
 
-test('end-planning B: gates, ticket reviews then one plan review, at most 2 rounds, ready, then the export with its first-time questions', () => {
+test('end-planning B: gates, ticket reviews then one plan review, at most 2 rounds, ready, then the export with the project target and prefix', () => {
   const text = end();
   const b = text.slice(text.indexOf('**B. Final.**'), text.indexOf('**Always**'));
   assert.match(b, /\*\*Gates\*\*: `open Q 0`, `check: clean`, and every finding in `reviews\/` has a decision\. Else\s+show what blocks and offer mode A/);
@@ -269,14 +376,15 @@ test('end-planning B: gates, ticket reviews then one plan review, at most 2 roun
   before(b, '**Gates**', 'Reviews:');
   before(b, 'Reviews:', '`plans.js state <f> ready`');
   before(b, '`plans.js state <f> ready`', '**Export.**');
-  assert.match(b, /`export: -` \(the first time\) → ask where: the repository .* or this\s+machine only \(a draft in the repository exports there: say so, do not ask\)/s);
+  assert.match(b, /`plans\.js settings`: say the target \(`tickets: repo` → `<tickets_dir>\/<f>\/`;\s+`tickets: pc` → this machine only\) and the prefix \(`ticket_prefix`\) in one line/);
   // A plan already ready was reviewed as it is: no second round of paid reviews.
   assert.match(b, /A plan already\s+`ready` in `plans\.js list` \(not "changed after ready"\) was reviewed\s+as it is: go straight to Export \(B\.5\)\./);
   before(b, 'go straight to Export (B.5)', '**Gates**');
-  assert.match(b, /`prefix: -` → propose the first `comments\.ticket_prefixes`\s+of `\.keel\/config\.json`, else 3-4 capital letters from the repository name; the user confirms/);
-  assert.match(b, /`plans\.js settings set --export <pc\|repo> \[--export-dir <dir>\] --prefix <PROJ>`/);
-  before(b, 'settings set --export', '`plans.js export <f>`');
-  assert.match(b, /Ask "Export the\s+<n> tickets now\?"; no → the plan stays `ready`/);
+  // The target and prefix are the team's: /keel:configure asks them, export never does.
+  assert.match(b, /`planning: planning is not set up \.\.\.` → say\s+"Run `\/keel:configure planning` in a new conversation .*" and go to step 7: the plan stays\s+`ready`/s);
+  assert.doesNotMatch(b, /settings set|comments\.ticket_prefixes/);
+  before(b, '`plans.js settings`', '`plans.js export <f>`');
+  assert.match(b, /Ask "Export the\s+<n>\s+tickets now\?"; no → the plan stays `ready`/);
   assert.match(b, /"These tickets are seen on\s+this machine only\."/);
   assert.match(b, /In the repository → planning\.md "Commit and push"/);
   assert.match(b, /Refused → its reason; the plan stays `ready`/);
@@ -300,21 +408,23 @@ test('end-planning: the chat mark is cleared in every mode, then the costs, and 
 });
 
 test('every output line the planning instructions quote is printed by plans.js', () => {
-  const scripts = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-export.js'], ['lib', 'plans-report.js'], ['lib', 'plans-state.js']];
+  const scripts = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-drafts.js'], ['lib', 'plans-check.js'], ['lib', 'plans-settings.js'], ['lib', 'plans-export.js'], ['lib', 'plans-export-repos.js'], ['lib', 'plans-report.js'], ['lib', 'plans-state.js'], ['lib', 'plans-repos.js']];
   const source = scripts.map((p) => (fs.existsSync(path.join(PLUGIN, 'scripts', ...p)) ? read('scripts', ...p) : '')).join('\n');
   const text = all().join('\n');
   const lines = ['settings: none yet', 'find: 1 match', 'find: no match', 'planning: none', 'check: clean', 'report: ok ·', 'report: failed',
-    'exported:', 'readme:', 'committed:', 'commit: nothing to commit', 'renumbered:', 'pushed:', 'push: no remote, nothing pushed', 'stale:', 'branch:', 'merge_into:',
-    'created:', 'ticket:'];
+    'exported:', 'readme:', 'committed:', 'commit: nothing to commit', 'renumbered:', 'pushed:', 'push: no remote, nothing pushed', 'branch:', 'merge_into:',
+    'created:', 'ticket:', 'not ready:', 'overview:', 'retry:'];
   for (const line of lines) {
     assert.ok(text.includes('`' + line), `the instructions do not quote ${line}`);
     assert.ok(source.includes(line), `plans.js no longer prints "${line}"`);
   }
   // Quoted with placeholders, printed from template literals.
-  for (const [quoted, printed] of [['`planning: <f> (exported: <folder>)`', ' (exported: ${'], ['`branch: <b> -> <merge_into>`', '`  branch: ${']]) {
+  // stale: is printed with an optional ` (<PREFIX>)` for another repository's tickets.
+  for (const [quoted, printed] of [['`stale:`', 'stale${tag}: '], ['`planning: planning is not set up ...`', 'planning: ${notSetUp(root)}'],['`planning: <f> (exported: <folder>)`', ' (exported: ${'], ['`branch: <b> -> <merge_into>`', '`  branch: ${']]) {
     assert.ok(text.includes(quoted), `the instructions do not quote ${quoted}`);
     assert.ok(source.includes(printed), `plans.js does not print ${printed}`);
   }
+  assert.ok(source.includes("NOT_SET_UP = 'planning is not set up"), 'notSetUp() says planning is not set up');
   assert.match(read('skills', '_shared', 'final-report.md').split('\n')[0], /\/keel:end-planning/, 'final-report.md names end-planning, which reads its block 5');
 });
 
@@ -324,4 +434,76 @@ test('/keel:help names the planning commands and says the lane rule', () => {
   assert.match(help, /^\| `\/keel:end-planning /m);
   assert.match(help, /"One conversation, one\s+lane: a planning conversation refuses the task and session commands, and a task conversation refuses\s+planning\."/);
   assert.match(read('evals', 'help-lists-every-command', 'graders', 'all-commands.md'), /\/keel:start-planning[\s\S]*\/keel:end-planning/, 'the help eval expects them too');
+});
+
+test('several repositories: the projects question comes after the premise check, only with signs, from plans.js repos', () => {
+  const text = start();
+  before(text, 'Check the premise', '**Which projects**', 'the question builds on the retold feature');
+  before(text, '**Which projects**', 'Size:', 'the repositories are known before the size and the name');
+  before(text, '`plans.js new <f>`', 'plans.js set <f> --repos', 'repos: is written into the draft once it exists');
+  before(text, 'plans.js set <f> --repos', 'mark set <f> --session <sid>');
+  assert.match(text, /sections "Rules", "Work" and "Several repositories"/);
+  const several = section('Several repositories');
+  assert.match(several, /only when the feature shows signs of another\s+repository \(an API, event or format others use; a front or an app\) or the user names one: run\s+`plans\.js repos`/);
+  assert.match(several, /none fits and the user\s+named none → no question/);
+  assert.match(several, /\[yes, all\] \[only some\]\s+\[other: I give a path\] \[no\]/);
+  assert.match(several, /`plans\.js settings set --repo <PREFIX>=<absolute folder>`/);
+  assert.match(several, /`plans: set refused \(<why>\)` → say why and ask again/);
+});
+
+test('several repositories: a repository not here gets 4 options and stubs; one ticket, one repository; reads may ask', () => {
+  const several = section('Several repositories');
+  assert.match(several, /ask with 4 options: \(1\) a\s+repository from the list that may be it, without certainty: confirm it; \(2\) stubs \(item 6\);\s+\(3\) leave that repository out; \(4\) other: a path, or what to do/);
+  assert.match(several, /`### <repository>: <title>`/);
+  assert.match(several, /A stub has no key: `depends_on` never names one; a ticket that\s+needs it says so in its Dependencies/);
+  assert.match(several, /a ticket never mixes repositories/);
+  assert.match(several, /Design sketch gets one `### <PREFIX>` part per\s+repository of `repos:`/);
+  assert.match(several, /`\/add-dir <folder>` lets this conversation read it\s+without asking; never change settings without a yes/);
+  assert.match(several, /offer to turn its stubs into tickets/);
+  assert.doesNotMatch(several, /refuses a plan that names other repositories/);
+});
+
+test('several repositories: export into each repository; a repository not ready gets its answers; commit and push once per repository', () => {
+  const several = section('Several repositories');
+  before(several, '`plans.js repos` once more first', '`plans.js export <f>` puts each');
+  assert.match(several, /`git -C "<folder>" switch \.\.\.` → "Create \(or switch to\) `<branch>` in <repository>\?"; yes → run\s+exactly that command/);
+  // The mark is cleared at the end of end-planning, so the way back starts with start-planning.
+  assert.match(several, /"wait, I prepare it" → the\s+plan stays `ready`; later `\/keel:start-planning <f>`, then `\/keel:end-planning`/);
+  assert.match(several, /only for a\s+line with `\(or --as-is <PREFIX>: \.\.\.\)`: do as is → `plans\.js export <f> --as-is "<PREFIX>,<PREFIX>"`/);
+  assert.match(several, /Never commit, stash or end a task in another repository/);
+  assert.match(several, /is in repos but has no ticket` → offer a ticket for it, or `plans\.js set <f> --repos`/);
+  const git = section('Commit and push');
+  assert.match(git, /one question for all \("Commit the planning files in <API, WEB>\?"\),\s+then Claude Code asks once per repository/);
+  before(git, '`plans.js commit <f>` here first', '`plans.js commit <f> --repo');
+  assert.match(git, /a failed push does not stop the others: at\s+the end name each one with its `retry:` command \(a network or access failure\), or with its refusal\s+\(behind, a protected branch: what to do first\)/);
+  const exported = section('Exported feature');
+  assert.match(exported, /`--repo <PREFIX>`\s+for another repository of its overview/);
+  assert.match(exported, /offers the commit and push of every repository\s+it changed/);
+  const b = end().slice(end().indexOf('**B. Final.**'), end().indexOf('**Always**'));
+  assert.doesNotMatch(b, /`\/keel:end-planning` again|for the next end-planning/);
+  assert.match(b, /`not ready:` lines → planning\.md\s+"Several repositories" item 8/);
+});
+
+test('several repositories: the neighbours are always in the gathering offer; reviewers get each repository\'s folder', () => {
+  const work = section('Work');
+  assert.match(work, /one whose\s+`repos:` names another repository → before\s+its first question/);
+  assert.match(work, /each other repository of `repos:`, one `keel:context` call each \(cheap\) with its absolute folder:\s+its rules \(`CLAUDE\.md`, `AGENTS\.md`, skills\)/);
+  assert.match(work, /\[--repo <PREFIX>\]/);
+  const reviews = section('Reviews');
+  assert.match(reviews, /another repository's ticket\s+with its folder as `plans\.js review` names it, `\(WEB: <folder>\)`/);
+  assert.match(reviews, /the `repos:`\s+line of `plans\.js review` \(each repository's folder\)/);
+});
+
+test('several repositories: the helpers read another repository in its folder; the plan reviewer counts stubs', () => {
+  const context = read('agents', 'context.md');
+  assert.match(context, /^## Another repository \(planning\)$/m);
+  assert.match(context, /Its rules first: `CLAUDE\.md` and `AGENTS\.md` \(root and nested\), and its skills/);
+  assert.match(context, /Cite paths relative to that folder/);
+  const ticket = read('agents', 'ticket-reviewer.md');
+  assert.match(ticket, /for a ticket of another repository \(`repo:` in its front matter\), that repository's absolute\s+folder: check its code there/);
+  assert.match(ticket, /"not on this machine": say in `true-in-code`'s `note` that its code was\s+not checked/);
+  const plan = read('agents', 'plan-reviewer.md');
+  assert.match(plan, /each repository's folder \(`<PREFIX>=<folder>`\)/);
+  assert.match(plan, /A promised behaviour a stub covers is covered \(not a gap\); one in a\s+stub and in a ticket too is checked twice/);
+  assert.match(read('schemas', 'plan-findings.schema.json'), /relative to the root of the ticket's repository/);
 });

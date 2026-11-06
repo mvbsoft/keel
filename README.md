@@ -198,6 +198,7 @@ The full walkthrough: [Getting started](docs/getting-started.md).
 | `/keel:end-session [instruction]` | verify the session, write the note for next time, git | `/keel:end-session we continue tomorrow, prepare` |
 | `/keel:start-planning [idea, link, file or feature]` | plan a feature in its own conversation: one question at a time, decisions and short tickets, no code | `/keel:start-planning CSV export of invoices` |
 | `/keel:end-planning [instruction]` | hand the plan over for later, or review it and export the tickets into the feature folder | `/keel:end-planning final review and export` |
+| `/keel:feature-page [feature] [--lang code]` | a private page of a planned feature in your claude.ai account: overview, tickets with their states, research; in your language | `/keel:feature-page csv-export` |
 | `/keel:cleanup [restore \| empty-trash]` | move leftovers to keel's trash, put them back, or empty old trash | `/keel:cleanup` |
 | `/keel:help` | a short table of the commands | `/keel:help` |
 
@@ -211,6 +212,7 @@ Every variant: [Commands](docs/commands.md).
 | install, update or remove keel, or fix a problem | [Install](docs/install.md) |
 | set up a project and run a first task | [Getting started](docs/getting-started.md) |
 | know what to type in each situation | [Ways of working](docs/workflows.md) |
+| plan a feature before the code | [Planning](docs/planning.md) |
 | know what keel does in each situation and what guarantees it | [How keel behaves](docs/behavior.md) |
 | look up a command and its variants | [Commands](docs/commands.md) |
 | pick a verification level | [Verification](docs/verification.md) |

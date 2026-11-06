@@ -78,7 +78,7 @@ go into the commit; otherwise write them after it.
 | `note branch` differs from the current branch (autonomous git) | `git-flow.js switch --name <branch>`; `stopped` (uncommitted changes) → ask what to do with them |
 | `status: blocked` | show the open questions first; continue once they are answered |
 | no note (or `status: done`) + a path to a plan file | a new line of work: read the file; write the note from the template with its items as the **Plan** (steps ⬜; a file with step blocks keeps their shape) and its goal as **Goal**; **Later** empty; show it and ask "Start?"; then the git branch for the line (below) |
-| no note (or `status: done`) + a feature's name or folder (planned tickets: "do these tickets one by one") | run `node "<keel>/scripts/plans.js" "<project>" tickets <feature>` (a folder: its last part; `tickets: none (no ticket or feature <x>)` → not a feature: the rows below). A new line of work: the **Plan** is its tickets marked `next` or `to do`, the `next` one first, then each after the tickets it depends on (`plans.js tickets <KEY>` prints its `depends:` line; the feature view does not), one ⬜ step each (`<KEY> <title>`); `keys` = those keys (each must give `lane: none`); `branch` and `base` = the feature branch (its `branch: <b> -> <merge_into>` line), `merge_into` = its `merge_into`. Tickets `in progress` or `waiting for ...` are listed with their hints and the user decides whether any goes into the Plan. Show it and ask "Start?"; on yes the branch first, then write the note (a switch needs a clean tree): autonomous `git-flow.js switch --name <b>` (missing: `start --name <b> --from <the ref that has the tickets>`; refs without the remote prefix: `origin/x` → `x`); manual: give `git switch <b>` and wait |
+| no note (or `status: done`) + a feature's name or folder (planned tickets: "do these tickets one by one") | run `node "<keel>/scripts/plans.js" "<project>" tickets <feature>` (a folder: its last part; `tickets: none (no ticket or feature <x>)` → not a feature: the rows below). A new line of work: the **Plan** is its tickets marked `next` or `to do`, the `next` one first, then each after the tickets it depends on (`plans.js tickets <KEY>` prints its `depends:` line; the feature view does not), one ⬜ step each (`<KEY> <title>`); `keys` = those keys (each must give `lane: none`); `branch` and `base` = the feature branch (its `branch: <b> -> <merge_into>` line), `merge_into` = its `merge_into`. Tickets `in progress` or `waiting for ...` are listed with their hints and the user decides whether any goes into the Plan. A dependency in another repository (its state followed by `(<folder>, ...)`, or `not checked`) is no step of its own: the ticket's step names it with that state. Show it and ask "Start?"; on yes the branch first, then write the note (a switch needs a clean tree): autonomous `git-flow.js switch --name <b>` (missing: `start --name <b> --from <the ref that has the tickets>`; refs without the remote prefix: `origin/x` → `x`); manual: give `git switch <b>` and wait |
 | no note (or `status: done`) + a description | a new line of work: follow `<keel>/skills/_shared/intake.md` steps 3, 5 and 6 (retell, the brainstorm offer or questions, plan) with the description, but from step 3 only the retell and the premise check: no "new or continuation", never a task; the plan becomes the note's **Plan** as in the row above (plan.md's Execution steps for a session) |
 | no note (or `status: done`), no instruction | look in the project for work: memory's Active context, plan files, TODO markers in recently changed files, unfinished work in `git status`; propose 1-3 briefly. Nothing → "There is no work for a session; tell me what to do." `tasks:` shows unfinished tasks → add "There are unfinished tasks: /keel:tasks shows them, /keel:start-task continues one." Never start a task yourself |
 | a note + "do it through subagents" (or "delegate") | summary as above; then follow `<keel>/skills/_shared/delegate.md` with the plan (below) |
@@ -90,13 +90,27 @@ a session. A new line that clearly fits a task → suggest `/keel:start-task` in
 words joined by `-`; from `git.main_branch` unless the user named another base). Manual: give
 `git switch -c <short-name>` and wait. Uncommitted changes → ask first, never carry them silently.
 
-**The plan and its size.** The note's Plan holds the line's steps. Run
-`node "<keel>/scripts/plan-steps.js" "<project>" "<file with the steps>" --remaining`.
-- `suggest: delegate` and the user did not say how → after the summary ask its `ask:` line (in the
-  conversation language); also say what this session can cover.
+**The plan and its size.** The note's Plan holds the line's steps; its `execution:` keeps the choice
+(`here`, `delegate`, or `fresh`: a fresh conversation runs the saved plan, how is not chosen yet).
+The user saying how ("do it through subagents") wins over any of it.
+- **A plan written in this conversation** (a new line): run
+  `node "<keel>/scripts/plan-steps.js" "<project>" "<file with the steps>"`. `suggest: delegate` →
+  the plan's Execution step 3 names the choice as intake.md step 6 says (`fresh` recommended,
+  `delegate`, `here`, or what the user says) and states its `ask:` line; approving the plan answers it.
+  `very big:` is for tasks only: a line of work spans sessions. For `fresh` the plan's Execution
+  step 4 holds what the discussion settled, as intake.md step 6 says; the note takes it into
+  Decisions and why and Open questions. `execution: fresh` → once the note is written, the plan
+  discussion stays behind: first check that the note holds what it settled (add what is missing),
+  then say: "The plan is saved. Type `/clear`, then `/keel:start-session`: the work goes on from the
+  note." and stop; keel never types it for the user. A conversation that began with the plan alone
+  ("Yes, clear context") is the fresh one: as below.
+- **A note read at the start** (a resume): run
+  `node "<keel>/scripts/plan-steps.js" "<project>" "<file with the steps>" --remaining`, then act on
+  `execution:` as intake.md "Resume" step 7 does, after the summary: `fresh` → ask its `ask:` line
+  and write the answer into the note's `execution:`, also saying what this session can cover; `here`
+  or `delegate` → no question, one line with its count.
 - Steps without files, model, effort or "done when" (`problems`) and the work is delegated → first
   complete those steps in the plan (they are yours to write), then show the step table to confirm.
-- The note says `execution: delegate` → keep delegating unless the user says otherwise.
 
 At the end the user runs `/keel:end-session`, with an instruction when they want one (e.g. "push and
 merge into main", "we continue tomorrow, prepare").

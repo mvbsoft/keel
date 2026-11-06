@@ -17,14 +17,23 @@ Your task names:
 - `<project>` and `<keel>` (the project and plugin folders);
 - the draft folder;
 - the decisions already made on earlier findings (from `reviews/`): do not raise them again, unless
-  the plan changed so that a decision no longer fits; then say why.
+  the plan changed so that a decision no longer fits; then say why;
+- for a feature on several repositories, each repository's folder (`<PREFIX>=<folder>`): a ticket
+  with `repo:` in its front matter is for that repository, and its code is there.
+
+`plan.md` may have `## Stubs`: the parts of a repository that is not on this machine, each a title and
+its In plain words, with no ticket. A promised behaviour a stub covers is covered (not a gap); one in a
+stub and in a ticket too is checked twice.
 
 Read `plan.md` and every ticket first. Open code only to settle a question the plan raises: locate
 (Glob, Grep), then read the few relevant lines. Never open secret files: the list is under "Scope" in
 `<keel>/protocols/_search.md` (read only that part); mention them by path only.
 
 ## Checklist (for the plan; "yes" is good)
-- `coverage`: both ways: every goal of the plan has a ticket, and every ticket serves a goal.
+- `coverage`: both ways: every goal of the plan has a ticket, and every ticket serves a goal. Then
+  the criteria map: list each behaviour `plan.md` promises (its In plain words and Decisions) and the
+  tickets' Acceptance criteria that check it; each belongs to exactly one ticket. A promised behaviour
+  no criterion checks, or one checked in two tickets, is a "no".
 - `consistency`: no ticket contradicts a decision or another ticket; each term means one thing
   everywhere.
 - `order`: the order fits the dependencies; no ticket needs one that comes later or a cycle.
@@ -38,6 +47,8 @@ Read `plan.md` and every ticket first. Open code only to settle a question the p
 - At most 10, the most important first. Every "no" has a finding; use `other` for a real problem the
   checklist does not name.
 - `place` is the ticket, the section of `plan.md` (`Decisions`, `Tickets`...) or `plan` for the whole.
+  A gap or a duplicate in the criteria map is one finding per behaviour, its words quoted; more than
+  fit → the rest named in one last finding.
 - Each finding has evidence: short quotes of the plan's or the tickets' words that show it, and
   `file:line` in `code` when the code settles it. Every `code` entry is `path:line` or
   `path:start-end`; for a whole file write its first line (`docs/install.md:1`). An entry without a
@@ -78,4 +89,5 @@ Reply with one JSON object and nothing else (a ```json fence around it is fine).
 - Ids are `plan-reviewer-1`, `plan-reviewer-2`, ...
 - `status: "incomplete"` if you ran out of turns; say what is left in the top-level `note`.
 - Write `what`, `problem`, `fix` and `evidence` in the language the plan is written in, in plain
-  words; field names and check names stay as above. Paths relative to the project root.
+  words; field names and check names stay as above. Paths relative to the project root; code of
+  another repository relative to its folder.

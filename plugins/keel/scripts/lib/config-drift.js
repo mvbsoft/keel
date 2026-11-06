@@ -13,6 +13,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { git } = require('./diff.js');
 const { readJson, localDir, writeLocal } = require('./project.js');
+const { ticketPrefixes } = require('./config.js');
 
 const SNAPSHOT = 'configure-snapshot.json';
 // The configure sections by number (configure-flow.md); a reason names one of them.
@@ -286,7 +287,7 @@ function liveReasons(root, now, ctx) {
   if (!rec) { ctx.skipped.push('ticket ids, new stack plugins, files loaded every session, new decision or spec folders, other notes systems'); return out; }
 
   // 6 code: ticket ids keel could keep out of comments
-  const have = new Set((config.comments && config.comments.ticket_prefixes) || []);
+  const have = new Set(ticketPrefixes(config));
   const seen = new Set(rec.code ? rec.code.ticket_prefixes : []);
   const tickets = now.code.ticket_prefixes.filter((t) => !have.has(t.prefix) && !seen.has(t.prefix));
   if (tickets.length) add('code', 'worth', `ticket ids in the git history: ${tickets.map((t) => `${t.prefix} (${t.ids} ids)`).join(', ')}`, 'keel can point out comments that refer to tickets, which may be renamed or deleted');
