@@ -18,7 +18,8 @@ const path = require('node:path');
 const store = require('./lib/usage-store.js');
 const { activeTask, planText } = require('./lib/tasks.js');
 const { usageDir, loadMachineConfig, writeMachineConfig } = require('./lib/usage-config.js');
-const { readSnapshots, snapshotFromPercents } = require('./lib/limits.js');
+const { readSnapshots, snapshotFromPercents, dedupeSnapshots } = require('./lib/limits.js');
+const { RECENT_DAYS } = require('./lib/usage-files.js');
 const { calibrate, share } = require('./lib/calibrate.js');
 const { pickLanguage, translator } = require('./lib/i18n.js');
 const { safeLocalPath, safeLocalWrite } = require('./lib/safe-path.js');
@@ -26,7 +27,8 @@ const { safeLocalPath, safeLocalWrite } = require('./lib/safe-path.js');
 const DAY_MS = store.DAY_MS;
 const MAX_BATCH_WRITES = 50;
 const MAX_BATCH_BYTES = 1000000;
-const CALIBRATION_DAYS = 35;
+// Other machines' hours reach the calibration through their index entry, which keeps exactly this window.
+const CALIBRATION_DAYS = RECENT_DAYS;
 const MAX_CALIB_POINTS = 200;  // the published calibration document keeps the newest points
 const REPEATABLE = new Set(['version', 'failed']);
 
@@ -362,18 +364,6 @@ function loadRemote(inDir, localPc, localUser = null) {
   }
   res.machines = [...byPc].map(([pc, e]) => ({ pc, ...e }));
   return res;
-}
-
-function dedupeSnapshots(list) {
-  const seen = new Set();
-  const out = [];
-  for (const s of list) {
-    const key = `${s.t}|${s.five_hour}|${s.seven_day}|${s.session_id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(s);
-  }
-  return out.sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
 }
 
 // The dashboard reads the calibration from the artifact: prepare publishes this file as collection `calib`.

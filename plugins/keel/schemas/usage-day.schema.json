@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "keel/usage-day.schema.json",
   "title": "One day document of the keel usage dashboard (collection `days`)",
-  "description": "Everything one machine spent on one UTC day, written by `scripts/usage.js prepare`. Hours cover all local requests of the day; a session is stored in the document of the day it started. A day that does not fit in one document (about 240 KB) continues in `<id>_p2`, `<id>_p3`, ... (same header, empty hours and snapshots, `part` k of `parts`).",
+  "description": "Everything one machine spent on one UTC day, written by `scripts/usage.js prepare`. Hours cover all local requests of the day; a session is stored in the document of the day it started. A day that does not fit in one document (about 240 KB) continues in `<id>_p2`, `<id>_p3`, ... (same header, empty hours and snapshots, `part` k of `parts`). The page files that replace these documents are `$defs/month` (data/<pc>-<YYYY-MM>.json) and `$defs/index` (data/index.json), built by `scripts/lib/usage-files.js`.",
   "type": "object",
   "required": ["schema", "date", "pc", "user", "part", "parts", "synced_until", "hours", "snapshots", "sessions"],
   "additionalProperties": false,
@@ -150,6 +150,95 @@
         "participants": { "type": "array", "items": { "$ref": "#/$defs/participant" } },
         "turns": { "type": "array", "items": { "$ref": "#/$defs/turn" } },
         "truncated": { "description": "true when the session was too big for one document and turn texts, turns or participants were dropped.", "type": "boolean" }
+      }
+    },
+    "month_day": {
+      "description": "One UTC day of a month file: the same hours, snapshots and sessions as a day document, never split.",
+      "type": "object",
+      "required": ["date", "synced_until", "contrib", "hours", "snapshots", "sessions"],
+      "additionalProperties": false,
+      "properties": {
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "synced_until": { "description": "ISO time up to which this machine's data was complete when the day was built.", "type": "string" },
+        "contrib": { "description": "Ids of the sessions counted in `hours`. A rebuild that misses one of them keeps the old hours.", "type": "array", "items": { "type": "string" } },
+        "hours": { "type": "array", "items": { "$ref": "#/$defs/hour" } },
+        "snapshots": { "type": "array", "items": { "type": "object" } },
+        "sessions": { "type": "array", "items": { "$ref": "#/$defs/session" } }
+      }
+    },
+    "month": {
+      "description": "data/<pc>-<YYYY-MM>.json: one machine's days of one UTC month. Only that machine writes it.",
+      "type": "object",
+      "required": ["schema", "kind", "pc", "month", "days"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": 2 },
+        "kind": { "const": "month" },
+        "pc": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+        "month": { "type": "string", "pattern": "^\\d{4}-\\d{2}$" },
+        "days": { "type": "array", "items": { "$ref": "#/$defs/month_day" } }
+      }
+    },
+    "index_pc": {
+      "description": "One machine's entry in data/index.json; only that machine rewrites it.",
+      "type": "object",
+      "required": ["name", "user", "wallet_default", "install_id", "synced_until", "last_seen", "calib", "recent", "months"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "description": "Machine name as configured.", "type": "string" },
+        "user": { "type": ["string", "null"] },
+        "wallet_default": { "enum": ["subscription", "api", "credit"] },
+        "install_id": { "description": "Random id of this keel install: tells two machines with one name apart.", "type": "string", "minLength": 1 },
+        "synced_until": { "type": ["string", "null"] },
+        "last_seen": { "type": "string" },
+        "calib": { "description": "This machine's latest calibration (rates and points), null before the first one.", "type": ["object", "null"] },
+        "recent": {
+          "description": "Hours and limit snapshots of the last 35 days, for the other machines' calibration.",
+          "type": "object",
+          "required": ["hours", "snapshots"],
+          "additionalProperties": false,
+          "properties": {
+            "hours": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["h", "wallet", "usd", "by_model"],
+                "additionalProperties": false,
+                "properties": {
+                  "h": { "type": "string" },
+                  "wallet": { "$ref": "#/$defs/wallet" },
+                  "usd": { "type": "number", "minimum": 0 },
+                  "by_model": { "type": "object", "additionalProperties": { "type": "number" } }
+                }
+              }
+            },
+            "snapshots": { "type": "array", "items": { "type": "object" } }
+          }
+        },
+        "months": {
+          "description": "sha256 of each month file of this machine on the page.",
+          "type": "object",
+          "propertyNames": { "pattern": "^\\d{4}-\\d{2}$" },
+          "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "index": {
+      "description": "data/index.json: shared by every machine, rewritten by each sync under the page's version lock.",
+      "type": "object",
+      "required": ["schema", "kind", "language", "template", "cleared_at", "pcs"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": 2 },
+        "kind": { "const": "index" },
+        "language": { "description": "Language of the page texts.", "type": ["string", "null"] },
+        "template": { "description": "Which keel page runs: a hash of the page files; another value means the page is updated with the next sync.", "type": ["string", "null"], "pattern": "^[0-9a-f]{12}$" },
+        "cleared_at": { "description": "ISO time of the last /keel:usage-clear; nothing from before it is published.", "type": ["string", "null"] },
+        "pcs": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z0-9_-]+$" },
+          "additionalProperties": { "$ref": "#/$defs/index_pc" }
+        }
       }
     }
   }

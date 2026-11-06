@@ -409,12 +409,14 @@ function sessionDoc(sum, wallet, keel, ccCost, withText = true) {
   };
 }
 
-function hoursFor(date, summaries, walletFor, fromMs = -Infinity) {
+// `counted` (a Set) receives the id of every session with a request counted here.
+function hoursFor(date, summaries, walletFor, fromMs = -Infinity, counted = new Set()) {
   const map = new Map();
   for (const sum of summaries) {
     const wallet = walletFor(sum.id);
     for (const q of sum.reqs) {
       if (dayOf(q[0]) !== date || q[0] < fromMs) continue;
+      counted.add(sum.id);
       const h = Math.floor(q[0] / HOUR_MS) * HOUR_MS;
       const key = `${h}|${wallet}`;
       let e = map.get(key);
@@ -469,6 +471,8 @@ function hashOf(doc) {
 
 // Rebuilds the whole UTC days touched by sessions that changed since `sinceMs`.
 // -> {docs: [{id, key, doc, hash}], days, stats, summaries}
+// With `files: true` -> {built: [{date, synced_until, contrib, hours, snapshots, sessions}], days, stats, summaries}:
+// one whole day each, for the month files of lib/usage-files.js; `contrib` lists the sessions counted in the hours.
 function buildDays(opts = {}) {
   const ctx = makeContext(opts);
   const nowMs = opts.nowMs !== undefined ? opts.nowMs : Date.now();
@@ -494,7 +498,7 @@ function buildDays(opts = {}) {
   for (const r of changed) for (const d of daysOf(summaries.get(r.id))) if (dayStart(d) + DAY_MS > fromMs) days.add(d);
   if (!days.size) {
     saveIndex(ctx);
-    return { docs: [], days: [], stats: ctx.stats, summaries: new Map() };
+    return { ...(opts.files ? { built: [] } : { docs: [] }), days: [], stats: ctx.stats, summaries: new Map() };
   }
   const sorted = [...days].sort();
   const earliest = dayStart(sorted[0]);
@@ -517,20 +521,27 @@ function buildDays(opts = {}) {
 
   const walletFor = (id) => walletOf(id, wallets, ctx.machine);
   const docs = [];
+  const whole = [];
   for (const date of sorted) {
     const touching = [...summaries.values()].filter((s) => ctx.index[s.id].days.includes(date));
     const own = touching.filter((s) => s.start && s.start.slice(0, 10) === date && Date.parse(s.start) >= fromMs && isKeelSession(s, keel))
       .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id < b.id ? -1 : 1))
       .map((s) => sessionDoc(s, walletFor(s.id), keel.get(s.id) || null, cc.get(s.id), ctx.withText && previewIn(ctx, s.cwd)));
-    const header = { schema: SCHEMA, date, pc, user: ctx.machine.user || null, part: 1, parts: 1, synced_until: nowIso };
     const daySnaps = snapshots.filter((s) => typeof s.t === 'string' && s.t.slice(0, 10) === date && Date.parse(s.t) >= fromMs);
-    const hours = hoursFor(date, touching, walletFor, fromMs);
+    const counted = new Set();
+    const hours = hoursFor(date, touching, walletFor, fromMs, counted);
     // The day of the clear holds nothing yet: no empty document goes back to the cleared page.
     if (fromMs > -Infinity && !hours.length && !daySnaps.length && !own.length) continue;
+    if (opts.files) {
+      whole.push({ date, synced_until: nowIso, contrib: [...counted].sort(), hours, snapshots: daySnaps, sessions: own });
+      continue;
+    }
+    const header = { schema: SCHEMA, date, pc, user: ctx.machine.user || null, part: 1, parts: 1, synced_until: nowIso };
     const built = packDay(header, hours, daySnaps, own);
     const id = `${date}_${pc}`;
     built.forEach((doc, i) => docs.push({ id: partId(id, i + 1), key: partId(id, i + 1), doc, hash: hashOf(doc) }));
   }
+  if (opts.files) return { built: whole, days: sorted, stats: ctx.stats, summaries };
   return { docs, days: sorted, stats: ctx.stats, summaries };
 }
 
