@@ -451,7 +451,7 @@ Then, in one question group:
      system's package manager, e.g. `sudo apt install jq`).
    - Create the page (only after a yes): run `node "<keel>/scripts/usage-setup.js" "<project>" page`,
      then publish with the Artifact tool: `file_path` `<project>/.keel/local/tmp/usage-page/index.html`,
-     `files` `{ "pivot.js": ".../usage-page/pivot.js", "i18n.js": ".../usage-page/i18n.js", "i18n.uk.js": ".../usage-page/i18n.uk.js" }`,
+     `files` `{ "style.css": ".../usage-page/style.css", "pivot.js": ".../usage-page/pivot.js", "i18n.js": ".../usage-page/i18n.js", "i18n.uk.js": ".../usage-page/i18n.uk.js", "format.js": ".../usage-page/format.js", "colors.js": ".../usage-page/colors.js", "demo.js": ".../usage-page/demo.js" }`,
      `title` "keel usage", `icon` "chart", `capabilities` `{ "db": {}, "user": {}, "downloads": true }`.
      Then write the page settings with ArtifactData `set` to collection `meta`, doc `settings`,
      `{ "language": "<conversation language code>", "schema": 1, "template": "<page_template printed by page>" }`.

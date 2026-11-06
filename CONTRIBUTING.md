@@ -92,8 +92,8 @@ keel's fixed texts (usage report, context warning, dashboard) live in two places
    `tests/usage-setup.test.js`, to the `files` map of the publish step in
    `plugins/keel/skills/_shared/configure-flow.md`, and a `<script>` tag in
    `plugins/keel/templates/usage/index.html`. The page itself chooses only between `en` and `uk` today
-   (where it sets `lang` and the date locale in `index.html`), so a new page language also needs a
-   change there.
+   (where it sets `lang` in `index.html` and the date locale in `format.js`), so a new page language
+   also needs a change there.
 
 At run time a key missing from a catalog falls back to English.
 

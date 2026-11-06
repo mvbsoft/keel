@@ -117,7 +117,7 @@ function installStatusline() {
   return { type: 'command', command: `node "${shim}"`, padding: 0 };
 }
 
-const PAGE_FILES = ['index.html', 'pivot.js', 'i18n.js', 'i18n.uk.js'];
+const PAGE_FILES = ['index.html', 'style.css', 'pivot.js', 'i18n.js', 'i18n.uk.js', 'format.js', 'colors.js', 'demo.js'];
 const TEMPLATE = path.join(__dirname, '..', 'templates', 'usage');
 // Line endings do not count: a checkout with CRLF publishes the same page.
 function pageTemplate(dir = TEMPLATE) {
@@ -185,4 +185,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { show, apply, statusLineState, installStatusline, page, pageTemplate, pricesDiff, pricesApply, RUNNER };
+module.exports = { show, apply, statusLineState, installStatusline, page, pageTemplate, pricesDiff, pricesApply, RUNNER, PAGE_FILES };

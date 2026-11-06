@@ -66,13 +66,16 @@ so an update translates only what changed.
      fix what it names and run apply again. Its `page:` line is the page.
    - Else its `page:` line is the page. `language:` says the page's language; labels in English
      there → say once that this language has no labels of its own yet.
-6. Read the whole page file (a page is published only once read in full), then publish it:
+6. Read the whole page file and the `style.css` beside it (a page is published only once read in
+   full), then publish both:
    An update whose title is not the `title:` line any more (a new heading or repository) takes that
    title too: **B** `title`; **A** the tool's title, when it takes one.
-   - **A**: the Artifact tool, `file_path` that file: an update with the page's `url`; a new page with
+   - **A**: the Artifact tool, `file_path` that file and `files` `{ "style.css": "<the style.css beside
+     it>" }`: an update with the page's `url`; a new page with
      `icon` "document" and `description` "Feature <feature>: its overview, tickets with their states,
-     and research." An update refused for not reading the page first → publish the same file again.
-   - **B**: `publish_files`, `files` `[{ "as": "index.html", "path": "<that file, absolute>" }]`. An
+     and research." An update refused for not reading the page first → publish the same files again.
+   - **B**: `publish_files`, `files` `[{ "as": "index.html", "path": "<that file, absolute>" }, { "as":
+     "style.css", "path": "<the style.css beside it, absolute>" }]`. An
      update: first `get_artifact` of its slug, then `slug`, `base_version` its `version`, and
      `shared_live` its `read` when that is not `owner`. A new page: `title` the `title:` line
      and `icon` "document". Refused for a newer version → `get_artifact` again and publish again.

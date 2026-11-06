@@ -420,7 +420,19 @@ test('prices-apply: an invalid table is refused with exit code 1 and nothing is 
 
 // --- page ---
 
-const PAGE_FILES = ['index.html', 'pivot.js', 'i18n.js', 'i18n.uk.js'];
+const { PAGE_FILES } = require(CLI);
+
+test('page files: the list, the template, the files the page loads and the publish step name the same files', () => {
+  assert.deepEqual(fs.readdirSync(TEMPLATES).sort(), [...PAGE_FILES].sort());
+  const html = fs.readFileSync(path.join(TEMPLATES, 'index.html'), 'utf8');
+  const local = [...html.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((u) => !/^https?:/.test(u));
+  assert.deepEqual(local.sort(), PAGE_FILES.filter((n) => n !== 'index.html').sort(), 'the files index.html loads');
+  // The publish step's `files` map in configure (the update reuses it): every page file but index.html.
+  const flow = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'configure-flow.md'), 'utf8');
+  const step = flow.slice(flow.indexOf('- Create the page (only after a yes)'), flow.indexOf('- Update the page (only after a yes)'));
+  const published = [...step.matchAll(/"([^"]+)": "\.\.\.\/usage-page\/\1"/g)].map((m) => m[1]);
+  assert.deepEqual(published.sort(), PAGE_FILES.filter((n) => n !== 'index.html').sort(), 'the publish step\'s files');
+});
 
 test('page: copies the dashboard files to <project>/.keel/local/tmp/usage-page',
   { skip: fs.existsSync(path.join(TEMPLATES, 'index.html')) ? false : 'templates/usage/index.html is not written yet' },

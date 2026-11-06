@@ -1,7 +1,7 @@
 'use strict';
 // /keel:feature-page: a feature's md files and its tickets' states as data in a fixed HTML template
-// (templates/feature-page/index.html), for the Artifact tool to publish. The texts go in as they are:
-// the page renders the markdown and highlights the code itself, with libraries from cdnjs.
+// (templates/feature-page/: index.html and style.css), for the Artifact tool to publish. The texts go
+// in as they are: the page renders the markdown and highlights the code itself, with libraries from cdnjs.
 // - A draft (plan.md, tickets/T<n>-*.md, research/) or an exported feature (README.md, its tickets and
 //   research/ in its folder). An exported feature's states come from lib/plans-state.js; the tickets of
 //   its other repositories are read in their folders from this machine's repos map, else only their
@@ -39,7 +39,10 @@ const { effectiveOptions } = require('./lib/options.js');
 const { setFront } = require('./lib/tasks.js');
 const { langCode, labelsFor, missing, translate, readPage } = require('./lib/feature-page-text.js');
 
-const TEMPLATE = path.join(__dirname, '..', 'templates', 'feature-page', 'index.html');
+const TEMPLATE_DIR = path.join(__dirname, '..', 'templates', 'feature-page');
+const TEMPLATE = path.join(TEMPLATE_DIR, 'index.html');
+// The page's other files, published beside index.html as they are.
+const PAGE_ASSETS = ['style.css'];
 const DONE = STATES[0];
 
 const refuse = (why) => [`feature-page: refused (${why})`];
@@ -321,6 +324,7 @@ function render(dir, page, known) {
     .replace('{{DATA}}', () => json(page)).replace('{{TRANSLATIONS}}', () => json({ lang: page.language, items: used }));
   const file = path.join(dir, 'index.html');
   fs.writeFileSync(file, html);
+  for (const name of PAGE_ASSETS) fs.copyFileSync(path.join(TEMPLATE_DIR, name), path.join(dir, name));
   return file;
 }
 
@@ -372,4 +376,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { termsOf };
+module.exports = { termsOf, PAGE_ASSETS };
