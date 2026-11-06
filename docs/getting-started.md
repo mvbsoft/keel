@@ -327,7 +327,7 @@ decide each finding, keel exports the tickets into the feature folder with real 
 Then build the tickets, each in a fresh conversation (`/clear`): `/keel:start-task next ticket` takes
 the next free ticket and offers its feature branch; from there it is an ordinary task. Or
 `/keel:start-session <feature>` takes them one by one in a session. `/keel:tasks`
-shows the planned tickets too. Every case: [planning](workflows.md#planning).
+shows the planned tickets too. Every case: [planning](planning.md).
 
 ## 8. Clean up: `/keel:cleanup`
 
@@ -342,6 +342,7 @@ Every variant: [commands](commands.md#keelcleanup).
 ## Next
 
 - [Ways of working](workflows.md): what to type in each situation.
+- [Planning](planning.md): plan a feature before the code.
 - [Verification](verification.md): which level to choose.
 - [Cost optimization](cost-optimization.md): how to spend less.
 - [Settings](settings.md): change keel's defaults.
