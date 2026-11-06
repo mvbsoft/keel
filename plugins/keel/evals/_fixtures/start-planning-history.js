@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const KEEL = path.join(__dirname, '..', '..');
-// The chat shop.js marks as planning (its SID).
+// The chat the shop fixture marks as planning (SID in shop-base.js).
 const SID = '11111111-2222-4333-8444-555555555555';
 // Where the Docker command in CONTRIBUTING mounts the repository: the eval run loads keel from there.
 const PLUGIN_ROOT = '/work/plugins/keel';

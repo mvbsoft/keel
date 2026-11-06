@@ -12,8 +12,8 @@ const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const EVALS = path.join(PLUGIN, 'evals');
 const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
-// The chat the planning cases resume: shop.js marks it, each case's history.jsonl keeps its id.
-const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(SHOP, 'utf8'))[1];
+// The chat the planning cases resume: its id is SID in shop-base.js, each case's history.jsonl keeps it.
+const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(path.join(EVALS, '_fixtures', 'shop-base.js'), 'utf8'))[1];
 const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh'];
 
 const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
@@ -58,7 +58,7 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
       assert.match(yaml, new RegExp(`^name: ${name}$`, 'm'), name);
       assert.match(yaml, /scaffold_script: fixture\.sh/, name);
       assert.match(fs.readFileSync(path.join(dir, 'fixture.sh'), 'utf8'), new RegExp(`node "\\$\\(dirname "\\$0"\\)/\\.\\./_fixtures/shop\\.js" (${VARIANTS.join('|')})\\n$`), name);
-      // A written conversation the run resumes: every line a JSON record of the chat shop.js marks.
+      // A written conversation the run resumes: every line a JSON record of the chat with shop-base.js's SID.
       const history = /^\s*history_file:\s*["']?([^"'\s]+)["']?\s*$/m.exec(yaml);
       if (history) {
         const file = path.join(dir, history[1]);
@@ -68,7 +68,7 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
         for (const [i, l] of lines.entries()) {
           let r;
           assert.doesNotThrow(() => { r = JSON.parse(l); }, `${name}: ${history[1]} line ${i + 1} is JSON`);
-          assert.equal(r.sessionId, SID, `${name}: ${history[1]} line ${i + 1} is the chat shop.js marks`);
+          assert.equal(r.sessionId, SID, `${name}: ${history[1]} line ${i + 1} is the chat with shop-base.js's SID`);
         }
       }
     }
