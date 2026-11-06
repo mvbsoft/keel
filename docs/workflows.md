@@ -95,9 +95,18 @@ settles all of it.
 | `/keel:start-task CAN-9` when task CAN-9 was finished or dropped earlier | Says so and asks whether to start it as a new task. No → it stops; the old folder may still be in keel's trash (see [restore](#where-the-files-live)). |
 
 A simple task (one module, no new public interface, 1-3 files) gets a short plan in the chat and
-"Start?". A complex one gets Plan Mode: no file changes until you approve the plan. A big plan (8 steps
-or 15 files by default) brings the question whether to do it here or hand the steps to implementer
-agents ([cost optimization](cost-optimization.md)).
+"Start?". A complex one gets Plan Mode: no file changes until you approve the plan.
+
+**A big plan** (8 steps or 15 files by default) does not fit one conversation together with the
+planning and the review, so the plan ends with the choice how to run it: in a fresh conversation
+(recommended; the plan is saved), through implementer agents from this conversation, here, or your own
+way. Approving the plan answers it ([cost optimization](cost-optimization.md#5-delegation-thresholds)).
+For a fresh conversation, approve with Claude Code's "Yes, clear context" when it is shown, or approve
+as usual: keel makes the branch and the task, writes into the task file what the conversation settled
+beyond the plan, and asks you to type `/clear`, then `/keel:start-task <id>`. The fresh conversation
+asks once: implementer agents or here. Later resumes do not ask again; they say in one line how the
+work goes on. A very big plan (10 steps or 40 files) is planned as a feature instead
+([too big for a task](#start-a-planned-ticket)).
 
 **Which branch.** The "Start?" question (a simple task) or the plan's first Execution step (a complex
 one, changed in your answer to the plan) names the branch you are on and offers:
@@ -135,7 +144,8 @@ branch, so they reach the main branch with the task's merge.
 6. reads a ticket, link or file source again and tells you what changed against the goal and the
    acceptance criteria; it does not overwrite them without your yes;
 7. sums up in 3-6 lines (goal, where we are, done and not done, open questions) and names the next
-   action.
+   action. A plan chosen for a fresh conversation asks once here: implementer agents or here; any
+   other plan goes on as chosen, with no question.
 
 ### Start a planned ticket
 
@@ -166,7 +176,7 @@ feature branch keel only commits, pulls the branch and pushes: the feature branc
 tickets, asks: a new ticket branch from the feature branch (recommended), commit and push to the
 feature branch (you work on it alone), or no commit.
 
-**Too big for a task.** When the task's plan comes out very big, keel offers to plan it as a feature
+**Too big for a task.** When the task's plan comes out very big (10 steps or 40 files), keel offers to plan it as a feature
 with one question: 1) a new chat (recommended when this one is long), 2) plan here, 3) do not split,
 or your own way. When you say it is too big or ask to split it, in any words, that is the yes: keel
 does not ask whether, and "do not split" is not offered.
@@ -348,7 +358,7 @@ are not part of it.
 | `/keel:start-session only write the tests today` | The same, following your instruction. Extra work is added to the plan. |
 | `/keel:start-session` with no note | Looks for work in the project: plans, TODO markers in recently changed files, unfinished work in git; proposes 1-3 briefly. Nothing → "There is no work for a session; tell me what to do." Unfinished tasks → it adds "There are unfinished tasks: /keel:tasks shows them, /keel:start-task continues one." It never starts a task itself. |
 | `/keel:start-session docs/invoicing-plan.md` | A new line from a plan file: its items become the note's plan (all not done), its goal the note's goal, **Later** is empty. Shows it and asks "Start?". Then the branch for the line. |
-| `/keel:start-session build the invoicing module` (or a link) | A new line from a description: retell, the brainstorm offer or questions, then the plan, which becomes the note's plan. |
+| `/keel:start-session build the invoicing module` (or a link) | A new line from a description: retell, the brainstorm offer or questions, then the plan, which becomes the note's plan. A big plan brings the same choice as a task's ([a big plan](#start-a-task-keelstart-task)); for a fresh conversation keel writes the note and asks you to type `/clear`, then `/keel:start-session`, which asks once: implementer agents or here. |
 | `/keel:start-session csv-export` (a feature name or folder: "do these tickets one by one") | A new line from [planned tickets](#planning): the Plan is the feature's `next` and `to do` tickets, the next one first, each after the tickets it depends on, one step per ticket; their keys go into `keys:`. Tickets `in progress` or `waiting for ...` are listed with their hints, and you decide whether any goes in. Shows it and asks "Start?"; then it switches to the feature branch (or creates it) and writes the note. Each `/keel:end-session` with a passed full verification writes `done` into the tickets whose steps are all done, in the same commit as the code; gates only or red → no. A feature branch is merged only at the [end of the feature](#end-of-a-feature). |
 | `/keel:start-session CAN-123` (or a link with CAN-123 in it) | CAN-123 is led by a task → "Tasks use /keel:start-task: better continue it there." and stops. Both a task and the note name it → keel shows both, asks which lane leads it and stops. Nobody leads it → keel finds what it is ("Is this it?"), the session goes on, and the key is written into the note's `keys:` field. |
 | `/keel:start-session CAN-9` when task CAN-9 was finished or dropped earlier | Says so and asks whether to start it as a new line; no → it stops. |

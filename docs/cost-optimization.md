@@ -65,8 +65,12 @@ exact change each, with the files, the place and a checkable "done when".
 
 ## 5. Delegation thresholds
 
-When a plan reaches 8 steps or 15 files, keel asks whether to do it in this conversation or hand the steps
-to implementers (one fresh agent per step, each on the model the step needs). Settings:
+When a plan reaches 8 steps or 15 files, the planning, the work and the review no longer fit one
+conversation, so keel recommends running the saved plan in a fresh conversation; the other choices
+are to hand the steps to implementers from this conversation (one fresh agent per step, each on the
+model the step needs) or to do it here. A fresh conversation asks once more: implementers or here.
+From 10 steps or 40 files (not a setting) the plan is too big for one task even so, and keel offers
+to plan it as a feature. Settings:
 `delegation.min_plan_steps` and `delegation.min_plan_files` (defaults 8 and 15). The defaults are a
 starting estimate, not a measurement. Below both thresholds keel works in the conversation, unless you
 ask to delegate. Delegation is not free: see section 4.

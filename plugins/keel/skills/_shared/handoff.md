@@ -90,13 +90,27 @@ a session. A new line that clearly fits a task → suggest `/keel:start-task` in
 words joined by `-`; from `git.main_branch` unless the user named another base). Manual: give
 `git switch -c <short-name>` and wait. Uncommitted changes → ask first, never carry them silently.
 
-**The plan and its size.** The note's Plan holds the line's steps. Run
-`node "<keel>/scripts/plan-steps.js" "<project>" "<file with the steps>" --remaining`.
-- `suggest: delegate` and the user did not say how → after the summary ask its `ask:` line (in the
-  conversation language); also say what this session can cover.
+**The plan and its size.** The note's Plan holds the line's steps; its `execution:` keeps the choice
+(`here`, `delegate`, or `fresh`: a fresh conversation runs the saved plan, how is not chosen yet).
+The user saying how ("do it through subagents") wins over any of it.
+- **A plan written in this conversation** (a new line): run
+  `node "<keel>/scripts/plan-steps.js" "<project>" "<file with the steps>"`. `suggest: delegate` →
+  the plan's Execution step 3 names the choice as intake.md step 6 says (`fresh` recommended,
+  `delegate`, `here`, or what the user says) and states its `ask:` line; approving the plan answers it.
+  `very big:` is for tasks only: a line of work spans sessions. For `fresh` the plan's Execution
+  step 4 holds what the discussion settled, as intake.md step 6 says; the note takes it into
+  Decisions and why and Open questions. `execution: fresh` → once the note is written, the plan
+  discussion stays behind: first check that the note holds what it settled (add what is missing),
+  then say: "The plan is saved. Type `/clear`, then `/keel:start-session`: the work goes on from the
+  note." and stop; keel never types it for the user. A conversation that began with the plan alone
+  ("Yes, clear context") is the fresh one: as below.
+- **A note read at the start** (a resume): run
+  `node "<keel>/scripts/plan-steps.js" "<project>" "<file with the steps>" --remaining`, then act on
+  `execution:` as intake.md "Resume" step 7 does, after the summary: `fresh` → ask its `ask:` line
+  and write the answer into the note's `execution:`, also saying what this session can cover; `here`
+  or `delegate` → no question, one line with its count.
 - Steps without files, model, effort or "done when" (`problems`) and the work is delegated → first
   complete those steps in the plan (they are yours to write), then show the step table to confirm.
-- The note says `execution: delegate` → keep delegating unless the user says otherwise.
 
 At the end the user runs `/keel:end-session`, with an instruction when they want one (e.g. "push and
 merge into main", "we continue tomorrow, prepare").

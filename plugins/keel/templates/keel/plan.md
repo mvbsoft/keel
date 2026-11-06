@@ -62,9 +62,16 @@ session's id (keel's session-start line):
    lists (every front-matter field and section), with `plan: plan.md` and `execution:` as below.
    <session> Write `.keel/next-session.md` from `<keel>/templates/keel/next-session.md` with these steps
    as its Plan (handoff.md "Resume"), `execution:` as below; never a task file.
-3. Execution: <here | delegate>. Here: work through the steps yourself, in order; run the touched
-   tests as you go; mark each step done (✅). Delegate: follow
-   `<keel>/skills/_shared/delegate.md` with this plan file.
-4. User's changes: <branch, base, where to merge, anything else the user said; or "none">.
+3. Execution: <here | delegate | fresh>. <Above the thresholds: the choice in words and the `ask:`
+   line of `plan-steps.js`, so that approving the plan answers it.> Here: work through the steps
+   yourself, in order; run the touched tests as you go; mark each step done (✅). Delegate: follow
+   `<keel>/skills/_shared/delegate.md` with this plan file. Fresh: a fresh conversation runs this
+   saved plan, as <task> `<keel>/skills/_shared/intake.md` "Fresh conversation" / <session>
+   `<keel>/skills/_shared/handoff.md` "The plan and its size" says. <With fresh, say how the user gets
+   there: <task> approve with "Yes, clear context", or approve as usual, then type `/clear` and
+   `/keel:start-task <id>` / <session> type `/clear`, then `/keel:start-session`.>
+4. User's changes: <branch, base, where to merge, anything else the user said; or "none">. <With
+   Execution fresh also what the discussion settled that the sections above do not say: decisions
+   with why, open questions, a "do not split"; a fresh conversation knows only this plan.>
 5. When the work is done, tell the user to run <task> `/keel:end-task` (to finish, or to hand the task
    off for another session) / <session> `/keel:end-session` (to verify and prepare the next session).

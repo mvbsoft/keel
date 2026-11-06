@@ -138,8 +138,9 @@ More: [verification](verification.md).
 
 ## 10. Delegation
 
-For a large plan, keel offers to hand its steps to implementer agents, one per step, each on the model
-the step needs (Haiku, Sonnet or Opus). The main conversation accepts each step after its tests.
+For a large plan, keel recommends running it in a fresh conversation from the saved plan; it can
+also hand its steps to implementer agents, one per step, each on the model the step needs (Haiku,
+Sonnet or Opus). The main conversation accepts each step after its tests.
 More: [cost optimization](cost-optimization.md#5-delegation-thresholds) and
 [under the hood](under-the-hood.md#delegation).
 

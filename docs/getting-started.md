@@ -144,10 +144,12 @@ unfinished tasks). keel then:
    files, where each new thing lives, what the framework or installed packages already provide, the
    tests, the documentation to update and the likely verification level (at the end keel proposes a
    level from the actual change, which may differ). A large plan (8 steps or 15 files by default) also
-   proposes handing its steps to implementer agents; approving or changing the plan answers that, with
-   no separate question ([cost optimization](cost-optimization.md#5-delegation-thresholds)). With the
-   Claude Code setting "Yes, clear context" turned on during setup, approving the plan that way starts
-   the work in a fresh conversation from the plan alone.
+   says how to run it: in a fresh conversation (recommended), through implementer agents, or here;
+   approving or changing the plan answers that, with no separate question
+   ([cost optimization](cost-optimization.md#5-delegation-thresholds)). With the Claude Code setting
+   "Yes, clear context" turned on during setup, approving the plan that way starts the work in a fresh
+   conversation from the plan alone; otherwise keel saves the plan and asks you to type `/clear` and
+   `/keel:start-task <id>`.
 5. **Codes**, step by step, or through the implementer agents when the plan says so.
 
 The "Start?" question (or the plan's first Execution step) also names the branch you are on and asks
