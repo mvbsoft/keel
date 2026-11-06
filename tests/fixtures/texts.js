@@ -1,5 +1,5 @@
 'use strict';
-// Reading keel's instruction texts in tests: a file of the plugin, a part of a text between two
+// Reading keel's instruction texts in tests: a file of the plugin or a skill, a part of a text between two
 // markers, and the order of two passages.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -8,6 +8,7 @@ const path = require('node:path');
 const PLUGIN = path.join(__dirname, '..', '..', 'plugins', 'keel');
 const read = (...p) => fs.readFileSync(path.join(PLUGIN, ...p), 'utf8');
 const shared = (name) => read('skills', '_shared', name);
+const skill = (name) => read('skills', name, 'SKILL.md');
 
 const order = (text, a, b, why) => {
   assert.ok(text.includes(a), `missing: ${a}`);
@@ -23,4 +24,4 @@ const part = (text, from, to) => {
   return text.slice(a, b < 0 ? undefined : b);
 };
 
-module.exports = { PLUGIN, read, shared, order, part };
+module.exports = { PLUGIN, read, shared, skill, order, part };
