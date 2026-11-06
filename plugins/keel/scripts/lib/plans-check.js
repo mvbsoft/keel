@@ -27,11 +27,13 @@ const otherRepos = (root, deps) => neighbours().lookUp(root, deps);
 
 // --- the structure check ---
 
-// The text a placeholder search reads: no code blocks, no inline code, no links in angle brackets.
-const prose = (text) => lf(text).replace(/^```[\s\S]*?^```/gm, (m) => m.replace(/[^\n]/g, ' ')).replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length)).replace(/<https?:[^>\s]*>/g, (m) => ' '.repeat(m.length));
+// The text a placeholder search reads: no code blocks (also indented ones, as in a list item), no
+// inline code, no links in angle brackets.
+const prose = (text) => lf(text).replace(/^[ \t]*```[\s\S]*?^[ \t]*```/gm, (m) => m.replace(/[^\n]/g, ' ')).replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length)).replace(/<https?:[^>\s]*>/g, (m) => ' '.repeat(m.length));
 
-// "TBD" or "<...>" left in the text after the front matter, with its line. A "<" followed by a
-// space or "=" is a comparison ("< 30 s", "x <= 3"), not a placeholder.
+// "TBD" or "<...>" left in the text after the front matter, with its line. Comparisons are not
+// placeholders: a "<" followed by a space or "=" ("< 30 s", "x <= 3"), a "<...>" across table cells
+// ("| <30 s | >1 min |") and one closed by a ">" right before a digit or "=" ("<30 s, then >1 min").
 function placeholders(text) {
   const all = lf(text);
   const fmEnd = /^---\n[\s\S]*?\n---\n?/.exec(all);
@@ -39,7 +41,7 @@ function placeholders(text) {
   const out = [];
   prose(all).split('\n').forEach((line, i) => {
     if (i < skip) return;
-    const m = /\bTBD\b/.exec(line) || /<(?![\s=])[^<>\n]*>/.exec(line);
+    const m = /\bTBD\b/.exec(line) || /<(?![\s=])[^<>|\n]*>(?![\d=])/.exec(line);
     if (m) out.push(`${clean(m[0], 40)} (line ${i + 1})`);
   });
   return out;

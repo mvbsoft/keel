@@ -186,7 +186,9 @@ All notable changes to keel are listed here. The format follows
   "Linked sessions now" note, as your turn, and its preview skips the reminder; before, a long session
   started from another one showed a single turn.
 - `plans.js check` no longer reports a comparison such as `| < 30 s | > 1 min |` or `x <= 3 | y > 2`
-  as an unfilled `<...>` placeholder; a `<` followed by a space or `=` is not one.
+  as an unfilled `<...>` placeholder; a `<` followed by a space or `=` is not one, and neither is
+  `| <30 s | >1 min |`, `<30 s, then >1 min` or anything in a code block indented under a list item,
+  such as a mermaid diagram.
 
 ### Removed
 - `language`, `export`, `export_dir` and `prefix` in `.keel/local/plans/keel/settings.json`, and their
