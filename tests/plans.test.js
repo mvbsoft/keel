@@ -353,6 +353,21 @@ test('check: a comparison with < and > on one line is not a placeholder, a <name
   assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 28)']);
 });
 
+test('check: an indented code block and "<30 s" are not placeholders, a <name> still is', () => {
+  const dir = project();
+  filled(dir, 's3-connection');
+  const text = 'How it goes:\n\n1. Three messages arrive:\n   ```mermaid\n   sequenceDiagram\n     S-->>O: one push<br>after 30 s\n   ```\n\n| Wait | Messages |\n|---|---|\n| <30 s | >1 min |\n\nPushes wait <30 s, then >1 min.';
+  body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(text));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)']);
+  body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(`${text}\n\nSent by <who>.\nEnter the <2fa code>.\n<1-2 sentences: what changes>`));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), [
+    'check: 3 problems',
+    '- plan.md: placeholder <who> (line 35)',
+    '- plan.md: placeholder <2fa code> (line 36)',
+    '- plan.md: placeholder <1-2 sentences: what changes> (line 37)',
+  ]);
+});
+
 test('check: the unfilled templates show only their placeholders', () => {
   const dir = project();
   run(dir, 'new', 's3-connection');
