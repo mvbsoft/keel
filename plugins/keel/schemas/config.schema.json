@@ -241,7 +241,7 @@
       }
     },
     "delegation": {
-      "description": "Above either threshold keel asks: here or delegate to implementers? Starting estimate, to be replaced by measurements.",
+      "description": "Above either threshold keel recommends running the saved plan in a fresh conversation, or delegating to implementers, or doing it here. Starting estimate, to be replaced by measurements.",
       "type": "object",
       "required": [
         "min_plan_steps",

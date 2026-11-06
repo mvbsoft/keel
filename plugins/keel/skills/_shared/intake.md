@@ -53,8 +53,8 @@ Wishes about git ("branch off release-2.3, merge into develop") are recorded for
 not hold → say it in the retell with `file:line`.
 **Which lane:** "done" in 1-3 sittings → a task; a plan for weeks with "later" items → a session. A
 request that clearly fits a session → suggest `/keel:start-session` in one line; the user decides.
-Too big for one task (the user says so or asks to split it, in any words, or the Plan Mode plan is
-very big) → "Task to planning" below, at any step. When the task's Decisions and why records that the
+Too big for one task (the user says so or asks to split it, in any words, or `plan-steps.js` says
+`very big:` for the Plan Mode plan: 10 steps or 40 files) → "Task to planning" below, at any step. When the task's Decisions and why records that the
 user chose not to split it, keel does not offer it again; the user asking to split it still goes there.
 Always settle "new or continuation" in the same message:
 - `lane: task` for the given key → one question: "This is the unfinished task <id>: continue it?";
@@ -145,10 +145,17 @@ seen failing before the fix). Per step choose:
   changes, text and config).
 
 Then, still in Plan Mode, run `node "<keel>/scripts/plan-steps.js" "<project>" "<plan file>"`; fix
-every `problems` line and put its step table (step, model, effort) into the plan. Its
-`suggest: delegate` → the plan's Execution step 3 proposes delegating and states its `ask:` line (here
-or delegate, in the conversation language), so approving or changing the plan answers it. Below the
-thresholds: execution here, unless the user asks to delegate. No separate question after ExitPlanMode.
+every `problems` line and put its step table (step, model, effort) into the plan. Its `very big:`
+line → "Task to planning" below, before ExitPlanMode; "do not split" there → go on with this plan.
+Its `suggest: delegate` → the plan's Execution step 3 names the choice and states its `ask:` line
+(in the conversation language): `fresh` (recommended: a fresh conversation runs the saved plan),
+`delegate` (implementers, from this conversation), `here`, or what the user says instead; approving
+or changing the plan answers it. For `fresh` the plan also says both ways in: approve with Claude
+Code's "Yes, clear context" (when it is shown), or approve as usual, then type `/clear` and the
+command keel names; and its Execution step 4 holds what the discussion settled that the plan's
+sections do not say (decisions with why, open questions, a "do not split"), because a fresh
+conversation knows only the plan. Below the thresholds: execution here, unless the user asks
+otherwise. No separate question after ExitPlanMode.
 
 **Branch** (one per task): `<id>-<short-name>`, the short name 2-4 lowercase ASCII words joined by
 `-`; the id alone when it already is a slug (`fix-reset-500`). From the base the user chose in the
@@ -176,16 +183,26 @@ lands on the main branch:
    Then fill the `task.md` it names (Edit): front matter `branch`, `base`, `merge_into` (a planned
    ticket: as "Planned ticket" says), `execution`, `plan`, and the
    sections Goal, Next action, Acceptance criteria, Out of scope, State (a simple task: its steps as
-   `- ⬜ step` lines), How to check, User's changes. A complex plan: save it as `plan.md` in the task
-   folder, `plan: plan.md`, and State says "see plan.md". Both files in the language "Languages" gives
-   them (`repo_language` in git): translate the retell and the plan when writing the files, also when
-   the chat ran in another language.
+   `- ⬜ step` lines), How to check, User's changes (with the plan's Execution step 4: its settled
+   decisions into Decisions and why, its open questions into Open questions). A complex plan: save
+   it as `plan.md` in the task folder, `plan: plan.md`, and State says "see plan.md". Both files in
+   the language "Languages" gives them (`repo_language` in git):
+   translate the retell and the plan when writing the files, also when the chat ran in another language.
 3. Work through the plan: `execution: here` → step by step yourself, marking each step done (✅);
-   `execution: delegate` → follow `<keel>/skills/_shared/delegate.md` with the plan file.
+   `execution: delegate` → follow `<keel>/skills/_shared/delegate.md` with the plan file;
+   `execution: fresh` → "Fresh conversation" below.
 4. When it is done: "Run /keel:end-task to verify and finish, or to hand the task off for another
    session (/keel:tasks lists the tasks)."
 
 A user's request on the side (e.g. "add a comment to the Jira ticket") is done as an ordinary request.
+
+**Fresh conversation** (`execution: fresh`). This conversation began with the plan alone (approved
+with Claude Code's "Yes, clear context": nothing before the plan) → it is the fresh one: ask how to
+run the rest as Resume step 7 says, then go on as item 3 says. Otherwise the plan discussion stays
+behind, so first check that task.md holds what it settled (item 2 copies the plan's Execution step
+4; add what is still missing to Decisions and why, with why, and Open questions). Then say: "The
+plan is saved. Type `/clear`, then `/keel:start-task <id>`: the work goes on from the plan." and
+stop; keel never types it for the user.
 
 ## Resume
 1. **Uncommitted changes** (see "Before any branch change" below) come first, only when step 2 needs
@@ -206,9 +223,13 @@ A user's request on the side (e.g. "add a comment to the Jira ticket") is done a
 6. A tracker, link or file task: read the source again (as in step 2) and tell the user what changed
    against Goal and Acceptance criteria. Do not overwrite them without a yes.
 7. Summary in 3-6 lines: goal, where we are, done / not done, open questions. Then the **Next action**.
-   Delegation (only when the task has `plan: plan.md` or `execution: delegate`; a simple task's
-   `- ⬜` lines are not plan steps): `node "<keel>/scripts/plan-steps.js" "<project>" "<plan.md or task.md>" --remaining`,
-   and ask its `ask:` line when it says `suggest: delegate`; `execution: delegate` stays.
+   How to run the rest (only when the task has `plan: plan.md` or `execution:` is not `here`; a
+   simple task's `- ⬜` lines are not plan steps): run
+   `node "<keel>/scripts/plan-steps.js" "<project>" "<plan.md or task.md>" --remaining`.
+   `execution: fresh` → this is the fresh conversation: ask its `ask:` line (delegate or here; no
+   `ask:` → here) and write the answer into `execution:`. `here` or `delegate` → the choice is made:
+   no question; say in one line how it goes on, with its count ("<n> steps left: going on here, as
+   chosen; say if otherwise").
 
 ## Before any branch change (new task or resume)
 Run `node "<keel>/scripts/git-flow.js" "<project>" status`. `changed files:` not 0 → stop and offer:
@@ -288,9 +309,10 @@ asked to split it, the same question has only 1), 2) and "Or say how else.": no 
 - **Here** → the task leaves (below), then ask the user to type `/keel:start-planning`; the plan in
   this chat is its source. No brief.
 - **Do not split** → it stays one task. Record it in task.md, Decisions and why ("Not split into a
-  feature: the user's choice"; before `task new`, when step 7 item 2 writes the file), so that neither
-  this conversation nor a resume of the task offers it again. Only for this task: the next one is asked
-  anew.
+  feature: the user's choice"; before `task new`, when step 7 item 2 writes the file; in Plan Mode
+  also in the plan's Execution step 4, which item 2 copies, so it survives "Yes, clear context"), so
+  that neither this conversation nor a resume of the task offers it again. Only for this task: the
+  next one is asked anew.
 - **The task leaves**: no `task new` yet → nothing to do. After it: say "<id> goes to keel's trash"
   and run `node "<keel>/scripts/notes.js" "<project>" task drop <id>`. A branch of
   its own (`branch` differs from `base`) is deleted only on its own yes:

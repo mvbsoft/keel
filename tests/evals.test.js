@@ -14,7 +14,7 @@ const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 // The chat the planning cases resume: shop.js marks it, each case's history.jsonl keeps its id.
 const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(SHOP, 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active'];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh'];
 
 const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
@@ -162,13 +162,22 @@ const STATE = {
     assert.equal(started[1], git('rev-parse', 'main'));
     assert.match(git('diff', '--name-only', started[1]), /^src\/cart\.js$/m);
   },
+  // The plan was approved for a fresh conversation: the run is that one and asks delegate or here.
+  'task-fresh': (work, git) => {
+    git('switch', '-q', 'csv-report');
+    assert.match(fs.readFileSync(path.join(work, '.keel', 'tasks', 'csv-report', 'task.md'), 'utf8'), /^execution: fresh$/m);
+    const out = script('plan-steps.js', work, '.keel/tasks/csv-report/plan.md', '--remaining');
+    assert.match(out, /^suggest: delegate \(9 steps >= 8, 18 files >= 15\)$/m, out);
+    assert.match(out, /^ask: Left: 9 steps, ~18 files, at or over 8 steps or 15 files: .* delegate to implementers, or here\?/m);
+    assert.match(out, /^problems: none$/m, out);
+  },
 };
 
 test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
   const expect = { base: ['main', 0, ''], tasks: ['main', 0, ''], finish: ['CAN-200-free-shipping', 1, ''], session: ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
     planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'], 'planning-new': ['main', 0, ''],
-    'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''] };
+    'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''], 'task-fresh': ['main', 0, ''] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {
     const work = tempDir(`keel-eval-${variant}-`);

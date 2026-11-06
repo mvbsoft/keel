@@ -3,29 +3,13 @@
 // start-planning taking the brief, and planning going on in a dropped task's branch.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
-const read = (...p) => fs.readFileSync(path.join(PLUGIN, ...p), 'utf8');
-const shared = (name) => read('skills', '_shared', name);
-const order = (text, a, b, why) => {
-  assert.ok(text.includes(a), `missing: ${a}`);
-  assert.ok(text.includes(b), `missing: ${b}`);
-  assert.ok(text.indexOf(a) < text.indexOf(b), why || `${a} comes before ${b}`);
-};
-const part = (text, from, to) => {
-  const a = text.indexOf(from);
-  assert.ok(a >= 0, `missing: ${from}`);
-  const b = to ? text.indexOf(to, a + from.length) : -1;
-  return text.slice(a, b < 0 ? undefined : b);
-};
+const { read, shared, order, part } = require('./fixtures/texts.js');
 const intake = shared('intake.md');
 const section = part(intake, '## Task to planning');
 const BRIEF = '.keel/local/plans/briefs/<name>-brief.md';
 
 test('start-task: a task too big asks one question (new chat, here, do not split, or else); asked to split, it does not ask whether', () => {
-  assert.match(intake, /Too big for one task \(the user says so or asks to split it, in any words, or the Plan Mode plan is\s+very big\) → "Task to planning" below, at any step\./);
+  assert.match(intake, /Too big for one task \(the user says so or asks to split it, in any words, or `plan-steps\.js` says\s+`very big:` for the Plan Mode plan: 10 steps or 40 files\) → "Task to planning" below, at any step\./);
   // A "do not split" recorded stops keel's offer, not the user's own request.
   assert.match(intake, /When the task's Decisions and why records that the\s+user chose not to split it, keel does not offer it again; the user asking to split it still goes there\./);
   assert.match(section, /Lanes never mix:\s+the task ends completely before planning starts/);
@@ -40,9 +24,9 @@ test('start-task: a task too big asks one question (new chat, here, do not split
 
 test('start-task: "do not split" is recorded in task.md and holds for this task only', () => {
   const no = part(section, '- **Do not split**', '- **The task leaves**');
-  assert.match(no, /Record it in task\.md, Decisions and why \("Not split into a\s+feature: the user's choice"; before `task new`, when step 7 item 2 writes the file\)/);
+  assert.match(no, /Record it in task\.md, Decisions and why \("Not split into a\s+feature: the user's choice"; before `task new`, when step 7 item 2 writes the file; in Plan Mode\s+also in the plan's Execution step 4, which item 2 copies, so it survives "Yes, clear context"\)/);
   assert.match(no, /neither\s+this conversation nor a resume of the task offers it again/, 'a compacted context or a resume does not ask again');
-  assert.match(no, /Only for this task: the next one is asked\s+anew\./);
+  assert.match(no, /Only for this task: the\s+next one is asked anew\./);
 });
 
 test('start-task: a new chat gets a brief in four handoff sections and the exact command; here plans with no brief', () => {

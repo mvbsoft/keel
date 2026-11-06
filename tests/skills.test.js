@@ -137,7 +137,7 @@ test('the plan template has the Execution section that survives "clear context"'
   assert.match(exec, /git-flow\.js" "<project>" start --name/);
   assert.match(exec, /\/keel:end-task/);
   for (const section of ['## Files', '## Architecture', '## Libraries and framework', '## Tests', '## Likely verification level', '## Documentation', '## Steps']) assert.ok(plan.includes(section), section);
-  assert.ok(exec.includes('Execution: <here | delegate>'));
+  assert.ok(exec.includes('Execution: <here | delegate | fresh>'));
   assert.ok(exec.includes('skills/_shared/delegate.md'), 'delegation survives "clear context" through the plan');
   assert.ok(plan.indexOf('## Steps') < plan.indexOf('## Execution'));
 });

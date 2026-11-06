@@ -4,8 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
-const read = (...p) => fs.readFileSync(path.join(PLUGIN, ...p), 'utf8');
+const { PLUGIN, read, shared, order, part } = require('./fixtures/texts.js');
 const frontmatter = (text) => (/^---\r?\n([\s\S]*?)\r?\n---/.exec(text) || [])[1] || '';
 
 test('end-session is the long-work lane only: the note, never the task files', () => {
@@ -118,7 +117,6 @@ test('agent and protocol prompts carry no project history', () => {
 // --- the two lanes: free-text instructions, sources, lanes, endings, one report and one handoff format ---
 
 const skill = (name) => read('skills', name, 'SKILL.md');
-const shared = (name) => read('skills', '_shared', name);
 
 test('no keyword arguments: the four lane commands take a free-text instruction', () => {
   for (const name of ['start-task', 'end-task', 'start-session', 'end-session']) {
@@ -503,17 +501,6 @@ test('configure: a chosen docs pattern the docs do not follow yet is offered as 
 
 // --- planned tickets in the task and session lanes (spec: .design/planning-spec.uk.md §2, §11) ---
 
-const order = (text, a, b, why) => {
-  assert.ok(text.includes(a), `missing: ${a}`);
-  assert.ok(text.includes(b), `missing: ${b}`);
-  assert.ok(text.indexOf(a) < text.indexOf(b), why || `${a} comes before ${b}`);
-};
-const part = (text, from, to) => {
-  const a = text.indexOf(from);
-  assert.ok(a >= 0, `missing: ${from}`);
-  const b = to ? text.indexOf(to, a + from.length) : -1;
-  return text.slice(a, b < 0 ? undefined : b);
-};
 const planned = () => part(shared('intake.md'), '## Planned ticket', '## Task to planning');
 
 test('start-task: no instruction adds the next planned ticket; "next ticket" and a key read the state after a fetch', () => {

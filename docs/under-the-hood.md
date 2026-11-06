@@ -80,8 +80,8 @@ which main model to use: [cost optimization](cost-optimization.md#1-choose-the-m
 ## Delegation
 
 When a plan passes the thresholds (8 steps or 15 files by default, `delegation.min_plan_steps` and
-`min_plan_files`), keel asks whether to do it in the conversation or hand the steps to implementer agents:
-one fresh agent per step, each on the model the step needs (Haiku when nothing is left to decide,
+`min_plan_files`), keel recommends a fresh conversation that starts from the saved plan, or hands the
+steps to implementer agents: one fresh agent per step, each on the model the step needs (Haiku when nothing is left to decide,
 Sonnet when the step leaves a decision, Opus for work that should not be split). The main conversation
 accepts each step after running its tests. Why steps should not be cut too small:
 [cost optimization](cost-optimization.md#4-do-not-split-a-plan-into-tiny-steps).

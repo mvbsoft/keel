@@ -2,7 +2,8 @@
 // Builds the eval project in the current folder: a small configured shop with git and a bare remote
 // in .git/eval-remote.git (inside the workspace, so the sandboxed run can push to it).
 // Usage: node shop.js <base | tasks | finish | session | messy | overbuilt | planning | planning-openq |
-//                      planning-ready | planning-repo | planning-new | planning-brief | planned | task-active>
+//                      planning-ready | planning-repo | planning-new | planning-brief | planned | task-active |
+//                      task-fresh>
 //   base            no tasks, no note
 //   tasks           handed-off tasks CAN-123 (discount, Jira link) and fix-reset-500 on their branches; on main
 //   finish          task CAN-200 done and committed on its branch, checked out there
@@ -14,6 +15,8 @@
 //                   over-engineered average() with its test, and an unexplained restyle of src/cart.js
 //   task-active     tasks, with CAN-123 active again for the chat SID (status active, started recorded,
 //                   committed), checked out on CAN-123-discount
+//   task-fresh      tasks, with csv-report handed off on its branch after its plan was approved for a fresh
+//                   conversation (execution: fresh): plan.md has 9 steps, none done; on main
 // Every variant's config has the planning settings: ticket prefix INV, tickets in the repository.
 // The planning variants add the invoices (src/invoices.js, src/server.js, public/invoices.html) on main:
 //   planning        a draft csv-export on this machine (draft pc): plan.md and tickets T1, T2 (T2 depends
@@ -76,8 +79,8 @@ status: ${o.status}
 branch: ${o.branch}
 base: main
 merge_into: main
-execution: here
-plan: inline
+execution: ${o.execution || 'here'}
+plan: ${o.plan || 'inline'}
 created: ${o.created}
 updated: ${o.updated}
 after_commit: ${o.last || '-'}
@@ -738,6 +741,47 @@ function taskActive() {
   commitAll('keel: CAN-123 active');
 }
 
+// A plan of n steps as the plan template writes them, each step a module and its test.
+function stepsPlan(id, title, n) {
+  const step = (i) => `### Step ${i}: report part ${i}
+- files: \`src/report/part${i}.js\`, \`test/report-part${i}.test.js\`
+- model: sonnet
+- effort: high
+- do: add part ${i} of the monthly report in src/report/part${i}.js, export build(orders)
+- done when:
+  1. \`npm test\` passes the new test/report-part${i}.test.js
+- status: ⬜ not done
+`;
+  return `# ${id}: ${title}
+
+## Goal and acceptance criteria
+A monthly CSV report of orders, in ${n} parts.
+
+## Steps
+${Array.from({ length: n }, (_, i) => step(i + 1)).join('\n')}
+## Execution
+3. Execution: fresh.
+`;
+}
+
+function taskFresh() {
+  tasks();
+  git('switch', '-q', '-c', 'csv-report');
+  write('.keel/tasks/csv-report/plan.md', stepsPlan('csv-report', 'Monthly CSV report of orders', 9));
+  write('.keel/tasks/csv-report/task.md', taskFile({
+    id: 'csv-report', title: 'Monthly CSV report of orders', source: 'text', execution: 'fresh', plan: 'plan.md',
+    status: 'handed-off', branch: 'csv-report', created: '2026-11-05', updated: '2026-11-05', last: git('rev-parse', '--short', 'HEAD'),
+    goal: 'A monthly CSV report of orders, built in 9 parts (see plan.md).',
+    next: 'Step 1 of plan.md.',
+    criteria: '- every part of plan.md is done and tested',
+    state: '- see plan.md',
+    files: '- Next: src/report/: the parts of plan.md',
+  }));
+  commitAll('keel: csv-report planned for a fresh conversation');
+  git('push', '-q', '-u', 'origin', 'csv-report');
+  git('switch', '-q', 'main');
+}
+
 base();
 if (variant === 'tasks') tasks();
 else if (variant === 'finish') finish();
@@ -752,4 +796,5 @@ else if (variant === 'planning-new') planningNew();
 else if (variant === 'planning-brief') planningBrief();
 else if (variant === 'planned') planned();
 else if (variant === 'task-active') taskActive();
+else if (variant === 'task-fresh') taskFresh();
 else if (variant !== 'base') throw new Error(`unknown variant "${variant}"`);

@@ -167,6 +167,15 @@ All notable changes to keel are listed here. The format follows
   scope, Terms and Stubs (no more Design sketch) and lists the feature's tickets: key, title and
   repository (the last part of the remote's URL, else the project folder's name), without states.
   Tickets and plans in the earlier format fail `plans.js check`; nothing converts them.
+- A big plan (8 steps or 15 files, unchanged) is run in a fresh conversation first: the plan names the
+  choice (a fresh conversation, recommended; implementers from this conversation; here; or another
+  way) and approving it answers. For a task, approve with "Yes, clear context" or type `/clear` and
+  `/keel:start-task <id>`; for a session, `/clear` and `/keel:start-session`. What the planning
+  settled is written into `task.md` or the note first. The fresh conversation asks once, implementers
+  or here (`execution: fresh` until then); a resume with the choice made asks nothing.
+  `plan-steps.js` prints both wordings of the question.
+- A very big plan, 10 steps or 40 files (not a setting), goes to `/keel:start-task`'s planning as a
+  feature: `plan-steps.js` prints a `very big:` line.
 
 ### Fixed
 - `comments.js` no longer stops when `comments.ticket_prefixes` is not a list; it is skipped.
