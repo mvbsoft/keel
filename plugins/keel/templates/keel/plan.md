@@ -67,7 +67,9 @@ session's id (keel's session-start line):
    yourself, in order; run the touched tests as you go; mark each step done (✅). Delegate: follow
    `<keel>/skills/_shared/delegate.md` with this plan file. Fresh: a fresh conversation runs this
    saved plan, as <task> `<keel>/skills/_shared/intake.md` "Fresh conversation" / <session>
-   `<keel>/skills/_shared/handoff.md` "The plan and its size" says.
+   `<keel>/skills/_shared/handoff.md` "The plan and its size" says. <With fresh, say how the user gets
+   there: <task> approve with "Yes, clear context", or approve as usual, then type `/clear` and
+   `/keel:start-task <id>` / <session> type `/clear`, then `/keel:start-session`.>
 4. User's changes: <branch, base, where to merge, anything else the user said; or "none">. <With
    Execution fresh also what the discussion settled that the sections above do not say: decisions
    with why, open questions, a "do not split"; a fresh conversation knows only this plan.>

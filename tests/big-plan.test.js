@@ -61,5 +61,6 @@ test('templates: execution has the value fresh; the plan says the choice and whe
   const exec = part(read('templates', 'keel', 'plan.md'), '## Execution');
   assert.match(exec, /the choice in words and the `ask:`\s+line of `plan-steps\.js`, so that approving the plan answers it/);
   assert.match(exec, /intake\.md` "Fresh conversation" \/ <session>\s+`<keel>\/skills\/_shared\/handoff\.md` "The plan and its size"/);
+  assert.match(exec, /With fresh, say how the user gets\s+there: <task> approve with "Yes, clear context", or approve as usual, then type `\/clear` and\s+`\/keel:start-task <id>` \/ <session> type `\/clear`, then `\/keel:start-session`/);
   assert.match(exec, /With\s+Execution fresh also what the discussion settled that the sections above do not say: decisions\s+with why, open questions, a "do not split"/);
 });

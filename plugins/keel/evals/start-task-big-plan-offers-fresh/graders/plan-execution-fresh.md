@@ -1,5 +1,5 @@
 ---
 type: regex
-target: trace
-pattern: 'Execution:\s*[^<\n]{0,40}fresh'
+pattern: 'fresh[^\n]{0,80}recommend|recommend[^\n]{0,60}fresh'
+flags: i
 ---
