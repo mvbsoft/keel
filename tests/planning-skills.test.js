@@ -408,7 +408,7 @@ test('end-planning: the chat mark is cleared in every mode, then the costs, and 
 });
 
 test('every output line the planning instructions quote is printed by plans.js', () => {
-  const scripts = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-settings.js'], ['lib', 'plans-export.js'], ['lib', 'plans-export-repos.js'], ['lib', 'plans-report.js'], ['lib', 'plans-state.js'], ['lib', 'plans-repos.js']];
+  const scripts = [['plans.js'], ['lib', 'plans.js'], ['lib', 'plans-drafts.js'], ['lib', 'plans-check.js'], ['lib', 'plans-settings.js'], ['lib', 'plans-export.js'], ['lib', 'plans-export-repos.js'], ['lib', 'plans-report.js'], ['lib', 'plans-state.js'], ['lib', 'plans-repos.js']];
   const source = scripts.map((p) => (fs.existsSync(path.join(PLUGIN, 'scripts', ...p)) ? read('scripts', ...p) : '')).join('\n');
   const text = all().join('\n');
   const lines = ['settings: none yet', 'find: 1 match', 'find: no match', 'planning: none', 'check: clean', 'report: ok ·', 'report: failed',

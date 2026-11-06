@@ -479,7 +479,7 @@ function pushFeature(project, feature, { repo } = {}) {
 
 module.exports = {
   commitFeature, pushFeature, fetched, highestKey, keyCheck,
-  // for lib/plans.js
+  // for lib/plans.js, lib/plans-drafts.js and lib/plans-check.js
   featureFolder, branchWith, exportedTicket, exportedProblems,
   // for lib/plans-export-repos.js
   TEMP, safe, folderFiles,
