@@ -1,6 +1,6 @@
 'use strict';
 // keel usage dashboard: reading the page's data sources. window.KeelLoad() gives loadFromDb (the page
-// database) and fetchJson (the page files, for pivot.js loadPageData).
+// database), fetchJson (the page files, for pivot.js loadPageData) and sleep.
 window.KeelLoad = function () {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   async function retry(fn) {
@@ -47,5 +47,5 @@ window.KeelLoad = function () {
     return r.json();
   }
 
-  return { loadFromDb, fetchJson };
+  return { loadFromDb, fetchJson, sleep };
 };
