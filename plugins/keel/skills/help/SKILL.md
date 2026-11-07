@@ -26,6 +26,6 @@ planning." Nothing else: run nothing, read nothing.
 | `/keel:feature-page [feature] [--lang code]` | makes a private page of a planned feature in your claude.ai account (overview, tickets with their states, research), or updates it; no feature: the current branch's; in your language unless --lang | `/keel:feature-page csv-export` |
 | `/keel:configure [check \| section,...]` | sets up or changes keel for this project; `check` says what to reconfigure and why, changing no setting | `/keel:configure check` |
 | `/keel:cleanup` | finds leftovers and moves the ones you pick to keel's trash, with an undo | `/keel:cleanup restore` |
-| `/keel:usage` | gives the link to your private usage page (what each session cost) and opens it | `/keel:usage` |
-| `/keel:usage-clear` | deletes all data on the usage page, after a warning and your yes | `/keel:usage-clear` |
+| `/keel:usage [on \| off]` | gives the link to your private usage page (what each session cost) and opens it; `off` stops this machine's sync (costs are still collected here), `on` starts it again or sets the page up; with an API key only, no page: the end reports show exact dollars | `/keel:usage off` |
+| `/keel:usage-clear` | deletes this PC's data on the usage page (other PCs' data stays), after a warning and your yes | `/keel:usage-clear` |
 | `/keel:help` | this table | `/keel:help` |

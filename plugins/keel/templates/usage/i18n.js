@@ -232,7 +232,8 @@
     'cal.synced': 'synced',
     // page-only strings (index.html)
     'nodb.title': 'No data connection',
-    'nodb.text': 'This page reads its data from the artifact database on claude.ai. Open it from its claude.ai link while signed in.',
+    'nodb.text': 'The page found neither its data files nor its database. It may have been opened outside claude.ai, or nothing has been synced yet. The first /keel:end-task, /keel:end-session or /keel:end-planning with the page tools fills it.',
+    'load.partial': 'Some data files could not be loaded; the totals may be incomplete.',
     'nodb.demo': 'For a layout check with sample data, add ?demo=1 to the address.',
     'demo.banner': 'Sample data for a layout check. These are not your numbers.',
     'empty.what': 'Here you will see daily spend by model, your plan limit in percent and dollars, every session with its agents and turns, and what 1 % of the plan costs in dollars.',

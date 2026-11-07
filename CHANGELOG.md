@@ -7,6 +7,24 @@ All notable changes to keel are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- The usage page can be fed by page files instead of its database: with the `claude-artifacts` page
+  tools a sync writes `data/<pc>-<YYYY-MM>.json` (one per machine and month) and the shared
+  `data/index.json` (every machine's name, install id, last sync, 35 days of hourly totals for the
+  calibration, sha256 of each month file). Which tool set a session gets is decided by Anthropic per
+  session; keel works with either, the dashboard reads both and counts each session once.
+- Page files are safe to share: the page version is the lock (a refused publish restarts the sync once),
+  each machine keeps its month files in `~/.claude/keel/usage-files/` and restores them from the page
+  when they are gone, and a machine name used by another install is never overwritten (the report says
+  to rename the machine in `/keel:configure`).
+- `/keel:usage on|off` (and `usage-setup.js <project> sync on|off`) turns this machine's sync on or off;
+  costs are still collected locally. `usage.json` gets `sync`, `sync_off_since` and `install_id`.
+- With the `claude-artifacts` tools the page update needs no question: a normal sync publishes keel's current
+  page files with the data. `data/index.json` has `keel_version`; a machine with an older keel than the
+  page's leaves the page files alone, so the newest keel's page wins.
+- `usage.js audit --page <folder>` compares this machine's dollars and tokens per session on the page
+  with the local transcripts and names the difference to Claude Code's own cost.
+- The docs and the instructions tell the three account cases: API key only (exact dollars, no usage page,
+  no page questions in configure), subscription only, and both.
 - `.keel/config.json` has a `planning` section, the same for the whole team: the ticket prefix
   (`ticket_prefix`), where exported tickets live (`tickets`: `repo` or `pc`; the researcher's reports
   go with them) and their folder (`tickets_dir`, default `tickets`), and the tickets' language
@@ -119,6 +137,14 @@ All notable changes to keel are listed here. The format follows
   starts from its open questions.
 
 ### Changed
+- `usage.artifact_url` in `.keel/config.json` is no longer used: each machine syncs to its owner's own
+  page and Share on the page shows it to others. The key stays valid in the schema and is ignored; keel
+  says so once per machine.
+- `/keel:usage-clear` clears only the machine it runs on: its month files and its entry's months in
+  `data/index.json`, its database documents and its local month files. Other machines' data stays (to clear
+  the whole page, run it on every machine) and the dashboard hides nothing by date. A clear removes what the
+  session's page tools reach; the warning is per tool set.
+- Update keel on every machine: an older keel writes only the database and does not read the index.
 - Planning has its own page, [docs/planning.md](docs/planning.md); [docs/workflows.md](docs/workflows.md)
   keeps tasks and sessions and links to it.
 - `/keel:start-task` asks once how to go on with a task too big for one: a new chat with a brief,
@@ -191,6 +217,7 @@ All notable changes to keel are listed here. The format follows
   such as a mermaid diagram.
 
 ### Removed
+- `approved_artifact_urls` and `page_shared` in `~/.claude/keel/usage.json`.
 - `language`, `export`, `export_dir` and `prefix` in `.keel/local/plans/keel/settings.json`, and their
   `plans.js settings set` options: the project's `planning` section replaces them. Values saved there
   are not carried over: set them again with `/keel:configure planning`.

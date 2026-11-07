@@ -496,3 +496,41 @@ test('configure: a chosen docs pattern the docs do not follow yet is offered as 
   assert.match(flow, /First run `\/keel:start-task \.keel\/local\/docs-migration\.md`/);
   assert.match(flow, /Quick setup takes the suggested profile and pattern: keel keeps the docs the way they are/);
 });
+
+test('every text about costs says what an API-key-only session gets: exact dollars, no usage page', () => {
+  const flow = shared('configure-flow.md');
+  const texts = {
+    'configure-flow.md 11': flow.slice(flow.indexOf('## 11. Usage and costs'), flow.indexOf('## 12.')),
+    'usage-page.md': shared('usage-page.md'),
+    'final-report.md': shared('final-report.md'),
+    usage: skill('usage'),
+    help: skill('help'),
+  };
+  for (const [name, text] of Object.entries(texts)) {
+    assert.match(text, /API key/, name);
+    assert.match(text, /exact dollars/, name);
+    assert.match(text, /no usage page|no page|cannot reach (it|the page)|has no access to the page/, name);
+  }
+  // Where the account types are listed, all three are there.
+  for (const name of ['configure-flow.md 11', 'final-report.md']) {
+    assert.match(texts[name], /API key only/, name);
+    assert.match(texts[name], /subscription/, name);
+    assert.match(texts[name], /both/, name);
+  }
+});
+
+test('the main usage docs tell the three account cases: exact dollars, no usage page with an API key only', () => {
+  const texts = {
+    'README.md': fs.readFileSync(path.join(PLUGIN, '..', '..', 'README.md'), 'utf8'),
+    'usage-dashboard.md': fs.readFileSync(path.join(PLUGIN, '..', '..', 'docs', 'usage-dashboard.md'), 'utf8'),
+  };
+  for (const [name, text] of Object.entries(texts)) {
+    assert.match(text, /API key/, name);
+    assert.match(text, /exact dollars|exact with an API key/, name);
+    assert.match(text, /no usage page|no page/, name);
+  }
+  const dash = texts['usage-dashboard.md'];
+  assert.match(dash, /\| API key only \|/);
+  assert.match(dash, /\| subscription only \|/);
+  assert.match(dash, /\| both \|/);
+});

@@ -10,7 +10,7 @@
 // owns it. `summary` is the session as its transcript says; `dedup` is the same without the messages others own.
 // A session whose transcript Claude Code deleted stays in the cache, so rebuilding a day keeps its history.
 //   keel-tasks.jsonl             keel fields (task, level, findings...) per session, appended by `usage.js prepare`
-//   sync-state.json              {artifact_url, synced_until, docs, pending, pending_until}
+//   sync-state.json              {artifact_url, synced_until, docs, pending, pending_until, files, notes}
 // Days are UTC dates, hours are UTC hour starts. Never writes outside <usageDir>; read-only on the transcripts.
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -608,6 +608,12 @@ function readState(dir) {
     sessions_rule: ok && typeof s.sessions_rule === 'string' ? s.sessions_rule : null,
     pending_rule: ok && typeof s.pending_rule === 'string' ? s.pending_rule : null,
     cleared_at: ok && typeof s.cleared_at === 'string' ? s.cleared_at : null,
+    // the clear time of the /keel:usage-clear run in progress; `usage-clear.js done` uses it as cleared_at
+    clear_pending_at: ok && typeof s.clear_pending_at === 'string' ? s.clear_pending_at : null,
+    // the page-file sync (lib/usage-page-sync.js) and the lines the next report says once
+    files: ok && s.files && typeof s.files === 'object' && !Array.isArray(s.files) ? s.files : {},
+    notes: ok && Array.isArray(s.notes) ? s.notes.filter((n) => n && typeof n.key === 'string') : [],
+    team_page_noted: ok && s.team_page_noted === true,
   };
 }
 
@@ -674,8 +680,15 @@ function ack(state, { failed = [], batch = null } = {}) {
   return { committed, left, unknown };
 }
 
+// The later of two ISO times; a missing one gives the other.
+const later = (a, b) => (!a ? b : !b ? a : Date.parse(a) >= Date.parse(b) ? a : b);
+
+// Whether another machine's user counts as this machine's for calibration: limits and plans belong to one account.
+// A machine whose user is unknown (no git e-mail) is counted, and so is everyone when the local user is unknown.
+const sameUser = (localUser) => (u) => !localUser || typeof u !== 'string' || !u || u.toLowerCase() === String(localUser).toLowerCase();
+
 module.exports = {
   MAX_DOC_BYTES, sanitizePc, listSessions, projectFolderName, newestSessionIn, readWallets, walletOf, readKeel, readLines,
   buildDays, buildMachineDoc, localRequests, sessionSummary, readState, writeState, stage, ack, packDay, hashOf, sha1, SAFETY_MS,
-  DAY_MS, readJson, dayOf, SESSIONS_RULE, earliestDay,
+  DAY_MS, readJson, dayOf, SESSIONS_RULE, earliestDay, later, sameUser,
 };

@@ -40,6 +40,12 @@
   "report.none": "usage: no session found",
   "report.last_turn": "this command: {usd} ({requests})",
   "report.last_turn_week": ", about {pct} % of the weekly limit",
+  "report.note.sync_off": "Usage page: the sync of this PC is off since {since}. Costs are still collected here; /keel:usage on sends them all.",
+  "report.note.api": "Usage page: this session uses an API key, so it cannot reach the page on claude.ai. The next session signed in with claude.ai sends these costs; nothing is lost.",
+  "report.note.no_tools": "Usage page: this session has no page tools, so the sync waits. The next session that has them sends everything; nothing is lost.",
+  "report.note.name_taken": "Usage page: another PC already syncs as \"{pc}\", so nothing was sent. Give this PC another name in /keel:configure; nothing is lost.",
+  "report.note.name_ask": "Usage page: the page already has a PC named \"{pc}\". Nothing was sent until you say whether it is this PC (before a reinstall) or another one.",
+  "report.note.team_page": "This project's shared usage page (usage.artifact_url in .keel/config.json) is no longer used: each PC syncs to its owner's own page, and Share on that page shows it to others.",
 
   "calibration.head": "calibration",
   "calibration.weekly": "weekly",

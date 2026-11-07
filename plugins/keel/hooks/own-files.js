@@ -14,8 +14,8 @@
 //   and nowhere else; notes.js `task` writes keel's task folders (.keel/tasks/, .keel/local/); the
 //   script touches only `.keel/tasks/<id>/` or `.keel/local/tasks/<id>/` for a validated id and refuses
 //   any link on the way or inside; usage.js takes the project as `--project` (it must be the current
-//   project), its `--out` folder must be under that project's .keel/local/usage/ and its `--keel` file
-//   under .keel/local/;
+//   project), its `--out` folder must be under that project's .keel/local/usage/ and its `--keel`,
+//   `--page` and every `--take` file under .keel/local/;
 // - asks, so Claude Code itself shows the confirmation with keel's reason in the conversation language,
 //   also when the user's allow rules would let it run: notes.js `task delete` (a finished task's folder
 //   to keel's trash; denied with the reason while no verification is recorded) and `task drop`,
@@ -50,7 +50,7 @@ const path = require('node:path');
 const SCRIPTS = new Set(['scan.js', 'check-config.js', 'safe-command.js', 'changes.js', 'fingerprint.js', 'votes.js', 'ledger-report.js', 'notes.js', 'plan-steps.js', 'git-flow.js', 'comments.js', 'stack-skills.js', 'claude-settings.js', 'migrate.js', 'cleanup.js', 'usage.js', 'usage-setup.js', 'config-check.js', 'plans.js']);
 // Script steps that change the user's files for good or move them outside keel's own folders: left
 // to Claude Code's permission prompt.
-const ASK = { 'claude-settings.js': ['apply'], 'migrate.js': ['apply'], 'usage-setup.js': ['apply', 'prices-apply', 'install-statusline'] };
+const ASK = { 'claude-settings.js': ['apply'], 'migrate.js': ['apply'], 'usage-setup.js': ['apply', 'prices-apply', 'install-statusline', 'sync'] };
 const GIT_STEPS = new Set(['start', 'switch', 'commit', 'sync', 'push']);
 // plans.js steps Claude Code confirms each time, even when an allow rule would let node run.
 const PLANS_ASK = new Set(['commit', 'push']);
@@ -252,8 +252,13 @@ function ownScript(name, argText, projectDir, bash) {
     // prepare and report read and write a project's files: without --project they would use the
     // shell's folder, which may be another project.
     if (['prepare', 'report'].includes(pos[0]) && opts.project === undefined) return null;
-    const under = { out: local && path.join(local, 'usage'), keel: local };
-    for (const k of ['out', 'keel']) if (opts[k] !== undefined && !(local && typeof opts[k] === 'string' && inside(opts[k], under[k]))) return null;
+    const under = { out: local && path.join(local, 'usage'), keel: local, page: local, take: local };
+    // usage.js keeps every --take, so each one is checked, not only the last one parseArgs keeps.
+    const given = (k) => argv.flatMap((a, i) => (a === `--${k}` ? [i + 1 < argv.length && !argv[i + 1].startsWith('--') ? argv[i + 1] : true] : []));
+    for (const k of Object.keys(under)) {
+      // --page none: the page has no data/index.json yet; --take none: the page could not give a month file.
+      if (given(k).some((v) => !((k === 'page' || k === 'take') && v === 'none') && !(local && typeof v === 'string' && inside(v, under[k])))) return null;
+    }
     // No usage.js step is confirmed, and --feature takes a feature name (empty-trash is one), so
     // CONFIRMED_WORDS are not refused here.
     return allow('keel runs its own usage.js');

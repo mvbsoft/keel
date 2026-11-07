@@ -24,8 +24,8 @@ levels: [verification](verification.md).
 | [`/keel:end-planning`](#keelend-planning) | hand the plan over, or review it and export the tickets |
 | [`/keel:feature-page`](#keelfeature-page) | a private page of a planned feature in your claude.ai account, to read |
 | [`/keel:cleanup`](#keelcleanup) | move leftovers to keel's trash, put them back, empty old trash |
-| [`/keel:usage`](#keelusage) | the link to your private usage page, opened |
-| [`/keel:usage-clear`](#keelusage-clear) | deletes all data on the usage page, after a warning and your yes |
+| [`/keel:usage`](#keelusage) | the link to your private usage page, opened; `on` / `off` switch this machine's sync |
+| [`/keel:usage-clear`](#keelusage-clear) | deletes this machine's data on the usage page, after a warning and your yes |
 | [`/keel:help`](#keelhelp) | a short table of the commands |
 
 ## `/keel:configure`
@@ -255,20 +255,32 @@ a task or session keel reminds you of `/keel:cleanup` only when enough leftovers
 
 `/keel:usage` gives the link to this machine's private ["keel usage" page](usage-dashboard.md) and
 opens it. It works in any project, set up or not. No page on this machine yet → it says so and points
-to `/keel:configure usage`. A page made by an older keel → it also says that `/keel:configure usage`
-[updates it](usage-dashboard.md#updating-the-page) and keeps its data (a team page or one shared
-from another account: that its owner can update it).
+to `/keel:usage on`, which sets one up. A page made by an older keel → it also says that `/keel:configure usage`
+[updates it](usage-dashboard.md#updating-the-page) and keeps its data. With the `claude-artifacts`
+page tools no question is needed: the next sync publishes keel's current page files with the data.
+
+`/keel:usage off` stops this machine's sync to the page: the page and its data stay, and costs are still
+collected locally. `/keel:usage on` sends everything collected meanwhile, or sets the page up if there is
+none. With an API key only there is no usage page (it lives in a claude.ai account), and the command says
+so. [More](usage-dashboard.md#turning-the-sync-on-and-off).
 
 ## `/keel:usage-clear`
 
-`/keel:usage-clear` deletes all data on the usage page: every machine's day documents (hours and
-sessions), the machine documents and the calibration. Before anything is deleted it shows a warning: the
-period (first and last day), how many sessions and dollars, the machines, the size, and what it affects
-(the page is empty until the next end step; it is gone for everyone the page is shared with; it cannot be
-undone). Only after your explicit yes it deletes, then says what was deleted. This machine's local logs,
-limit records and calibration stay, and so do the page itself and its language; the next sync sends only
-what happens after the clear. Document contents never pass through the conversation: a clear is three
-reads and one write per 50 documents. [More](usage-dashboard.md#clearing-the-page).
+`/keel:usage-clear` deletes **this machine's** data on the usage page; other machines' data stays. To clear
+the whole page, run it on every machine. It removes this machine's month files and its entry's months in
+`data/index.json` (page files), its day, machine and calibration documents (built-in tool set) and its local
+month files. A session gets one of two page tool sets, so a clear removes what the session's tools reach;
+the rest stays visible until a session with the other tools runs it (details:
+[clearing the page](usage-dashboard.md#clearing-the-page)).
+
+Before anything is deleted it shows a warning. For page files: this machine's months (first to last) and
+its dollars of the last 35 days. For database documents: its days (first to last), sessions and their
+dollars, all usage, the size in KB and the number of delete calls in the chat (each needs your approval; the
+end report shows the real cost). It also says what it affects: this machine starts over from the next end
+step; it cannot be undone. Only after your explicit yes it deletes, then says what was deleted. This
+machine's local logs, limit records and calibration stay, and so do the page itself and its language; the
+machine then sends only what happens from the clear on. Document contents never pass through the
+conversation.
 
 ## `/keel:help`
 

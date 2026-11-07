@@ -1,23 +1,35 @@
 'use strict';
-// keel usage calculator: syncs day documents for the spending dashboard and writes the end-of-task cost report.
+// keel usage calculator: syncs this machine's spending to the dashboard page and writes the end-of-task cost report.
 // Usage: node usage.js <command> [options]   (prints plain text, or JSON for `prepare`; always exits 0)
-//   prepare   [--out <dir>] [--session <id>] [--keel <json-file>] [--level L] [--findings m/s/n] [--gates pass|fail|none]
-//             [--feature <name>] [--project <dir>] [--artifact <url>] [--version <docKey>=<n>]...
-//             builds the day documents that changed since the last sync, writes them to <out> (a folder
-//             under <project>/.keel/local/usage/, default usage/out) and prints the ArtifactData batch spec as JSON
+//   prepare   [--tools db|files|none] [--out <dir>] [--session <id>] [--keel <json-file>] [--level L] [--findings m/s/n]
+//             [--gates pass|fail|none] [--feature <name>] [--project <dir>] [--artifact <url>]
+//             with a page, collects this machine's month files locally (also with the sync off), then prints JSON with
+//             `action`: skip (with `reason`), or what the page tools of this session do next:
+//             --tools db (the default; the built-in ArtifactData tool): [--version <docKey>=<n>]... writes the changed
+//               day documents to <out> (under <project>/.keel/local/usage/, default usage/out) and prints `batches`;
+//             --tools files (the claude-artifacts tools): without --page prints `index` (read data/index.json and the
+//               page version, then prepare again); --page <saved data/index.json | none> --page-version <v>
+//               [--take <saved month file> | --take none]... [--same-pc] [--shared] prints `read` (this machine's month
+//               files to read back from the page first, then prepare again with --take; --take none when none could be
+//               read) or `publish` (files, remove, base_version); [--lang <code>] the language a page without one
+//               gets (default: the conversation_language setting)
 //   ack       [--batch <n>] [--failed <docId>]...   marks the prepared writes (or those of batch n) as written (versions go up by one)
-//   report    [--session <id>] [--in <dir>] [--lang uk|en] [--project <dir>] [--last-turn]   the end report for a session
-//             (--last-turn: one line, the latest user turn only); also
-//             keeps page_template in step with the page's meta/settings read into <in>
+//   report    [--session <id>] [--in <dir>] [--page <saved data/index.json>] [--published <page version>] [--lang uk|en]
+//             [--project <dir>] [--last-turn]   the end report for a session (--last-turn: one line, the latest user
+//             turn only); --published records the files publish of the last prepare; keeps page_template in step
+//             with the page's meta/settings read into <in>; says once what the last prepare skipped
 //   snapshot  --src desktop --five-hour <n> --seven-day <n> [--five-hour-resets <iso>] [--seven-day-resets <iso>] [--session <id>]
-//   calibrate [--in <dir>]   the calibration table (points, rates, machines still to sync)
+//   calibrate [--in <dir>] [--page <saved data/index.json>]   the calibration table (points, rates, machines still to sync)
+//   audit     --page <dir> [--project <dir>]   this machine's dollars and tokens per session on the page (month files and
+//             day documents saved into <dir>, summed as the dashboard sums them) against the local transcripts
 // Files: <usageDir> = ~/.claude/keel (KEEL_USAGE_DIR); transcripts: ~/.claude/projects (KEEL_PROJECTS_DIR).
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const store = require('./lib/usage-store.js');
 const { activeTask, planText } = require('./lib/tasks.js');
-const { usageDir, loadMachineConfig, writeMachineConfig } = require('./lib/usage-config.js');
+const { usageDir, loadMachineConfig, writeMachineConfig, detectWallet } = require('./lib/usage-config.js');
+const pageSync = require('./lib/usage-page-sync.js');
 const { readSnapshots, snapshotFromPercents, dedupeSnapshots } = require('./lib/limits.js');
 const { RECENT_DAYS } = require('./lib/usage-files.js');
 const { calibrate, share } = require('./lib/calibrate.js');
@@ -30,7 +42,8 @@ const MAX_BATCH_BYTES = 1000000;
 // Other machines' hours reach the calibration through their index entry, which keeps exactly this window.
 const CALIBRATION_DAYS = RECENT_DAYS;
 const MAX_CALIB_POINTS = 200;  // the published calibration document keeps the newest points
-const REPEATABLE = new Set(['version', 'failed']);
+const REPEATABLE = new Set(['version', 'failed', 'take']);
+const TOOLS = ['db', 'files', 'none'];
 
 function parseArgs(argv) {
   const opts = {};
@@ -47,6 +60,7 @@ function parseArgs(argv) {
 }
 
 const readJson = store.readJson;
+const keelVersion = () => (readJson(path.join(__dirname, '..', '.claude-plugin', 'plugin.json')) || {}).version || null;
 
 function projectsRoot(env = process.env) {
   return env.KEEL_PROJECTS_DIR || path.join(env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects');
@@ -65,18 +79,17 @@ function inFolder(opts) {
   try { return safeLocalPath(root, ...r.split(path.sep).filter(Boolean)); } catch { return null; }
 }
 
-// Where this machine's data goes: the flag, the machine setting, then the project's committed URL, but that one only
-// when the user approved that exact URL on this machine (a cloned repo must not pick the destination). The URL kept
-// from the last run counts only if it is the machine setting or approved too.
-function artifactTarget(opts, machine, root, state) {
-  const approved = machine.approved_artifact_urls || [];
-  const project = projectArtifactUrl(root);
-  const known = (u) => !!u && (u === machine.artifact_url || approved.includes(u));
-  const url = (typeof opts.artifact === 'string' && opts.artifact) || machine.artifact_url || (known(project) ? project : null)
-    || (known(state.artifact_url) ? state.artifact_url : null);
-  return { url, unapproved: project && !known(project) ? project : null };
+// A file the model saved for a script step: only under the project's .keel/local/, with no link out of it.
+function underLocal(root, file) {
+  try {
+    const real = fs.realpathSync.native(path.resolve(file));
+    const r = path.relative(fs.realpathSync.native(path.join(root, '.keel', 'local')), real);
+    return !r || r.startsWith('..') || path.isAbsolute(r) ? null : real;
+  } catch { return null; }
 }
 
+// The shared project page of older keel versions (usage.artifact_url in .keel/config.json): no longer used, as
+// every machine syncs to its own page. Read only to say so once.
 function projectArtifactUrl(root) {
   const cfg = readJson(path.join(root, '.keel', 'config.json'));
   const u = cfg && cfg.usage && cfg.usage.artifact_url;
@@ -98,11 +111,9 @@ const int = (v) => (Number.isInteger(Number(v)) && Number(v) >= 0 ? Number(v) : 
 // A --keel file: only under the project's .keel/local/ (the day documents leave the machine), and only
 // the fields keel itself records, in their shapes; anything else in the file is dropped.
 function keelFile(root, file) {
-  let real;
-  let local;
-  try { real = fs.realpathSync.native(path.resolve(file)); local = fs.realpathSync.native(path.join(root, '.keel', 'local')); } catch { return { refused: 'not found' }; }
-  const r = path.relative(local, real);
-  if (!r || r.startsWith('..') || path.isAbsolute(r)) return { refused: 'not under the project\'s .keel/local/' };
+  if (!fs.existsSync(path.resolve(file))) return { refused: 'not found' };
+  const real = underLocal(root, file);
+  if (!real) return { refused: 'not under the project\'s .keel/local/' };
   const raw = readJson(real);
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { fields: {} };
   const text = (s, max) => String(s).replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ').trim().slice(0, max);
@@ -198,13 +209,18 @@ function outFolder(root, opts) {
 // The files the last prepare wrote are listed in written.json; only those are removed, so nothing else
 // in the folder (a file the user keeps there) is touched.
 const WRITTEN = 'written.json';
-const OUT_NAME = /^(?:(?:machines|calib)\/)?[\w.-]+\.json$/;
+const OUT_NAME = /^(?:(?:(?:machines|calib|data)\/)?[\w.-]+\.json|page\/[\w.-]+\.(?:html|css|js))$/;
 function clearOut(root, out) {
   const list = readJson(path.join(out.dir, WRITTEN));
   for (const rel of Array.isArray(list) ? list : []) {
     if (typeof rel !== 'string' || !OUT_NAME.test(rel) || rel === WRITTEN) continue;
     try { fs.rmSync(safeLocalPath(root, ...out.parts, ...rel.split('/'))); } catch { /* gone, or behind a link */ }
   }
+}
+
+// A line the next report says once (the latest of each kind).
+function addNote(state, key, params = {}) {
+  state.notes = state.notes.filter((n) => n.key !== key).concat([{ key, ...params }]);
 }
 
 function prepare(opts) {
@@ -214,13 +230,76 @@ function prepare(opts) {
   const raw = readJson(path.join(dir, 'usage.json')) || {};
   const historyDays = Number.isFinite(raw.history_days) && raw.history_days > 0 ? raw.history_days : 30;
   const nowMs = Date.now();
-  const nowIso = new Date(nowMs).toISOString();
   const state = store.readState(dir);
-  const { url, unapproved } = artifactTarget(opts, machine, root, state);
+  const tools = TOOLS.includes(opts.tools) ? opts.tools : 'db';
+  const url = (typeof opts.artifact === 'string' && opts.artifact) || machine.artifact_url;
   if (url && state.artifact_url && state.artifact_url !== url) {
-    state.docs = {}; state.pending = {}; state.synced_until = null; state.pending_until = null;
+    state.docs = {}; state.pending = {}; state.synced_until = null; state.pending_until = null; state.files = {};
   }
-  state.artifact_url = url;
+  // Without a page the last one is kept: the state still describes it, so the next page resets it above.
+  if (url) state.artifact_url = url;
+  if (projectArtifactUrl(root) && !state.team_page_noted) { addNote(state, 'team_page'); state.team_page_noted = true; }
+
+  const root_ = projectsRoot();
+  const sessionRef = typeof opts.session === 'string' ? store.listSessions(root_).find((r) => r.id === opts.session) : store.newestSessionIn(root_, root);
+  const fields = keelFields(root, opts, sessionRef ? sessionRef.id : undefined);
+  const keelInfo = sessionRef && Object.keys(fields).length ? { session_id: sessionRef.id, ...fields } : null;
+  const ctx = { root, dir, machine, state, nowMs, historyDays, projectsRoot: root_, keelInfo };
+
+  const done = (result) => { store.writeState(dir, state); return JSON.stringify({ tools, artifact_url: url, ...result }); };
+  const skip = (reason, note) => {
+    pageSync.collect({ ...ctx, clearedAt: state.cleared_at }, pageSync.filesState(state));
+    if (note) addNote(state, note.key, note.params);
+    return done({ action: 'skip', reason });
+  };
+  // No page: nothing is collected either (the month files hold prompt previews); a page set up later is built
+  // from the Claude Code logs.
+  if (!url) return done({ action: 'skip', reason: 'no_page' });
+  if (!machine.sync) return skip('sync_off', { key: 'sync_off', params: { since: machine.sync_off_since } });
+  if (tools === 'none') {
+    const reason = detectWallet({ projectDir: root, machine }) === 'api' ? 'api' : 'no_tools';
+    return skip(reason, { key: reason });
+  }
+  const out = outFolder(root, opts);
+  clearOut(root, out);
+  if (tools === 'files') return done(prepareFiles(opts, ctx, out));
+  pageSync.collect({ ...ctx, clearedAt: state.cleared_at }, pageSync.filesState(state));
+  return done(prepareDb(opts, ctx, out));
+}
+
+function prepareFiles(opts, ctx, out) {
+  // First call of a sync: the model reads the page's index and version, then calls prepare again with them.
+  if (opts.page === undefined) return { action: 'index', paths: [pageSync.INDEX_PATH] };
+  if (typeof opts.page !== 'string') throw new Error('--tools files needs --page <saved data/index.json> (or --page none) and --page-version');
+  if (opts['page-version'] === undefined || opts['page-version'] === true) throw new Error('--tools files needs --page-version <the page version>');
+  const local = (f) => { const real = underLocal(ctx.root, f); if (!real) throw new Error(`${f} must be a file under the project's .keel/local/`); return real; };
+  const setup = require('./usage-setup.js');
+  const pc = store.sanitizePc(ctx.machine.pc);
+  const calib = calibDoc(ctx.dir, pc);
+  const r = pageSync.prepareFiles({
+    ...ctx,
+    out,
+    page: opts.page === 'none' ? 'none' : local(opts.page),
+    pageVersion: opts['page-version'],
+    takeFiles: (opts.take || []).filter((f) => typeof f === 'string' && f !== 'none').map(local),
+    readRound: (opts.take || []).length > 0,
+    samePc: opts['same-pc'] === true,
+    shared: opts.shared === true,
+    calib: calib ? calib.doc : null,
+    template: { now: setup.pageTemplate(), files: setup.PAGE_FILES, dir: setup.TEMPLATE, version: keelVersion() },
+    language: pickLanguage(typeof opts.lang === 'string' ? opts.lang : undefined),
+  });
+  if (r.action === 'skip') addNote(ctx.state, r.reason, { pc });
+  // The name question was answered (--same-pc) or the name is free again: an earlier note about it is stale.
+  else ctx.state.notes = ctx.state.notes.filter((n) => n.key !== 'name_ask' && n.key !== 'name_taken');
+  const rel = (f) => path.relative(safeLocalPath(ctx.root, ...out.parts), f).split(path.sep).join('/');
+  safeLocalWrite(ctx.root, [...out.parts, WRITTEN], `${JSON.stringify((r.files || []).map((f) => rel(f.file)))}\n`);
+  return r;
+}
+
+function prepareDb(opts, ctx, out) {
+  const { root, dir, machine, state, nowMs, historyDays, keelInfo } = ctx;
+  const nowIso = new Date(nowMs).toISOString();
   let sinceMs = state.synced_until ? Date.parse(state.synced_until) - store.SAFETY_MS : nowMs - historyDays * DAY_MS;
   // Documents sent under another rule for which sessions are listed are rebuilt once, back to the first day sent.
   if (state.sessions_rule !== store.SESSIONS_RULE) {
@@ -229,15 +308,10 @@ function prepare(opts) {
     state.pending_rule = store.SESSIONS_RULE;
   }
 
-  const root_ = projectsRoot();
-  const sessionRef = typeof opts.session === 'string' ? store.listSessions(root_).find((r) => r.id === opts.session) : store.newestSessionIn(root_, root);
-  const fields = keelFields(root, opts, sessionRef ? sessionRef.id : undefined);
-  const keelInfo = sessionRef && Object.keys(fields).length ? { session_id: sessionRef.id, ...fields } : null;
-
   // After /keel:usage-clear nothing from before the clear goes to the page again.
   const fromMs = state.cleared_at ? Date.parse(state.cleared_at) : undefined;
   if (fromMs) sinceMs = Math.max(sinceMs, fromMs - store.SAFETY_MS);
-  const built = store.buildDays({ projectsRoot: root_, machine, usageDir: dir, sinceMs, keelInfo, nowMs, fromMs });
+  const built = store.buildDays({ projectsRoot: ctx.projectsRoot, machine, usageDir: dir, sinceMs, keelInfo, nowMs, fromMs });
   const machineDoc = store.buildMachineDoc(machine, nowIso);
   const pc = store.sanitizePc(machine.pc);
   const calib = calibDoc(dir, pc);
@@ -246,8 +320,6 @@ function prepare(opts) {
     versions: versionOverrides(opts.version), nowIso, rebuiltIds: built.days.map((d) => `${d}_${pc}`),
   });
 
-  const out = outFolder(root, opts);
-  clearOut(root, out);
   const written = [];
   const writes = staged.map((d) => {
     const rel = d.collection === 'days' ? `${d.id}.json` : `${d.collection}/${d.id}.json`;
@@ -260,9 +332,7 @@ function prepare(opts) {
   safeLocalWrite(root, [...out.parts, WRITTEN], `${JSON.stringify(written)}\n`);
   // Each pending write remembers its batch, so `ack --batch <n>` records one batch as soon as it is written.
   splitBatches(writes).forEach((b, i) => { for (const w of b.writes) if (state.pending[w.key]) state.pending[w.key].batch = i + 1; });
-  store.writeState(dir, state);
-  const note = unapproved ? { not_approved: unapproved, note: `the project's artifact URL ${unapproved} is not approved on this machine, so nothing is sent to it; tell the user to approve it in /keel:configure (usage section) or to set artifact_url for this machine` } : {};
-  return JSON.stringify({ artifact_url: url, ...note, batches: batches(writes) });
+  return { action: 'write', batches: batches(writes) };
 }
 
 function ack(opts) {
@@ -333,14 +403,13 @@ function jsonFiles(dir, depth = 0) {
   return out;
 }
 
-const later = (a, b) => (!a ? b : !b ? a : Date.parse(a) >= Date.parse(b) ? a : b);
+const { later } = store;
 
-// Other machines of the same user only: limits and plans belong to one account. A machine whose user is unknown
-// (no git e-mail) is counted, and so is everyone when the local user is unknown.
+// Other machines of the same user only (store.sameUser).
 function loadRemote(inDir, localPc, localUser = null) {
   const res = { machines: [], hours: [], snapshots: [] };
   if (!inDir) return res;
-  const mine = (u) => !localUser || typeof u !== 'string' || !u || u.toLowerCase() === String(localUser).toLowerCase();
+  const mine = store.sameUser(localUser);
   const byPc = new Map();
   const seen = (pc, d) => {
     const e = byPc.get(pc) || { synced_until: null, last_seen: null };
@@ -382,11 +451,41 @@ function calibDoc(dir, pc) {
   return { collection: 'calib', id: pc, key: `calib/${pc}`, doc, hash: store.sha1(JSON.stringify(rest)) };
 }
 
-function calibration(inDir, machine, nowMs) {
+// The other machines as the page's database (day documents) and its data/index.json show them. A machine that
+// synced through both keeps, for each hour, the copy from the source it synced to last.
+function combineRemote(...sources) {
+  const machines = new Map();
+  const hours = new Map();
+  for (const s of sources) {
+    const at = new Map();
+    for (const m of s.machines) {
+      const e = machines.get(m.pc) || { pc: m.pc, synced_until: null, last_seen: null };
+      e.synced_until = later(e.synced_until, m.synced_until || null);
+      e.last_seen = later(e.last_seen, m.last_seen || null);
+      machines.set(m.pc, e);
+      at.set(m.pc, Date.parse(m.synced_until) || 0);
+    }
+    for (const h of s.hours) {
+      const key = `${h.pc}|${h.h}|${h.wallet}`;
+      const t = at.get(h.pc) || 0;
+      if (!hours.has(key) || t > hours.get(key).t) hours.set(key, { h, t });
+    }
+  }
+  return { machines: [...machines.values()], hours: [...hours.values()].map((x) => x.h), snapshots: sources.flatMap((s) => s.snapshots) };
+}
+
+// --page: data/index.json as the model saved it, or null when not given or not readable.
+function pageIndex(opts) {
+  if (typeof opts.page !== 'string' || opts.page === 'none') return null;
+  const file = underLocal(projectDir(opts), opts.page);
+  try { return file ? pageSync.readIndex(file) : null; } catch { return null; }
+}
+
+function calibration(inDir, machine, nowMs, index = null) {
   const dir = usageDir();
   const sinceMs = nowMs - CALIBRATION_DAYS * DAY_MS;
   const pc = store.sanitizePc(machine.pc);
-  const remote = loadRemote(inDir, pc, machine.user);
+  const remote = combineRemote(loadRemote(inDir, pc, machine.user), pageSync.remoteFromIndex(index, pc, machine.user));
   const snapshots = dedupeSnapshots(readSnapshots(dir, { sinceMs }).concat(remote.snapshots.filter((s) => Date.parse(s.t) >= sinceMs)));
   const localRequests = store.localRequests({ projectsRoot: projectsRoot(), machine, usageDir: dir, sinceMs });
   const result = calibrate({ snapshots, machines: remote.machines, localPc: pc, localRequests, remoteHours: remote.hours });
@@ -466,20 +565,42 @@ function renderReport({ t, summary, wallet, cal, snapshots, cc }) {
   return out.join('\n');
 }
 
+// --published: the files publish of the last prepare went through; the page now runs the template it carried.
+function recordPublished(opts, state, machine) {
+  if (opts.published === undefined || opts.published === true) return false;
+  const template = pageSync.commit(state);
+  if (template === undefined) { process.stderr.write('usage: --published, but no files publish was pending\n'); return false; }
+  if (template && machine.configured && template !== machine.page_template) {
+    try { writeMachineConfig({ page_template: template }); } catch {}
+  }
+  return true;
+}
+
+// What the last prepare skipped or noticed, said once.
+function noteLines(t, state) {
+  return state.notes.map((n) => t(`report.note.${n.key}`, { since: n.since ? String(n.since).slice(0, 10) : '?', pc: n.pc || '' }));
+}
+
 function report(opts) {
   const machine = loadMachineConfig();
   notePageTemplate(inFolder(opts), machine);
+  const dir = usageDir();
+  const state = store.readState(dir);
+  const recorded = recordPublished(opts, state, machine);
   const t = textsFor(opts);
+  const notes = opts['last-turn'] ? [] : noteLines(t, state);
+  if (notes.length) state.notes = [];
+  if (recorded || notes.length) store.writeState(dir, state);
   const root = projectDir(opts);
   const base = projectsRoot();
   const ref = typeof opts.session === 'string' ? store.listSessions(base).find((r) => r.id === opts.session) : store.newestSessionIn(base, root);
-  if (!ref) return t('report.none');
+  if (!ref) return [t('report.none'), ...notes].join('\n');
   const nowMs = Date.now();
-  const { summary, wallet } = store.sessionSummary(ref, { projectsRoot: base, machine, usageDir: usageDir() });
-  const cal = wallet === 'subscription' ? calibration(inFolder(opts), machine, nowMs) : { result: calibrate({}), snapshots: [] };
+  const { summary, wallet } = store.sessionSummary(ref, { projectsRoot: base, machine, usageDir: dir });
+  const cal = wallet === 'subscription' ? calibration(inFolder(opts), machine, nowMs, pageIndex(opts)) : { result: calibrate({}), snapshots: [] };
   if (opts['last-turn']) return lastTurnText(t, summary, wallet, cal.result);
-  const cc = [...readSnapshots(usageDir())].reverse().find((s) => s.session_id === summary.id && typeof s.cost_usd === 'number');
-  return renderReport({ t, summary, wallet, cal, snapshots: cal.snapshots, cc: cc ? cc.cost_usd : null });
+  const cc = [...readSnapshots(dir)].reverse().find((s) => s.session_id === summary.id && typeof s.cost_usd === 'number');
+  return [renderReport({ t, summary, wallet, cal, snapshots: cal.snapshots, cc: cc ? cc.cost_usd : null }), ...notes].join('\n');
 }
 
 // The latest user turn: a command's own cost when it ran as one turn (the session's total is the
@@ -495,7 +616,7 @@ function lastTurnText(t, summary, wallet, cal) {
 function calibrateText(opts) {
   const machine = loadMachineConfig();
   const t = textsFor(opts);
-  const { result } = calibration(inFolder(opts), machine, Date.now());
+  const { result } = calibration(inFolder(opts), machine, Date.now(), pageIndex(opts));
   const out = [t('calibration.head')];
   for (const key of ['weekly', 'five_hour']) {
     const r = result[key];
@@ -532,8 +653,21 @@ function main(argv) {
     case 'report': return report(opts);
     case 'snapshot': return snapshot(opts);
     case 'calibrate': return calibrateText(opts);
-    default: return 'usage: node usage.js prepare | ack | report | snapshot | calibrate (see the header of scripts/usage.js)';
+    case 'audit': return audit(opts);
+    default: return 'usage: node usage.js prepare | ack | report | snapshot | calibrate | audit (see the header of scripts/usage.js)';
   }
+}
+
+function audit(opts) {
+  if (typeof opts.page !== 'string') return 'audit: give --page <folder with the page files and documents saved from the page>';
+  const root = projectDir(opts);
+  const dir = underLocal(root, opts.page);
+  if (!dir) return `audit: ${opts.page} must be a folder under the project's .keel/local/`;
+  const machine = loadMachineConfig();
+  const state = store.readState(usageDir());
+  return require('./lib/usage-audit.js').auditText({
+    pageFiles: jsonFiles(dir), machine, usageDir: usageDir(), projectsRoot: projectsRoot(), clearedAt: state.cleared_at, unwrap,
+  });
 }
 
 if (require.main === module) {
@@ -543,4 +677,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { main, parseArgs, renderReport, loadRemote, unwrap, batches, keelFields, versionOverrides };
+module.exports = { main, parseArgs, renderReport, loadRemote, combineRemote, unwrap, batches, keelFields, versionOverrides, underLocal };

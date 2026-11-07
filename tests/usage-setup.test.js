@@ -96,13 +96,13 @@ test('apply: writes the allowed keys, merges with the existing usage.json, keeps
   const w = world({ usage: { pc: 'old', user: 'a@b.c', custom_note: 'kept' } });
   const r = w.run('apply', w.file('c.json', {
     pc: 'new-pc', wallet_default: 'api', cloud_wallet: 'subscription', also_api: true, prompt_preview: false,
-    history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', approved_artifact_urls: ['https://claude.ai/artifact/team'], page_template: '0123456789ab', statusline: { mode: 'keel' },
+    history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', page_template: '0123456789ab', statusline: { mode: 'keel' },
   }));
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /^written .*usage\.json$/);
   assert.deepEqual(readJson(path.join(w.dir, 'usage.json')), {
     pc: 'new-pc', user: 'a@b.c', custom_note: 'kept', wallet_default: 'api', cloud_wallet: 'subscription', also_api: true,
-    prompt_preview: false, history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', approved_artifact_urls: ['https://claude.ai/artifact/team'], page_template: '0123456789ab', statusline: { mode: 'keel' },
+    prompt_preview: false, history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', page_template: '0123456789ab', statusline: { mode: 'keel' },
   });
   // A second apply changes only its own keys; artifact_url may be cleared with null.
   assert.equal(w.run('apply', w.file('d.json', { user: 'z@x.y', artifact_url: null })).code, 0);
@@ -168,9 +168,12 @@ test('apply: an unknown key or a bad value is refused and nothing is written', (
     [{ history_days: 4000 }, 'history_days'],
     [{ artifact_url: 'http://claude.ai/artifact/x' }, 'artifact_url'],
     [{ artifact_url: 'https://evil.example/claude.ai/' }, 'artifact_url'],
-    [{ approved_artifact_urls: 'https://claude.ai/artifact/x' }, 'approved_artifact_urls'],
-    [{ approved_artifact_urls: ['https://evil.example/claude.ai/'] }, 'approved_artifact_urls'],
-    [{ approved_artifact_urls: ['https://claude.ai/artifact/x', 5] }, 'approved_artifact_urls'],
+    // keys of the shared project page, which keel no longer uses
+    [{ approved_artifact_urls: ['https://claude.ai/artifact/x'] }, 'approved_artifact_urls'],
+    [{ page_shared: true }, 'page_shared'],
+    // written by usage-setup.js sync and by the sync itself, never by apply
+    [{ sync: false }, 'sync'],
+    [{ install_id: 'x' }, 'install_id'],
     [{ page_template: '0123456789AB' }, 'page_template'],
     [{ page_template: '0123456789a' }, 'page_template'],
     [{ page_template: '0123456789abc' }, 'page_template'],
@@ -234,7 +237,7 @@ test('the usage line is printed for no command, an unknown command, or a command
   for (const args of [[], ['bogus'], ['apply'], ['prices-diff'], ['prices-apply']]) {
     const r = w.run(...args);
     assert.equal(r.code, 0, args.join(' '));
-    assert.match(r.out, /^usage: usage-setup\.js <projectDir> show \| apply <changes\.json> \| prices-diff <prices\.json> \| prices-apply <prices\.json> \| install-statusline \| page$/);
+    assert.match(r.out, /^usage: usage-setup\.js <projectDir> show \| apply <changes\.json> \| prices-diff <prices\.json> \| prices-apply <prices\.json> \| install-statusline \| page \| sync on\|off$/);
   }
 });
 
@@ -427,9 +430,9 @@ test('page files: the list, the template, the files the page loads and the publi
   const html = fs.readFileSync(path.join(TEMPLATES, 'index.html'), 'utf8');
   const local = [...html.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((u) => !/^https?:/.test(u));
   assert.deepEqual(local.sort(), PAGE_FILES.filter((n) => n !== 'index.html').sort(), 'the files index.html loads');
-  // The publish step's `files` map in configure (the update reuses it): every page file but index.html.
-  const flow = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'configure-flow.md'), 'utf8');
-  const step = flow.slice(flow.indexOf('- Create the page (only after a yes)'), flow.indexOf('- Update the page (only after a yes)'));
+  // The publish step's `files` map in usage-page.md (the update reuses it): every page file but index.html.
+  const flow = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'usage-page.md'), 'utf8');
+  const step = flow.slice(flow.indexOf('## Create'), flow.indexOf('## Update'));
   const published = [...step.matchAll(/"([^"]+)": "\.\.\.\/usage-page\/\1"/g)].map((m) => m[1]);
   assert.deepEqual(published.sort(), PAGE_FILES.filter((n) => n !== 'index.html').sort(), 'the publish step\'s files');
 });
@@ -495,24 +498,3 @@ test('show: an own page with an older or unknown template → offer: update; the
   assert.equal(line({ page_template: 'aaaaaaaaaaaa' }), undefined);
 });
 
-test("show: a page this machine cannot write (shared from another account, or a team page) is never offered the update", () => {
-  const now = pageTemplate();
-  const line = (usage) => world({ usage: { pc: 'p', ...usage }, settings: {} }).run('show').out.split('\n').find((l) => l.startsWith('page template:'));
-  const owner = `page template: unknown, this keel's: ${now} | another account's page: its owner updates it`;
-  assert.equal(line({ artifact_url: 'https://claude.ai/artifact/x', page_shared: true }), owner);
-  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'] }), owner);
-  // page_shared belongs to artifact_url: a team page stays its owner's even when it is false.
-  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'], page_shared: false }), owner);
-  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'], page_template: now }), `page template: ${now} (this keel's)`);
-});
-
-test('apply: page_shared is true or false', () => {
-  const w = world({ usage: { pc: 'p' } });
-  assert.equal(w.run('apply', w.file('c.json', { page_shared: true })).code, 0);
-  assert.equal(readJson(path.join(w.dir, 'usage.json')).page_shared, true);
-  for (const v of ['yes', 1, null]) {
-    const r = w.run('apply', w.file('c.json', { page_shared: v }));
-    assert.equal(r.code, 1, String(v));
-    assert.ok(r.out.includes('page_shared'), r.out);
-  }
-});

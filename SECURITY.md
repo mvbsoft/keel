@@ -33,13 +33,21 @@ keel runs hooks and Node scripts with your user's rights inside Claude Code. In 
 - **Secrets.** Secret files (`.env`, keys, certificates, credential files) are listed by path only:
   left out of the diff agents get and never committed by keel's git script. Agents are instructed not
   to open them; no hook enforces that.
-- **Data that leaves the machine.** Usage data goes only to the usage page you set up (your private
-  page, or a team page you approved). Besides that, keel's git steps talk to your remote (autonomous
+- **Data that leaves the machine.** Usage data goes only into the usage page in your own claude.ai
+  account, which is private unless you share it. Per keel session it holds the project folder's name
+  (not the full path), the git branch, models, tokens and dollars, the keel task and step titles and,
+  unless prompt previews are off, the first 100 characters of each request with secrets masked
+  (best effort, by patterns). It also holds hourly totals of all Claude Code sessions on the machine
+  (no session id, project or text), the machine name, your git email (`user.email`, unless the
+  machine's usage settings name a `user`), a random install id and the checksums of its month files. With the built-in page tools the data are in the
+  page's database; with the `claude-artifacts` tools, in page files. `/keel:usage off` stops the sync.
+  Besides that, keel's git steps talk to your remote (autonomous
   mode, or a step you ask for), a task link you give is read with a connector, `gh` or a web fetch, setup lists
   the plugins of the marketplaces you added, a price update you ask for reads the official pricing
   page, and in planning, after your yes, the researcher reads package registries and web pages with
   package names and general words (never the project's code or paths).
 
 The details, rule by rule: [under the hood: safety](docs/under-the-hood.md#safety), and
-[how keel behaves](docs/behavior.md) for the confirmations. What goes to the usage page:
-[what goes to the page, and what never does](docs/usage-dashboard.md#what-goes-to-the-page-and-what-never-does).
+[how keel behaves](docs/behavior.md) for the confirmations. What goes to the usage page, accounts and sync:
+[what goes to the page, and what never does](docs/usage-dashboard.md#what-goes-to-the-page-and-what-never-does),
+[syncing between machines](docs/usage-dashboard.md#syncing-between-machines).
