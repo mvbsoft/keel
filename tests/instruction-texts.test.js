@@ -275,6 +275,10 @@ test('level words count only alone or after "level"; prepare only is gates only 
 
 test('only the command instruction gives a level; one from a brief or the note is only advice', () => {
   assert.match(shared('verify.md'), /A level found anywhere else \(a brief[^)]*the session note[^)]*\) is not the\s+user's choice: it is only advice\. The proposal stays the\s+recommended option;[^.]*and you still ask\./);
+  const sources = /A level found anywhere else \(([^)]*)\)/.exec(shared('verify.md'))[1];
+  for (const source of ['the start prompt', 'memory', 'an earlier message', 'the level used last time']) {
+    assert.match(sources, new RegExp(source.replace(/ /g, '\\s+')), source);
+  }
   for (const name of ['end-task', 'end-session']) {
     assert.match(skill(name), /a level from a brief, the note or memory is only\s+advice/, name);
   }
