@@ -292,7 +292,7 @@ test('usage-day.schema.json: the page files (month and index) reject broken shap
   expectInvalid(def('month'), month, (d) => { delete d.days[0].contrib; }, /missing "contrib"/);
   expectInvalid(def('month'), month, (d) => { d.days[0].part = 1; }, /part: unexpected property/);
   const index = {
-    schema: 2, kind: 'index', language: 'en', template: null, cleared_at: null,
+    schema: 2, kind: 'index', language: 'en', template: null, keel_version: '1.4.0',
     pcs: {
       'DESKTOP-1': {
         name: 'DESKTOP 1', user: null, wallet_default: 'subscription', install_id: 'i-1', synced_until: null, last_seen: '2026-10-11T20:00:00.000Z',
@@ -306,5 +306,6 @@ test('usage-day.schema.json: the page files (month and index) reject broken shap
   expectInvalid(def('index'), index, (d) => { d.pcs['../x'] = d.pcs['DESKTOP-1']; }, /does not match/);
   expectInvalid(def('index'), index, (d) => { d.pcs['DESKTOP-1'].install_id = ''; }, /install_id: shorter than 1/);
   expectInvalid(def('index'), index, (d) => { d.template = 'v2'; }, /template: does not match/);
-  expectInvalid(def('index'), index, (d) => { delete d.cleared_at; }, /missing "cleared_at"/);
+  expectInvalid(def('index'), index, (d) => { d.keel_version = 'new'; }, /keel_version: does not match/);
+  expectInvalid(def('index'), index, (d) => { d.cleared_at = null; }, /cleared_at: unexpected property/);
 });

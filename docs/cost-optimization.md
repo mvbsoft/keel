@@ -108,7 +108,7 @@ characters.
 
 In a project keel is set up in, keel adds its working standards and the project's comment rules to every
 conversation. The plugin's skill and agent descriptions are listed in every conversation. The
-end-of-task sync to the [usage page](usage-dashboard.md) costs a little too. All of these are small next
+end-of-task sync to the [usage page](usage-dashboard.md#syncing-between-machines) costs a little too (`/keel:usage off` stops it). All of these are small next
 to the levers above (see the table).
 
 ## 10. Read the cost report

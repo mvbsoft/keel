@@ -49,9 +49,9 @@ test('buildDays with files: whole days with contrib, no parts; a month file and 
   assert.deepEqual(validate(month, asDef('month')), []);
   const text = files.serialize(month);
   const index = {
-    schema: 2, kind: 'index', language: 'en', template: 'abcdef012345', cleared_at: null,
+    schema: 2, kind: 'index', language: 'en', template: 'abcdef012345',
     pcs: {
-      pc1: files.indexEntry(null, {
+      pc1: files.indexEntry({
         machine: MACHINE, installId: 'i-1', nowIso: '2026-03-03T13:00:00.000Z', syncedUntil: day.synced_until,
         recent: files.recentOf([month], 0), months: { '2026-03': files.sha256(text) },
       }),
@@ -134,37 +134,14 @@ test('a contributor missing from the rebuild keeps the old hours; sessions are m
   assert.equal(files.mergeDay(null, rebuilt), rebuilt);
 });
 
-test('cleared_at from another machine: nothing from before it stays, and the day of the clear is rebuilt from the clear', () => {
+test('a rebuild from the clear time counts only what came after it', () => {
   const e = env();
-  const prev = DAY - 24 * 60 * MIN;
-  writeSession(e.root, { id: 'p', rows: [{ t: prev, prompt: 'p' }, req(prev + MIN)] });
   writeSession(e.root, { id: 'before', rows: [{ t: DAY, prompt: 'a' }, req(DAY + MIN)] });
   writeSession(e.root, { id: 'after', rows: [{ t: DAY + 120 * MIN, prompt: 'b' }, req(DAY + 121 * MIN)] });
-  const page = files.monthFiles('pc1', e.build().built)['2026-03'];
-  const clearedAt = new Date(DAY + 60 * MIN).toISOString();
-
-  const cut = files.applyCleared(page, clearedAt);
-  assert.deepEqual(cut.days.map((d) => d.date), ['2026-03-03']);
-  const day = cut.days[0];
-  assert.deepEqual(day.contrib, []);
+  const day = files.monthFiles('pc1', e.build({ fromMs: DAY + 60 * MIN }).built)['2026-03'].days[0];
+  assert.deepEqual(day.contrib, ['after']);
+  assert.equal(sum(day.hours.map((h) => h.req)), 1);
   assert.deepEqual(day.sessions.map((s) => s.id), ['after']);
-  assert.ok(day.hours.every((h) => Date.parse(h.h) >= Date.parse(clearedAt)));
-  assert.equal(files.applyCleared(page, null), page);
-
-  const merged = files.monthFiles('pc1', e.build({ fromMs: Date.parse(clearedAt) }).built, { '2026-03': cut })['2026-03'];
-  assert.deepEqual(merged.days.map((d) => d.date), ['2026-03-03']);
-  assert.deepEqual(merged.days[0].contrib, ['after'], 'the rebuild counts only what came after the clear');
-  assert.equal(sum(merged.days[0].hours.map((h) => h.req)), 1);
-  assert.deepEqual(merged.days[0].sessions.map((s) => s.id), ['after']);
-});
-
-test('a clear on a day boundary drops the earlier days and keeps the later ones whole', () => {
-  const file = {
-    schema: 2, kind: 'month', pc: 'pc1', month: '2026-03',
-    days: ['2026-03-01', '2026-03-02'].map((date) => ({ date, synced_until: 't', contrib: ['s'], hours: [], snapshots: [], sessions: [{ id: 's', start: `${date}T05:00:00.000Z` }] })),
-  };
-  const cut = files.applyCleared(file, '2026-03-02T00:00:00.000Z');
-  assert.deepEqual(cut.days, [file.days[1]]);
 });
 
 test('machine name: free, mine, taken by another install, or a question when this install has no id yet', () => {
@@ -179,14 +156,15 @@ test('machine name: free, mine, taken by another install, or a question when thi
 
 test('recovery: a month whose page copy differs from the local file, or has no local file, is read first', () => {
   const entry = { months: { '2026-01': 'a'.repeat(64), '2026-02': 'b'.repeat(64), '2026-03': 'c'.repeat(64) } };
-  assert.deepEqual(files.toRecover(entry, { '2026-01': 'a'.repeat(64), '2026-02': 'x'.repeat(64) }), ['2026-02', '2026-03']);
-  assert.deepEqual(files.toRecover(null, {}), []);
+  const local = { '2026-01': {}, '2026-02': {}, '2026-03': {} };
+  assert.deepEqual(files.toRecover(entry, { '2026-01': 'a'.repeat(64), '2026-02': 'x'.repeat(64) }, local), ['2026-02', '2026-03']);
+  assert.deepEqual(files.toRecover(entry, entry.months, { '2026-01': {} }), ['2026-02', '2026-03'], 'published, but the local file is gone');
+  assert.deepEqual(files.toRecover(null, {}, {}), []);
 });
 
-test('index entry: months this sync does not publish keep their sha; recent keeps only the window', () => {
-  const prev = { months: { '2026-01': 'a'.repeat(64), '2026-02': 'b'.repeat(64) } };
-  const e = files.indexEntry(prev, { machine: MACHINE, installId: 'i-1', nowIso: 'n', syncedUntil: 's', recent: { hours: [], snapshots: [] }, months: { '2026-02': 'c'.repeat(64) } });
-  assert.deepEqual(e.months, { '2026-01': 'a'.repeat(64), '2026-02': 'c'.repeat(64) });
+test('index entry: the months given are the whole list; recent keeps only the window', () => {
+  const e = files.indexEntry({ machine: MACHINE, installId: 'i-1', nowIso: 'n', syncedUntil: 's', recent: { hours: [], snapshots: [] }, months: { '2026-02': 'c'.repeat(64) } });
+  assert.deepEqual(e.months, { '2026-02': 'c'.repeat(64) });
   assert.deepEqual([e.name, e.user, e.wallet_default, e.install_id, e.calib], ['pc1', 'u@x.y', 'subscription', 'i-1', null]);
 
   const hour = (h) => ({ h, wallet: 'subscription', usd: 1, req: 1, tok: { in: 1, cw5: 0, cw1h: 0, cr: 0, out: 0 }, by_model: { m1: 1 } });
@@ -213,21 +191,4 @@ test('buildDays with files and nothing changed: an empty list of days, no day do
   writeSession(e.root, { id: 'a', rows: [{ t: DAY, prompt: 'a' }, req(DAY + MIN)], mtimeMs: DAY });
   const r = e.build({ sinceMs: Date.now() + 60000 });
   assert.deepEqual([r.built, r.days, r.docs], [[], [], undefined]);
-});
-
-test('a clear in the middle of an hour drops that hour and the earlier snapshots of the day', () => {
-  const hour = (h, req) => ({ h, wallet: 'subscription', usd: req, req, tok: { in: req, cw5: 0, cw1h: 0, cr: 0, out: 0 }, by_model: { m1: req } });
-  const file = {
-    schema: 2, kind: 'month', pc: 'pc1', month: '2026-03',
-    days: [{
-      date: '2026-03-03', synced_until: 't', contrib: ['s'],
-      hours: [hour('2026-03-03T12:00:00.000Z', 2), hour('2026-03-03T13:00:00.000Z', 1)],
-      snapshots: [{ t: '2026-03-03T12:20:00.000Z', five_hour: 1, seven_day: 1 }, { t: '2026-03-03T12:40:00.000Z', five_hour: 2, seven_day: 2 }],
-      sessions: [{ id: 's', start: '2026-03-03T12:10:00.000Z' }],
-    }],
-  };
-  const day = files.applyCleared(file, '2026-03-03T12:30:00.000Z').days[0];
-  assert.deepEqual(day.hours.map((h) => h.h), ['2026-03-03T13:00:00.000Z'], 'the 12:00 hour held requests from before the clear');
-  assert.deepEqual(day.snapshots.map((s) => s.t), ['2026-03-03T12:40:00.000Z']);
-  assert.deepEqual(day.sessions, []);
 });

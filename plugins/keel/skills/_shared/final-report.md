@@ -29,4 +29,8 @@ only where this file says so.
    message as it is: every column, row and line, as a table (not inside a code block), translated
    only when it came out in English for another conversation language (keel has no catalog for that
    language yet). Never "see above" and never leave it out. These are the only cost numbers in the
-   report: no other total (no ledger `total:`, no estimate).
+   report: no other total (no ledger `total:`, no estimate). What it holds depends on how the session
+   pays: an API key only → exact dollars, no share of the plan limits and no usage page; a
+   subscription → dollars and the share of the weekly and 5-hour limits; both → the same, with API
+   sessions marked. The lines at its end (for example that the page sync waits, and why) belong to
+   it too.

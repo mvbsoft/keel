@@ -94,8 +94,10 @@ Standard's on every change.
 - **Your git stays clean.** Branches, commits that leave out secret files and files from before the task and carry no AI attribution, updates from main and
   pushes, done the same way every time; merging into main only when you say so (or on every finish, if you set that up).
 - **You know what the work cost.** Every end of work shows a table of who ran, the tokens and the
-  dollars, and on a subscription the share of your plan limits (once keel has measured it). An
-  optional private dashboard collects every machine.
+  dollars (exact with an API key), and on a subscription the share of your plan limits (once keel has
+  measured it). A private dashboard in your claude.ai account collects every machine; with an API key
+  only there is no page, just the report. Update keel on every machine that syncs to it. A session gets
+  one of two page tool sets, chosen by Anthropic per session; [details](docs/usage-dashboard.md#syncing-between-machines).
 - **Your team works one way.** The project's keel settings live in git, so everyone plans, checks and
   commits by the same rules.
 

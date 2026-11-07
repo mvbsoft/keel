@@ -226,14 +226,14 @@
     "index": {
       "description": "data/index.json: shared by every machine, rewritten by each sync under the page's version lock.",
       "type": "object",
-      "required": ["schema", "kind", "language", "template", "cleared_at", "pcs"],
+      "required": ["schema", "kind", "language", "template", "pcs"],
       "additionalProperties": false,
       "properties": {
         "schema": { "const": 2 },
         "kind": { "const": "index" },
         "language": { "description": "Language of the page texts.", "type": ["string", "null"] },
         "template": { "description": "Which keel page runs: a hash of the page files; another value means the page is updated with the next sync.", "type": ["string", "null"], "pattern": "^[0-9a-f]{12}$" },
-        "cleared_at": { "description": "ISO time of the last /keel:usage-clear; nothing from before it is published.", "type": ["string", "null"] },
+        "keel_version": { "description": "Version of the keel whose page files the page runs; a machine with an older keel leaves them alone.", "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+" },
         "pcs": {
           "type": "object",
           "propertyNames": { "pattern": "^[A-Za-z0-9_-]+$" },

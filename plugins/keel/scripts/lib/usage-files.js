@@ -44,7 +44,7 @@ function mergeDay(old, rebuilt) {
 const monthFile = (pc, month, days) => ({ schema: FILE_SCHEMA, kind: 'month', pc, month, days });
 
 // Rebuilt days (buildDays with `files: true`) merged into this machine's month files.
-// existing: {"YYYY-MM": month file} as the caller has them, after applyCleared. Returns only the months the
+// existing: {"YYYY-MM": month file} as the caller has them. Returns only the months the
 // rebuilt days touch: {"YYYY-MM": month file}, days sorted by date.
 function monthFiles(pc, rebuilt, existing = {}) {
   const out = {};
@@ -63,29 +63,6 @@ function monthFiles(pc, rebuilt, existing = {}) {
   return out;
 }
 
-// Leaves out of a month file everything from before `clearedAt` (/keel:usage-clear): whole days before it, and on
-// the day of the clear the hours that started before it (the hour of the clear too, so nothing from before it
-// stays), snapshots taken and sessions started before it. That day's `contrib` is emptied: the sessions it named may
-// have had only requests before the clear, and the next rebuild (which counts from the clear) must replace its hours.
-function applyCleared(file, clearedAt) {
-  const from = Date.parse(clearedAt);
-  if (!file || !Number.isFinite(from)) return file;
-  const days = [];
-  for (const d of file.days) {
-    if (dayStart(d.date) + DAY_MS <= from) continue;
-    if (dayStart(d.date) >= from) { days.push(d); continue; }
-    const kept = {
-      ...d,
-      contrib: [],
-      hours: d.hours.filter((h) => Date.parse(h.h) >= from),
-      snapshots: d.snapshots.filter((s) => Date.parse(s.t) >= from),
-      sessions: d.sessions.filter((s) => s.start && Date.parse(s.start) >= from),
-    };
-    if (kept.hours.length || kept.snapshots.length || kept.sessions.length) days.push(kept);
-  }
-  return { ...file, days };
-}
-
 function recentOf(files, sinceMs) {
   const hours = [];
   let snapshots = [];
@@ -100,9 +77,9 @@ function recentOf(files, sinceMs) {
   return { hours, snapshots };
 }
 
-// This machine's entry in data/index.json. months: {"YYYY-MM": sha256} of the month files this sync publishes;
-// the months of `prev` (the entry on the page) that it does not publish keep their sha.
-function indexEntry(prev, { machine, installId, nowIso, syncedUntil, calib = null, recent, months = {} }) {
+// This machine's entry in data/index.json. months: {"YYYY-MM": sha256} of every month file of this machine on the
+// page after this sync.
+function indexEntry({ machine, installId, nowIso, syncedUntil, calib = null, recent, months = {} }) {
   return {
     name: String(machine.pc),
     user: machine.user || null,
@@ -112,7 +89,7 @@ function indexEntry(prev, { machine, installId, nowIso, syncedUntil, calib = nul
     last_seen: nowIso,
     calib,
     recent,
-    months: { ...((prev && prev.months) || {}), ...months },
+    months,
   };
 }
 
@@ -127,16 +104,23 @@ function nameOwner(index, pc, installId) {
   return entry.install_id === installId ? 'mine' : 'taken';
 }
 
-// Months to read from the page first and merge into as the base. localShas: {"YYYY-MM": sha256 of the local file}.
-function toRecover(entry, localShas = {}) {
+// Months to read from the page first and merge into as the base: those this machine has no file for, and those
+// whose page copy is not the one it last published. published: {"YYYY-MM": sha256}; local: {"YYYY-MM": month file}.
+function toRecover(entry, published = {}, local = {}) {
   const months = (entry && entry.months) || {};
-  return Object.keys(months).filter((m) => months[m] !== localShas[m]).sort();
+  return Object.keys(months).filter((m) => !local[m] || months[m] !== published[m]).sort();
 }
 
-// By content, because the client picks the names of saved page files.
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const dayShaped = (d) => !!d && typeof d === 'object' && typeof d.date === 'string' && DATE.test(d.date)
+  && Array.isArray(d.hours) && Array.isArray(d.snapshots) && Array.isArray(d.sessions);
+
+// By content, because the client picks the names of saved page files. A month file with a day of the wrong shape
+// (a hand edit, a damaged copy) is not one: the merge would fail on it.
 function identify(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || value.schema !== FILE_SCHEMA) return null;
-  if (value.kind === 'month' && typeof value.pc === 'string' && PC.test(value.pc) && typeof value.month === 'string' && MONTH.test(value.month) && Array.isArray(value.days)) {
+  if (value.kind === 'month' && typeof value.pc === 'string' && PC.test(value.pc) && typeof value.month === 'string' && MONTH.test(value.month)
+    && Array.isArray(value.days) && value.days.every(dayShaped)) {
     return { kind: 'month', pc: value.pc, month: value.month };
   }
   if (value.kind === 'index' && value.pcs && typeof value.pcs === 'object' && !Array.isArray(value.pcs)) return { kind: 'index' };
@@ -144,6 +128,6 @@ function identify(value) {
 }
 
 module.exports = {
-  FILE_SCHEMA, RECENT_DAYS, sha256, serialize, fileName, mergeDay, monthFiles, applyCleared, recentOf, indexEntry,
+  FILE_SCHEMA, RECENT_DAYS, sha256, serialize, fileName, mergeDay, monthFiles, recentOf, indexEntry,
   nameOwner, toRecover, identify,
 };

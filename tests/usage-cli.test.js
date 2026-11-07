@@ -20,11 +20,12 @@ const HOUR = 3600000;
 const tmp = tempDir;
 const iso = (ms) => new Date(ms).toISOString();
 
-// A private world: usage dir, transcripts root, home (no price override), project folder.
+// A private world: usage dir, transcripts root, home (no price override), project folder; the machine has a page,
+// since without one prepare only collects locally.
 function world(usage = {}) {
   const w = { dir: tmp('keel-cli-usage-'), root: tmp('keel-cli-proj-'), home: tmp('keel-cli-home-'), project: tmp('keel-cli-work-') };
   w.out = path.join(w.project, '.keel', 'local', 'usage', 'out');
-  fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ pc: 'testpc', user: 't@x.y', wallet_default: 'subscription', ...usage }));
+  fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ pc: 'testpc', user: 't@x.y', wallet_default: 'subscription', artifact_url: 'https://claude.ai/artifact/test', ...usage }));
   w.run = (args, extraEnv = {}) => {
     const r = spawnSync(process.execPath, [CLI, ...args], {
       encoding: 'utf8',
@@ -58,7 +59,7 @@ test('prepare: writes day documents and the machine document, prints the batch s
   const w = world();
   buildSession(w.root);
   const spec = w.prepare();
-  assert.equal(spec.artifact_url, null);
+  assert.equal(spec.artifact_url, 'https://claude.ai/artifact/test');
   const writes = writesOf(spec);
   assert.deepEqual(writes.map((x) => [x.op, x.collection, x.doc_id]), [['set', 'days', '2026-01-01_testpc'], ['set', 'machines', 'testpc']]);
   for (const x of writes) {
@@ -74,29 +75,24 @@ test('prepare: writes day documents and the machine document, prints the batch s
   assert.equal(fs.existsSync(path.join(w.dir, 'sync-state.json')), true);
 });
 
-// Changed on purpose: the committed project URL used to win without any check, so a cloned repo chose where this
-// machine's usage data went. Now it is used only after the user approved that exact URL on this machine.
-test('prepare: the artifact url comes from the flag, machine config, then an approved project url', () => {
-  const w = world();
+// Changed on purpose: the committed project URL (an approved one included) no longer takes the data anywhere, as
+// every machine syncs to its own page; the project's old URL is only mentioned once (usage-page-sync.test.js).
+test('prepare: the artifact url comes from the flag, then the machine config; the project url and approvals count for nothing', () => {
+  const w = world({ artifact_url: undefined });
   buildSession(w.root);
   assert.equal(w.prepare().artifact_url, null);
   fs.mkdirSync(path.join(w.project, '.keel'), { recursive: true });
   fs.writeFileSync(path.join(w.project, '.keel', 'config.json'), JSON.stringify({ usage: { artifact_url: 'https://claude.ai/artifact/proj' } }));
-  const open = w.prepare();
-  assert.equal(open.artifact_url, null, 'a repo url nobody approved is not used');
-  assert.equal(open.not_approved, 'https://claude.ai/artifact/proj');
-  assert.match(open.note, /not approved on this machine/);
-  assert.equal(read(path.join(w.dir, 'sync-state.json')).artifact_url, null, 'and not remembered');
-  assert.equal(w.prepare().artifact_url, null, 'still not used on the next run');
   const user = { pc: 'testpc', user: 't@x.y' };
-  fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ ...user, approved_artifact_urls: ['https://claude.ai/artifact/other'] }));
-  assert.equal(w.prepare().artifact_url, null, 'approving a different url does not help');
   fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ ...user, approved_artifact_urls: ['https://claude.ai/artifact/proj'] }));
-  const ok = w.prepare();
-  assert.equal(ok.artifact_url, 'https://claude.ai/artifact/proj');
-  assert.ok(!('not_approved' in ok));
+  const open = w.prepare();
+  assert.equal(open.artifact_url, null, 'an approved project url is not used either');
+  assert.deepEqual([open.action, open.reason], ['skip', 'no_page']);
+  assert.ok(!('batches' in open));
   fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ ...user, artifact_url: 'https://claude.ai/artifact/machine' }));
-  assert.equal(w.prepare().artifact_url, 'https://claude.ai/artifact/machine');
+  const own = w.prepare();
+  assert.equal(own.artifact_url, 'https://claude.ai/artifact/machine');
+  assert.equal(own.action, 'write');
   assert.equal(w.prepare('--artifact', 'https://claude.ai/artifact/flag').artifact_url, 'https://claude.ai/artifact/flag');
 });
 
@@ -449,6 +445,25 @@ test('report: a remote machine that has not synced holds calibration back until 
   fs.mkdirSync(path.join(inDir, 'machines'));
   fs.writeFileSync(path.join(inDir, 'machines', 'otherpc.json'), JSON.stringify({ doc: { name: 'otherpc', user: null, wallet_default: 'subscription', synced_until: iso(start), last_seen: iso(start) } }));
   assert.match(w.report('--in', inDir), /calibration waits for the sync of: otherpc/);
+});
+
+test('report and calibrate --page: another machine of the same user in the page index joins the calibration', () => {
+  const w = reportWorld();
+  const { now, snap } = w;
+  w.snaps([snap(now - 4 * HOUR, null, 10), snap(now - HOUR, null, 12)]);
+  const hour = Math.floor((now - 2 * HOUR) / HOUR) * HOUR;
+  const page = path.join(w.project, '.keel', 'local', 'usage', 'in', 'index.json');
+  const index = (syncedUntil) => ({
+    schema: 2, kind: 'index', language: null, template: null,
+    pcs: { otherpc: { name: 'otherpc', user: null, wallet_default: 'subscription', install_id: 'x', synced_until: syncedUntil, last_seen: syncedUntil, calib: null, recent: { hours: [{ h: iso(hour), wallet: 'subscription', usd: 10, by_model: { [OPUS]: 10 } }], snapshots: [] }, months: {} } },
+  });
+  fs.mkdirSync(path.dirname(page), { recursive: true });
+  fs.writeFileSync(page, JSON.stringify(index(iso(now - 5 * HOUR))));
+  assert.match(w.report('--project', w.project, '--page', page), /calibration waits for the sync of: otherpc/);
+  assert.match(w.run(['calibrate', '--project', w.project, '--page', page]), /machines still to sync: otherpc/);
+  fs.writeFileSync(page, JSON.stringify(index(iso(now))));
+  // its $10 joins ours ($20 in 2 % -> 1 % = $15), as through the database
+  assert.match(w.report('--project', w.project, '--page', page), /week: about 1\.3 % of the weekly limit \(1 % = about \$15\.00, 1 point\)/);
 });
 
 test('snapshot: records desktop percentages and the log feeds the report', () => {

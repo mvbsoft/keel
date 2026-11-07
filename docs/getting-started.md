@@ -97,7 +97,7 @@ you:  1 Autonomous, 2 main.
 
 Optionally, each only after your yes: the Claude Code settings it recommends, for this project or for
 the whole machine (a backup of each file is kept first), a status line, a short "Working with Claude
-Code" section in your README, and a private usage page ([usage dashboard](usage-dashboard.md)).
+Code" section in your README, and a private usage page in your claude.ai account ([usage dashboard](usage-dashboard.md#which-accounts-get-what); an API key alone gets exact dollars in the report but no page).
 
 **The setup commit.** keel's git steps never commit on the main branch, so at the end keel offers two
 ways, in both git modes:

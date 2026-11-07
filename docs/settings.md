@@ -97,12 +97,13 @@ In `~/.claude/keel/usage.json` unless noted. Set in `/keel:configure` (section "
 | `cloud_wallet` | how Claude Code on the web pays | `subscription` / `api` / `credit` | `credit` |
 | `also_api` | this machine uses both a subscription and an API key. On: a session keel's hook did not mark is shown as `unknown` instead of `wallet_default`, and is left out of the limit calibration | on / off | off |
 | `pc` | this machine's name on the usage page | 1 to 40 letters, digits, `-`, `_` | the computer name |
-| `user` | your name on the usage page, to tell people apart on a team page | text | your git email |
+| `user` | your name on the usage page, to tell people apart when the page is shared | text | your git email |
 | `history_days` | how far back the first sync to a usage page reaches (also the first sync after the page address changes); later syncs send what changed since the last one | days | 30 |
 | `artifact_url` | the address of your private "keel usage" page | a claude.ai link | none |
-| `approved_artifact_urls` | team page addresses from project configs that you allowed this machine to send to; used only while `artifact_url` is not set | claude.ai links | none |
-| `page_template` | which keel page the usage page runs (a fingerprint of its files), as the page's settings said at the last end step or configure; when this keel's files differ, `/keel:usage` and `/keel:configure usage` offer to [update the page](usage-dashboard.md#updating-the-page) | written by keel | none |
-| `page_shared` | `artifact_url` is a page shared with you from another account: its owner updates it, so keel never offers the update | written by `/keel:configure usage` | off |
+| `sync` | whether this machine sends its usage to the page; set by `/keel:usage on` / `off` or `usage-setup.js <project> sync on\|off`. Off: costs are still collected locally | on / off | on |
+| `sync_off_since` | the date the sync was turned off, shown by `usage-setup.js <project> show` | written by keel | none |
+| `install_id` | tells this install from another that uses the same machine name, so one machine's month files are not overwritten by another | written by keel | none |
+| `page_template` | which keel page the usage page runs (a fingerprint of its files), as the page's settings or its `data/index.json` said at the last end step or configure; when this keel's files differ, `/keel:usage` says so and the next page-file sync or `/keel:configure usage` can [update the page](usage-dashboard.md#updating-the-page) | written by keel | none |
 | autonomous git (in `trusted-git.json`) | projects where you confirmed, in Claude Code's prompt, that keel may run its git steps (branch, commit, update from the main branch, push) without asking each time (a push from the main branch goes through your normal permissions; a merge still asks unless `git.ask_before_merge` is off), with a fingerprint of the project's `git` settings: when they change, keel asks again until you confirm once more | written by `git-flow.js trust` | none |
 | prices (in `prices.json`) | your own price table, written by `/keel:configure prices` | a price table | keel's bundled table |
 
@@ -143,7 +144,7 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 | `planning.tickets_dir` | the repository folder for exported tickets | a folder; never a hidden one, `handoff/`, `handoffs/`, `docs/plans` or a place outside the project | `tickets` |
 | `planning.language` | the language of `plan.md` and the tickets. Detailed setup asks it; quick setup takes `repo_language` | a language code | `repo_language` |
 | `stack_skills` | the stack plugins you chose (for information) | names | none |
-| `usage.artifact_url` | a usage page the team shares. A machine sends to it only after its user approves it, and only while the machine has no `artifact_url` of its own. It then receives that machine's usage from **all** its projects (project folder names, branches, request previews unless turned off), not only from this one | a claude.ai link | none |
+| `usage.artifact_url` | no longer used: each machine syncs to its owner's own page ([one page per account](usage-dashboard.md#one-page-per-account)). The key stays valid and is ignored; keel says so once per machine | a claude.ai link | none |
 
 `.keel/profile.json`, also committed, holds what the project scan found and you confirmed: the parts of
 the project, their languages and commands, and the secret files by path. Its `run_command` per part is
@@ -232,8 +233,7 @@ prefixes checked.
     "adr_refs": "forbidden",
     "refs_exempt": ["docs/debt-register.md"]
   },
-  "docs": { "profile": 2, "pattern": "none" },
-  "usage": { "artifact_url": "https://claude.ai/artifact/EXAMPLE" }
+  "docs": { "profile": 2, "pattern": "none" }
 }
 ```
 
@@ -243,11 +243,7 @@ repository stays clean); `/keel:configure git` sets it and lists those files in 
 developer's machine instead of travelling on the task branches. `ticket_prefixes` and `adr_refs` make
 keel report `PROJ-123` and `ADR-12` in new comments and
 docs. `refs_exempt` lists a file where such ids are the subject. Profile 2 adds an ADR for significant
-decisions. `usage.artifact_url` is a placeholder for a usage page the team shares; each machine sends to
-it only after its user approves it, and a machine that has its own `artifact_url` keeps sending there. An
-approved machine sends its usage from all its projects, not only from this one, so the team sees those
-projects' folder names and branches too (and request previews, unless they are off). Each developer
-confirms autonomous mode once on their own machine.
+decisions. Each developer confirms autonomous mode once on their own machine.
 
 ### c) A large monorepo with its own settings
 

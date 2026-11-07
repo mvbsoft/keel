@@ -333,7 +333,7 @@
     },
     "usage": {
       "type": "object",
-      "description": "Optional. Usage dashboard shared by a team: the URL of the \"keel usage\" artifact every member syncs to (otherwise each machine finds its own).",
+      "description": "No longer used: every machine syncs to its owner's own \"keel usage\" page. An older keel's team page URL stays valid here, so existing configs do not turn invalid; keel says once that it is ignored.",
       "additionalProperties": false,
       "properties": {
         "artifact_url": {

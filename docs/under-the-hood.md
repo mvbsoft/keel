@@ -103,7 +103,7 @@ accepts each step after running its tests. Why steps should not be cut too small
 On each machine keel also keeps `~/.claude/keel/`:
 
 - `usage.json`: this machine's usage settings ([settings](settings.md#this-machine));
-- the wallet of each conversation, limit snapshots, the usage cache and the sync state of the usage page, the last plan-limit calibration (`calib-latest.json`);
+- the wallet of each conversation, limit snapshots, the usage cache, the sync state of the usage page and this machine's page files (`usage-files/`), the last plan-limit calibration (`calib-latest.json`);
 - `trusted-git.json`: the projects where you confirmed autonomous git, each with a fingerprint of its
   `git` settings;
 - `prices.json`: your own price table, when you updated it, with the previous one as `prices.json.bak`;
@@ -196,9 +196,10 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
 - **Critical steps are scripts, not text**: config checks, secret scanning, vote counting, token
   accounting, merge questions, and in planning the draft's structure check, ticket keys and ticket
   states (`plans.js`).
-- **Data that leaves the machine.** Usage data goes only to the usage page you set up: your own
-  private page, or a team page you approved
-  ([what goes there and what never does](usage-dashboard.md#what-goes-to-the-page-and-what-never-does)).
+- **Data that leaves the machine.** Usage data goes only to the usage page in your own claude.ai
+  account, as page files or in the page's database, whichever page tools the session has
+  ([what goes there and what never does](usage-dashboard.md#what-goes-to-the-page-and-what-never-does);
+  [syncing between machines](usage-dashboard.md#syncing-between-machines)).
   Other network use: keel's git steps fetch from and push to your remote (in autonomous mode, or in
   manual mode when you ask for that step); a task link you give is read with a connector, `gh` or a
   web fetch;
@@ -216,7 +217,7 @@ In a set-up project keel adds about 3.6k tokens to every conversation: its worki
 project's comment rules (about 2.3k) and the skill and agent descriptions (about 1.3k). The standards
 are added again after `/clear` and after compaction. In a project keel is not set up in, only the
 skill and agent descriptions remain, because Claude Code lists them wherever keel is installed.
-Each end of work syncs the cost data for about $0.01-0.04 when the dashboard is set up.
+Each end of work syncs the cost data for about $0.01-0.04 when the dashboard is set up (`/keel:usage off` stops it; [syncing](usage-dashboard.md#syncing-between-machines)).
 
 ## Advisory skills
 
