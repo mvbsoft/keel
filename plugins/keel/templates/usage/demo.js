@@ -1,7 +1,7 @@
 'use strict';
 // keel usage dashboard: sample data for a local layout check only (index.html?demo=1, when the page
-// has no database). window.KeelUsageDemo(toMs) gives the page files it would read: { files }, keyed by path
-// (data/index.json and the month files); toMs is the page's timestamp parser.
+// has no database). window.KeelUsageDemo(toMs) gives the days, machines and calibrations it shows;
+// toMs is the page's timestamp parser.
 window.KeelUsageDemo = function (toMs) {
   const now = Date.now(); const H = 3600000;
   const iso = (m) => new Date(m).toISOString();
@@ -11,7 +11,7 @@ window.KeelUsageDemo = function (toMs) {
   const part = (kind, type, id, model, t0, min, act, req, scale, tools, extra) => {
     const tok = { in: Math.round(9000 * scale), cw5: Math.round(160000 * scale), cw1h: Math.round(12000 * scale), cr: Math.round(2600000 * scale), out: Math.round(38000 * scale) };
     const usd = Math.round(price(model, tok) * 100) / 100;
-    return { kind, type, ...(id ? { agent_id: id } : {}), model, by_model: { [model]: { requests: req, tok, usd } }, start: iso(t0), end: iso(t0 + min * 60000), active_min: act, requests: req, tools, agents_launched: (extra && extra.launched) || 0, tok, usd, output_estimated: false, resumed: (extra && extra.resumed) || 0 };
+    return { kind, type, agent_id: id, model, by_model: { [model]: { requests: req, tok, usd } }, start: iso(t0), end: iso(t0 + min * 60000), active_min: act, requests: req, tools, agents_launched: (extra && extra.launched) || 0, tok, usd, output_estimated: false, resumed: (extra && extra.resumed) || 0 };
   };
   const keel = (task, level, f, lines, files, steps) => ({ task, level, findings: f, gates: 'pass', lines, files, steps });
   const T = (t0, off, text, usd, req, ag) => ({ t: iso(t0 + off * 60000), text, usd, requests: req, agents: ag });
@@ -75,8 +75,10 @@ window.KeelUsageDemo = function (toMs) {
     const tm = now + h * H;
     docOf('office', tm).snapshots.push({ t: iso(tm), five_hour: fh, five_hour_resets_at: iso(Math.ceil(tm / (5 * H)) * 5 * H), seven_day: sd, seven_day_resets_at: reset7, session_id: sid, cost_usd: 0, src: 'statusline' });
   }
-  const seen = { office: iso(now - H), laptop: iso(now - 2 * H) };
-  const synced = { office: iso(now - H), laptop: iso(now - 20 * H) };
+  const machines = [
+    { name: 'office', user: users.office, wallet_default: 'subscription', synced_until: iso(now - H), last_seen: iso(now - H) },
+    { name: 'laptop', user: users.laptop, wallet_default: 'subscription', synced_until: iso(now - 20 * H), last_seen: iso(now - 2 * H) },
+  ];
   const pt = (fromH, toH, gain, usd, extra) => Object.assign({ from: iso(now + fromH * H), to: iso(now + toH * H), gain, usd, rate: usd / gain, by_model: { [OPUS]: usd * 0.8, [SONNET]: usd * 0.2 }, resets_at: reset7, pending: false, waiting: [], kept: true }, extra || {});
   const calibs = [
     { pc: 'office', computed_at: iso(now - H), waiting: ['laptop'],
@@ -84,21 +86,5 @@ window.KeelUsageDemo = function (toMs) {
       five_hour: { rate: 2.9, n: 2, points: [pt(-52, -49, 15, 41.5), pt(-29.5, -28.6, 12, 36.0), pt(-4.8, -3.9, 15, 0, { kept: false, reason: 'no_spend', rate: 0 })] } },
     { pc: 'laptop', computed_at: iso(now - 20 * H), waiting: [], weekly: { rate: 16.8, n: 2, points: [] }, five_hour: { rate: null, n: 0, points: [] } },
   ];
-  // The same files the page reads from the artifact: data/index.json and one data/<pc>-<YYYY-MM>.json per machine and month.
-  const files = {};
-  const entries = {};
-  for (const pc of ['office', 'laptop']) {
-    const months = {};
-    for (const d of [...docs.values()].filter((x) => x.pc === pc)) {
-      const month = d.date.slice(0, 7);
-      const key = 'data/' + pc + '-' + month + '.json';
-      if (!files[key]) files[key] = { schema: 2, kind: 'month', pc, month, days: [] };
-      files[key].days.push({ date: d.date, synced_until: d.synced_until, contrib: d.sessions.map((x) => x.id), hours: d.hours, snapshots: d.snapshots, sessions: d.sessions });
-      months[month] = 'a'.repeat(64);
-    }
-    const calib = calibs.find((c) => c.pc === pc);
-    entries[pc] = { name: pc, user: users[pc], wallet_default: 'subscription', install_id: 'demo-' + pc, synced_until: synced[pc], last_seen: seen[pc], calib: { computed_at: calib.computed_at, waiting: calib.waiting, weekly: calib.weekly, five_hour: calib.five_hour }, recent: { hours: [], snapshots: [] }, months };
-  }
-  files['data/index.json'] = { schema: 2, kind: 'index', language: null, template: null, pcs: entries };
-  return { files };
+  return { docs: [...docs.values()], machines, calibs };
 };

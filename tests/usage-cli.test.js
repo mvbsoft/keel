@@ -447,25 +447,6 @@ test('report: a remote machine that has not synced holds calibration back until 
   assert.match(w.report('--in', inDir), /calibration waits for the sync of: otherpc/);
 });
 
-test('report and calibrate --page: another machine of the same user in the page index joins the calibration', () => {
-  const w = reportWorld();
-  const { now, snap } = w;
-  w.snaps([snap(now - 4 * HOUR, null, 10), snap(now - HOUR, null, 12)]);
-  const hour = Math.floor((now - 2 * HOUR) / HOUR) * HOUR;
-  const page = path.join(w.project, '.keel', 'local', 'usage', 'in', 'index.json');
-  const index = (syncedUntil) => ({
-    schema: 2, kind: 'index', language: null, template: null,
-    pcs: { otherpc: { name: 'otherpc', user: null, wallet_default: 'subscription', install_id: 'x', synced_until: syncedUntil, last_seen: syncedUntil, calib: null, recent: { hours: [{ h: iso(hour), wallet: 'subscription', usd: 10, by_model: { [OPUS]: 10 } }], snapshots: [] }, months: {} } },
-  });
-  fs.mkdirSync(path.dirname(page), { recursive: true });
-  fs.writeFileSync(page, JSON.stringify(index(iso(now - 5 * HOUR))));
-  assert.match(w.report('--project', w.project, '--page', page), /calibration waits for the sync of: otherpc/);
-  assert.match(w.run(['calibrate', '--project', w.project, '--page', page]), /machines still to sync: otherpc/);
-  fs.writeFileSync(page, JSON.stringify(index(iso(now))));
-  // its $10 joins ours ($20 in 2 % -> 1 % = $15), as through the database
-  assert.match(w.report('--project', w.project, '--page', page), /week: about 1\.3 % of the weekly limit \(1 % = about \$15\.00, 1 point\)/);
-});
-
 test('snapshot: records desktop percentages and the log feeds the report', () => {
   const w = world();
   const resets = iso(Date.now() + 86400000);

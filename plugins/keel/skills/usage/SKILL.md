@@ -1,9 +1,9 @@
 ---
 name: usage
-description: Give the link to your private keel usage page (what each session, agent and model cost, from every machine) and open it; `on` or `off` turns this machine's sync to the page on or off.
-argument-hint: "[on|off]"
+description: Give the link to your private keel usage page (what each session, agent and model cost, from every machine) and open it; `on` or `off` turns this machine's sync to the page on or off; `clear` deletes this machine's data on the page after a warning and your yes.
+argument-hint: "[on|off|clear]"
 disable-model-invocation: true
-allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/usage-setup.js" *), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/scripts/usage-setup.js" *)
+allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/usage-setup.js" *), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/scripts/usage-setup.js" *), Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/usage-clear.js" *), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/scripts/usage-clear.js" *)
 ---
 
 # keel: usage
@@ -27,21 +27,22 @@ makes the page reachable. Stop (`off` still works: it only changes this machine'
 - A URL → give it as a link on its own line, then one line: the page shows what every session cost,
   by participant, model and request, from every machine, and keel adds to it at each
   `/keel:end-task`, `/keel:end-session` and `/keel:end-planning`. `sync: off since <date>` → one line:
-  this machine's costs have not gone to the page since that date (they are still collected here), and
-  `/keel:usage on` sends them all. `page template` says `offer: update` → one line: the page runs
-  another keel's page, usually an older one; the next sync (with the page-file tools, which never put
-  an older page over a newer one) or `/keel:configure usage` updates it and keeps its data; update keel
-  on every machine first. Then open it: the `Artifact` tool (`action: open`, that `url`) when you have
+  this machine's costs have not gone to the page since that date, and `/keel:usage on` sends what Claude Code's logs still hold of that time (they keep 30 days by default). `page template` says `offer: update` → one line: the page runs
+  another keel's page, usually an older one; `/keel:configure usage` updates it and keeps its data;
+  update keel on every machine first. Then open it: the `Artifact` tool (`action: open`, that `url`) when you have
   it; otherwise say to open the link in a browser.
 - `not set` → say this machine has no usage page yet and `/keel:usage on` sets it up (it also finds a
   page made on another machine of the same account).
 
 **`off`**: first explain in plain words: from now on this machine sends nothing to the page; the page
-and its data stay as they are; keel still collects this machine's costs locally, so nothing is lost;
-`/keel:usage on` (or `/keel:configure`) sends everything collected meanwhile; deleting this PC's data on the page
-is `/keel:usage-clear`. Ask "Turn the sync off?" (Yes / No). Yes → run
+and its data stay as they are; the end reports still show the costs; `/keel:usage on` (or
+`/keel:configure`) later sends what Claude Code's logs still hold of that time (they keep 30 days by default), so a longer break leaves a gap on the page; deleting this PC's data on the page
+is `/keel:usage clear`. Ask "Turn the sync off?" (Yes / No). Yes → run
 `node "<keel>/scripts/usage-setup.js" "<project>" sync off` and give its line.
 
 **`on`**: run `node "<keel>/scripts/usage-setup.js" "<project>" sync on`. No `artifact_url` above →
 read `<keel>/skills/_shared/usage-page.md` and follow it (find the account's page or offer to create
-it). Then say the next `/keel:end-*` sends everything collected on this machine.
+it). Then say the next `/keel:end-*` sends what Claude Code's logs on this machine still hold (they keep
+30 days by default).
+
+**`clear`**: read `<keel>/skills/_shared/usage-clear.md` and follow it (`<show>` is the settings above).

@@ -96,10 +96,9 @@ test('feature-page: may run the scripts it names, finds its page by the feature\
     for (const shell of ['Bash', 'PowerShell']) assert.ok(fields['allowed-tools'].includes(`${shell}(node "\${CLAUDE_PLUGIN_ROOT}/scripts/${run} *)`), `${shell}: ${run} is allowed`);
   }
   assert.match(body, /This feature's page is the one whose title\s+ends with ` \(<code>\)`, the `code:` line/);
-  assert.match(body, /An update whose title is not the `title:` line any more[^\n]*\n[^\n]*title too: \*\*B\*\* `title`/);
+  assert.match(body, /An update whose title is not the `title:` line any more[^\n]*\n[^\n]*title too \(the tool's title/);
   assert.match(body, /`code written: <files> \(\.\.\.\)`[\s\S]*commit and push them, so every machine finds this page/);
   assert.doesNotMatch(body, /--taken|marker|title if taken/);
-  for (const name of ['list_artifacts', 'read_artifact', 'get_artifact', 'publish_files']) assert.ok(body.includes(`\`${name}\``), name);
 });
 
 test('end commands verify, then write the note and do git in the agreed order', () => {
@@ -264,15 +263,6 @@ test('usage-sync.md passes the planning feature and names only flags usage.js do
   for (const f of flags) assert.match(header, new RegExp(`${f}(?![\\w-])`), `the usage.js header documents no ${f}`);
 });
 
-test('usage-sync.md: a machine name already on the page is a question, and yes goes on with --same-pc; the read is asked once', () => {
-  const text = read('skills', '_shared', 'usage-sync.md');
-  const ask = text.indexOf('`name_ask`');
-  assert.ok(ask > 0);
-  assert.ok(text.indexOf('Is it this PC before a reinstall?', ask) > ask);
-  assert.ok(text.indexOf('plus `--same-pc`', ask) > ask, 'yes reruns prepare as this machine');
-  assert.match(text, /`--take none` when none could be saved\. Read once per sync/);
-});
-
 test('end-task, end-session and end-planning hand the costs step to usage-sync.md with the session id', () => {
   for (const name of ['end-task', 'end-session', 'end-planning']) {
     const text = read('skills', name, 'SKILL.md');
@@ -295,26 +285,28 @@ test('configure-flow.md has the usage and write sections, and names only usage-s
 });
 
 // Changed on purpose: finding, creating and updating the page moved from configure-flow.md to usage-page.md (configure
-// and /keel:usage on read it), with both tool sets; a page of another account or a team page is no longer offered.
-test('usage-page.md finds, creates and updates the page with either tool set; the page data stays', () => {
+// and /keel:usage on read it); a page of another account or a team page is no longer offered.
+// Changed on purpose: several pages titled "keel usage" are asked about; the owner's read says "owned by you", not
+// "writer".
+test('usage-page.md finds, creates and updates the page with the built-in tools; the page data stays', () => {
   const text = read('skills', '_shared', 'usage-page.md');
   const flow = read('skills', '_shared', 'configure-flow.md');
   const eleven = flow.slice(flow.indexOf('## 11. Usage and costs'), flow.indexOf('## 12.'));
   assert.match(eleven, /`<keel>\/skills\/_shared\/usage-page\.md`/);
   assert.doesNotMatch(eleven, /page_shared|approved_artifact_urls/);
-  assert.match(text, /One ToolSearch `\+claude-artifacts publish_files`/);
+  assert.match(text, /made and updated with the built-in `Artifact` and `ArtifactData` tools \(deferred counts\)/);
   const find = text.slice(text.indexOf('## Find'), text.indexOf('## Create'));
-  assert.match(find, /files tools `list_artifacts`; built-in `Artifact`\s+`action: list`, mine, `limit` 200/);
+  assert.match(find, /`Artifact` `action: list`, mine, `limit` 200/);
+  assert.match(find, /Several → ask which one/);
   const create = text.slice(text.indexOf('## Create'), text.indexOf('## Update'));
-  assert.match(create, /`declare_capabilities` with `db`, `user` and `downloads`/);
+  assert.match(create, /`capabilities` `\{ "db": \{\}, "user": \{\}, "downloads": true \}`/);
   assert.match(create, /`set` to collection `meta`, doc `settings`,\s+`\{ "language": "<conversation language code>", "schema": 1, "template": "<page_template printed by page>" \}`/);
   const update = text.slice(text.indexOf('## Update'), text.indexOf('## Save'));
   assert.match(update, /its data\s+stays whatever is done/);
-  assert.match(update, /the next sync sees the older page in `data\/index\.json`/);
-  assert.match(update, /`action: read`, that\s+`url`/, 'read first: the Artifact tool publishes over a page only after a read');
-  assert.match(update, /title is\s+not "keel usage" or the read does not say "writer" → stop/);
+  assert.match(update, /`action: read`, that `url`/, 'read first: the Artifact tool publishes over a page only after a read');
+  assert.match(update, /title is not "keel\s+usage", or the read says neither "owned by you" nor "writer" → stop/);
   assert.match(update, /no `title`, `icon` or `capabilities`/, 'the page keeps its capabilities');
-  assert.match(update, /`if_version` = the `version` the `get`\s+returned/);
+  assert.match(update, /`if_version` = the `version` the `get` returned/);
   assert.match(text, /usage-setup\.js" "<project>" apply "<project>\/\.keel\/local\/tmp\/usage-setup\.json"/);
 });
 
@@ -327,21 +319,15 @@ test('usage-sync.md: the database sync reads the page settings too, into the sam
   assert.match(text, /plus `--in "<project>\/\.keel\/local\/usage\/in"` after step 3/, 'report reads the same folder');
 });
 
-test('usage-sync.md: the tool set is found first, and the files sync reads, publishes under the version lock and records it', () => {
+test('usage-sync.md: the page tool is found first and passed to prepare', () => {
   const text = read('skills', '_shared', 'usage-sync.md');
-  assert.match(text, /one ToolSearch `\+claude-artifacts publish_files`\. Found →\s+`<tools>` is `files`/);
+  assert.match(text, /`ArtifactData` among the tools \(deferred counts\) → `<tools>`\s+is `db`, otherwise `none`/);
   assert.match(text, /prepare --tools <tools>/);
-  const files = text.slice(text.indexOf('4. **Sync through the page files**'), text.indexOf('5. **'));
-  assert.match(files, /`--page <the saved data\/index\.json> --page-version <the version>`/);
-  assert.match(files, /`--page none` when the page\s+has no `data\/index\.json` yet/);
-  assert.match(files, /`--take <saved file>` for each saved file/);
-  assert.match(files, /Refused because the page has a newer version → once more\s+from 4\.1/);
-  assert.match(text, /`--published <the new version>` when 4\.3 published/);
-  // Anthropic picks the set per session; a restart is not offered as a fix.
   assert.doesNotMatch(text, /restart(ing)? Claude Code/i);
 });
 
-test('/keel:usage: user-only, reads only the usage settings and gives or opens the page link; on and off', () => {
+// Changed on purpose: /keel:usage-clear became /keel:usage clear, so the skill may run usage-clear.js too.
+test('/keel:usage: user-only, reads only the usage settings and gives or opens the page link; on, off and clear', () => {
   const { fields, body } = parse('usage');
   assert.equal(fields.name, 'usage');
   assert.equal(fields['disable-model-invocation'], 'true');
@@ -354,9 +340,13 @@ test('/keel:usage: user-only, reads only the usage settings and gives or opens t
   assert.match(body, /`Artifact` tool \(`action: open`/);
   assert.match(body, /`\/keel:usage on` sets it up/);
   const off = body.slice(body.indexOf('**`off`**'), body.indexOf('**`on`**'));
-  assert.ok(off.indexOf('Ask "Turn the sync off?"') > off.indexOf('nothing is lost'), 'explained before the question');
+  // Changed on purpose: `on` sends only what Claude Code's logs still hold, so that is explained before the question.
+  assert.ok(off.indexOf('Ask "Turn the sync off?"') > off.indexOf('they keep 30 days by default'), 'explained before the question');
   assert.match(off, /usage-setup\.js" "<project>" sync off`/);
-  assert.match(body.slice(body.indexOf('**`on`**')), /usage-setup\.js" "<project>" sync on`[\s\S]*usage-page\.md/);
+  assert.match(body.slice(body.indexOf('**`on`**'), body.indexOf('**`clear`**')), /usage-setup\.js" "<project>" sync on`[\s\S]*usage-page\.md/);
+  assert.match(fields['argument-hint'], /\[on\|off\|clear\]/);
+  for (const shell of ['Bash', 'PowerShell']) assert.ok(fields['allowed-tools'].includes(`${shell}(node "\${CLAUDE_PLUGIN_ROOT}/scripts/usage-clear.js" *)`), `${shell}: usage-clear.js is allowed`);
+  assert.match(body.slice(body.indexOf('**`clear`**')), /`<keel>\/skills\/_shared\/usage-clear\.md`/);
   assert.match(body, /the language in keel's session-start line/);
 });
 
@@ -370,7 +360,7 @@ test('/keel:help: user-only, static, short, and its table names every keel comma
   const rows = [...body.matchAll(/^\| `\/keel:([a-z-]+)/gm)].map((m) => m[1]);
   const userOnly = fs.readdirSync(SKILLS, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('_') && parse(e.name).fields['disable-model-invocation'] === 'true').map((e) => e.name);
   assert.deepEqual([...rows].sort(), [...userOnly].sort(), 'every user command, once');
-  assert.deepEqual([...COMMANDS, 'configure', 'help', 'usage', 'usage-clear'].sort(), [...userOnly].sort());
+  assert.deepEqual([...COMMANDS, 'configure', 'help', 'usage'].sort(), [...userOnly].sort());
   assert.ok(body.split('\n').length < 30, 'short');
 });
 

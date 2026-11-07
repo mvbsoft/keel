@@ -1,10 +1,9 @@
 'use strict';
 // Checks that the page tells the truth about this machine: the dollars and tokens of each of its sessions on the
-// page (month files and database day documents, summed by the dashboard's own pivot.js) against the same sessions
+// page (its day documents, summed by the dashboard's own pivot.js) against the same sessions
 // rebuilt from the local transcripts. A session that went on after the page's copy was synced is not compared.
 const store = require('./usage-store.js');
-const pf = require('./usage-files.js');
-const { flatten, docsOfMonth } = require('../../templates/usage/pivot.js');
+const { flatten } = require('../../templates/usage/pivot.js');
 
 // Half a cent: a smaller gap is rounding of the six-decimal dollars, not a difference.
 const CENT = 0.005;
@@ -27,11 +26,6 @@ const { later } = store;
 function pageDocs(files, pc, unwrap) {
   const docs = [];
   for (const value of files) {
-    const id = pf.identify(value);
-    if (id && id.kind === 'month') {
-      if (id.pc === pc) docs.push(...docsOfMonth(pc, null, value.days));
-      continue;
-    }
     // unwrap also returns machine documents, marked kind_: 'machine'; only day documents count.
     for (const d of unwrap(value)) if (d.kind_ !== 'machine' && d.pc === pc) docs.push(d);
   }
@@ -44,8 +38,8 @@ function audit({ pageFiles, machine, usageDir, projectsRoot, clearedAt, unwrap, 
   const dates = [...page.values()].map((s) => s.date).sort();
   if (!dates.length) return { compared: 0, days: 0, diffs: [], page: 0 };
   const fromMs = clearedAt ? Date.parse(clearedAt) : undefined;
-  const built = store.buildDays({ projectsRoot, machine, usageDir, sinceMs: Date.parse(`${dates[0]}T00:00:00Z`), nowMs, fromMs, files: true });
-  const local = perSession(built.built.map((d) => ({ date: d.date, pc, part: 1, synced_until: d.synced_until, sessions: d.sessions })));
+  const built = store.buildDays({ projectsRoot, machine, usageDir, sinceMs: Date.parse(`${dates[0]}T00:00:00Z`), nowMs, fromMs });
+  const local = perSession(built.docs.map((d) => d.doc));
   const lastSync = [...page.values()].reduce((a, s) => later(a, s.synced_until), null);
   const diffs = [];
   let compared = 0;
@@ -74,7 +68,7 @@ const usd = (n) => `$${n.toFixed(2)}`;
 
 function auditText(opts) {
   const r = audit(opts);
-  if (!r.page) return 'audit: no session of this machine in the saved page files';
+  if (!r.page) return 'audit: no session of this machine in the saved page documents';
   const out = [`audit: ${r.compared} sessions on ${r.days} days compared; differences: ${r.diffs.length}`];
   for (const d of r.diffs) {
     if (d.kind === 'only_page') out.push(`  ${d.date} ${d.id}: only on the page (${usd(d.page)})`);

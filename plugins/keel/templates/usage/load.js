@@ -1,6 +1,5 @@
 'use strict';
-// keel usage dashboard: reading the page's data sources. window.KeelLoad() gives loadFromDb (the page
-// database), fetchJson (the page files, for pivot.js loadPageData) and sleep.
+// keel usage dashboard: reading the page's data. window.KeelLoad() gives loadFromDb (the page database) and sleep.
 window.KeelLoad = function () {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   async function retry(fn) {
@@ -26,7 +25,7 @@ window.KeelLoad = function () {
     }
     return [...out.values()];
   }
-  // The database: the days the built-in tool set wrote (and older ones), the machines, the calibrations and the settings.
+  // The days, the machines, the calibrations and the settings.
   async function loadFromDb(db, from, to) {
     const [docs, mach, cal, st] = await Promise.all([
       queryDays(db, from, to),
@@ -41,11 +40,5 @@ window.KeelLoad = function () {
       settings: st && st.exists ? (st.data() || {}) : {},
     };
   }
-  async function fetchJson(path) {
-    const r = await fetch(path, { cache: 'no-store' });
-    if (!r.ok) throw new Error(`${path}: ${r.status}`);
-    return r.json();
-  }
-
-  return { loadFromDb, fetchJson, sleep };
+  return { loadFromDb, sleep };
 };

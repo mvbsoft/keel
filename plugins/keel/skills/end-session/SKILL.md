@@ -54,11 +54,11 @@ Current state of this project:
    done: commit them with the code." (not for tickets under `.keel/local/`: they are outside git);
    with `done: feature <f> complete` also "Feature <f> is complete; /keel:tasks offers its end once
    you have committed and pushed."
-7. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-4 with session id
-   `${CLAUDE_SESSION_ID}` and the level and findings from step 4; its step 5 runs in step 9, right
+7. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-3 with session id
+   `${CLAUDE_SESSION_ID}` and the level and findings from step 4; its step 4 runs in step 9, right
    before the report.
 8. Run `node "<keel>/scripts/cleanup.js" "<project>" reminder`; its line goes into the report only
    when it names `/keel:cleanup`.
-9. Report: run usage-sync.md step 5 (the cost report), then read
+9. Report: run usage-sync.md step 4 (the cost report), then read
    `<keel>/skills/_shared/final-report.md` and follow it. An answer to "Agree, or change
    it?" that changes the plan → update the note (in git: commit it as git.md says, manual mode: say so).

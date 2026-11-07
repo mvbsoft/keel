@@ -151,13 +151,9 @@ test('the project argument must be the current project; usage.js writes only und
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project .`, 'Bash', env, proj), null, 'a relative --project');
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project "${proj}" --keel "${proj}/credentials.json"`, 'Bash', env), null);
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project "${proj}" --keel "${home}/.aws/credentials.json"`, 'Bash', env), null);
-  // --page and every --take are read only from the project's .keel/local/ too.
-  const files = `prepare --tools files --project "${proj}" --page-version 3`;
-  assert.equal(shell(`node "${SCRIPTS}/usage.js" ${files} --page "${proj}/.keel/local/usage/in/index.json" --take "${proj}/.keel/local/usage/in/a.json" --take "${proj}/.keel/local/usage/in/b.json"`, 'Bash', env), 'allow');
-  assert.equal(shell(`node "${SCRIPTS}/usage.js" ${files} --page none`, 'Bash', env), 'allow', 'none: the page has no index yet');
-  assert.equal(shell(`node "${SCRIPTS}/usage.js" ${files} --page "${home}/index.json"`, 'Bash', env), null);
-  assert.equal(shell(`node "${SCRIPTS}/usage.js" ${files} --page "${proj}/.keel/local/usage/in/index.json" --take "${home}/.ssh/id.json" --take "${proj}/.keel/local/usage/in/b.json"`, 'Bash', env), null, 'an earlier --take outside counts too');
-  assert.equal(shell(`node "${SCRIPTS}/usage.js" report --project "${proj}" --page "${proj}/.keel/local/usage/in/index.json" --published 4`, 'Bash', env), 'allow');
+  // The audit's --page folder is read only from the project's .keel/local/ too.
+  assert.equal(shell(`node "${SCRIPTS}/usage.js" audit --project "${proj}" --page "${proj}/.keel/local/usage/audit"`, 'Bash', env), 'allow');
+  assert.equal(shell(`node "${SCRIPTS}/usage.js" audit --project "${proj}" --page "${home}/.ssh"`, 'Bash', env), null);
   // Turning this machine's sync on or off changes a machine setting: left to Claude Code's own prompt.
   for (const v of ['on', 'off']) assert.equal(shell(`node "${SCRIPTS}/usage-setup.js" "${proj}" sync ${v}`, 'Bash', env), null, v);
   assert.equal(shell(`node "${SCRIPTS}/usage-setup.js" "${proj}" show`, 'Bash', env), 'allow');

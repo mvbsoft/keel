@@ -26,11 +26,8 @@ another language than the tickets' are translated on the page only; the page kee
 so an update translates only what changed.
 
 1. Read `<keel>/skills/_shared/preflight.md` and act on the state above.
-2. The page is published with one of two tool sets; use the first you have:
-   - **A**: the Artifact tool (`action: list`, `read`, publish);
-   - **B**: the artifact server's tools `list_artifacts`, `read_artifact`, `get_artifact` and
-     `publish_files` (their names may carry a prefix such as `mcp__claude-artifacts__`).
-   Neither (a session that uses an API key has none) → one line: "No feature page here: pages are
+2. The page is published with the Artifact tool (`action: list`, `read`, publish). No such tool (a
+   session that uses an API key has none) → one line: "No feature page here: pages are
    published only when Claude Code is signed in to a claude.ai account." Stop; nothing else runs.
 3. Run `node "<keel>/scripts/feature-page.js" "<project>" [<feature>] [--lang <code>]`; here only its
    `title:`, `code:` and `code written:` lines count.
@@ -43,17 +40,13 @@ so an update translates only what changed.
    - `feature-page: refused (<why>)` or `unavailable` → say why in plain words and stop. Refused for
      paths of this machine: show the `- ` lines below it (file, path, line); they are fixed in those
      files, never on the page.
-4. Find the page. List your own pages: **A** `action: list`, mine, `limit` 200; **B**
-   `list_artifacts`, `limit` 500, the entries marked mine. This feature's page is the one whose title
+4. Find the page. List your own pages: `action: list`, mine, `limit` 200. This feature's page is the one whose title
    ends with ` (<code>)`, the `code:` line; the rest of its title may have changed.
    - One → the page to update. Read it into a file, never the whole page into the conversation (the
-     earlier page: its language and translations):
-     - **A**: `action: read`, its `url`, `path` "index.html"; the result says where the file is.
-     - **B**: `read_artifact`, its slug, `offset` 1, `limit` 20: the page's first lines hold its
-       language and its translations. Write those lines as they are (without the wrapper tag around
-       them) to `<project>/.keel/local/tmp/feature-page/earlier.html`; that is the file.
+     earlier page: its language and translations): `action: read`, its `url`, `path` "index.html";
+     the result says where the file is.
    - Several → ask which to update (their links), or a new page.
-   - None and the listing may hold more pages than it shows (**A** `200 of <N>`; **B** 500 entries) →
+   - None and the listing may hold more pages than it shows (`200 of <N>`) →
      ask: "I did not find the page among your latest ones. Give its link, or I make a new one." A link
      whose title ends with ` (<code>)` → the page to update, read as above; another → say it is not
      this feature's page and make a new one.
@@ -69,16 +62,10 @@ so an update translates only what changed.
 6. Read the whole page file and the `style.css` beside it (a page is published only once read in
    full), then publish both:
    An update whose title is not the `title:` line any more (a new heading or repository) takes that
-   title too: **B** `title`; **A** the tool's title, when it takes one.
-   - **A**: the Artifact tool, `file_path` that file and `files` `{ "style.css": "<the style.css beside
-     it>" }`: an update with the page's `url`; a new page with
-     `icon` "document" and `description` "Feature <feature>: its overview, tickets with their states,
-     and research." An update refused for not reading the page first → publish the same files again.
-   - **B**: `publish_files`, `files` `[{ "as": "index.html", "path": "<that file, absolute>" }, { "as":
-     "style.css", "path": "<the style.css beside it, absolute>" }]`. An
-     update: first `get_artifact` of its slug, then `slug`, `base_version` its `version`, and
-     `shared_live` its `read` when that is not `owner`. A new page: `title` the `title:` line
-     and `icon` "document". Refused for a newer version → `get_artifact` again and publish again.
+   title too (the tool's title, when it takes one). The Artifact tool, `file_path` that file and `files`
+   `{ "style.css": "<the style.css beside it>" }`: an update with the page's `url`; a new page with
+   `icon` "document" and `description` "Feature <feature>: its overview, tickets with their states,
+   and research." An update refused for not reading the page first → publish the same files again.
    Then run `node "<keel>/scripts/feature-page.js" "<project>" clean`.
 7. Tell the result in one or two lines: "Done: the page of feature <feature>, <n> tickets, as of
    commit <the `as of:` hashes>, in <language>." with the link, and whether it is new or updated.

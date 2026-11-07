@@ -39,8 +39,8 @@ keel runs hooks and Node scripts with your user's rights inside Claude Code. In 
   unless prompt previews are off, the first 100 characters of each request with secrets masked
   (best effort, by patterns). It also holds hourly totals of all Claude Code sessions on the machine
   (no session id, project or text), the machine name, your git email (`user.email`, unless the
-  machine's usage settings name a `user`), a random install id and the checksums of its month files. With the built-in page tools the data are in the
-  page's database; with the `claude-artifacts` tools, in page files. `/keel:usage off` stops the sync.
+  machine's usage settings name a `user`). The data are in the page's database. `/keel:usage off` stops
+  the sync.
   Besides that, keel's git steps talk to your remote (autonomous
   mode, or a step you ask for), a task link you give is read with a connector, `gh` or a web fetch, setup lists
   the plugins of the marketplaces you added, a price update you ask for reads the official pricing

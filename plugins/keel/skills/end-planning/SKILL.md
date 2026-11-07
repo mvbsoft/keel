@@ -67,13 +67,13 @@ Current state of this project:
 7. **Always**, whatever happened above (also after a stop or a no):
    `plans.js mark clear --session <sid>` → `planning: none`. A question waiting for the user's answer
    ends the turn, not the command: steps 7-9 run once the answer is handled.
-8. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-4 with session id
+8. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-3 with session id
    `${CLAUDE_SESSION_ID}` and `--feature <f>` (`<f>` of step 2; no level: planning has no
-   verification); its step 5 runs in step 9.
+   verification); its step 4 runs in step 9.
 9. Report, one message in the conversation language, short: **Done** (mode, the plan's state, tickets,
    what changed); **Reviews** (found, fixed, deferred to Q, rejected; failed reviews named; or "no
    review: nothing changed"); **Git** (commit, branch, pushed or not; or nothing); **What next** (A:
    "Continue with `/keel:start-planning <f>`: <Next action>"; B or an exported feature: the feature
    folder and "a ticket starts with `/keel:start-task <KEY>`"; all: "/clear before other work keeps
-   it apart and costs less"); **Costs**: run usage-sync.md step 5 last and give its text as
+   it apart and costs less"); **Costs**: run usage-sync.md step 4 last and give its text as
    `<keel>/skills/_shared/final-report.md` block 5 says (read only that block).

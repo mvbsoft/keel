@@ -29,8 +29,8 @@ function loadMachineConfig(env = process.env) {
   const raw = readJson(path.join(usageDir(env), 'usage.json'));
   const c = raw && typeof raw === 'object' ? raw : {};
   return {
-    // Keys keel writes on its own (sync on/off, the page's id and template) do not make a machine configured.
-    configured: Object.keys(c).some((k) => !['sync', 'sync_off_since', 'install_id', 'page_template'].includes(k)),
+    // Keys keel writes on its own (sync on/off, the page's template) do not make a machine configured.
+    configured: Object.keys(c).some((k) => !['sync', 'sync_off_since', 'page_template'].includes(k)),
     pc: typeof c.pc === 'string' && c.pc ? c.pc : os.hostname(),
     user: typeof c.user === 'string' && c.user ? c.user : gitEmail(),
     wallet_default: WALLETS.includes(c.wallet_default) ? c.wallet_default : 'subscription',
@@ -39,13 +39,11 @@ function loadMachineConfig(env = process.env) {
     prompt_preview: c.prompt_preview !== false,
     history_days: Number.isInteger(c.history_days) && c.history_days >= 0 ? c.history_days : 30,
     artifact_url: typeof c.artifact_url === 'string' && c.artifact_url ? c.artifact_url : null,
-    // the page's template fingerprint (data/index.json or meta/settings `template`), as this machine last saw it
+    // the page's template fingerprint (its meta/settings `template`), as this machine last saw it
     page_template: typeof c.page_template === 'string' && c.page_template ? c.page_template : null,
-    // false: nothing is sent to the page from this machine; the local collection goes on
+    // false: nothing is sent to the page from this machine
     sync: c.sync !== false,
     sync_off_since: typeof c.sync_off_since === 'string' && c.sync_off_since ? c.sync_off_since : null,
-    // random id of this install on the page (data/index.json), so two machines with one name are told apart
-    install_id: typeof c.install_id === 'string' && c.install_id ? c.install_id : null,
     statusline: c.statusline && typeof c.statusline === 'object' ? c.statusline : { mode: 'none' },
   };
 }

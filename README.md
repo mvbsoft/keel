@@ -96,8 +96,8 @@ Standard's on every change.
 - **You know what the work cost.** Every end of work shows a table of who ran, the tokens and the
   dollars (exact with an API key), and on a subscription the share of your plan limits (once keel has
   measured it). A private dashboard in your claude.ai account collects every machine; with an API key
-  only there is no page, just the report. Update keel on every machine that syncs to it. A session gets
-  one of two page tool sets, chosen by Anthropic per session; [details](docs/usage-dashboard.md#syncing-between-machines).
+  only there is no page, just the report. Update keel on every machine that syncs to it
+  ([details](docs/usage-dashboard.md#syncing-between-machines)).
 - **Your team works one way.** The project's keel settings live in git, so everyone plans, checks and
   commits by the same rules.
 

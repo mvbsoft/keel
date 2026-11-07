@@ -14,8 +14,8 @@
 //   and nowhere else; notes.js `task` writes keel's task folders (.keel/tasks/, .keel/local/); the
 //   script touches only `.keel/tasks/<id>/` or `.keel/local/tasks/<id>/` for a validated id and refuses
 //   any link on the way or inside; usage.js takes the project as `--project` (it must be the current
-//   project), its `--out` folder must be under that project's .keel/local/usage/ and its `--keel`,
-//   `--page` and every `--take` file under .keel/local/;
+//   project), its `--out` folder must be under that project's .keel/local/usage/ and its `--keel`
+//   file and `--page` folder under .keel/local/;
 // - asks, so Claude Code itself shows the confirmation with keel's reason in the conversation language,
 //   also when the user's allow rules would let it run: notes.js `task delete` (a finished task's folder
 //   to keel's trash; denied with the reason while no verification is recorded) and `task drop`,
@@ -252,13 +252,8 @@ function ownScript(name, argText, projectDir, bash) {
     // prepare and report read and write a project's files: without --project they would use the
     // shell's folder, which may be another project.
     if (['prepare', 'report'].includes(pos[0]) && opts.project === undefined) return null;
-    const under = { out: local && path.join(local, 'usage'), keel: local, page: local, take: local };
-    // usage.js keeps every --take, so each one is checked, not only the last one parseArgs keeps.
-    const given = (k) => argv.flatMap((a, i) => (a === `--${k}` ? [i + 1 < argv.length && !argv[i + 1].startsWith('--') ? argv[i + 1] : true] : []));
-    for (const k of Object.keys(under)) {
-      // --page none: the page has no data/index.json yet; --take none: the page could not give a month file.
-      if (given(k).some((v) => !((k === 'page' || k === 'take') && v === 'none') && !(local && typeof v === 'string' && inside(v, under[k])))) return null;
-    }
+    const under = { out: local && path.join(local, 'usage'), keel: local, page: local };
+    for (const k of Object.keys(under)) if (opts[k] !== undefined && !(local && typeof opts[k] === 'string' && inside(opts[k], under[k]))) return null;
     // No usage.js step is confirmed, and --feature takes a feature name (empty-trash is one), so
     // CONFIRMED_WORDS are not refused here.
     return allow('keel runs its own usage.js');

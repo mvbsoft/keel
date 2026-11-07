@@ -169,8 +169,6 @@ conversation without keel shows up only in the hourly totals.
 
 - the machine name, your git email (to tell machines and people apart) and the machine's
   `wallet_default`;
-- a random install id (it tells two machines with one name apart) and, with page files, the checksum
-  (sha256) of each of this machine's month files; the index also holds the keel version of the page;
 - per hour: dollars, requests and tokens by model and wallet;
 - the plan-limit percentages with their reset times (and the spend limit when Claude Code gives one),
   and Claude Code's own cost of the session that recorded them;
@@ -207,43 +205,30 @@ A project can only turn previews off: when the machine's value is off, a project
 
 ## Syncing between machines
 
-Which page tools a Claude Code session gets is decided by Anthropic per session, and a restart does not
-change it: either the `claude-artifacts` tools or the built-in `Artifact` and `ArtifactData` tools. keel
-works with either, and the dashboard shows the same numbers.
+Each end step (`/keel:end-task`, `/keel:end-session`, `/keel:end-planning`) builds this machine's days from
+Claude Code's logs, compares them with what it sent before (`sync-state.json`) and writes only the day
+documents that changed to the page's database, through files, never through the conversation. One
+document holds one day of one machine (`<date>_<pc>`); a large day is split into parts. It costs about
+$0.01-0.04 (an estimate). The first sync reaches back 30 days (`history_days`). Then keel reads the other
+machines' data back to calibrate the limits, and the page's settings to know whether it runs this keel's
+page ([updating the page](#updating-the-page)).
 
-- With the `claude-artifacts` tools a sync writes **page files**: `data/<pc>-<YYYY-MM>.json`, one per
-  machine and month, written only by that machine, and the shared `data/index.json`. The index has an
-  entry for every machine: its name, install id, last sync, the recent 35 days of hourly totals (for the
-  limit calibration) and the sha256 of each of its month files.
-- With the built-in tools a sync writes the page's database, as older keel versions did.
-
-The dashboard reads both and counts each session once; where the two hold the same session, the newer copy
-wins. Each end step (`/keel:end-task`, `/keel:end-session`, `/keel:end-planning`) builds this machine's month
-files from Claude Code's logs and publishes them. The first sync reaches back 30 days (`history_days`).
-After it, keel reads the other machines' entries from the index to calibrate the limits.
-
-- **The page version is the lock.** A publish against an older version is refused and the sync starts again
-  once, so two machines syncing at the same time do not overwrite each other.
-- **Nothing is lost.** A machine with a page keeps its own month files locally in
-  `~/.claude/keel/usage-files/`. They are built at every end step, also when the sync is off; a machine
-  without a page keeps none (the files hold prompt previews). A machine whose local files are gone reads
-  its month files back from the page before it publishes, as many per sync as one read takes (32 files,
-  4 MiB; newest first), and leaves the others on the page as they are until a later sync reads them. A page
-  copy of the wrong shape cannot be merged: this machine's own copy of that month, when it has one, replaces
-  it.
-- **A session without any page tools** (for example one with an API key only) cannot write to the page: the
-  sync waits, the report says so in one line, and the next session that can send everything collected.
-- **A machine name used by another install is not overwritten.** The sync waits and the report says to
-  rename the machine in `/keel:configure`. A machine without an install id (for example after a
-  reinstall) whose name is already on the page asks whether it is the same machine. On yes it goes on
-  syncing as that machine; on no you rename it in `/keel:configure`.
-
-Writing to the page costs a few cents per sync (an estimate); collecting the numbers costs nothing.
+- **Days already on the page stay.** A sync never deletes: when Claude Code removes old logs (after 30
+  days by default), the days built from them stay on the page as they were. Only a
+  [clear](#clearing-the-page) deletes them. A machine that does not sync for longer than its logs are kept
+  loses the days whose logs are gone.
+- **Two machines syncing at the same time** do not overwrite each other: each writes only its own days, and
+  a document changed meanwhile is refused and written again once.
+- **Machine names must differ.** The document id holds the machine name, so two machines with the same
+  name write over each other's days. Give each machine its own name in `/keel:configure usage`.
+- **A session without the page tool** (for example one with an API key only) cannot write to the page: the
+  sync waits, the report says so in one line, and the next session that can sends what the logs still hold.
 
 ### Turning the sync on and off
 
-`/keel:usage off` stops this machine's sync: the page and its data stay, and costs are still collected
-locally. `/keel:usage on` sends everything collected meanwhile, or sets the page up if there is none.
+`/keel:usage off` stops this machine's sync: the page and its data stay, and the end reports still show
+the costs. `/keel:usage on` sends what Claude Code's logs still hold of the time it was off (they keep 30 days by
+default, so a longer break leaves a gap on the page), or sets the page up if there is none.
 The same from a shell: `node usage-setup.js <project> sync on|off`; `show` prints `sync: on` or
 `sync: off since <date>`. The settings are in `~/.claude/keel/usage.json` ([settings](settings.md#this-machine)).
 
@@ -253,77 +238,51 @@ There is no shared project page: `usage.artifact_url` in `.keel/config.json` is 
 machine syncs to its owner's own page, and its owner can show it to others with Share on the page. The key
 is still accepted in the config but ignored, and keel says so once per machine.
 
-### Update keel on every machine
-
-An older keel on another machine writes only the database and does not read the index, so its data would
-not reach the new view and it would not see the other machines. A machine with an older keel than the one
-the page runs also leaves the page files alone (see [updating the page](#updating-the-page)). Update keel
-on every machine that syncs to the page.
-
 ## Updating the page
 
 A page is a copy of keel's page files made when it was created, so a newer keel's page does not reach it
-by itself. When this machine's page was made by an older keel, `/keel:usage` says so. What happens next
-depends on the page tools of the session (see [syncing](#syncing-between-machines)):
+by itself. When this machine's page was made by an older keel, `/keel:usage` says so and
+`/keel:configure usage` offers the update. After your yes keel reads the page (the Artifact tool publishes
+over a page only after a read; about $0.1-0.3, an estimate) and publishes keel's current page files to the
+same address. The data stays: every machine's days, the calibration and the page's language live in the
+page's database, not in its files. keel stops and changes nothing when the page is not titled "keel usage"
+or you cannot edit it.
 
-- **`claude-artifacts` tools:** there is no question. A normal sync publishes keel's current page files
-  together with the data when the page runs an older keel.
-- **Built-in tools:** `/keel:configure usage` offers the update. After your yes keel reads the page and
-  publishes keel's current page files to the same address (about $0.1-0.3, an estimate). keel stops and
-  changes nothing when the page is not titled "keel usage" or you cannot edit it.
-
-The data stays: the month files, the index and the page's database and its language.
-
-`data/index.json` holds the `keel_version` of the keel whose page files the page runs. With the
-`claude-artifacts` tools, a machine with an **older** keel than that leaves the page files alone, so the
-page of the newest keel wins. The built-in tools cannot see that version: their update offer can put an
-older page back over a newer one, so keel says so before you answer. Update keel on every machine that
-syncs to the page.
+keel cannot see which keel version made the page, so an update from a machine with an older keel puts an
+older page back over a newer one; keel says so before you answer. Update keel on every machine that syncs
+to the page.
 
 The page itself says which keel page it runs: creating or updating it writes a fingerprint of the page
-files into the page's settings (next to its language) or, with page files, into the index. Each end step
-reads it back and keeps this machine's copy (`page_template`), so after an update from one machine every
-other machine stops offering it at its next end step. A page made before keel wrote the fingerprint has
-none and is offered the update.
+files into the page's settings (next to its language). Each end step reads it back and keeps this machine's
+copy (`page_template`), so after an update from one machine every other machine stops offering it at its
+next end step. A page made before keel wrote the fingerprint has none and is offered the update.
 
 ## Clearing the page
 
-`/keel:usage-clear` clears **only the machine it runs on** and keeps the page. Other machines' data on the
-page stays as it is. To clear the whole page, run `/keel:usage-clear` on every machine. It clears what the
-session's page tools reach, reads what is there (the contents never enter the conversation) and shows what
-would go:
-
-- page files: this machine's months, from the first to the last, and its dollars of the last 35 days;
-- database documents: this machine's days, from the first to the last, with the number of sessions and
-  their dollars, all usage in that period, the calibration data, the size in KB, and the number of delete
-  calls in the chat (each needs your approval; the end report shows the real cost).
+`/keel:usage clear` clears **only the machine it runs on** and keeps the page. Other machines' data on the
+page stays as it is. To clear the whole page, run `/keel:usage clear` on every machine. It reads the
+page's documents into `.keel/local/usage/clear` (their contents never enter the conversation) and shows
+what would go: this machine's days, from the first to the last, with the number of sessions and their
+dollars, all usage in that period, the calibration data, the size in KB, and the number of delete calls in
+the chat (each needs your approval; the end report shows the real cost).
 
 And what it affects: this machine's data on the page starts over from the next `/keel:end-task`,
 `/keel:end-session` or `/keel:end-planning`; everyone the page is shared with sees the change; it cannot be
 undone, because keel keeps no copy of the page. You answer "Delete this PC's data on the page?"; "No, keep
 it" is the first option, and only an explicit yes deletes.
 
-What goes: this machine's month files and its entry's months in `data/index.json` (the other machines'
-entries stay), its database documents (its days, `machines/<pc>` and `calib/<pc>`) and its local month
-files in `~/.claude/keel/usage-files/`. Page files are removed by publishes in batches of at most 256.
-An entry with this machine's name but another install id belongs to another PC: the clear leaves it, and
-says so. After the clear this machine sends only what happens from the clear on, rebuilt from the Claude Code logs
-from that moment. Its logs, limit records and calibration stay, so the cost report and the limit
-percentages keep working, and so do the page's language setting and the dashboard (it hides nothing by
-date). To remove the page itself, ask Claude to delete it and run `/keel:configure usage` for a new one.
-
-A session gets one of two page tool sets, and a clear in a session with only one set removes only what
-that set reaches: the built-in tools delete the database documents, the `claude-artifacts` tools remove
-the page files. The rest of this machine's data stays visible until a session with the other tools runs
-`/keel:usage-clear`. After a clear with the built-in tools only, this machine's next page-file sync
-removes its own old page files by itself (they are from before its clear).
+What goes: this machine's day documents, `machines/<pc>` and `calib/<pc>`. After the clear this machine
+sends only what happens from the clear on, rebuilt from the Claude Code logs from that moment. Its logs,
+limit records and calibration stay, so the cost report and the limit percentages keep working, and so do
+the page's language setting and the dashboard (it hides nothing by date). To remove the page itself, ask
+Claude to delete it and run `/keel:configure usage` for a new one.
 
 ## Checking the page against the logs
 
 `node <keel>/scripts/usage.js audit --page <folder>` (`<keel>` is the plugin folder; in this repository
 `plugins/keel`) compares this machine's dollars and tokens per session on the page with the local
-transcripts. `<folder>` is a folder under the project's `.keel/local/` with the page files and database
-documents saved from the page; any other folder is refused. The expected number of differences is zero.
+transcripts. `<folder>` is a folder under the project's `.keel/local/` with the database documents saved from
+the page; any other folder is refused. The expected number of differences is zero.
 It also names the difference between keel's dollars and Claude Code's own cost.
 
 ## Prices

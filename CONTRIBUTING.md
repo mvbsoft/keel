@@ -97,10 +97,9 @@ keel's fixed texts (usage report, context warning, dashboard) live in two places
 
 At run time a key missing from a catalog falls back to English.
 
-The usage code: the page-file format and merge rules are in `plugins/keel/scripts/lib/usage-files.js`,
-the page-file sync in `lib/usage-page-sync.js`, the check against the logs in `lib/usage-audit.js`; the
-page itself is `plugins/keel/templates/usage/`. Their tests are `tests/usage-files.test.js`,
-`usage-page-sync.test.js`, `usage-clear.test.js`, `usage-pivot.test.js` and
+The usage code: the sync is `plugins/keel/scripts/usage.js` with `lib/usage-store.js`, the check against
+the logs `lib/usage-audit.js`; the page itself is `plugins/keel/templates/usage/`. Their tests are
+`tests/usage-cli.test.js`, `usage-page-sync.test.js`, `usage-clear.test.js`, `usage-pivot.test.js` and
 `usage-page-scripts.test.js`. How the sync works: [usage dashboard](docs/usage-dashboard.md#syncing-between-machines).
 
 ## Commits

@@ -171,9 +171,8 @@ test('apply: an unknown key or a bad value is refused and nothing is written', (
     // keys of the shared project page, which keel no longer uses
     [{ approved_artifact_urls: ['https://claude.ai/artifact/x'] }, 'approved_artifact_urls'],
     [{ page_shared: true }, 'page_shared'],
-    // written by usage-setup.js sync and by the sync itself, never by apply
+    // written by usage-setup.js sync, never by apply
     [{ sync: false }, 'sync'],
-    [{ install_id: 'x' }, 'install_id'],
     [{ page_template: '0123456789AB' }, 'page_template'],
     [{ page_template: '0123456789a' }, 'page_template'],
     [{ page_template: '0123456789abc' }, 'page_template'],

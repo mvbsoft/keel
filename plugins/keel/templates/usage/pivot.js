@@ -1,7 +1,7 @@
 'use strict';
 // keel usage dashboard: pure data functions (no DOM, no dependencies). Works in the browser as
-// window.KeelPivot and in node via require. Input is day documents: the `days` collection of the artifact
-// database (scripts/lib/usage-store.js) and the days of the page's month files (scripts/lib/usage-files.js); output feeds the Dashboard, Analysis, Sessions, Session and
+// window.KeelPivot and in node via require. Input is the `days` collection of the artifact database
+// (written by scripts/lib/usage-store.js); output feeds the Dashboard, Analysis, Sessions, Session and
 // Calibration tabs.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -100,22 +100,17 @@
   // ---- flatten -------------------------------------------------------------------------------------
   function flatten(docs) {
     const list = (docs || []).filter(Boolean);
-    // 1. the same doc id twice (a re-sync, or a database document and a month-file day of the same date and pc):
-    // the later synced_until keeps its hours and snapshots; the other copy still gives its sessions (step 2) and
-    // the snapshots the winner lacks, so what only that copy knows is not lost.
+    // 1. the same doc twice (re-sync): keep the one with the later synced_until, the later one on a tie.
     const byDoc = new Map();
-    const shadowed = [];
     for (const d of list) {
       const id = `${d.date}_${d.pc}_${d.part || 1}`;
       const old = byDoc.get(id);
-      if (!old) byDoc.set(id, d);
-      else if (ms(d.synced_until) < ms(old.synced_until)) shadowed.push(d);
-      else { byDoc.set(id, d); shadowed.push(old); }
+      if (!old || !(ms(d.synced_until) < ms(old.synced_until))) byDoc.set(id, d);
     }
     const uniq = [...byDoc.values()];
-    // 2. the same session in two docs: keep the doc with the later synced_until (the first one on a tie).
+    // 2. the same session in two docs: keep the doc with the later synced_until.
     const bySession = new Map();
-    for (const d of [...uniq, ...shadowed]) {
+    for (const d of uniq) {
       for (const s of d.sessions || []) {
         const old = bySession.get(s.id);
         if (!old || ms(d.synced_until) > ms(old.doc.synced_until)) bySession.set(s.id, { s, doc: d });
@@ -203,103 +198,8 @@
       for (const h of d.hours || []) hours.push({ ...h, date: d.date, pc: d.pc, user: d.user });
       for (const sn of d.snapshots || []) snapshots.push({ ...sn, pc: d.pc, user: d.user });
     }
-    const snapKey = (sn) => `${sn.pc}|${sn.t}|${sn.five_hour}|${sn.seven_day}|${sn.session_id}`;
-    const have = new Set(snapshots.map(snapKey));
-    for (const d of shadowed) {
-      for (const sn of d.snapshots || []) {
-        const one = { ...sn, pc: d.pc, user: d.user };
-        if (!have.has(snapKey(one))) { have.add(snapKey(one)); snapshots.push(one); }
-      }
-    }
     hours.sort((a, b) => strCmp(a.date, b.date) || strCmp(String(a.h), String(b.h)) || strCmp(a.pc, b.pc));
     return { sessions, rows, hours, snapshots };
-  }
-
-  // ---- page files ----------------------------------------------------------------------------------
-  const PC_ID = /^[A-Za-z0-9_-]+$/;
-
-  // The days of one month file as the day documents flatten reads. The file name and the index say whose
-  // days they are; a day has no part, so it shares the id `${date}_${pc}_1` with part 1 of a database document.
-  function docsOfMonth(pc, user, days) {
-    return (days || [])
-      .filter((d) => d && /^\d{4}-\d{2}-\d{2}$/.test(d.date))
-      .map((d) => ({ date: d.date, pc, user: user || null, part: 1, synced_until: d.synced_until, hours: d.hours || [], snapshots: d.snapshots || [], sessions: d.sessions || [] }));
-  }
-
-  // 'YYYY-MM' of every month from the month of `from` to the month of `to` (both 'YYYY-MM-DD').
-  function monthsBetween(from, to) {
-    if (!/^\d{4}-\d{2}/.test(from || '') || !/^\d{4}-\d{2}/.test(to || '')) return [];
-    const out = [];
-    let y = Number(from.slice(0, 4));
-    let m = Number(from.slice(5, 7));
-    for (let key = from.slice(0, 7); key <= to.slice(0, 7); key = `${y}-${pad2(m)}`) {
-      out.push(key);
-      m += 1;
-      if (m > 12) { m = 1; y += 1; }
-    }
-    return out;
-  }
-
-  const dayShaped = (d) => !!d && typeof d === 'object' && Array.isArray(d.hours) && Array.isArray(d.snapshots) && Array.isArray(d.sessions);
-
-  // Reads data/index.json and the month files of the months between `from` and `to`, for every machine whose index
-  // entry lists the month. fetchJson(path) resolves to the parsed file or rejects. Never rejects itself: a missing
-  // index gives index null; a month file that does not load, or has a day of the wrong shape, is named in `failed`
-  // and the rest is shown.
-  async function loadPageData({ fetchJson, from, to }) {
-    let index = null;
-    try { index = await fetchJson('data/index.json'); } catch (e) { index = null; }
-    if (!index || typeof index !== 'object' || !index.pcs || typeof index.pcs !== 'object') return { index: null, docs: [], failed: [] };
-    const wanted = [];
-    for (const [pc, entry] of Object.entries(index.pcs)) {
-      if (!PC_ID.test(pc) || !entry || !entry.months || typeof entry.months !== 'object') continue;
-      for (const month of monthsBetween(from, to)) {
-        if (Object.prototype.hasOwnProperty.call(entry.months, month)) wanted.push({ pc, user: entry.user, path: `data/${pc}-${month}.json` });
-      }
-    }
-    const loaded = await Promise.allSettled(wanted.map((w) => fetchJson(w.path)));
-    const docs = [];
-    const failed = [];
-    loaded.forEach((r, i) => {
-      const file = r.status === 'fulfilled' ? r.value : null;
-      if (!file || !Array.isArray(file.days) || !file.days.every(dayShaped)) { failed.push(wanted[i].path); return; }
-      docs.push(...docsOfMonth(wanted[i].pc, wanted[i].user, file.days));
-    });
-    return { index, docs, failed };
-  }
-
-  // What the index tells the Calibration tab: a row per machine and the latest calibration each one published.
-  function indexMachines(index) {
-    const pcs = (index && index.pcs) || {};
-    const machines = [];
-    const calibs = [];
-    for (const [pc, e] of Object.entries(pcs)) {
-      if (!e) continue;
-      // The entry's own name, as database machine documents carry it: the key is the name made file-safe.
-      machines.push({ name: typeof e.name === 'string' && e.name ? e.name : pc, synced_until: e.synced_until, last_seen: e.last_seen });
-      if (e.calib && typeof e.calib === 'object') calibs.push({ pc, ...e.calib });
-    }
-    return { machines, calibs };
-  }
-
-  // The database and the page files are two sources of one picture. db: {docs, machines, calibs, settings} or
-  // null; page: loadPageData's result. All days go into one list for flatten (it counts a session once, from the
-  // copy synced last). A machine seen in both sources keeps the entry synced last.
-  function combineSources(db, page) {
-    const index = page && page.index;
-    const settings = (db && db.settings) || {};
-    const fromIndex = indexMachines(index);
-    const machines = new Map();
-    for (const m of [...((db && db.machines) || []), ...fromIndex.machines]) {
-      const old = machines.get(m.name);
-      if (!old || !(ms(m.synced_until) < ms(old.synced_until))) machines.set(m.name, m);
-    }
-    return {
-      docs: [...((db && db.docs) || []), ...((page && page.docs) || [])],
-      machines: [...machines.values()],
-      calibs: [...((db && db.calibs) || []), ...fromIndex.calibs],
-      language: (index && index.language) || settings.language || null,
-    };
   }
 
   // ---- filter --------------------------------------------------------------------------------------
@@ -663,6 +563,5 @@
     flatten, filter, group, share, stats, weekly, dailyByModel, mainVsAgents, tokenKinds, topProjects,
     sessionsTable, toCSV, sessionPage, calibrationView,
     measures: MEASURES, value, family, isoWeek,
-    docsOfMonth, monthsBetween, loadPageData, combineSources,
   };
 });

@@ -66,9 +66,9 @@ Current state of this project:
    `status: handed-off`, `updated` (today), `after_commit` (`git rev-parse --short HEAD` now; the file's
    own commit follows), `branch`. Then `notes.js check`; the task `over the limit` → compress as that
    section says. Before the git step, so the file is in the commit.
-7. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-4 with session id
+7. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-3 with session id
    `${CLAUDE_SESSION_ID}` and the level and findings from step 4 (it reads the task title, so it runs
-   before the deletion); its step 5 runs in step 11, right before the report.
+   before the deletion); its step 4 runs in step 11, right before the report.
    **Finish**: say in one line "Claude Code will now ask you to confirm: the task is done and its
    folder `<folder>` goes to keel's trash." Then run
    `node "<keel>/scripts/notes.js" "<project>" task delete <id> --session <sid>` (before git, so the
@@ -112,5 +112,5 @@ Current state of this project:
 9. Hand off: `node "<keel>/scripts/notes.js" "<project>" task deactivate --session <sid>`.
 10. Run `node "<keel>/scripts/cleanup.js" "<project>" reminder`; its line goes into the report only
     when it names `/keel:cleanup`.
-11. Report: run usage-sync.md step 5 (the cost report), then read
+11. Report: run usage-sync.md step 4 (the cost report), then read
     `<keel>/skills/_shared/final-report.md` and follow it.

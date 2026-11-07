@@ -39,7 +39,7 @@
     walletName, walletChip, cap, dimLabel, today, addDays,
   } = window.KeelFormat(P, t, () => lang);
   const { css, PAL, order, colorFor, chartDefaults } = window.KeelColors();
-  const { loadFromDb, fetchJson, sleep } = window.KeelLoad();
+  const { loadFromDb, sleep } = window.KeelLoad();
 
   // ---- state ---------------------------------------------------------------------------------------
   const store = {
@@ -47,7 +47,7 @@
     set(k, v) { try { sessionStorage.setItem('keel-usage.' + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } },
   };
   const S = {
-    mode: 'loading', demo: false, error: null, db: null, downloads: null, failedFiles: 0,
+    mode: 'loading', demo: false, error: null, db: null, downloads: null,
     range: store.get('range') || { preset: '30', from: addDays(today(), -29), to: today() },
     docs: [], machines: [], calibs: [], calib: null,
     flat: { sessions: [], rows: [], hours: [], snapshots: [] }, rows: [], sessions: [],
@@ -70,21 +70,15 @@
   async function reload() {
     const seq = ++loadSeq;
     if (S.demo) { derive(); render(); return; }
+    if (!S.db) return;
     S.mode = 'loading'; render();
     try {
       const from = S.range.from < addDays(today(), -8) ? S.range.from : addDays(today(), -8); // tiles need the current week
       const to = S.range.to > today() ? S.range.to : today();
-      const [page, db] = await Promise.all([P.loadPageData({ fetchJson, from, to }), S.db ? loadFromDb(S.db, from, to).catch((e) => { console.warn('keel usage: the database did not load:', e); return null; }) : null]);
+      const db = await loadFromDb(S.db, from, to);
       if (seq !== loadSeq) return;
-      S.failedFiles = page.failed.length;
-      if (page.failed.length) console.warn('keel usage: these page files did not load:', page.failed.join(', '));
-      if (!db && !page.index) {
-        if (S.db) throw new Error('the database did not load');
-        S.mode = 'nodb'; render(); return;
-      }
-      const all = P.combineSources(db, page);
-      S.docs = all.docs; S.machines = all.machines; S.calibs = all.calibs;
-      if (all.language) lang = all.language === 'uk' ? 'uk' : 'en';
+      S.docs = db.docs; S.machines = db.machines; S.calibs = db.calibs;
+      if (db.settings.language) lang = db.settings.language === 'uk' ? 'uk' : 'en';
       derive(); S.mode = 'ready';
     } catch (e) {
       if (seq !== loadSeq) return;
@@ -103,21 +97,20 @@
       try { db = await claude.use('db'); } catch (e) { db = null; }
       claude.use('downloads').then((d) => { S.downloads = d; if (route().tab === 'sessions') render(); }).catch(() => {});
     }
-    if (!db && wantDemo) { loadDemo((/[?&]lang=(en|uk)/.exec(qs) || [])[1] || 'uk'); return; }
+    if (!db) {
+      if (wantDemo) { loadDemo((/[?&]lang=(en|uk)/.exec(qs) || [])[1] || 'uk'); return; }
+      S.mode = 'nodb'; render(); return;
+    }
     S.db = db;
     await reload();
   }
 
   // ---- demo fixture (local layout check only) ------------------------------------------------------
-  async function loadDemo(l) {
+  function loadDemo(l) {
     lang = l === 'en' ? 'en' : 'uk';
     document.documentElement.lang = lang;
     S.demo = true;
-    // the demo files go through the same loading path as the real page files
-    const { files } = window.KeelUsageDemo(toMs);
-    const page = await P.loadPageData({ fetchJson: async (p) => files[p], from: addDays(today(), -60), to: today() });
-    const all = P.combineSources(null, page);
-    S.docs = all.docs; S.machines = all.machines; S.calibs = all.calibs;
+    Object.assign(S, window.KeelUsageDemo(toMs));
     S.mode = 'ready';
     derive(); render();
   }
@@ -587,8 +580,7 @@
         <label class="sr" for="rgFrom">${esc(t('filter.from'))}</label><input type="date" id="rgFrom" data-range="from" value="${esc(S.range.from)}">
         <label class="sr" for="rgTo">${esc(t('filter.to'))}</label><input type="date" id="rgTo" data-range="to" value="${esc(S.range.to)}">`;
     }
-    $('banner').innerHTML = (S.demo ? `<div class="banner">${esc(t('demo.banner'))}</div>` : '')
-      + (S.mode === 'ready' && S.failedFiles ? `<p class="small muted">${esc(t('load.partial'))}</p>` : '');
+    $('banner').innerHTML = S.demo ? `<div class="banner">${esc(t('demo.banner'))}</div>` : '';
   }
   let current = null;
   function render() {

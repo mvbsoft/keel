@@ -10,7 +10,7 @@
 // owns it. `summary` is the session as its transcript says; `dedup` is the same without the messages others own.
 // A session whose transcript Claude Code deleted stays in the cache, so rebuilding a day keeps its history.
 //   keel-tasks.jsonl             keel fields (task, level, findings...) per session, appended by `usage.js prepare`
-//   sync-state.json              {artifact_url, synced_until, docs, pending, pending_until, files, notes}
+//   sync-state.json              {artifact_url, synced_until, docs, pending, pending_until, notes}
 // Days are UTC dates, hours are UTC hour starts. Never writes outside <usageDir>; read-only on the transcripts.
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -409,14 +409,12 @@ function sessionDoc(sum, wallet, keel, ccCost, withText = true) {
   };
 }
 
-// `counted` (a Set) receives the id of every session with a request counted here.
-function hoursFor(date, summaries, walletFor, fromMs = -Infinity, counted = new Set()) {
+function hoursFor(date, summaries, walletFor, fromMs = -Infinity) {
   const map = new Map();
   for (const sum of summaries) {
     const wallet = walletFor(sum.id);
     for (const q of sum.reqs) {
       if (dayOf(q[0]) !== date || q[0] < fromMs) continue;
-      counted.add(sum.id);
       const h = Math.floor(q[0] / HOUR_MS) * HOUR_MS;
       const key = `${h}|${wallet}`;
       let e = map.get(key);
@@ -471,8 +469,6 @@ function hashOf(doc) {
 
 // Rebuilds the whole UTC days touched by sessions that changed since `sinceMs`.
 // -> {docs: [{id, key, doc, hash}], days, stats, summaries}
-// With `files: true` -> {built: [{date, synced_until, contrib, hours, snapshots, sessions}], days, stats, summaries}:
-// one whole day each, for the month files of lib/usage-files.js; `contrib` lists the sessions counted in the hours.
 function buildDays(opts = {}) {
   const ctx = makeContext(opts);
   const nowMs = opts.nowMs !== undefined ? opts.nowMs : Date.now();
@@ -498,7 +494,7 @@ function buildDays(opts = {}) {
   for (const r of changed) for (const d of daysOf(summaries.get(r.id))) if (dayStart(d) + DAY_MS > fromMs) days.add(d);
   if (!days.size) {
     saveIndex(ctx);
-    return { ...(opts.files ? { built: [] } : { docs: [] }), days: [], stats: ctx.stats, summaries: new Map() };
+    return { docs: [], days: [], stats: ctx.stats, summaries: new Map() };
   }
   const sorted = [...days].sort();
   const earliest = dayStart(sorted[0]);
@@ -521,27 +517,20 @@ function buildDays(opts = {}) {
 
   const walletFor = (id) => walletOf(id, wallets, ctx.machine);
   const docs = [];
-  const whole = [];
   for (const date of sorted) {
     const touching = [...summaries.values()].filter((s) => ctx.index[s.id].days.includes(date));
     const own = touching.filter((s) => s.start && s.start.slice(0, 10) === date && Date.parse(s.start) >= fromMs && isKeelSession(s, keel))
       .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id < b.id ? -1 : 1))
       .map((s) => sessionDoc(s, walletFor(s.id), keel.get(s.id) || null, cc.get(s.id), ctx.withText && previewIn(ctx, s.cwd)));
+    const header = { schema: SCHEMA, date, pc, user: ctx.machine.user || null, part: 1, parts: 1, synced_until: nowIso };
     const daySnaps = snapshots.filter((s) => typeof s.t === 'string' && s.t.slice(0, 10) === date && Date.parse(s.t) >= fromMs);
-    const counted = new Set();
-    const hours = hoursFor(date, touching, walletFor, fromMs, counted);
+    const hours = hoursFor(date, touching, walletFor, fromMs);
     // The day of the clear holds nothing yet: no empty document goes back to the cleared page.
     if (fromMs > -Infinity && !hours.length && !daySnaps.length && !own.length) continue;
-    if (opts.files) {
-      whole.push({ date, synced_until: nowIso, contrib: [...counted].sort(), hours, snapshots: daySnaps, sessions: own });
-      continue;
-    }
-    const header = { schema: SCHEMA, date, pc, user: ctx.machine.user || null, part: 1, parts: 1, synced_until: nowIso };
     const built = packDay(header, hours, daySnaps, own);
     const id = `${date}_${pc}`;
     built.forEach((doc, i) => docs.push({ id: partId(id, i + 1), key: partId(id, i + 1), doc, hash: hashOf(doc) }));
   }
-  if (opts.files) return { built: whole, days: sorted, stats: ctx.stats, summaries };
   return { docs, days: sorted, stats: ctx.stats, summaries };
 }
 
@@ -608,10 +597,9 @@ function readState(dir) {
     sessions_rule: ok && typeof s.sessions_rule === 'string' ? s.sessions_rule : null,
     pending_rule: ok && typeof s.pending_rule === 'string' ? s.pending_rule : null,
     cleared_at: ok && typeof s.cleared_at === 'string' ? s.cleared_at : null,
-    // the clear time of the /keel:usage-clear run in progress; `usage-clear.js done` uses it as cleared_at
+    // the clear time of the /keel:usage clear run in progress; `usage-clear.js done` uses it as cleared_at
     clear_pending_at: ok && typeof s.clear_pending_at === 'string' ? s.clear_pending_at : null,
-    // the page-file sync (lib/usage-page-sync.js) and the lines the next report says once
-    files: ok && s.files && typeof s.files === 'object' && !Array.isArray(s.files) ? s.files : {},
+    // the lines the next report says once
     notes: ok && Array.isArray(s.notes) ? s.notes.filter((n) => n && typeof n.key === 'string') : [],
     team_page_noted: ok && s.team_page_noted === true,
   };
@@ -688,7 +676,7 @@ const later = (a, b) => (!a ? b : !b ? a : Date.parse(a) >= Date.parse(b) ? a : 
 const sameUser = (localUser) => (u) => !localUser || typeof u !== 'string' || !u || u.toLowerCase() === String(localUser).toLowerCase();
 
 module.exports = {
-  MAX_DOC_BYTES, sanitizePc, listSessions, projectFolderName, newestSessionIn, readWallets, walletOf, readKeel, readLines,
+  MAX_DOC_BYTES, sanitizePc, listSessions, projectFolderName, newestSessionIn, readWallets, walletOf, readKeel, recordKeel, readLines,
   buildDays, buildMachineDoc, localRequests, sessionSummary, readState, writeState, stage, ack, packDay, hashOf, sha1, SAFETY_MS,
   DAY_MS, readJson, dayOf, SESSIONS_RULE, earliestDay, later, sameUser,
 };

@@ -5,12 +5,11 @@
 //        node usage-setup.js <projectDir> prices-diff <prices.json> old → new diff and multiplier warnings, writes nothing
 //        node usage-setup.js <projectDir> prices-apply <prices.json> writes the machine price override
 //        node usage-setup.js <projectDir> install-statusline        writes the stable shim, prints the statusLine command
-//        node usage-setup.js <projectDir> sync on|off               turns this machine's page sync on or off (the
-//          local collection goes on either way; after `on` the next sync sends everything collected meanwhile)
+//        node usage-setup.js <projectDir> sync on|off               turns this machine's page sync on or off (after
+//          `on` the next sync sends what Claude Code's logs still hold of the time in between)
 //        node usage-setup.js <projectDir> page                      copies the dashboard page to .keel/local/tmp/usage-page
 //          (the Artifact tool publishes only files under the project or the scratchpad) and prints the
-//          template fingerprint that configure writes to the page (data/index.json or meta/settings `template`)
-//          and to page_template
+//          template fingerprint that configure writes to the page (meta/settings `template`) and to page_template
 // `show` also says what the status line is now: keel's runner, a command keel could wrap, or none,
 // and whether the published page still runs an older template than this keel's.
 // The status line itself is written by claude-settings.js (key statusLine), which keeps a backup.
@@ -196,4 +195,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { show, apply, statusLineState, installStatusline, page, pageTemplate, pricesDiff, pricesApply, setSync, RUNNER, PAGE_FILES, TEMPLATE };
+module.exports = { show, apply, statusLineState, installStatusline, page, pageTemplate, pricesDiff, pricesApply, setSync, RUNNER, PAGE_FILES };

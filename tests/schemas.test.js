@@ -277,35 +277,3 @@ test('ledger-entry.schema.json rejects bad timestamps and negative tokens', () =
   expectInvalid(s, ok, (d) => { d.effort = 'ultra'; }, /effort: must be one of/);
   assert.deepEqual(validate({ ...clone(ok), effort: null, model: null }, s), []);
 });
-
-test('usage-day.schema.json: the page files (month and index) reject broken shapes', () => {
-  const s = load('usage-day.schema.json');
-  const def = (name) => ({ $defs: s.$defs, $ref: `#/$defs/${name}` });
-  const day = EXAMPLES['usage-day.schema.json'];
-  const month = {
-    schema: 2, kind: 'month', pc: 'DESKTOP-1', month: '2026-10',
-    days: [{ date: day.date, synced_until: day.synced_until, contrib: ['s1'], hours: day.hours, snapshots: day.snapshots, sessions: day.sessions }],
-  };
-  assert.deepEqual(validate(month, def('month')), []);
-  expectInvalid(def('month'), month, (d) => { d.schema = 1; }, /schema: must equal 2/);
-  expectInvalid(def('month'), month, (d) => { d.month = '2026-1'; }, /month: does not match/);
-  expectInvalid(def('month'), month, (d) => { delete d.days[0].contrib; }, /missing "contrib"/);
-  expectInvalid(def('month'), month, (d) => { d.days[0].part = 1; }, /part: unexpected property/);
-  const index = {
-    schema: 2, kind: 'index', language: 'en', template: null, keel_version: '1.4.0',
-    pcs: {
-      'DESKTOP-1': {
-        name: 'DESKTOP 1', user: null, wallet_default: 'subscription', install_id: 'i-1', synced_until: null, last_seen: '2026-10-11T20:00:00.000Z',
-        calib: null, recent: { hours: [{ h: '2026-10-11T10:00:00.000Z', wallet: 'subscription', usd: 1.5, by_model: { m: 1.5 } }], snapshots: [] },
-        months: { '2026-10': 'a'.repeat(64) },
-      },
-    },
-  };
-  assert.deepEqual(validate(index, def('index')), []);
-  expectInvalid(def('index'), index, (d) => { d.pcs['DESKTOP-1'].months['2026-10'] = 'abc'; }, /does not match/);
-  expectInvalid(def('index'), index, (d) => { d.pcs['../x'] = d.pcs['DESKTOP-1']; }, /does not match/);
-  expectInvalid(def('index'), index, (d) => { d.pcs['DESKTOP-1'].install_id = ''; }, /install_id: shorter than 1/);
-  expectInvalid(def('index'), index, (d) => { d.template = 'v2'; }, /template: does not match/);
-  expectInvalid(def('index'), index, (d) => { d.keel_version = 'new'; }, /keel_version: does not match/);
-  expectInvalid(def('index'), index, (d) => { d.cleared_at = null; }, /cleared_at: unexpected property/);
-});

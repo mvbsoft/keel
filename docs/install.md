@@ -101,7 +101,7 @@ projects, install with `--scope project` or `--scope local`.
 - `~/.claude/keel/`: the machine's usage settings (`usage.json`), plan-limit snapshots
   (`limits.jsonl`, its previous part `limits.1.jsonl`, `limits-last.json`), the usage data read from
   transcripts for the dashboard (`usage-cache/`, `usage-index.json`, `keel-tasks.jsonl`,
-  `sync-state.json`, this machine's page files in `usage-files/`, the last plan-limit calibration `calib-latest.json`), which wallet each conversation paid from (`sessions.jsonl`),
+  `sync-state.json`, the last plan-limit calibration `calib-latest.json`), which wallet each conversation paid from (`sessions.jsonl`),
   the projects where you confirmed autonomous git (`trusted-git.json`), your updated price table
   (`prices.json`, only after a price update you accepted in `/keel:configure`; the previous one as `prices.json.bak`), the status line script (`statusline.js`) and
   the plugin's folder for it (`plugin-root.txt`);
@@ -154,7 +154,7 @@ keel also leaves these, which you can remove by hand:
   the gate commands under `permissions.allow`, and any project values of the settings above; the
   backup is in `.keel/local/backups/`); the `.claude/settings.local.json` line keel may have added to
   `.gitignore`; and the "Working with Claude Code" section in the README.
-- **The "keel usage" page** in your claude.ai account, if you created it (only with a claude.ai subscription; an API key alone gets no page). Update keel on every machine that syncs to it: [usage dashboard](usage-dashboard.md#update-keel-on-every-machine). A session gets one of two page tool sets, chosen by Anthropic per session: [details](usage-dashboard.md#syncing-between-machines).
+- **The "keel usage" page** in your claude.ai account, if you created it (only with a claude.ai subscription; an API key alone gets no page). Update keel on every machine that syncs to it: [usage dashboard](usage-dashboard.md#updating-the-page).
 
 ## Troubleshooting
 

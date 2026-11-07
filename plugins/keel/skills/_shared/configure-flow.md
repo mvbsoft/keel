@@ -417,8 +417,8 @@ Then, in one question group:
    request; other conversations count only in the hourly totals the limit calibration needs), so it
    shows which project, session, agent or model costs most. It is updated at the end of every
    `/keel:end-*`, for a few cents each (well under 0.1 % of a week's limit). The choice holds for this
-   whole machine; `/keel:usage off` stops the sync later (the costs are still collected here) and
-   `/keel:usage on` starts it again. Nothing leaves the machine except into that private page.
+   whole machine; `/keel:usage off` stops the sync later and `/keel:usage on`
+   starts it again (it sends what Claude Code's logs still hold of that time (they keep 30 days by default)). Nothing leaves the machine except into that private page.
    `artifact_url` in `show` → the page exists: keep it, and when `show` says
    `page template: ... | offer: update` follow `<keel>/skills/_shared/usage-page.md` section Update.
    Yes and no page → `<keel>/skills/_shared/usage-page.md` (it finds the page another machine of the

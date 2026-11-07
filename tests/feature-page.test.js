@@ -270,18 +270,15 @@ gitTest('the page\'s other files lie beside it as they are, and the page loads n
   for (const name of local) assert.ok(fs.existsSync(path.join(dir, name)), `${name} is loaded by the page but is not beside it`);
 });
 
-test('the page\'s other files: the list, the template and both ways of publishing name the same files', () => {
+test('the page\'s other files: the list, the template and the publish step name the same files', () => {
   const template = path.join(__dirname, '..', 'plugins', 'keel', 'templates', 'feature-page');
   assert.deepEqual([...PAGE_ASSETS].sort(), fs.readdirSync(template).filter((n) => n !== 'index.html').sort());
   const skill = fs.readFileSync(path.join(__dirname, '..', 'plugins', 'keel', 'skills', 'feature-page', 'SKILL.md'), 'utf8');
   const step = skill.slice(skill.indexOf('6. Read the whole page file'), skill.indexOf('7. Tell the result'));
-  const a = step.slice(step.indexOf('- **A**'), step.indexOf('- **B**'));
-  const b = step.slice(step.indexOf('- **B**'));
   for (const name of PAGE_ASSETS) {
     const n = name.replace(/\./g, '\\.');
     assert.match(step, new RegExp(`Read the whole page file and the \`${n}\``), `step 6 reads ${name}`);
-    assert.match(a, new RegExp(`"${n}":`), `A publishes ${name}`);
-    assert.match(b, new RegExp(`"as":\\s+"${n}"`), `B publishes ${name}`);
+    assert.match(step, new RegExp(`"${n}":`), `step 6 publishes ${name}`);
   }
 });
 

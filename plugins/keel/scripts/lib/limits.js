@@ -97,7 +97,7 @@ function readSnapshots(dir = usageDir(), { sinceMs } = {}) {
   return out;
 }
 
-// Snapshots from several sources (this machine's log, other machines, page files) once each, sorted by time.
+// Snapshots from several sources (this machine's log, other machines) once each, sorted by time.
 // Two are the same snapshot when time, both percentages and session match; the first one seen is kept.
 function dedupeSnapshots(list) {
   const seen = new Set();

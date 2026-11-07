@@ -7,20 +7,12 @@ All notable changes to keel are listed here. The format follows
 ## [Unreleased]
 
 ### Added
-- The usage page can be fed by page files instead of its database: with the `claude-artifacts` page
-  tools a sync writes `data/<pc>-<YYYY-MM>.json` (one per machine and month) and the shared
-  `data/index.json` (every machine's name, install id, last sync, 35 days of hourly totals for the
-  calibration, sha256 of each month file). Which tool set a session gets is decided by Anthropic per
-  session; keel works with either, the dashboard reads both and counts each session once.
-- Page files are safe to share: the page version is the lock (a refused publish restarts the sync once),
-  each machine keeps its month files in `~/.claude/keel/usage-files/` and restores them from the page
-  when they are gone, and a machine name used by another install is never overwritten (the report says
-  to rename the machine in `/keel:configure`).
+- `/keel:configure usage` asks which page to join when the account has several titled "keel usage", and
+  updating the page no longer stops for the page's owner (the read says "owned
+  by you", not "writer").
 - `/keel:usage on|off` (and `usage-setup.js <project> sync on|off`) turns this machine's sync on or off;
-  costs are still collected locally. `usage.json` gets `sync`, `sync_off_since` and `install_id`.
-- With the `claude-artifacts` tools the page update needs no question: a normal sync publishes keel's current
-  page files with the data. `data/index.json` has `keel_version`; a machine with an older keel than the
-  page's leaves the page files alone, so the newest keel's page wins.
+  the end reports still show the costs, and `on` sends what Claude Code's logs still hold of the time it was off.
+  `usage.json` gets `sync` and `sync_off_since`.
 - `usage.js audit --page <folder>` compares this machine's dollars and tokens per session on the page
   with the local transcripts and names the difference to Claude Code's own cost.
 - The docs and the instructions tell the three account cases: API key only (exact dollars, no usage page,
@@ -140,11 +132,9 @@ All notable changes to keel are listed here. The format follows
 - `usage.artifact_url` in `.keel/config.json` is no longer used: each machine syncs to its owner's own
   page and Share on the page shows it to others. The key stays valid in the schema and is ignored; keel
   says so once per machine.
-- `/keel:usage-clear` clears only the machine it runs on: its month files and its entry's months in
-  `data/index.json`, its database documents and its local month files. Other machines' data stays (to clear
-  the whole page, run it on every machine) and the dashboard hides nothing by date. A clear removes what the
-  session's page tools reach; the warning is per tool set.
-- Update keel on every machine: an older keel writes only the database and does not read the index.
+- `/keel:usage-clear` is now `/keel:usage clear`, and it clears only the machine it runs on: its day,
+  machine and calibration documents. Other machines' data stays (to clear the whole page, run it on every
+  machine) and the dashboard hides nothing by date.
 - Planning has its own page, [docs/planning.md](docs/planning.md); [docs/workflows.md](docs/workflows.md)
   keeps tasks and sessions and links to it.
 - `/keel:start-task` asks once how to go on with a task too big for one: a new chat with a brief,
