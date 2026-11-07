@@ -1,7 +1,5 @@
 # How keel works
 
-[Українська](overview.uk.md)
-
 keel is a Claude Code plugin that runs your work on a project by a set of rules: at the start it
 understands the task and makes a plan, while you work it writes code to your standards, and at the end
 agents verify the change, keel does git (or gives you the commands, in manual mode) and reports the

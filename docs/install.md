@@ -1,7 +1,5 @@
 # Install, update and remove keel
 
-[Українська](install.uk.md)
-
 keel is a Claude Code plugin; you install it once per machine (or per project, see
 [scopes](#install-scope)). This page covers the requirements, installing, what keel changes, updating,
 removing and fixing common problems. Setting up a project after the install:

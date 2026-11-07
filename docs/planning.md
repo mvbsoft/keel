@@ -1,7 +1,5 @@
 # Planning
 
-[Українська](planning.uk.md)
-
 Planning is the third lane of work, next to tasks and sessions ([ways of working](workflows.md)): a
 feature that needs several tasks is talked through before any code and ends as short tickets.
 

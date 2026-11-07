@@ -1,7 +1,5 @@
 # How keel behaves
 
-[Українська](behavior.uk.md)
-
 This page lists what keel does in each situation and what makes sure it happens.
 
 **In short:**

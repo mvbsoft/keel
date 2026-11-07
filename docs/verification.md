@@ -1,7 +1,5 @@
 # Verification levels
 
-[Українська](verification.uk.md)
-
 When you run `/keel:end-task` or `/keel:end-session`, keel checks your change before you commit. There are
 four levels, from the project's own checks only to a full team of agents. keel proposes a level from the
 change; you choose. This page explains what each level does, how the proposal is made, what the report

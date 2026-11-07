@@ -1,7 +1,5 @@
 # Ways of working
 
-[Українська](workflows.uk.md)
-
 keel has three lanes of work:
 
 - **Tasks are point changes.** A separate job with a clear end: a bug, a ticket, a small feature.

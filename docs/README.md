@@ -1,7 +1,5 @@
 # keel documentation
 
-[Українська](README.uk.md)
-
 keel is a plugin that plans, builds and independently verifies your work. Today it runs in Claude Code;
 support for other coding agents is planned. The project overview is in the [main README](../README.md).
 
