@@ -44,7 +44,8 @@ Current state of this project:
    verification. Ambiguous (e.g. only "push": finish or hand off?) → ask, never guess.
 4. Verification. **Finish**: read `<keel>/skills/_shared/verify.md` and follow it, with the task's goal
    and acceptance criteria and the level from the instruction; without one (a menu choice is not a
-   level) the user chooses it (verify.md step 3): ask it as your next message and end your turn.
+   level; a level from a brief, the note or memory is only
+   advice) the user chooses it (verify.md step 3): ask it as your next message and end your turn.
    The task is verified as a whole: when it has its own branch (`branch:` differs from `base:` and we
    are on it), step 1 uses `--base <the task's base branch>`, so commits of earlier sessions are
    covered; a task whose `branch:` equals its `base:` (a planned ticket on its feature branch) and

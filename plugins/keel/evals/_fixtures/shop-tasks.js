@@ -107,7 +107,7 @@ function finish() {
   git('push', '-q', '-u', 'origin', 'CAN-200-free-shipping');
 }
 
-function session() {
+function session({ level } = {}) {
   git('switch', '-q', '-c', 'payments-rework');
   write('src/payment.js', "'use strict';\nconst PROVIDERS = { card: (o) => ({ id: 'pay_' + o.id, amount: o.total, status: 'paid' }) };\nfunction charge(order, card) {\n  if (!card || !card.number) throw new Error('card required');\n  return PROVIDERS.card(order);\n}\nmodule.exports = { charge, PROVIDERS };\n");
   commitAll('Payments: provider table');
@@ -129,7 +129,8 @@ Payments go through a provider table so new providers (invoices, Apple Pay) plug
 
 ## Next action
 Add an "invoice" provider to PROVIDERS in src/payment.js with status "pending", and a test.
-
+${level ? `Then end the session with ${level} verification: it is enough for this line.
+` : ''}
 ## State
 - ✅ provider table (PROVIDERS) in src/payment.js
 - ⬜ invoice provider

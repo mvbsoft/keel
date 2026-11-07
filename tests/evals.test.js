@@ -14,7 +14,7 @@ const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 // The chat the planning cases resume: its id is SID in shop-base.js, each case's history.jsonl keeps it.
 const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(path.join(EVALS, '_fixtures', 'shop-base.js'), 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh'];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh'];
 
 const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
@@ -152,6 +152,10 @@ const STATE = {
     assert.match(out, /^ {2}INV-4 .* — to do · INV-3 only in ticket branch INV-3-[\w-]+$/m, out);
     assert.match(script('plans.js', work, 'tickets', 'INV-4', '--fetch'), /^ {2}depends: INV-3 waiting for merge into the feature branch$/m);
   },
+  // The level is only in the note, never in the command: the run must still ask it.
+  'session-level': (work) => {
+    assert.match(fs.readFileSync(path.join(work, '.keel', 'next-session.md'), 'utf8'), /^Then end the session with Basic verification/m);
+  },
   'task-active': (work, git) => {
     assert.match(script('notes.js', work, 'task', 'active', '--session', SID), /^active task: CAN-123$/m);
     const task = fs.readFileSync(path.join(work, '.keel', 'tasks', 'CAN-123', 'task.md'), 'utf8');
@@ -175,6 +179,7 @@ const STATE = {
 
 test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
   const expect = { base: ['main', 0, ''], tasks: ['main', 0, ''], finish: ['CAN-200-free-shipping', 1, ''], session: ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
+    'session-level': ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
     planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'], 'planning-new': ['main', 0, ''],
     'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''], 'task-fresh': ['main', 0, ''] };

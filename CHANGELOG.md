@@ -205,6 +205,9 @@ All notable changes to keel are listed here. The format follows
   as an unfilled `<...>` placeholder; a `<` followed by a space or `=` is not one, and neither is
   `| <30 s | >1 min |`, `<30 s, then >1 min` or anything in a code block indented under a list item,
   such as a mermaid diagram.
+- A finish with `/keel:end-task`, and `/keel:end-session` with verification, ask for the level when
+  the command names none, also when a brief, the session note or memory names one: that level is
+  shown as advice next to the recommended proposal.
 
 ### Removed
 - `approved_artifact_urls` and `page_shared` in `~/.claude/keel/usage.json`.
