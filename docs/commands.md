@@ -1,7 +1,5 @@
 # Commands
 
-[Українська](commands.uk.md)
-
 Every keel command, how to call it and what happens in each case. Only you start these commands; the
 model never runs them on its own.
 

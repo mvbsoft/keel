@@ -1,7 +1,5 @@
 # Spending less with keel
 
-[Українська](cost-optimization.uk.md)
-
 Cost grows with the number of requests and with the size of the conversation each request re-reads. keel gives you several levers: the model, the verification level,
 cheaper models for mechanical work, a smaller conversation, and a report that shows where the money went.
 This page lists them with their mechanism. The numbers are in [one table at the end](#summary), each

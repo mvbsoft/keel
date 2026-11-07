@@ -5,7 +5,7 @@
 ## Checklist
 
 - [ ] Tests that fail without this change (a fix comes with one)
-- [ ] Docs updated in the same change, in both languages where a Ukrainian version exists
+- [ ] Docs updated in the same change (`README.uk.md` together with `README.md`)
 - [ ] CHANGELOG.md entry under `[Unreleased]`
 - [ ] `npm test` is green
 - [ ] The pull request title is a Conventional Commit, e.g. `fix(verify): handle empty diff`

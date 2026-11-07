@@ -1,7 +1,5 @@
 # Under the hood
 
-[Українська](under-the-hood.uk.md)
-
 What keel does without being asked: what it adds to every conversation, which hooks run, which agents
 exist and on which models, what it stores in your project, and how it keeps you safe. You do not need
 any of this to use keel; it is here so you know what is going on.

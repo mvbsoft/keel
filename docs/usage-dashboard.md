@@ -1,7 +1,5 @@
 # Cost report and the "keel usage" page
 
-[Українська](usage-dashboard.uk.md)
-
 keel shows what a session cost at the end of every `/keel:end-task`, `/keel:end-session` and
 `/keel:end-planning`. It can also collect the numbers of all your machines into one private page, "keel
 usage", in your own claude.ai account. On a subscription it estimates how many percent of your plan limits a

@@ -71,10 +71,10 @@ npm run eval
 - **A fix comes with a test that fails without it.** An existing test changes only when the
   behaviour it pins changes on purpose; say why in the pull request.
 - **Docs change in the same pull request** as the behaviour they describe (README, skills, agents,
-  CHANGELOG under `[Unreleased]`). `README.md` and every page in `docs/` have Ukrainian versions
-  (`*.uk.md` next to them): you update the English pages only; the maintainer updates the Ukrainian
-  ones before merging.
-- **Code, comments, tests and docs are in English**, apart from the Ukrainian versions above.
+  CHANGELOG under `[Unreleased]`). Only `README.md` has a Ukrainian copy, `README.uk.md`, kept in
+  step with the English one, which is the source: a change to `README.md` changes `README.uk.md` in
+  the same pull request.
+- **Code, comments, tests and all other docs are in English only**, `README.uk.md` apart.
   User-facing fixed texts go through the translation files (below).
 - **No new npm dependencies** in the plugin; it runs on Node's standard library.
 - Instruction texts (skills, agents, protocols) are loaded into every run and cost tokens: keep them

@@ -1,7 +1,5 @@
 # Getting started with keel
 
-[Українська](getting-started.uk.md)
-
 This walkthrough takes you from install to a finished task, a task that continues the next day and a
 feature planned before any code.
 keel is a Claude Code plugin (Claude Code is the platform today; other coding agents are planned). You

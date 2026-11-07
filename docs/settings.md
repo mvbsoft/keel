@@ -1,7 +1,5 @@
 # keel settings
 
-[Українська](settings.uk.md)
-
 Every keel setting: what it does, its values, where it is stored, and who it applies to.
 
 ## Where a setting applies
