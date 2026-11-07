@@ -25,12 +25,12 @@ Run `node "<keel>/scripts/usage-setup.js" "<project>" page` (it copies the page 
 `<project>/.keel/local/tmp/usage-page` and prints `page_template`). Then:
 - files tools: one `publish_files` that creates a private page titled "keel usage" with every file of
   that folder at its own name (`index.html`, `style.css`, `pivot.js`, `i18n.js`, `i18n.uk.js`,
-  `format.js`, `colors.js`, `demo.js`); then `read_declaration` of the new page and
+  `format.js`, `colors.js`, `load.js`, `demo.js`); then `read_declaration` of the new page and
   `declare_capabilities` with `db`, `user` and `downloads` (the page reads older data from its
   database, shows who is looking and lets them download a CSV). The first sync writes
   `data/index.json`, with the conversation language as the page language.
 - built-in tools: publish with the `Artifact` tool: `file_path` `<project>/.keel/local/tmp/usage-page/index.html`,
-  `files` `{ "style.css": ".../usage-page/style.css", "pivot.js": ".../usage-page/pivot.js", "i18n.js": ".../usage-page/i18n.js", "i18n.uk.js": ".../usage-page/i18n.uk.js", "format.js": ".../usage-page/format.js", "colors.js": ".../usage-page/colors.js", "demo.js": ".../usage-page/demo.js" }`,
+  `files` `{ "style.css": ".../usage-page/style.css", "pivot.js": ".../usage-page/pivot.js", "i18n.js": ".../usage-page/i18n.js", "i18n.uk.js": ".../usage-page/i18n.uk.js", "format.js": ".../usage-page/format.js", "colors.js": ".../usage-page/colors.js", "load.js": ".../usage-page/load.js", "demo.js": ".../usage-page/demo.js" }`,
   `title` "keel usage", `icon` "chart", `capabilities` `{ "db": {}, "user": {}, "downloads": true }`.
   Then write the page settings with ArtifactData `set` to collection `meta`, doc `settings`,
   `{ "language": "<conversation language code>", "schema": 1, "template": "<page_template printed by page>" }`.

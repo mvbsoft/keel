@@ -1,6 +1,6 @@
 'use strict';
-// The usage page's browser scripts outside the page: format.js, colors.js and demo.js each define their
-// window function and give everything index.html takes from it.
+// The usage page's browser scripts outside the page: format.js, colors.js, load.js and demo.js each define
+// their window function and give everything index.html takes from it.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -62,6 +62,30 @@ test('colors.js: gives every color helper the page takes; colors come from the C
   assert.equal(Chart.defaults.animation, false, 'reduced motion: no animation');
 });
 
+test('load.js: gives every loader the page takes; database days are read page by page past 1000', async () => {
+  const { KeelLoad } = load('load.js', { setTimeout });
+  const L = KeelLoad();
+  for (const name of taken('KeelLoad')) assert.ok(name in L, `load.js gives ${name}`);
+  const all = Array.from({ length: 1500 }, (_, i) => ({ id: `d${i}`, date: `2026-01-${String(1 + Math.floor(i / 50)).padStart(2, '0')}` }));
+  const db = {
+    collection: (name) => {
+      let from = '';
+      const q = {
+        where: (f, op, v) => { if (op === '>=') from = v; return q; }, orderBy: () => q, limit: () => q,
+        get: async () => {
+          const docs = (name === 'days' ? all.filter((d) => d.date >= from).slice(0, 1000) : []).map((d) => ({ id: d.id, data: () => d }));
+          return { docs, size: docs.length };
+        },
+      };
+      return q;
+    },
+    doc: () => ({ get: async () => ({ exists: true, data: () => ({ language: 'uk' }) }) }),
+  };
+  const out = await L.loadFromDb(db, '2026-01-01', '2026-01-31');
+  assert.equal(out.docs.length, 1500, 'each day once, across two pages');
+  assert.deepEqual(out.settings, { language: 'uk' });
+});
+
 test('demo.js: the sample is the index and month files, valid in the page-file format, and the page reads them', () => {
   const { KeelUsageDemo } = load('demo.js');
   const { files } = KeelUsageDemo((v) => Date.parse(v));
@@ -105,7 +129,7 @@ async function openPage({ files, db, hash = '#sessions', search = '', nav = 'en'
       return { ok: true, status: 200, json: async () => files[p] };
     },
   });
-  for (const f of ['pivot.js', 'i18n.js', 'i18n.uk.js', 'format.js', 'colors.js', 'demo.js']) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, { filename: f });
+  for (const f of ['pivot.js', 'i18n.js', 'i18n.uk.js', 'format.js', 'colors.js', 'load.js', 'demo.js']) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, { filename: f });
   const script = /<script>\s*([\s\S]*?)<\/script>/.exec(html)[1];
   vm.runInContext(script, ctx, { filename: 'index.html' });
   for (let i = 0; i < 400 && (!el('view').innerHTML || /class="loading"/.test(el('view').innerHTML)); i++) await new Promise((r) => setTimeout(r, 5));
