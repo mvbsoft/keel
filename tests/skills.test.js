@@ -374,12 +374,9 @@ test('/keel:help: user-only, static, short, and its table names every keel comma
   assert.ok(body.split('\n').length < 30, 'short');
 });
 
-// The docs pages are English only, so docs/commands.md is the one page to check.
 test('every command the user runs has its section in docs/commands.md', () => {
   const commands = fs.readdirSync(SKILLS).filter((n) => fs.existsSync(path.join(SKILLS, n, 'SKILL.md')) && parse(n).fields['disable-model-invocation'] === 'true');
   assert.ok(commands.includes('feature-page') && commands.length >= 12, commands.join(', '));
-  for (const doc of ['commands.md']) {
-    const text = fs.readFileSync(path.join(__dirname, '..', 'docs', doc), 'utf8');
-    for (const name of commands) assert.match(text, new RegExp(`^## \`/keel:${name}\`$`, 'm'), `${doc}: /keel:${name}`);
-  }
+  const text = fs.readFileSync(path.join(__dirname, '..', 'docs', 'commands.md'), 'utf8');
+  for (const name of commands) assert.match(text, new RegExp(`^## \`/keel:${name}\`$`, 'm'), `/keel:${name}`);
 });
