@@ -34,7 +34,8 @@ Current state of this project:
    Ambiguous → ask, never guess.
 4. Verification: read `<keel>/skills/_shared/verify.md` and follow it (gates only: its steps 1, 2 and
    12). Prepare only: gates only, no question. Otherwise, without a level in the instruction the user
-   chooses it (verify.md step 3): ask it as your next message and end your turn; never fall back to
+   chooses it (verify.md step 3; a level from a brief, the note or memory is only
+   advice): ask it as your next message and end your turn; never fall back to
    gates only on your own. When `session start:` shows commits since, step 1 uses `--base <that commit>`: verify this
    session's work, committed or not.
 5. Prepare: read `<keel>/skills/_shared/handoff.md` and write the note (update, do not rewrite; new

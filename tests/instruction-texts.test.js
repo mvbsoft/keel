@@ -273,6 +273,13 @@ test('level words count only alone or after "level"; prepare only is gates only 
   assert.match(skill('end-session'), /Prepare only: gates only, no question\. Otherwise, without a level/);
 });
 
+test('only the command instruction gives a level; one from a brief or the note is only advice', () => {
+  assert.match(shared('verify.md'), /A level found anywhere else \(a brief[^)]*the session note[^)]*\) is not the\s+user's choice: it is only advice\. The proposal stays the\s+recommended option;[^.]*and you still ask\./);
+  for (const name of ['end-task', 'end-session']) {
+    assert.match(skill(name), /a level from a brief, the note or memory is only\s+advice/, name);
+  }
+});
+
 test('git.md: default steps per ending in one table; branches are deleted only by /keel:tasks drop', () => {
   const git = shared('git.md');
   assert.match(git, /Never ask which git\s+steps to take \(except the question above\): the instruction only adds or changes steps/);

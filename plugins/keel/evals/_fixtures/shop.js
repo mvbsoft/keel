@@ -1,14 +1,15 @@
 'use strict';
 // Builds the eval project in the current folder: a small configured shop with git and a bare remote
 // in .git/eval-remote.git (inside the workspace, so the sandboxed run can push to it).
-// Usage: node shop.js <base | tasks | finish | session | messy | overbuilt | planning | planning-openq |
-//                      planning-ready | planning-repo | planning-new | planning-brief | planned | task-active |
-//                      task-fresh>
+// Usage: node shop.js <base | tasks | finish | session | session-level | messy | overbuilt | planning |
+//                      planning-openq | planning-ready | planning-repo | planning-new | planning-brief | planned |
+//                      task-active | task-fresh>
 //   base            no tasks, no note
 //   tasks           handed-off tasks CAN-123 (discount, Jira link) and fix-reset-500 on their branches; on main
 //   finish          task CAN-200 done and committed on its branch, checked out there
 //   session         a long-work note (keys PAY-1) on branch payments-rework, checked out there, with this
 //                   session's work not committed yet (the invoice provider)
+//   session-level   as session, its Next action also says to end the session with Basic verification
 //   messy           on main, committed: src/auth.js with the same reset() crash but tempting to tidy (var,
 //                   mixed quotes, an unused helper, a stale comment), and an untidy src/report.js
 //   overbuilt       task avg-total on its branch, its start recorded; not committed: a correct but
@@ -44,6 +45,7 @@ base();
 if (variant === 'tasks') tasks();
 else if (variant === 'finish') finish();
 else if (variant === 'session') session();
+else if (variant === 'session-level') session({ level: 'Basic' });
 else if (variant === 'messy') messy();
 else if (variant === 'overbuilt') overbuilt();
 else if (variant === 'planning') planning();

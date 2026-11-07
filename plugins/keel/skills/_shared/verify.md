@@ -91,6 +91,9 @@ the user asks ("cheaper", "deeper"): then propose a level per agent, and pass it
 - **Gates only** → skip to step 12.
 - **No verification** → skip to step 12 and mark the report "not verified".
 A level given in the user's instruction counts as the user's choice; still show the team in one line.
+A level found anywhere else (a brief, the start prompt, the session note, memory, an earlier message,
+the level used last time) is not the user's choice: it is only advice. The proposal stays the
+recommended option; say in one line which level that source names, and you still ask.
 
 Read `levels.<chosen level>` in `changes.json` for the exact team: agent, model, phase, topics, focus.
 
