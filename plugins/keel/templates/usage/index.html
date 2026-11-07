@@ -20,6 +20,7 @@
 <script src="i18n.uk.js"></script>
 <script src="format.js"></script>
 <script src="colors.js"></script>
+<script src="load.js"></script>
 <script src="demo.js"></script>
 <script>
 (function () {
@@ -32,12 +33,13 @@
 
   let lang = /^uk/i.test(navigator.language || '') ? 'uk' : 'en';
   const t = (key, vars) => I.t(lang, key, vars);
-  if (!P || !I || !window.KeelFormat || !window.KeelColors) { VIEW.innerHTML = '<div class="empty"><h2>pivot.js / i18n.js / format.js / colors.js did not load.</h2></div>'; return; }
+  if (!P || !I || !window.KeelFormat || !window.KeelColors || !window.KeelLoad) { VIEW.innerHTML = '<div class="empty"><h2>pivot.js / i18n.js / format.js / colors.js / load.js did not load.</h2></div>'; return; }
   const {
     esc, fin, nf, fUsd, fPct, fTok, fDur, fHrs, fInt, toMs, fDay, fDT, fHM, fDate, unitOf, fMeasure, chartVal,
     walletName, walletChip, cap, dimLabel, today, addDays,
   } = window.KeelFormat(P, t, () => lang);
   const { css, PAL, order, colorFor, chartDefaults } = window.KeelColors();
+  const { loadFromDb, fetchJson } = window.KeelLoad();
 
   // ---- state ---------------------------------------------------------------------------------------
   const store = {
@@ -57,50 +59,6 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // ---- data loading --------------------------------------------------------------------------------
-  async function retry(fn) {
-    try { return await fn(); } catch (e) {
-      if (e && e.code === 'unavailable') { await sleep(400 + Math.random() * 600); return fn(); }
-      throw e;
-    }
-  }
-  async function queryDays(db, from, to) {
-    const out = new Map();
-    let cursor = from;
-    for (let guard = 0; guard < 40; guard++) {
-      const snap = await retry(() => db.collection('days').where('date', '>=', cursor).where('date', '<=', to).orderBy('date').limit(1000).get());
-      let added = 0; let last = cursor;
-      for (const d of snap.docs) {
-        const body = d.data();
-        if (!body) continue;
-        if (!out.has(d.id)) { out.set(d.id, body); added++; }
-        if (body.date > last) last = body.date;
-      }
-      if (snap.size < 1000 || added === 0 || last === cursor) break;
-      cursor = last; // next page starts at the last date seen; duplicates are skipped by doc id
-    }
-    return [...out.values()];
-  }
-  // The database: the days the built-in tool set wrote (and older ones), the machines, the calibrations and the settings.
-  async function loadFromDb(from) {
-    const db = S.db;
-    const [docs, mach, cal, st] = await Promise.all([
-      queryDays(db, from, S.range.to > today() ? S.range.to : today()),
-      retry(() => db.collection('machines').get()).catch(() => null),
-      retry(() => db.collection('calib').get()).catch(() => null),
-      retry(() => db.doc('meta/settings').get()).catch(() => null),
-    ]);
-    return {
-      docs,
-      machines: mach ? mach.docs.map((d) => Object.assign({ name: d.id }, d.data())) : [],
-      calibs: cal ? cal.docs.map((d) => Object.assign({ pc: d.id }, d.data())) : [],
-      settings: st && st.exists ? (st.data() || {}) : {},
-    };
-  }
-  async function fetchJson(path) {
-    const r = await fetch(path, { cache: 'no-store' });
-    if (!r.ok) throw new Error(`${path}: ${r.status}`);
-    return r.json();
-  }
   function derive() {
     S.flat = P.flatten(S.docs);
     S.rows = P.filter(S.flat.rows, { from: S.range.from, to: S.range.to });
@@ -116,7 +74,8 @@
     S.mode = 'loading'; render();
     try {
       const from = S.range.from < addDays(today(), -8) ? S.range.from : addDays(today(), -8); // tiles need the current week
-      const [page, db] = await Promise.all([P.loadPageData({ fetchJson, from, to: S.range.to > today() ? S.range.to : today() }), S.db ? loadFromDb(from).catch((e) => { console.warn('keel usage: the database did not load:', e); return null; }) : null]);
+      const to = S.range.to > today() ? S.range.to : today();
+      const [page, db] = await Promise.all([P.loadPageData({ fetchJson, from, to }), S.db ? loadFromDb(S.db, from, to).catch((e) => { console.warn('keel usage: the database did not load:', e); return null; }) : null]);
       if (seq !== loadSeq) return;
       S.failedFiles = page.failed.length;
       if (page.failed.length) console.warn('keel usage: these page files did not load:', page.failed.join(', '));
