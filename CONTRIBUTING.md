@@ -89,8 +89,8 @@ keel's fixed texts (usage report, context warning, dashboard) live in two places
    requires every English key, with the same placeholders, in each catalog;
 2. for the dashboard: copy `plugins/keel/templates/usage/i18n.uk.js` to `i18n.<code>.js`, translate it,
    add the file to `PAGE_FILES` in `plugins/keel/scripts/usage-setup.js` and in
-   `tests/usage-setup.test.js`, to the `files` map of the publish step in
-   `plugins/keel/skills/_shared/configure-flow.md`, and a `<script>` tag in
+   `tests/usage-setup.test.js`, to both publish steps in
+   `plugins/keel/skills/_shared/usage-page.md`, and a `<script>` tag in
    `plugins/keel/templates/usage/index.html`. The page itself chooses only between `en` and `uk` today
    (where it sets `lang` in `index.html` and the date locale in `format.js`), so a new page language
    also needs a change there.

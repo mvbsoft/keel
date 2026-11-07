@@ -39,7 +39,7 @@
     walletName, walletChip, cap, dimLabel, today, addDays,
   } = window.KeelFormat(P, t, () => lang);
   const { css, PAL, order, colorFor, chartDefaults } = window.KeelColors();
-  const { loadFromDb, fetchJson } = window.KeelLoad();
+  const { loadFromDb, fetchJson, sleep } = window.KeelLoad();
 
   // ---- state ---------------------------------------------------------------------------------------
   const store = {
@@ -56,7 +56,6 @@
     lastTab: null,
   };
   if (S.range.preset !== 'custom') { const n = Number(S.range.preset) || 30; S.range.from = addDays(today(), -(n - 1)); S.range.to = today(); }
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // ---- data loading --------------------------------------------------------------------------------
   function derive() {

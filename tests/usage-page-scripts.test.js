@@ -69,11 +69,11 @@ test('load.js: gives every loader the page takes; database days are read page by
   const all = Array.from({ length: 1500 }, (_, i) => ({ id: `d${i}`, date: `2026-01-${String(1 + Math.floor(i / 50)).padStart(2, '0')}` }));
   const db = {
     collection: (name) => {
-      let from = '';
+      let from = ''; let to = '';
       const q = {
-        where: (f, op, v) => { if (op === '>=') from = v; return q; }, orderBy: () => q, limit: () => q,
+        where: (f, op, v) => { if (op === '>=') from = v; if (op === '<=') to = v; return q; }, orderBy: () => q, limit: () => q,
         get: async () => {
-          const docs = (name === 'days' ? all.filter((d) => d.date >= from).slice(0, 1000) : []).map((d) => ({ id: d.id, data: () => d }));
+          const docs = (name === 'days' ? all.filter((d) => d.date >= from && d.date <= to).slice(0, 1000) : []).map((d) => ({ id: d.id, data: () => d }));
           return { docs, size: docs.length };
         },
       };
@@ -83,6 +83,7 @@ test('load.js: gives every loader the page takes; database days are read page by
   };
   const out = await L.loadFromDb(db, '2026-01-01', '2026-01-31');
   assert.equal(out.docs.length, 1500, 'each day once, across two pages');
+  assert.equal((await L.loadFromDb(db, '2026-01-01', '2026-01-10')).docs.length, 500, 'the end date bounds the query');
   assert.deepEqual(out.settings, { language: 'uk' });
 });
 
@@ -105,8 +106,8 @@ test('demo.js: the sample is the index and month files, valid in the page-file f
 });
 
 // ---- index.html: the whole page script on its own, with a stub page, a stub database and stub files -------------
-// Runs the page's inline script against the real pivot.js, i18n, format.js and colors.js. Returns the elements the
-// page writes to, once the first data load has finished.
+// Runs the page's inline script against the real pivot.js, i18n, format.js, colors.js, load.js and demo.js. Returns
+// the elements the page writes to, once the first data load has finished.
 async function openPage({ files, db, hash = '#sessions', search = '', nav = 'en' }) {
   const elements = {};
   const el = (id) => elements[id] || (elements[id] = {
