@@ -35,7 +35,7 @@ function messageFiles(command, cwd) {
 function check(input) {
   const command = input && input.tool_input && input.tool_input.command;
   if (typeof command !== 'string' || !PUBLISHES.test(command)) return null;
-  if (!require('../scripts/lib/active.js').configured(process.env.CLAUDE_PROJECT_DIR || input.cwd)) return null;
+  if (!require('../scripts/lib/active.js').configured(require('../scripts/lib/project-dir.js').hookProject(input))) return null;
   const texts = [command, ...messageFiles(command, input.cwd)];
   if (!texts.some(hasAttribution)) return null;
   return {

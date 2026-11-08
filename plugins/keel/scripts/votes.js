@@ -253,7 +253,7 @@ const line = (f) => `${f.id} [${f.severity}, ${f.agent}] ${f.what}`.slice(0, 160
 
 function main(argv) {
   const { opts, pos } = parseArgs(argv);
-  const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || '.');
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   const cmd = pos[1];
   const { config } = loadProject(root);
   const replies = readReplies(root);

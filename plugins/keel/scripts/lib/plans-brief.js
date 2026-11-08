@@ -9,6 +9,7 @@ const { moveToTrash } = require('./trash.js');
 const { read, clean } = require('./repo-read.js');
 const { linkOnWay, unsafeRel } = require('./safe-path.js');
 const { sections } = require('./tasks.js');
+const { mainOf } = require('./project-dir.js');
 const plans = require('./plans.js');
 
 // The brief's name is the feature's (lib/plans.js validFeature).
@@ -77,11 +78,16 @@ function withSection(text, name, content) {
 
 function briefCommand(root, feature, file) {
   if (typeof file !== 'string' || !file.trim()) return refuse('needs the brief file: plans.js brief <feature> .keel/local/plans/briefs/<name>-brief.md');
-  const r = path.isAbsolute(file) ? rel(root, path.resolve(file)) : file.replace(/\\/g, '/').replace(/^\.\//, '');
+  // A brief is this machine's: in a linked worktree it is the main checkout's, else one written in the
+  // worktree itself (lib/project-dir.js).
+  const main = mainOf(root);
+  const of = (dir) => (path.isAbsolute(file) ? rel(dir, path.resolve(file)) : file.replace(/\\/g, '/').replace(/^\.\//, ''));
+  const home = [main, root].find((dir) => BRIEF.test(of(dir)) && fs.existsSync(path.join(dir, ...of(dir).split('/')))) || main;
+  const r = of(home);
   const named = BRIEF.exec(r);
   if (!named || !plans.validFeature(named[1])) return refuse(`${clean(file)} is not a brief: .keel/local/plans/briefs/<name>-brief.md`);
-  const full = path.join(root, ...r.split('/'));
-  const why = unsafeRel(root, r) || linkOnWay(root, full);
+  const full = path.join(home, ...r.split('/'));
+  const why = unsafeRel(home, r) || linkOnWay(home, full);
   if (why) return refuse(`${r}: ${why}`);
   const text = read(full);
   if (text === null || !fs.lstatSync(full).isFile()) return refuse(`no brief ${r}`);
@@ -107,7 +113,7 @@ function briefCommand(root, feature, file) {
   const planFile = path.join(d.folder, plans.PLAN_FILE);
   try { plans.writeFile(root, d, planFile, plan); } catch (e) { return refuse(e.message); }
   const out = [`brief: ${r} -> ${rel(root, planFile)} (${moved.join(', ')})`];
-  const t = moveToTrash(root, [r], 'planning');
+  const t = moveToTrash(home, [r], 'planning');
   out.push(t.batch ? `moved to keel's trash: batch ${t.batch} (/keel:cleanup restore ${t.batch} puts it back)`
     : `warning: ${r} not moved to keel's trash (${t.failed.map((f) => f.reason).join(', ')}): it stays, and brief again would add its sections a second time`);
   return out;

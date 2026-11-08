@@ -62,7 +62,7 @@ if (require.main === module) {
   try {
     // Arguments are read like every keel script (and like hooks/own-files.js): the project comes first.
     const { opts, pos } = require('./lib/project.js').parseArgs(process.argv.slice(2));
-    lines = report(path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd()), opts.profile !== undefined);
+    lines = report(require('./lib/project-dir.js').scriptProject(pos[0]), opts.profile !== undefined);
   } catch (e) {
     lines = ['keel-config: unavailable', `reason: the check itself failed: ${e.message}`];
   }

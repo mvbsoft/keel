@@ -196,7 +196,7 @@ if (require.main === module) {
   let line;
   if (pos.length < 2) line = 'refused: usage: node safe-command.js <projectDir> <partDir> -- <command>';
   else {
-    const r = judge(pos[0], pos[1], args.slice(sep + 1).join(' '));
+    const r = judge(require('./lib/project-dir.js').scriptProject(pos[0]), pos[1], args.slice(sep + 1).join(' '));
     line = r.safe ? 'safe' : `refused: ${r.reasons.join('; ')}`;
   }
   process.stdout.write(`${line}\n`);

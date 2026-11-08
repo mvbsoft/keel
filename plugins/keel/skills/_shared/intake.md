@@ -350,7 +350,8 @@ rest still needs to know goes into the brief as an open question, not into a que
   the work going without merging a half; (b) keeps keel's usual path, at the cost of a few more turns
   in this long chat.
 
-**The brief** `.keel/local/plans/briefs/<name>-brief.md` (Write; on this machine only), `<name>` the
+**The brief** `.keel/local/plans/briefs/<name>-brief.md` (Write; on this machine only; in a worktree,
+under the main checkout a script's `project:` line names, so a new chat finds it), `<name>` the
 feature name start-planning would propose (2-4 English words joined by `-`, `[a-z0-9-]`, at most 40
 characters, starting with a letter, no digit right after a hyphen; a file of that name exists →
 another name). In the plan's language (`planning.language` of `.keel/config.json`, else

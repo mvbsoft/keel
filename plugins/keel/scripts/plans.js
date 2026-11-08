@@ -144,7 +144,7 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const root = require('./lib/project-dir.js').scriptProject(pos[0]);
     lines = run(root, pos, opts);
   } catch (e) {
     lines = [`plans: unavailable (${e.message})`];

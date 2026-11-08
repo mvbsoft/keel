@@ -135,7 +135,7 @@ function report(r) {
 
 if (require.main === module) {
   const { opts, pos } = parseArgs(process.argv.slice(2));
-  const root = path.resolve(pos[0] || '.');
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   if (typeof opts.lsp === 'string') {
     process.stdout.write(`${opts.lsp}: ${onPath(opts.lsp) ? 'on PATH' : 'not on PATH'}\n`);
   } else {

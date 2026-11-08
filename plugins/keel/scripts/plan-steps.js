@@ -143,7 +143,7 @@ function planAllowed(root, file) {
   // A missing file is checked as written, so reading it reports ENOENT.
   const f = real(file) || path.resolve(file);
   const claude = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
-  const dirs = [root, path.join(claude, 'plans')];
+  const dirs = [root, require('./lib/project-dir.js').mainOf(root), path.join(claude, 'plans')];
   return [...dirs, ...dirs.map(real)].some((dir) => {
     if (!dir) return false;
     const r = path.relative(dir, f);
@@ -194,9 +194,14 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const { scriptProject, sameIn } = require('./lib/project-dir.js');
+    const given = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const root = scriptProject(pos[0]);
     if (!pos[1]) throw new Error('usage: plan-steps.js <projectDir> <planFile> [--remaining]');
-    lines = summary(root, path.resolve(root, pos[1]), !!opts.remaining);
+    // A file of this machine's stores (a local task's plan) is only in the main checkout.
+    const named = path.resolve(root, pos[1]);
+    const here = sameIn(given, root, named);
+    lines = summary(root, fs.existsSync(here) ? here : named, !!opts.remaining);
   } catch (e) {
     lines = [`plan-steps: unavailable (${e.message})`];
   }

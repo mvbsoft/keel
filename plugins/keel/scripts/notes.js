@@ -242,7 +242,7 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const root = require('./lib/project-dir.js').scriptProject(pos[0]);
     const command = pos[1] || 'check';
     const session = typeof opts.session === 'string' ? opts.session : undefined;
     if (command === 'check') lines = check(root, opts.begin === true || typeof opts.begin === 'string', session);

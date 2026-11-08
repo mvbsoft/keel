@@ -123,8 +123,9 @@ function claim(session, skill) {
 
 function hint(input) {
   if (input.agent_id && input.agent_type !== HINTED_AGENT) return null;
-  // Project files are judged against the project folder, not the folder the session cd'd into.
-  const root = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
+  // Project files are judged against the project folder, not the folder the session cd'd into (a
+  // linked worktree of the project is a project of its own: lib/project-dir.js).
+  const root = require('../scripts/lib/project-dir.js').hookProject(input);
   if (!require('../scripts/lib/active.js').configured(root)) return null;
   const tool = input.tool_name;
   const toolInput = input.tool_input || {};

@@ -55,6 +55,12 @@ function base() {
   if (process.env.HOME) require(path.join(KEEL, 'scripts', 'lib', 'trust.js')).trust(root, { KEEL_USAGE_DIR: path.join(process.env.HOME, '.claude', 'keel') });
 }
 
+// A linked worktree of the base shop at .claude/worktrees/wt on branch wt (git keeps it out of the
+// project: .claude/ is excluded), as a worktree session of the desktop app has.
+function worktree() {
+  git('worktree', 'add', '-q', '-b', 'wt', path.join('.claude', 'worktrees', 'wt'));
+}
+
 function messy() {
   write('src/auth.js', [
     "'use strict';",
@@ -95,4 +101,4 @@ function messy() {
   commitAll('messy base');
 }
 
-module.exports = { KEEL, root, git, write, commitAll, SID, base, messy };
+module.exports = { KEEL, root, git, write, commitAll, SID, base, worktree, messy };

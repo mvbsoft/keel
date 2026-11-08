@@ -17,7 +17,7 @@ const { parseArgs, readJson } = require('./lib/project.js');
 
 function main(argv) {
   const { opts, pos } = parseArgs(argv);
-  const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   const scanned = memo(() => require('./scan.js').scan(root));
   const config = readJson(path.join(root, '.keel', 'config.json'));
   if (pos[1] === 'save') {

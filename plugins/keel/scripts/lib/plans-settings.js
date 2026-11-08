@@ -9,6 +9,7 @@ const path = require('node:path');
 const { checkConfig } = require('./config.js');
 const { read } = require('./repo-read.js');
 const { unsafeRel, safeLocalWrite } = require('./safe-path.js');
+const { mainOf } = require('./project-dir.js');
 
 const DEFAULTS = { draft: 'pc', draft_dir: 'tickets', tickets_dir: 'tickets' };
 const LOCAL_KEYS = ['draft', 'draft_dir'];
@@ -17,7 +18,9 @@ const NOT_SET_UP = 'planning is not set up in .keel/config.json: /keel:configure
 
 const refuse = (what, why) => [`plans: ${what} refused (${why})`];
 const rel = (root, file) => path.relative(root, file).split(path.sep).join('/');
-const base = (root) => path.join(root, '.keel', 'local', 'plans', 'keel');
+// This machine's planning files are, for a linked worktree, the main checkout's (lib/project-dir.js):
+// another worktree session sees the same drafts and settings, and they outlive the worktree.
+const base = (root) => path.join(mainOf(root), '.keel', 'local', 'plans', 'keel');
 const settingsFile = (root) => path.join(base(root), 'settings.json');
 const slashes = (v) => v.trim().replace(/\\/g, '/').replace(/\/+$/, '');
 
@@ -119,7 +122,7 @@ function settingsSet(root, opts) {
   }
   if (!Object.keys(updates).length) return refuse('settings set', 'nothing to set: --draft, --draft-dir, --repo');
   try {
-    safeLocalWrite(root, ['plans', 'keel', 'settings.json'], JSON.stringify({ ...saved, ...updates }, null, 2) + '\n');
+    safeLocalWrite(mainOf(root), ['plans', 'keel', 'settings.json'], JSON.stringify({ ...saved, ...updates }, null, 2) + '\n');
   } catch (e) { return refuse('settings set', e.message); }
   return settingsShow(root);
 }

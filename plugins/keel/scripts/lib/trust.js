@@ -9,10 +9,13 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { usageDir } = require('./usage-config.js');
 const { readJsonFile } = require('./json.js');
+const { mainOf } = require('./project-dir.js');
 
 const file = (env = process.env) => path.join(usageDir(env), 'trusted-git.json');
+// A linked worktree counts as its main checkout (lib/project-dir.js): one confirmation for the project,
+// and the hash of the git section it holds still catches a worktree that edits that section.
 const key = (root) => {
-  const p = path.resolve(root).replace(/\\/g, '/').replace(/\/+$/, '');
+  const p = path.resolve(mainOf(root)).replace(/\\/g, '/').replace(/\/+$/, '');
   // Windows folds only A-Z here: toLowerCase would also turn the Kelvin sign into k, another folder.
   return process.platform === 'win32' ? p.replace(/[A-Z]/g, (c) => c.toLowerCase()) : p;
 };

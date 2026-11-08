@@ -365,14 +365,16 @@ function summary(result, outFile) {
 if (require.main === module) {
   // Arguments are read like every keel script (and like hooks/own-files.js): the project comes first.
   const { opts, pos } = require('./lib/project.js').parseArgs(process.argv.slice(2));
-  const root = path.resolve(pos[0] || process.cwd());
+  const given = path.resolve(pos[0] || process.cwd());
+  const { scriptProject, sameIn } = require('./lib/project-dir.js');
+  const root = scriptProject(given);
   const result = scan(root);
   if (opts.out === undefined) {
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
   } else {
     // The full result may only be written to the project's keel temp folder, through no link.
     const tmp = path.join(root, '.keel', 'local', 'tmp');
-    const r = typeof opts.out === 'string' ? path.relative(tmp, path.resolve(opts.out)) : '';
+    const r = typeof opts.out === 'string' ? path.relative(tmp, path.resolve(sameIn(given, root, opts.out))) : '';
     if (!r || r.startsWith('..') || path.isAbsolute(r)) {
       process.stdout.write(`scan: --out must be a file inside ${tmp}\n`);
     } else {

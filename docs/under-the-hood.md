@@ -98,6 +98,14 @@ accepts each step after running its tests. Why steps should not be cut too small
 | `<draft_dir>/<feature>/`, `<tickets_dir>/<feature>/` | a feature's draft in the repository, and its exported tickets with their overview (`tickets/` by default) | when you commit them, on the feature's branch |
 | `.keel/local/` | temporary agent files and saved agent reports, the token ledger, backups, the trash | no |
 
+In a linked git worktree of the project, the worktree's `.keel/local/` holds only this conversation's
+state: where the session started, temporary and agent files, which conversation plans which feature,
+the active task. What this machine shares between conversations stays in the main checkout's
+`.keel/local/`: `options.json`, the planning drafts, tickets exported to this machine, settings and
+samples, the briefs, local tasks and the record of closed ones, and the trash (an item that came from a
+worktree goes back to it; one whose worktree is gone stays in the trash). `trusted-git.json` counts a
+worktree as its main checkout.
+
 On each machine keel also keeps `~/.claude/keel/`:
 
 - `usage.json`: this machine's usage settings ([settings](settings.md#this-machine));
@@ -138,7 +146,8 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
   outside the project.
 - **keel's own scripts run without a prompt** only as one plain command,
   `node "<keel>/scripts/<name>.js" "<project>" ...`, whose project folder is the current project's
-  exact absolute path. A relative path, a sub-folder or a different project goes through your normal
+  exact absolute path (in a linked worktree of the project, the worktree; the main checkout it belongs
+  to counts as it, and the script works on the worktree). A relative path, a sub-folder or a different project goes through your normal
   permissions; a step that always asks, or a command that holds one of its words (for `plans.js` only
   `commit` and `push`), is refused instead, so no allow rule can run it unconfirmed.
   `usage.js` takes no project folder first: its `--project`, when given, must be the current project,

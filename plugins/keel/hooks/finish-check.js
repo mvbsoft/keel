@@ -35,7 +35,7 @@ if (require.main === module) {
   let out = null;
   try {
     const input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
-    out = decide(input, process.env.CLAUDE_PROJECT_DIR || input.cwd, process.env.CLAUDE_PLUGIN_ROOT || path.join(__dirname, '..'));
+    out = decide(input, require('../scripts/lib/project-dir.js').hookProject(input), process.env.CLAUDE_PLUGIN_ROOT || path.join(__dirname, '..'));
   } catch { out = null; }
   if (out) process.stdout.write(JSON.stringify(out));
   process.exit(0);

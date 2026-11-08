@@ -313,7 +313,7 @@ if (require.main === module) {
   const argv = process.argv.slice(2);
   const { opts, pos } = parseArgs(argv);
   opts.skip = argv.flatMap((a, i) => (a === '--skip' && argv[i + 1] && !argv[i + 1].startsWith('--') ? [argv[i + 1]] : []));
-  const root = path.resolve(pos[0] || '.');
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   try {
     if (opts.project) {
       const m = measureProject(root);

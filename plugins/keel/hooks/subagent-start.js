@@ -14,7 +14,7 @@ function main() {
   const input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
   if (!AGENTS.has(String(input.agent_type || ''))) return null;
   const root = process.env.CLAUDE_PLUGIN_ROOT || path.join(__dirname, '..');
-  const project = process.env.CLAUDE_PROJECT_DIR || input.cwd;
+  const project = require('../scripts/lib/project-dir.js').hookProject(input);
   const context = `${standards(root, { implementer: true })}
 ${commentRules(root, project)}`;
   return { hookSpecificOutput: { hookEventName: 'SubagentStart', additionalContext: context } };

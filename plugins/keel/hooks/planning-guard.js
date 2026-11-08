@@ -29,7 +29,7 @@ function allowedPlaces(root, feature, sid) {
     ...plans.draftDirs(root).map((d) => path.join(d.dir, feature)),
     ...(exported ? [path.join(exported, feature)] : []),
     ...(marked ? [marked] : []),
-    path.join(local, 'plans', 'keel', 'settings.json'),
+    require('../scripts/lib/plans-settings.js').settingsFile(root),
     path.join(local, 'tmp'),
     path.join(local, 'plans', 'claude'),
   ];
@@ -54,15 +54,19 @@ function written(tool, args, cwd) {
 
 function main() {
   const input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
-  const root = process.env.CLAUDE_PROJECT_DIR || input.cwd;
+  const { hookProject, mainOf } = require('../scripts/lib/project-dir.js');
+  const root = hookProject(input);
   const sid = input.session_id;
-  // Most conversations do not plan: one file check before anything is loaded.
-  if (!root || !validSid(sid) || !fs.existsSync(path.join(root, '.keel', 'local', 'plans', 'keel', 'sessions', `${sid}.json`))) return null;
+  // In a linked worktree the main checkout is the project too: the chat mark may be there (set before
+  // the chat entered the worktree), and its files are as much the project's.
+  const roots = root ? [...new Set([root, mainOf(root)])] : [];
+  // Most conversations do not plan: one file check per folder before anything is loaded.
+  if (!validSid(sid) || !roots.some((r) => fs.existsSync(path.join(r, '.keel', 'local', 'plans', 'keel', 'sessions', `${sid}.json`)))) return null;
   const feature = require('../scripts/lib/plans.js').planningMark(root, sid);
   if (!feature) return null;
-  const places = allowedPlaces(root, feature, sid);
+  const places = roots.flatMap((r) => allowedPlaces(r, feature, sid));
   const blocked = written(input.tool_name, input.tool_input || {}, input.cwd || root)
-    .find((f) => within(f, root) && !places.some((p) => within(f, p)));
+    .find((f) => roots.some((r) => within(f, r)) && !places.some((p) => within(f, p)));
   if (!blocked) return null;
   const file = path.relative(root, blocked).split(path.sep).join('/');
   return {

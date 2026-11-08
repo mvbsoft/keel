@@ -192,7 +192,9 @@ gitTest('repos: the repos map and the git repositories next to the project; neve
   fs.mkdirSync(steps);
   git(api, 'worktree', 'add', '-q', path.join(steps, 's1'), '-b', 's1');
   out = run(path.join(steps, 's1'), 'repos');
-  assert.ok(out.includes(`- ${slash(web)}: next to this project, planning prefix WEB`), out.join('\n'));
+  // The repos map is this machine's, the main checkout's (lib/project-dir.js): the worktree sees it too.
+  assert.ok(out.includes(`- ${slash(web)}: repos map WEB, planning prefix WEB`), out.join('\n'));
+  assert.ok(out.includes(`- ${slash(projects)}/admin: next to this project, no planning prefix`), out.join('\n'));
   assert.ok(!out.some((l) => l.includes(`${slash(api)}:`) || l.includes('/api-wt:')), out.join('\n'));
 
   // Nothing near and no map.

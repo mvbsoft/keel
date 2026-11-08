@@ -8,6 +8,7 @@ const { read, frontmatter, clean } = require('./repo-read.js');
 const { linkOnWay, safeLocalPath } = require('./safe-path.js');
 const { sections, setFront, dateOf } = require('./tasks.js');
 const { base, badFolder, settings } = require('./plans-settings.js');
+const { mainOf } = require('./project-dir.js');
 
 const PLAN_FILE = 'plan.md';
 const STATES = ['draft', 'ready', 'exported', 'abandoned'];
@@ -144,7 +145,8 @@ function settle(root, d) {
 // the way.
 function writeFile(root, d, file, text) {
   if (d.local) {
-    const target = safeLocalPath(root, ...path.relative(path.join(root, '.keel', 'local'), file).split(path.sep));
+    const home = mainOf(root);
+    const target = safeLocalPath(home, ...path.relative(path.join(home, '.keel', 'local'), file).split(path.sep));
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, text);
     return;
