@@ -144,6 +144,8 @@ test('git.md: a ticket on its feature branch: no start, the shared branch pulled
   assert.match(git, /only "End of feature" below merges\s+it, after `done: feature <f> complete` and a yes/);
   assert.match(git, /A ticket branch\s+\(`base` = `merge_into` = the feature branch\) merges into the feature branch like any task/);
   assert.match(part(git, '1. `status`', '2. Write'), /not for a planned ticket on its feature branch \(no `start`, see above\)/);
+  // A handoff of a ticket of a feature with 2 or more tickets still makes its ticket branch.
+  assert.match(part(git, '1. `status`', '2. Write'), /except its\s+task handoff when the feature has 2 or more tickets \(a new ticket branch, above\)/);
   assert.match(part(git, '4. `sync', '5. `push`'), /On the base itself \(a planned ticket on its feature branch\) it merges\s+`<remote>\/<base>`: the teammates' commits of that shared branch/);
   assert.match(git, /A planned ticket works on its feature branch, not from the main branch/);
   // With ask_before_merge true the report would otherwise say "merge it when ready".
@@ -151,17 +153,14 @@ test('git.md: a ticket on its feature branch: no start, the shared branch pulled
   assert.match(part(git, '## Manual mode', '## Autonomous mode'), /then merge as\s+they usually do \(a planned ticket on its feature branch: commit and push only, see above\)/);
 });
 
-test('git.md: the hand off of a ticket on a shared feature branch asks three options, a new ticket branch first', () => {
+test('git.md: the hand off of a ticket on a shared feature branch goes to a new ticket branch, no question', () => {
   const git = shared('git.md');
-  const q = part(git, 'A planned ticket on its feature branch asks this instead', '**Default steps**');
+  const q = part(git, 'A planned ticket on its feature branch, when the feature has', '**Default steps**');
   assert.match(q, /when the feature has 2 or more tickets\s+\(`plans\.js tickets <feature>`; one ticket → the usual commit and push to its branch\)/);
-  const options = q.split('\n').filter((l) => l.startsWith('- '));
-  assert.equal(options.length, 3, 'three options');
-  assert.match(options[0], /a new ticket branch `<KEY>-<short-name>` from the feature branch \(recommended; later merged back/);
+  assert.match(q, /also no\s+question: a new ticket branch `<KEY>-<short-name>` from the feature branch \(later merged\s+back into it\)/);
   assert.match(q, /`start --name <it> --from <the feature branch>` carries the changes/);
   assert.match(q, /set the task file's `branch` to it and `base` and\s+`merge_into` to the feature branch before the commit/);
-  assert.match(options[1], /commit and push to the feature branch \(you work on it alone\)/);
-  assert.match(options[2], /no commit/);
+  assert.equal(q.split('\n').filter((l) => l.startsWith('- ')).length, 0, 'no options to choose from');
 });
 
 test('git.md: the end of a feature says so, then asks one step at a time; the feature branch is the one other branch keel deletes', () => {

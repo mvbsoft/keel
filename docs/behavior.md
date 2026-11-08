@@ -50,7 +50,7 @@ This page lists what keel does in each situation and what makes sure it happens.
 | The key belongs to the long-work note | Stops: "this is led by /keel:start-session". A task with that key or link cannot be created, however the key is written (a link with or without `https://`, a markdown link, quotes, a list). | Script guard (`task new` refuses it) |
 | The task is new | Plan, then the branch, then the task folder on that branch, only after your yes to the plan. | Instruction |
 | Which branch to work in | The "Start?" question or the plan's first Execution step names the current branch and offers: a new branch `<id>-<short-name>` from it (recommended), the current branch, or your own git steps. On the main branch keel says plainly that the changes would stay there until git time, when keel moves them to a new branch (it never commits on the main branch), and recommends a new branch now. Your answer is run in both git modes, one step at a time, stopping on a conflict or a refusal; no push and no merge into the main branch unless you said so. | Instruction |
-| Uncommitted changes before a branch change | Stops and offers: hand off the current task, commit, or stash. Changes go into a task only when you say they belong to it; keel's own setup files left by `/keel:configure` are offered to the first task. | Instruction |
+| Uncommitted changes before a branch change | Stops and offers: hand off the current task (a work-in-progress commit on its own branch, pushed), or commit. Changes go into a task only when you say they belong to it; keel's own setup files left by `/keel:configure` are offered to the first task. | Instruction |
 
 ## While you code
 
@@ -92,7 +92,7 @@ keel adds its coding standards to every conversation in a set-up project (the fi
 | `/keel:end-task hand off` | Gates only, the task file updated (state, next action, branch), then commit, push and back to the base branch (manual git: the commands). | Instruction |
 | A handoff whose instruction asks to merge | With the task folder in git, keel first says the task is not finished and the merge puts `.keel/tasks/<id>/` into the target, and asks: "Finish the task instead, or merge anyway?" | Instruction + Claude Code's confirmation (the merge) |
 | The gates are red | The handoff still goes on and keel does not fix them; the failure is written under the task's open questions. | Instruction |
-| The task has no branch of its own (it works in the base or the main branch) and you gave no git instruction | Before any git step keel asks, in both git modes: a new branch from here (commit and push there, then back on the current branch; recommended), commit and push to the current branch (not on the main branch), no commit (the changes stay uncommitted and move with you if you switch branches), or your own instruction. The answer is run, in manual git too. | Instruction |
+| The task has no branch of its own (it works in the base or the main branch) and you gave no git instruction | No question: the work goes to a new branch from here (`<id>-<short-name>`; a planned ticket of a feature with 2 or more tickets: `<KEY>-<short-name>` from the feature branch), committed as "Work in progress: <title>" and pushed, then back on the current branch; keel names the branch in one line. Unfinished work never stays on one machine only. Manual git: the same steps as commands. Your own git instruction wins. | Instruction |
 
 ## Long-work sessions
 

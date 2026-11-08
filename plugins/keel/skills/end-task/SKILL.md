@@ -94,8 +94,8 @@ Current state of this project:
      `plans.js done` call.
 8. Git: read `<keel>/skills/_shared/git.md` and follow it: **finish** or **handoff**, with the actions
    from the instruction. On a hand off, after any `start` of git.md (a branch the instruction names
-   or one git.md makes) → set the task file's `branch:` to the `branch:` that `start` printed, before
-   the commit.
+   or one git.md makes; manual git: the new branch git.md's Manual mode names) → set the task file's
+   `branch:` to the `branch:` that `start` printed (manual git: to that new branch), before the commit.
    **Finish after the deletion**: add `--finish <id> --session <sid>` to every `start`, `commit`,
    `sync` and `push`. A step that stops puts the task back by itself (`restored:` lines): the report
    says what stopped and that the task is back and active (fix it, then /keel:end-task again). A

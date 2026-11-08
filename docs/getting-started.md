@@ -249,10 +249,9 @@ you name one), then updates the task file: the goal, the next action, the state 
 in progress, broken, not started) and where the work is, the files, decisions, what did not work, open
 questions and how to check. The task gets `status: handed-off`. Git does a handoff instead of a finish:
 no merge (autonomous: commit, push, switch back to the base branch). A task that works without its own
-branch (in the main branch or its base), handed off with no git instruction, first gets a question, in
-both git modes: a new branch from here (recommended), commit and push to the current branch (not on the main branch), no commit
-for now (the changes stay uncommitted and move with you if you switch branches), or your own
-instruction; keel runs the answer. Later, in any conversation:
+branch (in the main branch or its base), handed off with no git instruction, gets a new branch from
+here: the work is committed there as work in progress and pushed, so another machine can go on with
+it. Later, in any conversation:
 
 ```
 /keel:start-task CAN-123

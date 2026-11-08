@@ -122,8 +122,8 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
   `git.ask_before_merge` is off. Claude Code asks before every such merge (`git-flow.js merge`), unless
   autonomous mode is confirmed on this machine and `git.ask_before_merge` is off; then a finish merges
   without asking. In manual mode keel runs no git step nobody asked for; you get a ready commit
-  message. What you ask for is run in both modes: the branch you choose at a task's start, your answer
-  to a handoff without the task's own branch, your own git steps. Updating the task branch from the main branch (`sync`, which merges the main branch
+  message. What you ask for is run in both modes: the branch you choose at a task's start, your own
+  git steps. Updating the task branch from the main branch (`sync`, which merges the main branch
   into the task branch) runs without a prompt in confirmed autonomous mode, like commit and push.
 - **Autonomous git needs your yes on each machine.** The mode is stored in the project config, so a
   cloned repository cannot switch it on for you: keel's git steps run without a prompt only after you

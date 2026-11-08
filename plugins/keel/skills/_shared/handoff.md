@@ -24,9 +24,10 @@ writing: a file cannot name the commit it is in, so its own commit follows), `br
   `repo_language` when `tasks.in_git` is not false (they go into git), else the conversation
   language. Headings and front-matter keys stay in English.
 - Never passwords, keys, tokens, connection strings or personal data.
-- **Where the work is**, in State: only what is certain before git runs: the branch and "committed
-  together with this note" (manual git: "uncommitted: the user commits it on branch X"; a stash: its
-  name). Never a push or merge result: git may stop or be declined; the report says what git did.
+- **Where the work is**, in State: only what is certain before git runs: the branch (a task handoff
+  without its own branch: the new branch git.md makes) and "committed
+  together with this note" (manual git: "uncommitted: the user commits and pushes it on branch X").
+  Never a push or merge result: git may stop or be declined; the report says what git did.
 - **Files**: as steps finish, their files move from next to changed. Tests counted as "N new, M total".
 - **Tried and did not work** also holds what the user rejected or what turned out wrong during the
   work (e.g. a separator the user said fails), with why; never "-" after such a change of course.
