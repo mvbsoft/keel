@@ -196,7 +196,7 @@ if (require.main === module) {
     const { opts, pos } = parseArgs(process.argv.slice(2));
     const { scriptProject, sameIn } = require('./lib/project-dir.js');
     const given = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
-    const root = scriptProject(pos[0]);
+    const root = scriptProject(given);
     if (!pos[1]) throw new Error('usage: plan-steps.js <projectDir> <planFile> [--remaining]');
     // A file of this machine's stores (a local task's plan) is only in the main checkout.
     const named = path.resolve(root, pos[1]);

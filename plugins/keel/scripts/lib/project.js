@@ -18,7 +18,7 @@ function loadProject(root) {
 // The secret test without requiring a config: catalog patterns plus the profile's secret_paths.
 function secretCheck(root) {
   let profile = null;
-  try { profile = readJsonFile(path.join(root, '.keel', 'profile.json')); } catch { /* optional */ }
+  try { profile = readJsonFile(path.join(require('./project-dir.js').configHome(root), '.keel', 'profile.json')); } catch { /* optional */ }
   const extra = new Set(profile && Array.isArray(profile.secret_paths) ? profile.secret_paths : []);
   const isSecret = (rel) => extra.has(rel) || (matchesAny(rel, catalog.secrets.patterns) && !matchesAny(rel, catalog.secrets.allowed));
   return { profile, isSecret };

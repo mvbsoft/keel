@@ -25,7 +25,7 @@ function report(projectDir, withProfile, scanned = memo(() => require('./scan.js
   lines.push(`keel-config: ${state}`);
   if (state !== 'ok') lines.push(`reason: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? ` (+${errors.length - 3} more)` : ''}`);
   if (withProfile) {
-    const file = path.join(projectDir, '.keel', 'profile.json');
+    const file = path.join(require('./lib/project-dir.js').configHome(projectDir), '.keel', 'profile.json');
     if (!fs.existsSync(file)) lines.push('profile: missing');
     else {
       const { validate } = require('./lib/schema.js');

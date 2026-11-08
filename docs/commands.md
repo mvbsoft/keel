@@ -243,7 +243,7 @@ reading the page and the generated file); the run's own cost is the last line of
 | You type | keel does |
 |---|---|
 | `/keel:cleanup` | Finds temporary files, backups, caches and what an old notes system left, and shows them in three groups: **safe** (preselected), **check** and **do not touch** (both only by number; a do-not-touch item gets a second question about what may break). Moves only what you pick to `.keel/local/trash/<batch>/`. If the project's tests are affected, it runs them; red → it puts the batch back by itself and runs them again. Reports what moved, its size, and how to undo. Nothing found → says so. |
-| `/keel:cleanup restore` | Puts the newest batch back. |
+| `/keel:cleanup restore` | Puts back the newest batch this folder moved. |
 | `/keel:cleanup restore <batch>` | Puts that batch back (also a dropped task's folder). |
 | `/keel:cleanup empty-trash` | Says what would be deleted for good (by default batches 30 days old or more, `cleanup.trash_max_age_days`; or one batch you name per run; or all); Claude Code itself asks you to confirm, naming which (the batches of that age, the one batch, or all), then it deletes. |
 

@@ -61,7 +61,9 @@ function writeMachineConfig(values, env = process.env) {
 function hasApiKeyHelper(projectDir, env = process.env) {
   const home = env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
   const files = [path.join(home, 'settings.json')];
-  if (projectDir) files.push(path.join(projectDir, '.claude', 'settings.json'), path.join(projectDir, '.claude', 'settings.local.json'));
+  // The project settings Claude Code applies: in a desktop worktree session, the main checkout's.
+  const dir = projectDir && require('./project-dir.js').settingsHome(projectDir, env);
+  if (dir) files.push(path.join(dir, '.claude', 'settings.json'), path.join(dir, '.claude', 'settings.local.json'));
   return files.some((f) => { const s = readJson(f); return !!(s && s.apiKeyHelper); });
 }
 

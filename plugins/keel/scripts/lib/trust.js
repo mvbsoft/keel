@@ -27,7 +27,7 @@ const canonical = (v) => (Array.isArray(v) ? `[${v.map(canonical).join(',')}]`
 const gitHash = (git) => crypto.createHash('sha256').update(canonical(git ?? null)).digest('hex');
 
 function gitSection(root) {
-  try { return readJsonFile(path.join(root, '.keel', 'config.json')).git ?? null; } catch { return null; }
+  try { return readJsonFile(path.join(require('./project-dir.js').configHome(root), '.keel', 'config.json')).git ?? null; } catch { return null; }
 }
 
 // [{ path, git }]; anything else in the file is not a confirmation.

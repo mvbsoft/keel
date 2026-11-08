@@ -99,12 +99,14 @@ accepts each step after running its tests. Why steps should not be cut too small
 | `.keel/local/` | temporary agent files and saved agent reports, the token ledger, backups, the trash | no |
 
 In a linked git worktree of the project, the worktree's `.keel/local/` holds only this conversation's
-state: where the session started, temporary and agent files, which conversation plans which feature,
-the active task. What this machine shares between conversations stays in the main checkout's
-`.keel/local/`: `options.json`, the planning drafts, tickets exported to this machine, settings and
-samples, the briefs, local tasks and the record of closed ones, and the trash (an item that came from a
-worktree goes back to it; one whose worktree is gone stays in the trash). `trusted-git.json` counts a
-worktree as its main checkout.
+state: where the session started, temporary and agent files. What this machine shares between
+conversations stays in the main checkout's `.keel/local/`: `options.json`, the planning drafts, tickets
+exported to this machine, settings and samples, the briefs, local tasks and the record of closed ones,
+the trash (an item that came from a worktree goes back to it; one whose worktree is gone stays in the
+trash), and, keyed by session, which conversation plans which feature (`plans/keel/sessions/`) and which
+works on which task (`active/`), so they hold wherever the chat works. `trusted-git.json` counts a
+worktree as its main checkout. A worktree without its own `.keel/config.json` reads the main
+checkout's `config.json` and `profile.json`.
 
 On each machine keel also keeps `~/.claude/keel/`:
 

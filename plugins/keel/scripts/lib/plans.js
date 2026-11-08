@@ -11,7 +11,7 @@
 //   names its page (feature-page.js) the same from every machine and repository.
 // - States: draft -> ready -> exported, draft or ready -> abandoned, ready -> draft. A plan changed
 //   after `ready` (its ready_hash no longer matches) is a draft again.
-// - Settings: lib/plans-settings.js. The planning chat marks:
+// - Settings: lib/plans-settings.js. The planning chat marks (in the main checkout, lib/chat-marks.js):
 //   .keel/local/plans/keel/sessions/<session id>.json = { "feature": "<name>" }.
 // - An exported feature is edited in its feature folder: mark set, ticket and check take it when no
 //   draft of that name is here or the draft is exported (lib/plans-export.js).
@@ -29,7 +29,7 @@ const { unsafeRel, localLink, safeLocalPath, safeLocalWrite } = require('./safe-
 const { validSid } = require('./ids.js');
 const { setFront, dateOf } = require('./tasks.js');
 const { base, badFolder, settings } = require('./plans-settings.js');
-const { mainOf } = require('./project-dir.js');
+const { MARKS, markHome, marksDir } = require('./chat-marks.js');
 const {
   PLAN_FILE, STATES, TICKET_FILE, FEATURE_RULE, validFeature, draftDirs, listDrafts, needDraft,
   reopens, exportedHere, tickets, ticketIds, openQuestions, ticketHash, pageCode, PAGE_CODE, draftHash,
@@ -284,24 +284,15 @@ function draftState(root, feature, to) {
 
 // --- the planning chat marks ---
 
-// A chat mark is this conversation's, so it is in the folder keel works on; in a linked worktree it is
-// also read from the main checkout, where it is when the chat entered the worktree after it set the mark
-// (lib/project-dir.js).
-const markHomes = (root) => [...new Set([root, mainOf(root)])];
-const marksDir = (home) => path.join(home, '.keel', 'local', 'plans', 'keel', 'sessions');
-
 function marks(root) {
+  let names = [];
+  try { names = fs.readdirSync(marksDir(root)).filter((n) => n.endsWith('.json')); } catch { /* none */ }
   const out = [];
-  for (const home of markHomes(root)) {
-    let names = [];
-    try { names = fs.readdirSync(marksDir(home)).filter((n) => n.endsWith('.json')); } catch { /* none */ }
-    for (const name of names) {
-      if (out.some((m) => m.session === name.slice(0, -5))) continue;
-      try {
-        const m = JSON.parse(fs.readFileSync(path.join(marksDir(home), name), 'utf8'));
-        out.push({ session: name.slice(0, -5), feature: m.feature, folder: m.folder, home });
-      } catch { /* unreadable mark: ignored */ }
-    }
+  for (const name of names) {
+    try {
+      const m = JSON.parse(fs.readFileSync(path.join(marksDir(root), name), 'utf8'));
+      out.push({ session: name.slice(0, -5), feature: m.feature, folder: m.folder });
+    } catch { /* unreadable mark: ignored */ }
   }
   return out;
 }
@@ -325,9 +316,7 @@ function markedFolder(root, sid) {
 }
 
 function clearMarks(root, match) {
-  for (const home of markHomes(root)) {
-    for (const m of marks(home)) if (m.home === home && match(m)) fs.rmSync(safeLocalPath(home, 'plans', 'keel', 'sessions', `${m.session}.json`), { force: true });
-  }
+  for (const m of marks(root)) if (match(m)) fs.rmSync(safeLocalPath(markHome(root), ...MARKS, `${m.session}.json`), { force: true });
 }
 
 function markCommand(root, sub, feature, sid) {
@@ -348,7 +337,7 @@ function markCommand(root, sub, feature, sid) {
     if (!ex && !d) return why;
     if (!ex && ['exported', 'abandoned'].includes(stateOf(d))) return refuse('mark set', `the plan is ${stateOf(d)}`);
     // An exported feature's folder is recorded for the write guard.
-    safeLocalWrite(root, ['plans', 'keel', 'sessions', `${sid}.json`], JSON.stringify(ex ? { feature, folder: rel(root, ex.folder) } : { feature }) + '\n');
+    safeLocalWrite(markHome(root), [...MARKS, `${sid}.json`], JSON.stringify(ex ? { feature, folder: rel(root, ex.folder) } : { feature }) + '\n');
     return [ex ? `planning: ${feature} (exported: ${rel(root, ex.folder)}/)` : `planning: ${feature}`];
   } catch (e) { return refuse(`mark ${sub}`, e.message); }
 }

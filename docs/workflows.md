@@ -496,7 +496,8 @@ Rules:
   Code's confirmation; by default it deletes batches 30 days old or more
   (`cleanup.trash_max_age_days`).
 - **Restoring a folder.** `/keel:cleanup restore <batch>` puts that batch back; without a name it takes
-  the newest batch of any kind (a cleanup too). Files come back into the branch checked out now,
+  the newest batch of any kind (a cleanup too) that this folder moved: the main checkout, or the
+  worktree the session works in. Files come back into the branch checked out now,
   uncommitted: for a task's folder, switch to the task's branch first.
 - **Task ids** compare without case (`CAN-123` and `can-123` are one task). Windows device names
   (`CON`, `NUL`, `AUX`, `COM1`...) and an id ending in a dot are refused.

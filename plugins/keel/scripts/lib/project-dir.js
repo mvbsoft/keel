@@ -5,7 +5,9 @@
 // in a linked worktree of it. keel then takes the worktree for this session's state and git, so parallel
 // sessions keep their notes, state and commits apart; what this machine shares between conversations
 // (planning drafts and settings, briefs, local tasks, the trash, keel's options) stays in the main checkout
-// (mainOf), because a worktree belongs to one conversation and is deleted with it. Only files are read,
+// (mainOf), because a worktree belongs to one conversation and is deleted with it. So do the planning
+// chat marks and the task markers: they are keyed by session, and the chat may leave the worktree or
+// enter it after setting one. Only files are read,
 // no git process: hooks run this on every tool call.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -27,7 +29,8 @@ function repoTop(dir) {
 // The main checkout of the linked worktree whose top is `dir`, or null. A linked worktree's .git is a
 // file "gitdir: <main>/.git/worktrees/<name>"; that folder's commondir leads back to <main>/.git and its
 // gitdir file names this .git, so a .git file copied elsewhere does not count. A submodule's gitdir has
-// no commondir.
+// no commondir. The path is kept as git names it (a subst drive or a link stays), so it matches the
+// paths it is compared with and keyed by; only the checks compare real paths.
 // shortcut: a main checkout whose .git is a file (git init --separate-git-dir) or a bare repository is
 // not recognised, so keel stays on the folder it was given; redo when such a project needs worktrees.
 function linkedMain(dir) {
@@ -37,8 +40,10 @@ function linkedMain(dir) {
   const common = read(path.join(gitDir, 'commondir'));
   const back = read(path.join(gitDir, 'gitdir'));
   if (!common || !back || !samePath(real(path.resolve(gitDir, back.trim())), real(path.join(dir, '.git')))) return null;
-  const commonDir = real(path.resolve(gitDir, common.trim()));
-  return path.basename(commonDir) === '.git' ? path.dirname(commonDir) : null;
+  const commonDir = path.resolve(gitDir, common.trim());
+  if (path.basename(commonDir) === '.git') return path.dirname(commonDir);
+  // The way to it passes a link that is the .git folder itself: only its real path names the checkout.
+  return path.basename(real(commonDir)) === '.git' ? path.dirname(real(commonDir)) : null;
 }
 
 // The folder of the linked worktree of `root`'s repository that `cwd` lies in and that stands for `root`
@@ -55,7 +60,7 @@ function worktreeOf(root, cwd) {
     if (exists(path.join(dir, '.git'))) {
       if (samePath(real(path.join(dir, '.git')), ownGit)) return null;
       const main = linkedMain(dir);
-      if (main && samePath(main, mainTop)) {
+      if (main && samePath(real(main), mainTop)) {
         const mapped = path.join(dir, path.relative(top, path.resolve(root)));
         return exists(mapped) ? mapped : null;
       }
@@ -69,6 +74,25 @@ function mainOf(dir) {
   const top = repoTop(dir);
   const main = top && linkedMain(top);
   return main ? path.join(main, path.relative(top, path.resolve(dir))) : dir;
+}
+
+// The folder whose .keel/config.json and .keel/profile.json keel reads for `dir`: `dir` itself, or the
+// main checkout when `dir` is in a linked worktree without a config of its own (the config is not
+// committed, so a new worktree does not have it).
+function configHome(dir) {
+  if (exists(path.join(dir, '.keel', 'config.json'))) return dir;
+  const main = mainOf(dir);
+  return exists(path.join(main, '.keel', 'config.json')) ? main : dir;
+}
+
+// The folder whose .claude/settings*.json Claude Code applies for `root`: the folder it names as the
+// project (CLAUDE_PROJECT_DIR) when that is a checkout of the same repository, else `root`. A desktop
+// worktree session names the main checkout and applies its settings, not the worktree's copy (seen in
+// a live session); Claude Code started inside a worktree names that worktree.
+function settingsHome(root, env = process.env) {
+  const named = env.CLAUDE_PROJECT_DIR;
+  if (typeof named !== 'string' || !named) return root;
+  return samePath(real(mainOf(named)), real(mainOf(root))) ? path.resolve(named) : root;
 }
 
 const inside = (dir, file) => { const r = path.relative(path.resolve(dir), path.resolve(file)); return !r.startsWith('..') && !path.isAbsolute(r); };
@@ -97,4 +121,4 @@ function scriptProject(given) {
   return wt;
 }
 
-module.exports = { worktreeOf, mainOf, sameIn, hookProject, scriptProject };
+module.exports = { worktreeOf, mainOf, configHome, settingsHome, sameIn, hookProject, scriptProject };

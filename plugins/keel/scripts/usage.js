@@ -54,14 +54,14 @@ function projectsRoot(env = process.env) {
   return env.KEEL_PROJECTS_DIR || path.join(env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects');
 }
 
-const projectDir = (opts) => path.resolve(typeof opts.project === 'string' ? opts.project : process.cwd());
+// A worktree of the named folder the shell is in is taken instead and named on stderr (lib/project-dir.js).
+const projectDir = (opts) => require('./lib/project-dir.js').scriptProject(typeof opts.project === 'string' ? opts.project : process.cwd());
 
 // --in: the documents read back from the page. A folder under the project's .keel/local is read only
 // when no link is on the way to it.
-function inFolder(opts) {
+function inFolder(opts, root = projectDir(opts)) {
   if (typeof opts.in !== 'string') return null;
   const dir = path.resolve(opts.in);
-  const root = projectDir(opts);
   const r = path.relative(path.join(root, '.keel', 'local'), dir);
   if (r.startsWith('..') || path.isAbsolute(r)) return dir;
   try { return safeLocalPath(root, ...r.split(path.sep).filter(Boolean)); } catch { return null; }
@@ -79,7 +79,7 @@ function underLocal(root, file) {
 // The shared project page of older keel versions (usage.artifact_url in .keel/config.json): no longer used, as
 // every machine syncs to its own page. Read only to say so once.
 function projectArtifactUrl(root) {
-  const cfg = readJson(path.join(root, '.keel', 'config.json'));
+  const cfg = readJson(path.join(require('./lib/project-dir.js').configHome(root), '.keel', 'config.json'));
   const u = cfg && cfg.usage && cfg.usage.artifact_url;
   return typeof u === 'string' && u ? u : null;
 }
@@ -498,20 +498,20 @@ function noteLines(t, state) {
 }
 
 function report(opts) {
+  const root = projectDir(opts);
   const machine = loadMachineConfig();
-  notePageTemplate(inFolder(opts), machine);
+  notePageTemplate(inFolder(opts, root), machine);
   const dir = usageDir();
   const state = store.readState(dir);
   const t = textsFor(opts);
   const notes = opts['last-turn'] ? [] : noteLines(t, state);
   if (notes.length) { state.notes = []; store.writeState(dir, state); }
-  const root = projectDir(opts);
   const base = projectsRoot();
   const ref = typeof opts.session === 'string' ? store.listSessions(base).find((r) => r.id === opts.session) : store.newestSessionIn(base, root);
   if (!ref) return [t('report.none'), ...notes].join('\n');
   const nowMs = Date.now();
   const { summary, wallet } = store.sessionSummary(ref, { projectsRoot: base, machine, usageDir: dir });
-  const cal = wallet === 'subscription' ? calibration(inFolder(opts), machine, nowMs) : { result: calibrate({}), snapshots: [] };
+  const cal = wallet === 'subscription' ? calibration(inFolder(opts, root), machine, nowMs) : { result: calibrate({}), snapshots: [] };
   if (opts['last-turn']) return lastTurnText(t, summary, wallet, cal.result);
   const cc = [...readSnapshots(dir)].reverse().find((s) => s.session_id === summary.id && typeof s.cost_usd === 'number');
   return [renderReport({ t, summary, wallet, cal, snapshots: cal.snapshots, cc: cc ? cc.cost_usd : null }), ...notes].join('\n');
@@ -591,4 +591,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { main, parseArgs, renderReport, loadRemote, unwrap, batches, keelFields, versionOverrides };
+module.exports = { main, parseArgs, projectDir, renderReport, loadRemote, unwrap, batches, keelFields, versionOverrides };

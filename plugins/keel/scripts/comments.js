@@ -102,7 +102,7 @@ function classify(lines, syntax) {
 // so a changed planning prefix is never missed.
 function commentsConfig(root) {
   let config;
-  try { config = readJsonFile(path.join(root, '.keel', 'config.json')) || {}; } catch { return {}; }
+  try { config = readJsonFile(path.join(require('./lib/project-dir.js').configHome(root), '.keel', 'config.json')) || {}; } catch { return {}; }
   return { ...(config.comments || {}), ticket_prefixes: ticketPrefixes(config) };
 }
 

@@ -78,6 +78,16 @@ function ownerOf(home, root) {
   try { return samePath(realPath(mainOf(root)), realPath(home)) ? { at: root } : foreign; } catch { return foreign; }
 }
 
+// Whether an item came from the folder `root` keel runs in: the worktree it records, or, with none, the
+// main checkout. An item of this machine's stores in the main checkout (.keel/local/..., but not its own
+// temporary files in .keel/local/tmp/) belongs to every folder of the project.
+function fromHere(root, item) {
+  const real = (p) => { try { return realPath(p); } catch { return path.resolve(p); } };
+  if (item.root !== undefined) return typeof item.root === 'string' && path.isAbsolute(item.root) && samePath(real(item.root), real(root));
+  const p = String(item.path);
+  return samePath(real(root), real(mainOf(root))) || (p.startsWith('.keel/local/') && !p.startsWith('.keel/local/tmp/'));
+}
+
 // Moves project-relative paths into a new batch, or into `into` when that batch exists (one migration
 // run keeps one batch). `by`: cleanup | migration | task; `meta`: per-path extra fields kept in the
 // manifest. Returns { batch, moved, failed }.
@@ -137,7 +147,8 @@ function listBatches(root, now = new Date()) {
   }).filter(Boolean);
 }
 
-// Puts a batch back (the newest when none is named); `only` picks the items to put back, the rest stay.
+// Puts a batch back (when none is named, the newest that holds an item of this folder, fromHere, and only
+// those items); `only` picks the items to put back, the rest stay.
 // A path that exists again, or one that would leave the project (absolute, "..", .git, a link on the
 // way), is left in the trash and reported, never written. The item in the batch is taken only when no
 // link leads to it (the batch folder, `files/` and every folder below it are real folders, the item
@@ -145,7 +156,8 @@ function listBatches(root, now = new Date()) {
 function restore(root, batch, only = () => true) {
   const home = mainOf(root);
   const batches = listBatches(root);
-  const b = batch ? batches.find((x) => x.batch === batch) : batches[batches.length - 1];
+  const b = batch ? batches.find((x) => x.batch === batch) : batches.filter((x) => x.items.some((i) => fromHere(root, i))).pop();
+  const pick = batch ? only : (i) => only(i) && fromHere(root, i);
   if (!b) return { batch: batch || null, restored: [], kept: [], missing: true };
   const linked = localLink(home);
   if (linked) return { batch: b.batch, restored: [], kept: [], missing: false, refused: `${linked}: keel does not write through it` };
@@ -156,7 +168,7 @@ function restore(root, batch, only = () => true) {
   const kept = [];
   const left = [];
   for (const item of b.items) {
-    if (!only(item)) { left.push(item); continue; }
+    if (!pick(item)) { left.push(item); continue; }
     const owner = ownerOf(home, item.root);
     if (owner.why) { kept.push({ ...item, reason: owner.why }); continue; }
     const into = owner.at;
@@ -195,4 +207,4 @@ function emptyTrash(root, { batch, all, olderThanDays }, now = new Date()) {
   return hits;
 }
 
-module.exports = { maxAgeDays, trashDir, moveToTrash, listBatches, restore, emptyChoice, emptyTrash };
+module.exports = { maxAgeDays, trashDir, fromHere, moveToTrash, listBatches, restore, emptyChoice, emptyTrash };

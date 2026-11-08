@@ -211,7 +211,7 @@ function gitFlow(pos, opts) {
   // Claude Code's prompt even when a permission rule would allow node commands.
   if (command === 'trust') return decide('ask', say(project, 'confirm.trust'));
   let git = null;
-  try { git = require('../scripts/lib/json.js').readJsonFile(path.join(project, '.keel', 'config.json')).git; } catch { /* no config: nothing is trusted */ }
+  try { git = require('../scripts/lib/json.js').readJsonFile(path.join(require('../scripts/lib/project-dir.js').configHome(project), '.keel', 'config.json')).git; } catch { /* no config: nothing is trusted */ }
   // The mode comes from the committed config; a clone or a branch could set it, so it counts only when
   // the user confirmed these git settings on this machine (git-flow.js trust).
   const trusted = git && git.mode === 'autonomous' && require('../scripts/lib/trust.js').isTrusted(project);

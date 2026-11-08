@@ -8,7 +8,7 @@
 //   move --items <n,n> [--red <n,n>]
 //                                 move the picked items of the last `find` to the trash; an item of
 //                                 the "do not touch" group moves only when --red names it as well
-//   restore [<batch>]             put a batch back (the newest when none is named)
+//   restore [<batch>]             put a batch back (the newest that this folder moved when none is named)
 //   trash                         list the trash batches with their age
 //   empty-trash [--older-than <days> | --batch <b> | --all]
 //                                 delete batches for good (default: older than trash_max_age_days)
@@ -311,7 +311,7 @@ function move(root, itemsArg, redArg) {
   }
   const meta = Object.fromEntries(go.map((it) => [strip(it.path), { git: it.git, what: it.what }]));
   const r = trash.moveToTrash(root, go.map((it) => strip(it.path)), 'cleanup', meta);
-  const out = [r.moved.length ? `cleanup: moved ${r.moved.length} items (${human(r.moved.reduce((n, i) => n + i.bytes, 0))})${r.batch ? ` to .keel/local/trash/${r.batch}/` : ''}` : 'cleanup: moved nothing'];
+  const out = [r.moved.length ? `cleanup: moved ${r.moved.length} items (${human(r.moved.reduce((n, i) => n + i.bytes, 0))})${r.batch ? ` to ${path.relative(root, path.join(trash.trashDir(root), r.batch)).split(path.sep).join('/')}/` : ''}` : 'cleanup: moved nothing'];
   for (const x of refused) out.push(`refused: ${x}`);
   for (const x of r.failed) out.push(`failed: ${x.path} (${x.reason})`);
   if (r.moved.some((i) => i.git === 'tracked')) out.push(`in git: ${r.moved.filter((i) => i.git === 'tracked').map((i) => i.path).join(', ')} now show as deleted; they go into the next commit as a normal change`);
