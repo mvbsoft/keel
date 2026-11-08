@@ -119,8 +119,84 @@ const draftState = (state, where) => (work) => {
   assert.match(script('plans.js', work, 'list'), new RegExp(`^- csv-export: ${state} · .* · ${where}$`, 'm'), 'the draft');
 };
 
+const read = (work, rel) => fs.readFileSync(path.join(work, rel), 'utf8');
+const pushed = (git, branch) => assert.equal(git('rev-parse', `origin/${branch}`), git('rev-parse', branch), `${branch} is pushed`);
+// The tests behind the npm test gate the end-task cases run (the shop's test script is `node --test`):
+// a red one would turn their review into a test failure.
+// Without NODE_TEST_CONTEXT: this runner sets it, and a nested `node --test` that inherits it reports to
+// the parent instead and always exits 0.
+const testsPass = (work) => {
+  const { NODE_TEST_CONTEXT, ...env } = process.env;
+  const r = spawnSync(process.execPath, ['--test'], { cwd: work, env, encoding: 'utf8' });
+  assert.equal(r.status, 0, `node --test passes: ${r.stdout.slice(-400)}`);
+};
+
+// A long-work line on PAY-1 with this session's invoice provider not committed yet.
+const sessionState = (work, git) => {
+  assert.match(script('notes.js', work, 'check'), /^note: present, status active, branch payments-rework, /m);
+  assert.match(script('notes.js', work, 'lane', 'PAY-1'), /^lane: session \(the note \.keel\/next-session\.md names PAY-1/m);
+  const note = read(work, '.keel/next-session.md');
+  assert.match(note, /^keys: PAY-1$/m);
+  assert.match(note, /^date: 2026-10-13$/m, 'the old date end-session-prepare-only must see replaced');
+  assert.match(note, /^## Next action\nAdd an "invoice" provider to PROVIDERS in src\/payment\.js/m);
+  assert.match(read(work, 'src/payment.js'), /^ {2}invoice: \(o\) => /m, 'the uncommitted work is the invoice provider');
+  pushed(git, 'payments-rework');
+};
+
 // What each variant beyond the branch, tasks and changes must give the scripts the skills run.
 const STATE = {
+  // Nothing to continue, and no discount rule anywhere for the start-task cases to find.
+  base: (work, git) => {
+    const check = script('notes.js', work, 'check');
+    assert.match(check, /^note: missing$/m);
+    assert.match(check, /^tasks: 0 unfinished$/m);
+    assert.match(script('plans.js', work, 'list'), /^drafts: 0$/m);
+    // Not .keel/: its config holds 1000 as line limits.
+    for (const f of git('ls-files').split('\n').filter((f) => !f.startsWith('.keel/'))) assert.doesNotMatch(read(work, f), /discount|1000/i, f);
+  },
+  // CAN-123 is the unfinished task a "10% off over 1000 UAH" request must be matched with.
+  tasks: (work, git) => {
+    assert.match(script('notes.js', work, 'tasks'), /^tasks: 2 unfinished \((CAN-123, fix-reset-500|fix-reset-500, CAN-123)\)/);
+    assert.match(script('notes.js', work, 'lane', 'CAN-123'), /^lane: task \(CAN-123 is an unfinished keel task, on CAN-123-discount/m);
+    const task = git('show', 'CAN-123-discount:.keel/tasks/CAN-123/task.md');
+    assert.match(task, /^status: handed-off\nbranch: CAN-123-discount$/m);
+    assert.match(task, /^link: https:\/\/company\.atlassian\.net\/browse\/CAN-123$/m);
+    assert.match(git('show', 'CAN-123-discount:src/cart.js'), /^function withDiscount\(sum\) \{\n {2}return sum > 1000 \? Math\.round\(sum \* 0\.9\) : sum;$/m);
+    pushed(git, 'CAN-123-discount');
+  },
+  // CAN-200 done, committed and pushed on its branch: only the end-task step is left.
+  finish: (work, git) => {
+    assert.match(script('notes.js', work, 'lane', 'CAN-200'), /^lane: task \(CAN-200 is an unfinished keel task, on CAN-200-free-shipping \(working tree\)/m);
+    assert.match(read(work, '.keel/tasks/CAN-200/task.md'), /^status: active\nbranch: CAN-200-free-shipping$/m);
+    assert.equal(git('diff', '--name-only', 'main'), '.keel/tasks/CAN-200/task.md\nsrc/shipping.js\ntest/shipping.test.js');
+    pushed(git, 'CAN-200-free-shipping');
+    testsPass(work);
+  },
+  session: sessionState,
+  // The untidy code bug-fix-stays-surgical's graders expect untouched, and the crash it fixes.
+  messy: (work) => {
+    const auth = read(work, 'src/auth.js');
+    for (const line of ['var crypto = require("node:crypto");', '// Tokens are stored in Redis (see config/redis.js).', 'function legacyHash(s) {', 'var token = Math.random().toString(36).slice(2);']) {
+      assert.ok(auth.includes(line), `src/auth.js keeps: ${line}`);
+    }
+    assert.match(read(work, 'src/report.js'), /^ {4}var sum=0$/m);
+    const { reset } = require(path.join(work, 'src', 'auth.js'));
+    assert.throws(() => reset('unknown', 'long enough'), { name: 'TypeError', message: /toLowerCase/ });
+    assert.deepEqual(fs.readdirSync(path.join(work, 'test')).filter((f) => /auth|reset/.test(f)), [], 'reset() has no test yet');
+  },
+  // A correct but overbuilt average() and an unexplained cart.js edit, measured from the task's start.
+  overbuilt: (work, git) => {
+    assert.match(script('notes.js', work, 'check'), new RegExp(`^session start: ${git('rev-parse', '--short', 'HEAD')} at `, 'm'), 'the task start the review measures from');
+    assert.match(read(work, '.keel/tasks/avg-total/task.md'), /^status: active\nbranch: avg-total$/m);
+    const report = read(work, 'src/report.js');
+    assert.match(report, /^class AggregatorFactory \{$/m);
+    assert.match(report, /^const DEFAULT_OPTIONS = \{ strategy: 'mean', rounding: 'none', locale: 'en-US' \};$/m);
+    assert.match(git('diff', 'src/cart.js'), /^\+function total\( items \) \{$/m, 'the cart edit the task does not explain');
+    const { average } = require(path.join(work, 'src', 'report.js'));
+    assert.equal(average([{ total: 100 }, { total: 50 }, { total: 30 }]), 60);
+    assert.equal(average([]), 0);
+    testsPass(work);
+  },
   planning: draftState('draft · open Q 0', '\\.keel/local/plans/keel/csv-export/ \\(this machine only\\)'),
   'planning-openq': draftState('draft · open Q 1', '\\.keel/local/plans/keel/csv-export/ \\(this machine only\\)'),
   'planning-ready': (work, git) => {
@@ -153,7 +229,8 @@ const STATE = {
     assert.match(script('plans.js', work, 'tickets', 'INV-4', '--fetch'), /^ {2}depends: INV-3 waiting for merge into the feature branch$/m);
   },
   // The level is only in the note, never in the command: the run must still ask it.
-  'session-level': (work) => {
+  'session-level': (work, git) => {
+    sessionState(work, git);
     assert.match(fs.readFileSync(path.join(work, '.keel', 'next-session.md'), 'utf8'), /^Then end the session with Basic verification/m);
   },
   'task-active': (work, git) => {
@@ -203,6 +280,7 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''], 'task-fresh': ['main', 0, ''],
     'task-on-main': ['main', 1, '?? src/history.js'], 'ticket-on-feature': ['csv-export', 1, 'M src/invoices.js'] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
+  assert.deepEqual(Object.keys(STATE).sort(), [...VARIANTS].sort(), 'every variant checks the state its cases read');
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {
     const work = tempDir(`keel-eval-${variant}-`);
     const home = tempDir('keel-eval-home-');
@@ -217,12 +295,8 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     assert.ok(fs.existsSync(path.join(home, '.claude', 'keel', 'trusted-git.json')), `${variant}: trust in the run's home`);
     const check = spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', 'check-config.js'), work], { encoding: 'utf8' }).stdout;
     assert.match(check, /^keel-config: ok/, variant);
-    if (STATE[variant]) STATE[variant](work, git);
+    STATE[variant](work, git);
   }
-  const work = tempDir('keel-eval-tasks-');
-  execFileSync(process.execPath, [SHOP, 'tasks'], { cwd: work, env: { ...process.env, HOME: tempDir('keel-eval-home-') } });
-  const listed = spawnSync(process.execPath, [path.join(PLUGIN, 'scripts', 'notes.js'), work, 'tasks'], { encoding: 'utf8' }).stdout;
-  assert.match(listed, /^tasks: 2 unfinished \((CAN-123, fix-reset-500|fix-reset-500, CAN-123)\)/);
 });
 
 test('npm run eval runs the suite once per release, never in CI by default', () => {
