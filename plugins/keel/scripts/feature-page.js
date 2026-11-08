@@ -16,15 +16,16 @@
 //   tickets' wait in translate.json for Claude, and `apply` puts the translations in
 //   (lib/feature-page-text.js). The page keeps them, so the next update translates only new texts.
 // Nothing is kept: the page goes to .keel/local/tmp/feature-page/ and `clean` removes it after the
-// publish. Reads git and the files only, but for the code a feature without one gets (see above).
-// Usage: node feature-page.js <projectDir> [<feature>] [--lang <code>] [--previous <file>]
+// publish. Reads git and the files only, but for the code a feature without one gets (see above) and
+// --fetch, which fetches the remote first (a failure is a line and a mark on the page, not a refusal).
+// Usage: node feature-page.js <projectDir> [<feature>] [--lang <code>] [--previous <file>] [--fetch]
 //                                         the page; no feature: the current branch's
 //        node feature-page.js <projectDir> apply         puts translated.json into the waiting page
 //        node feature-page.js <projectDir> clean         removes the page's folder
 const fs = require('node:fs');
 const path = require('node:path');
 const plans = require('./lib/plans.js');
-const { featureFolder } = require('./lib/plans-export.js');
+const { featureFolder, fetched } = require('./lib/plans-export.js');
 const { mapTracked } = require('./lib/plans-export-repos.js');
 const { readStates, collect, states, nextOf, byKey, prefixOf, metBy, depWhere, STATES } = require('./lib/plans-state.js');
 const { neighbourStates, met, NOT_CHECKED } = require('./lib/plans-neighbours.js');
@@ -227,7 +228,11 @@ function currentFeature(root, now) {
 }
 
 // `lang`: the page's language, else the earlier page's (`previous`, its file), else the conversation's.
-function build(root, arg, { now = new Date(), lang = null, previous = null } = {}) {
+// `fetch`: the remote first, so the states are fresh; a failed fetch still builds the page.
+function build(root, arg, { now = new Date(), lang = null, previous = null, fetch = false } = {}) {
+  const fetchResult = fetch ? fetched(root) : { failed: false, notes: [] };
+  // fetched() words its notes for the export ("; keys ..."); the page speaks of ticket states.
+  const fetchNotes = fetchResult.notes.map((n) => n.replace(/; keys .*$/, fetchResult.failed ? '; ticket states as of the last fetch' : ''));
   let feature = arg;
   if (feature === undefined) {
     const c = currentFeature(root, now);
@@ -243,6 +248,8 @@ function build(root, arg, { now = new Date(), lang = null, previous = null } = {
   if (!draft && !f) return refuse(`no draft and no exported tickets of ${feature} in this working tree; on another branch: switch to it first`);
   let data;
   try { data = draft ? draftData(root, draft) : exportedData(root, feature, f, now); } catch (e) { return refuse(e.message); }
+  // A draft's tickets have no state from git, so a failed fetch leaves nothing stale on its page.
+  const stale = !draft && fetchResult.failed;
   // The page leaves this machine: a feature file that names one of its folders is fixed first.
   const folders = plans.machineFolders(root);
   const local = [
@@ -275,7 +282,7 @@ function build(root, arg, { now = new Date(), lang = null, previous = null } = {
   const { labels, own } = labelsFor(pageLang);
   const secs = data.overviewText ? sectionsOf(data.overviewText) : [];
   const page = {
-    feature, title, stage: data.stage, generated: now.toISOString(),
+    feature, title, stage: data.stage, generated: now.toISOString(), fetchFailed: stale,
     language: pageLang, source, labels,
     heading,
     repos: data.repos.map((r) => ({ prefix: r.prefix, name: r.name, commit: r.commit })),
@@ -291,6 +298,7 @@ function build(root, arg, { now = new Date(), lang = null, previous = null } = {
     ...(data.written.length ? [`code written: ${data.written.join(', ')} (commit and push them, so every machine finds this page)`] : []),
     `feature: ${feature}, ${data.stage}, ${data.tickets.length} tickets${data.stage === 'exported' ? ` (${done} done)` : ''}`,
     `as of: ${data.repos.map((r) => `${r.name} ${r.commit || 'not on this machine'}`).join(', ')}`,
+    ...(draft ? [] : fetchNotes),
     `language: ${pageLang}${own ? '' : ' (labels in English: no page labels in this language)'}; texts in ${source}`,
   ];
   let dir;
@@ -365,10 +373,11 @@ if (require.main === module) {
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
     const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
-    const feature = pos[1];
     const str = (v) => (typeof v === 'string' ? v : null);
+    // "--fetch <feature>": parseArgs takes the word as the flag's value; it is the feature.
+    const feature = pos[1] ?? str(opts.fetch) ?? undefined;
     lines = feature === 'clean' ? cleanPage(root) : feature === 'apply' ? applyTranslations(root)
-      : build(root, feature, { lang: str(opts.lang), previous: str(opts.previous) });
+      : build(root, feature, { lang: str(opts.lang), previous: str(opts.previous), fetch: opts.fetch !== undefined });
   } catch (e) {
     lines = [`feature-page: unavailable (${e.message})`];
   }

@@ -396,7 +396,8 @@
       for (const r of data.repos) p.append(add(el('div', 'r'), el('b', '', r.name), r.commit ? el('span', 'key', r.commit) : el('span', 'small muted', L('not_on_pc'))));
       p.append(el('span', 'small muted', L('built', { date: builtAt })));
     });
-    card.append(add(el('div', 'rowline chips'), projects, asOf));
+    const stale = data.fetchFailed ? bubbleButton('pill off', [icon('alert'), el('span', '', L('fetch_failed'))], L('fetch_failed_title')) : null;
+    card.append(add(el('div', 'rowline chips'), projects, asOf, stale));
     // The page cannot reach the machine it was built on, so it gives the command that updates it. A
     // copy the browser refuses selects the command for copying by hand.
     const refresh = `/keel:feature-page ${data.feature}`;

@@ -51,7 +51,10 @@ so an update translates only what changed.
      whose title ends with ` (<code>)` → the page to update, read as above; another → say it is not
      this feature's page and make a new one.
    - None otherwise → a new page.
-5. Build it: `node "<keel>/scripts/feature-page.js" "<project>" [<feature>] [--lang <code>] [--previous "<the earlier page's file>"]`.
+5. Build it: `node "<keel>/scripts/feature-page.js" "<project>" [<feature>] [--lang <code>] [--previous "<the earlier page's file>"] --fetch`.
+   `--fetch` fetches the remote first, so the tickets' states are fresh. A `fetch: <remote> failed (...)`
+   line → the page is still built, its states as of the last fetch, and the page says so; tell it in
+   step 7.
    - `translate: <file> (...)` → Read that file and translate each text from `from` to `to`: the
      words only; markdown, line breaks, code blocks, inline code, paths, URLs, keys such as API-121
      and D1, and the Boundaries labels `always:`, `ask first:`, `never:` stay as they are. Write `translated.json` beside it, `{ "<id>": "<translated text>" }`
@@ -69,6 +72,8 @@ so an update translates only what changed.
    Then run `node "<keel>/scripts/feature-page.js" "<project>" clean`.
 7. Tell the result in one or two lines: "Done: the page of feature <feature>, <n> tickets, as of
    commit <the `as of:` hashes>, in <language>." with the link, and whether it is new or updated.
+   A failed fetch in step 5 → one more line: the fetch failed (its reason in plain words), so the
+   ticket states are as of the last fetch; run the command again once the remote is reachable.
    The page is private; its Share menu shares it.
 8. Last, run `node "<keel>/scripts/usage.js" report --project "<project>" --session <sid> --last-turn --lang <the conversation language code>`
    and give its one line as it is, as the report's last line.

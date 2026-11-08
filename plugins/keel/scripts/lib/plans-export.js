@@ -91,14 +91,22 @@ function highestKey(root, prefix, s, repo, notes = []) {
 }
 
 // Whether the project is in a git repository, and its remote (git-flow's choice) after a fetch. `notes`
-// says when keys come from less than the remote knows.
-function fetched(root) {
-  if (readGit(root, ['rev-parse', '--git-dir']) === null) return { repo: false, notes: ['fetch: not a git repository; keys from the files here only'] };
+// says when keys come from less than the remote knows; `failed`: there is a remote and the fetch failed.
+// A remote that never answers (a stalled proxy or VPN) is a failed fetch after `timeoutMs`, not a hang.
+function fetched(root, { timeoutMs = FETCH_TIMEOUT_MS } = {}) {
+  if (readGit(root, ['rev-parse', '--git-dir']) === null) return { repo: false, failed: false, notes: ['fetch: not a git repository; keys from the files here only'] };
   const remote = flow.pickRemote((readGit(root, ['remote']) || '').split('\n').filter(Boolean));
-  if (!remote) return { repo: true, notes: ['fetch: no remote, skipped; keys from this clone only'] };
-  const r = flow.git(root, ['fetch', '--prune', remote]);
-  return { repo: true, notes: r.ok ? [] : [`fetch: ${remote} failed (${gitText(r)}); keys from what this clone knows`] };
+  if (!remote) return { repo: true, failed: false, notes: ['fetch: no remote, skipped; keys from this clone only'] };
+  const failed = (why) => ({ repo: true, failed: true, notes: [`fetch: ${remote} failed (${why}); keys from what this clone knows`] });
+  let r;
+  try { r = flow.git(root, ['fetch', '--prune', remote], undefined, timeoutMs); } catch (e) {
+    if (e.code !== 'ETIMEDOUT') throw e;
+    return failed(`no answer in ${Math.round(timeoutMs / 1000)} s`);
+  }
+  return r.ok ? { repo: true, failed: false, notes: [] } : failed(gitText(r));
 }
+// Room for a slow but working fetch, under Claude Code's 2-minute limit for a shell command.
+const FETCH_TIMEOUT_MS = 60 * 1000;
 
 // --- files ---
 

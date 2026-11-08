@@ -41,8 +41,9 @@ const { planningFiles } = require('./lib/planning.js');
 
 const ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', LC_ALL: 'C', LANG: 'C', GIT_EDITOR: 'true', GIT_MERGE_AUTOEDIT: 'no' };
 
-function git(root, args, input) {
-  const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', env: ENV, input, maxBuffer: 64 * 1024 * 1024 });
+// `timeout` (ms): past it git is killed and the call throws an ETIMEDOUT error.
+function git(root, args, input, timeout) {
+  const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', env: ENV, input, maxBuffer: 64 * 1024 * 1024, timeout });
   if (r.error) throw r.error;
   return { ok: r.status === 0, out: (r.stdout || '').trim(), raw: r.stdout || '', err: (r.stderr || '').trim() };
 }
