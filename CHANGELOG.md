@@ -110,7 +110,11 @@ All notable changes to keel are listed here. The format follows
   ticket of a repository that is not on this machine is marked so, its state and any dependency on
   it unknown; one of this repository whose file is only on another branch is read from there and
   marked so. The page is a snapshot: its feature card says when it was built and gives the command
-  that updates it, with a Copy button. No feature named: the current branch's. A path of this machine
+  that updates it, with a Copy button. Before the page is built, `feature-page.js --fetch` fetches the
+  remote, so the tickets' states are fresh; a failed fetch still builds the page, says so and marks
+  the states on the page as of the last fetch (a draft's page has no git states, so no mark). The
+  planning fetch (also for the export and `plans.js tickets --fetch`) counts a remote with no answer
+  within 60 s as failed instead of waiting. No feature named: the current branch's. A path of this machine
   in the feature's files is never published: the page is refused with each one named.
 - `plans.js check`, and with it the export, reports a path of this machine anywhere in a feature's
   files: the plan or overview, a ticket, a research report (a drive such as `C:\`, `/home/<user>`,

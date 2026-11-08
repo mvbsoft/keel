@@ -208,7 +208,10 @@ branch is read from that branch and marked "only on branch <branch>". A dependen
 holds the ticket back or was merged in by hand, where its code is: "ready in the <branch> feature
 branch, not in main" (on hover: wait for that merge, or pull it into your branch with `git merge`),
 "ready in the <branch> ticket branch", or "already in your branch". The page shows git as it was when
-it was built or updated: it does not update itself. Its feature card says when it was built and gives
+it was built or updated: it does not update itself. keel runs `git fetch` first, so the states are
+fresh; when the fetch fails (no network, no access, or no answer within 60 s), the page is still made, keel says so, and the
+feature card marks the states as of the last fetch. Other repositories of the feature are read as they
+are on this machine, without a fetch. Its feature card says when it was built and gives
 the command that updates it, `/keel:feature-page <feature>`, with a Copy button. keel publishes it with
 the `Artifact` tool.
 

@@ -255,6 +255,46 @@ gitTest('an exported feature: its texts, states, sizes and terms go into the pag
   assert.ok(!html.includes(tmp) && !html.includes(tmp.split(path.sep).join('/')), 'no local path on the page');
 });
 
+gitTest('--fetch: the states come from a fresh fetch; a failed fetch still builds the page and marks its states as of the last fetch', () => {
+  const tmp = tempDir('keel-page-');
+  const bare = path.join(tmp, 'api.git');
+  execFileSync('git', ['init', '-q', '--bare', bare]);
+  const api = exported(tmp, { remote: bare });
+  git(api, 'push', '-q', 'origin', 'main', FEATURE);
+  // Another machine starts API-2 and pushes its branch; this clone has not fetched it yet.
+  const other = path.join(tmp, 'other');
+  execFileSync('git', ['clone', '-q', '-b', FEATURE, bare, other]);
+  git(other, 'push', '-q', 'origin', `${FEATURE}:api-2-badge`);
+  const api2 = (out) => pageData(line(out, 'page')).data.tickets[1].state;
+
+  const stale = run(api, FEATURE);
+  assert.equal(api2(stale), 'to do', 'without --fetch: what this clone knows');
+  assert.ok(!stale.some((l) => l.startsWith('fetch: ')), stale.join('\n'));
+
+  const fresh = run(api, '--fetch', FEATURE);
+  assert.equal(api2(fresh), 'in progress', fresh.join('\n'));
+  assert.ok(!fresh.some((l) => l.startsWith('fetch: ')), fresh.join('\n'));
+  assert.ok(!pageData(line(fresh, 'page')).data.fetchFailed);
+
+  git(api, 'remote', 'set-url', 'origin', path.join(tmp, 'gone.git'));
+  const failed = run(api, FEATURE, '--fetch');
+  assert.match(line(failed, 'fetch'), /^origin failed \(.+\); ticket states as of the last fetch$/);
+  const { data } = pageData(line(failed, 'page'));
+  assert.equal(data.fetchFailed, true, 'the page says so too');
+  assert.equal(data.tickets[1].state, 'in progress', 'the states of the last fetch');
+  assert.ok(!JSON.stringify(data).includes('gone.git'), 'no remote or git error on the page');
+  // A draft's tickets have no state from git: nothing to mark.
+  plans(api, 'new', 'csv-export');
+  const draft = run(api, 'csv-export', '--fetch');
+  assert.ok(!draft.some((l) => l.startsWith('fetch: ')), draft.join('\n'));
+  assert.ok(!pageData(line(draft, 'page')).data.fetchFailed, 'a draft page');
+
+  git(api, 'remote', 'remove', 'origin');
+  const none = run(api, FEATURE, '--fetch');
+  assert.equal(line(none, 'fetch'), 'no remote, skipped');
+  assert.ok(!pageData(line(none, 'page')).data.fetchFailed, 'no remote: nothing is stale');
+});
+
 gitTest('the page\'s other files lie beside it as they are, and the page loads no local file that is not there', () => {
   const tmp = tempDir('keel-page-');
   const file = line(run(exported(tmp), FEATURE), 'page');
@@ -542,6 +582,9 @@ test('the page template: its script parses, every label it names exists, and it 
   assert.match(scripts[0], /const refresh = `\/keel:feature-page \$\{data\.feature\}`;/);
   assert.match(scripts[0], /navigator\.clipboard\.writeText\(refresh\)/);
   for (const k of ['refresh', 'copy', 'copied', 'copy_failed']) assert.ok(labels.has(k), k);
+  // A failed fetch: a mark on the feature card, with its explanation.
+  assert.match(scripts[0], /const stale = data\.fetchFailed \?[^\n]*L\('fetch_failed'\)[^\n]*L\('fetch_failed_title'\)/);
+  assert.match(scripts[0], /card\.append\(add\(el\('div', 'rowline chips'\)[^\n]*\bstale\)\)/, 'the mark is on the card');
   // A mark's explanation is a bubble like ⓘ, not the browser's tooltip, which a phone never shows; so a
   // dependency row is a box with its button and its marks beside it, not one button.
   assert.doesNotMatch(scripts[0], /\b[mc]\.title = /, 'a mark or chip with a browser tooltip');

@@ -415,3 +415,29 @@ gitTest('export into the draft\'s own folder never replaces a README of the user
   assert.equal(run(work, 'export', 'csv-export')[2], 'readme: none (1 ticket)');
   assert.equal(readRel(work, 'plans/csv-export/README.md'), '# Mine\n');
 });
+
+gitTest('fetched: a remote that takes the connection and never answers is a failed fetch at the time limit, not a hang', async () => {
+  const net = require('node:net');
+  const { spawn } = require('node:child_process');
+  const held = [];
+  const server = net.createServer((s) => { held.push(s); s.on('error', () => {}); });
+  await new Promise((done) => server.listen(0, '127.0.0.1', done));
+  const work = tempDir('keel-fetch-');
+  git(work, 'init', '-q', '-b', 'main');
+  git(work, 'remote', 'add', 'origin', `http://127.0.0.1:${server.address().port}/team/api.git`);
+  const code = `process.stdout.write(JSON.stringify(require(${JSON.stringify(path.join(SCRIPTS, 'lib', 'plans-export.js'))}).fetched(process.argv[1], { timeoutMs: 1000 })))`;
+  const child = spawn(process.execPath, ['-e', code, work]);
+  let out = '';
+  child.stdout.on('data', (d) => { out += d; });
+  // The test's own limit: without one, a hung fetch would hang the test run too.
+  const ended = await new Promise((done) => {
+    const timer = setTimeout(() => { child.kill(); done(false); }, 20000);
+    child.on('exit', () => { clearTimeout(timer); done(true); });
+  });
+  for (const s of held) s.destroy();
+  server.close();
+  assert.ok(ended, 'the fetch ended at its limit');
+  const r = JSON.parse(out);
+  assert.equal(r.failed, true);
+  assert.deepEqual(r.notes, ['fetch: origin failed (no answer in 1 s); keys from what this clone knows']);
+});

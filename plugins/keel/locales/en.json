@@ -83,6 +83,8 @@
   "page.not_on_pc": "not on this machine",
   "page.not_on_pc_title": "The {repo} repository is not on this machine, so keel cannot read this ticket's state.",
   "page.built": "built {date}",
+  "page.fetch_failed": "states as of the last fetch",
+  "page.fetch_failed_title": "git fetch failed when the page was built (no network, no access or no answer), so the tickets' states are as git knew them on that machine and may be out of date.",
   "page.refresh": "Snapshot of {date}. To update it, run in Claude Code in this project:",
   "page.copy": "Copy",
   "page.copied": "Copied",
