@@ -13,7 +13,7 @@ source: ${o.source}
 link: ${o.link || '-'}
 status: ${o.status}
 branch: ${o.branch}
-base: main
+base: ${o.base || 'main'}
 merge_into: main
 execution: ${o.execution || 'here'}
 plan: ${o.plan || 'inline'}
@@ -227,17 +227,22 @@ module.exports = { summary, average, AggregatorFactory };
   write('test/report.test.js', "const test = require('node:test');\nconst assert = require('node:assert');\nconst { average } = require('../src/report');\ntest('average of order totals', () => assert.equal(average([{ total: 100 }, { total: 50 }, { total: 30 }]), 60));\ntest('average is 0 for no orders', () => assert.equal(average([]), 0));\n");
 }
 
-// CAN-123 resumed in the chat SID, as start-task leaves it: status active, its start (main before the
-// branch) recorded, committed on the task branch.
+// Task <id> resumed in the chat SID, as start-task leaves it: status active and its start commit
+// recorded in task.md, committed on the current branch.
+function activate(id, started) {
+  const out = execFileSync(process.execPath, [path.join(KEEL, 'scripts', 'notes.js'), root, 'task', 'activate', id, '--session', SID], { encoding: 'utf8' });
+  if (!out.startsWith(`active task: ${id}`)) throw new Error(`notes.js task activate: ${out}`);
+  const file = `.keel/tasks/${id}/task.md`;
+  write(file, fs.readFileSync(path.join(root, file), 'utf8').replace(/^(after_commit: .*)$/m, (l) => `${l}\nstarted: ${started}`));
+  commitAll(`keel: ${id} active`);
+}
+
+// CAN-123 resumed in the chat SID, its start (main before the branch) recorded, on the task branch.
 function taskActive() {
   tasks();
   const started = git('rev-parse', 'main');
   git('switch', '-q', 'CAN-123-discount');
-  const out = execFileSync(process.execPath, [path.join(KEEL, 'scripts', 'notes.js'), root, 'task', 'activate', 'CAN-123', '--session', SID], { encoding: 'utf8' });
-  if (!/^active task: CAN-123/.test(out)) throw new Error(`notes.js task activate: ${out}`);
-  const file = '.keel/tasks/CAN-123/task.md';
-  write(file, fs.readFileSync(path.join(root, file), 'utf8').replace(/^(after_commit: .*)$/m, (l) => `${l}\nstarted: ${started}`));
-  commitAll('keel: CAN-123 active');
+  activate('CAN-123', started);
 }
 
 // A plan of n steps as the plan template writes them, each step a module and its test.
@@ -281,4 +286,23 @@ function taskFresh() {
   git('switch', '-q', 'main');
 }
 
-module.exports = { tasks, finish, session, overbuilt, taskActive, taskFresh };
+// A task that works directly on main, a shared branch (branch = base = main), active for the chat SID
+// and pushed; half of it not committed: history() with no tests of its own, nothing uses it yet.
+function taskOnMain() {
+  const started = git('rev-parse', 'main');
+  write('.keel/tasks/order-history/task.md', taskFile({
+    id: 'order-history', title: 'Order history for a customer', source: 'text',
+    status: 'handed-off', branch: 'main', created: '2026-11-07', updated: '2026-11-07', last: git('rev-parse', '--short', 'HEAD'),
+    goal: 'A customer sees their past orders, newest first, on an order history page.',
+    next: 'Write tests for history(orders, customerId) in test/history.test.js, then the page.',
+    criteria: '- history(orders, customerId) gives that customer\'s orders, newest first\n- an order history page shows them\n- tests cover both',
+    state: '- ✅ history(orders, customerId) in src/history.js (not committed)\n- ⬜ tests for history\n- ⬜ the order history page',
+    files: '- Changed: src/history.js: history(orders, customerId)\n- Next: test/history.test.js, the page',
+  }));
+  commitAll('keel: task order-history');
+  activate('order-history', started);
+  git('push', '-q', 'origin', 'main');
+  write('src/history.js', "'use strict';\n// A customer's orders, newest first.\nfunction history(orders, customerId) {\n  return orders.filter((o) => o.customerId === customerId).sort((a, b) => b.date.localeCompare(a.date));\n}\nmodule.exports = { history };\n");
+}
+
+module.exports = { taskFile, activate, tasks, finish, session, overbuilt, taskActive, taskFresh, taskOnMain };

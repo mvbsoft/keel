@@ -14,7 +14,7 @@ const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 // The chat the planning cases resume: its id is SID in shop-base.js, each case's history.jsonl keeps it.
 const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(path.join(EVALS, '_fixtures', 'shop-base.js'), 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh'];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh', 'task-on-main', 'ticket-on-feature'];
 
 const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
@@ -175,6 +175,24 @@ const STATE = {
     assert.match(out, /^ask: Left: 9 steps, ~18 files, at or over 8 steps or 15 files: .* delegate to implementers, or here\?/m);
     assert.match(out, /^problems: none$/m, out);
   },
+  // A task working directly on the shared main: a half of it moved to planning must not land there.
+  'task-on-main': (work, git) => {
+    assert.match(script('notes.js', work, 'task', 'active', '--session', SID), /^active task: order-history$/m);
+    const task = fs.readFileSync(path.join(work, '.keel', 'tasks', 'order-history', 'task.md'), 'utf8');
+    assert.match(task, /^status: active$/m);
+    assert.match(task, /^branch: main\nbase: main$/m);
+    assert.equal(/^started: ([0-9a-f]{40})$/m.exec(task)?.[1], git('rev-parse', 'main~2'), 'started: main before the task');
+    assert.equal(git('rev-parse', 'origin/main'), git('rev-parse', 'main'), 'the task is pushed');
+    assert.equal(fs.readdirSync(path.join(work, 'test')).filter((f) => /history/.test(f)).length, 0, 'history() has no tests');
+  },
+  // The same on a shared feature branch, where the rule against committing on main does not reach.
+  'ticket-on-feature': (work, git) => {
+    assert.match(script('notes.js', work, 'task', 'active', '--session', SID), /^active task: INV-1$/m);
+    assert.match(fs.readFileSync(path.join(work, '.keel', 'tasks', 'INV-1', 'task.md'), 'utf8'), /^status: active\nbranch: csv-export\nbase: csv-export\nmerge_into: main$/m);
+    assert.match(script('plans.js', work, 'tickets', 'INV-1'), /^  branch: csv-export -> main$/m);
+    assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: none$/m, 'the chat works on a task, it plans nothing');
+    assert.equal(git('rev-parse', 'origin/csv-export'), git('rev-parse', 'csv-export'), 'the task is pushed');
+  },
 };
 
 test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
@@ -182,7 +200,8 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     'session-level': ['payments-rework', 0, 'M src/payment.js\n?? test/invoice.test.js'],
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
     planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'], 'planning-new': ['main', 0, ''],
-    'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''], 'task-fresh': ['main', 0, ''] };
+    'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''], 'task-fresh': ['main', 0, ''],
+    'task-on-main': ['main', 1, '?? src/history.js'], 'ticket-on-feature': ['csv-export', 1, 'M src/invoices.js'] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {
     const work = tempDir(`keel-eval-${variant}-`);

@@ -22,7 +22,7 @@ Claude Code CLI (`claude plugin validate --strict .` checks the marketplace file
 keel's instructions (the retell and the "new?" question, lanes, the end-task menu, the level question
 before any review agent, a recorded verification before a task folder moves, the session note, the
 planning lane: end-planning's modes and gates, ticket states on start-task, a task that turns into
-planning, a big plan run in a fresh conversation, the gathering, the levels and the package comparison in planning) and the coding standards. 42 of the 43 cases build a small shop project with git (`evals/_fixtures/shop.js`;
+planning (also from a shared branch, main or a feature branch, where the half goes to a new branch before any commit; on main the rule against committing there also holds, so only the feature-branch cases fail without the shared-branch rule), a big plan run in a fresh conversation, the gathering, the levels and the package comparison in planning) and the coding standards. 46 of the 47 cases build a small shop project with git (`evals/_fixtures/shop.js`;
 `help-lists-every-command` needs none). Each case runs one keel command in Claude Code, or a plain
 request for the two cases tagged `standards`; a case tagged `lanes` may also give a plain request or a
 bare command (`/start-task`), which the lane guards must stop too. Each case grades the reply and the
