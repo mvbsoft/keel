@@ -113,7 +113,8 @@ const FETCH_TIMEOUT_MS = 60 * 1000;
 // A path keel writes, moves or removes: under .keel/local through safeLocalPath, in the repository with
 // no link on the way.
 function safe(root, file, local) {
-  if (local) return safeLocalPath(root, ...path.relative(path.join(root, '.keel', 'local'), file).split(path.sep));
+  const home = require('./project-dir.js').mainOf(root);
+  if (local) return safeLocalPath(home, ...path.relative(path.join(home, '.keel', 'local'), file).split(path.sep));
   const why = linkOnWay(root, file);
   if (why) throw new Error(`${why}: keel does not write through it`);
   return file;

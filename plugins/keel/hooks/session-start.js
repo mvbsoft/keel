@@ -23,19 +23,21 @@ function languageName(code) {
 function main() {
   let source = '';
   let sessionId = '';
+  let cwd;
   try {
     const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+    cwd = input.cwd;
     source = String(input.source || '');
     sessionId = /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(input.session_id) ? input.session_id : '';
   } catch { /* no input: treat as a start */ }
   const root = process.env.CLAUDE_PLUGIN_ROOT || path.join(__dirname, '..');
-  const project = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  const project = require('../scripts/lib/project-dir.js').hookProject({ cwd });
   if (!require('../scripts/lib/active.js').configured(project)) return null;
   const language = effectiveOptions(project).conversation_language;
   // The other keel scripts need Node 22: say so once, on a fresh start.
   const oldNode = Number(process.versions.node.split('.')[0]) < MIN_NODE && (source === 'startup' || !source);
   return {
-    ...(oldNode && { systemMessage: translator(pickLanguage())('start.old_node', { min: MIN_NODE, found: process.versions.node }) }),
+    ...(oldNode && { systemMessage: translator(pickLanguage(language))('start.old_node', { min: MIN_NODE, found: process.versions.node }) }),
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
       additionalContext: `${standards(root)}

@@ -461,7 +461,7 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    lines = run(path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd()), pos[1] || 'status', opts);
+    lines = run(require('./lib/project-dir.js').scriptProject(pos[0]), pos[1] || 'status', opts);
   } catch (e) {
     lines = ['git-flow: unavailable', `reason: ${e.message}`];
   }

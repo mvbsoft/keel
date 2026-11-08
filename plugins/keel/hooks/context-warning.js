@@ -103,9 +103,9 @@ function modelWindow({ model, peak }) {
   return standard && peak <= WINDOW_STANDARD ? WINDOW_STANDARD : WINDOW_1M;
 }
 
-function warning(used, limit) {
+function warning(used, limit, project) {
   const [usedK, limitK] = [used, limit].map((n) => `${Math.round(n / 1000)}k`);
-  return translator(pickLanguage())('context.warning', { used: usedK, limit: limitK, percent: Math.round((used / limit) * 100) });
+  return translator(pickLanguage(require('../scripts/lib/options.js').effectiveOptions(project).conversation_language))('context.warning', { used: usedK, limit: limitK, percent: Math.round((used / limit) * 100) });
 }
 
 function main() {
@@ -113,11 +113,11 @@ function main() {
   if (!input.transcript_path) return null;
   const usage = latestUsage(tailLines(input.transcript_path));
   if (!usage) return null;
-  const project = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
+  const project = require('../scripts/lib/project-dir.js').hookProject(input);
   if (!require('../scripts/lib/active.js').configured(project)) return null;
   const limit = threshold(usage, project);
   if (usage.used < limit * WARN_AT) return null;
-  const line = warning(usage.used, limit);
+  const line = warning(usage.used, limit, project);
   // systemMessage is for the user, but whether UserPromptSubmit shows it is not documented; the model is
   // asked to repeat the line, so the user sees it either way.
   return {

@@ -20,6 +20,7 @@ const { git, read, noBom, frontmatter, count, freshRef, clean } = require('./rep
 const { realPath, samePath, linkOnWay, localLink, safeLocalPath, safeLocalWrite } = require('./safe-path.js');
 const { readFinish, writeFinish, clearFinish, ownItem } = require('./finish.js');
 const { validId, validSid } = require('./ids.js');
+const { mainOf } = require('./project-dir.js');
 
 const TASK_FILE = 'task.md';
 const PLAN_FILE = 'plan.md';
@@ -54,7 +55,9 @@ function settings(root) {
 }
 
 const sharedRoot = (root) => path.join(root, '.keel', 'tasks');
-const localRoot = (root) => path.join(root, '.keel', 'local', 'tasks');
+// Local tasks and the closed record are this machine's: for a linked worktree, the main checkout's
+// (lib/project-dir.js), so another worktree session sees them and they outlive the worktree.
+const localRoot = (root) => path.join(mainOf(root), '.keel', 'local', 'tasks');
 
 // Working-tree folders, the configured one first; the other is still read, so switching
 // `tasks.in_git` does not hide a task that is in flight.
@@ -161,7 +164,7 @@ function refTasks(root) {
   return out;
 }
 
-const closedFile = (root) => path.join(root, '.keel', 'local', 'closed-tasks.json');
+const closedFile = (root) => path.join(mainOf(root), '.keel', 'local', 'closed-tasks.json');
 // id -> { updated, blobs }: the closed task's `updated` and the blobs of its task file that branches
 // held when it closed. A map without a prototype: an id may be "constructor".
 function readClosed(root) {
@@ -177,16 +180,16 @@ function readClosed(root) {
 }
 // .keel or .keel/local made a link would carry markers, closed-tasks.json and trash batches out of
 // the project: every command that writes there refuses first, and these writes check again.
-const localRefusal = (root, what) => { const linked = localLink(root); return linked ? refuse(what, `${linked}: keel does not write through it`) : null; };
+const localRefusal = (root, what) => { const linked = localLink(root) || localLink(mainOf(root)); return linked ? refuse(what, `${linked}: keel does not write through it`) : null; };
 function guardLocal(root) {
   const linked = localLink(root);
   if (linked) throw new Error(`${linked}: keel does not write through it`);
 }
 function writeClosed(root, mutate) {
-  guardLocal(root);
+  guardLocal(mainOf(root));
   const closed = readClosed(root);
   mutate(closed);
-  safeLocalWrite(root, 'closed-tasks.json', JSON.stringify(closed) + '\n');
+  safeLocalWrite(mainOf(root), 'closed-tasks.json', JSON.stringify(closed) + '\n');
 }
 const closedEntry = (closed, id) => closed[Object.keys(closed).find((k) => sameId(k, id))] || null;
 const forget = (closed, id) => { for (const k of Object.keys(closed)) if (sameId(k, id)) delete closed[k]; };
@@ -413,7 +416,7 @@ function taskNew(root, id, o, now = new Date()) {
     if (taken) return refuse('task new', `${rel(root, path.join(dir, taken))} exists (ids compare without case)`);
   }
   const folder = path.join(treeDirs(root)[0], id);
-  const linked = linkOnWay(root, path.join(folder, TASK_FILE));
+  const linked = linkOnWay(treeDirs(root)[0] === localRoot(root) ? mainOf(root) : root, path.join(folder, TASK_FILE));
   if (linked) return refuse('task new', linked);
   const { main } = settings(root);
   const today = dateOf(now);
@@ -487,7 +490,8 @@ function unsafeTarget(root, t) {
   try { st = fs.lstatSync(target); } catch { return 'it is gone'; }
   if (st.isSymbolicLink() || !st.isDirectory()) return 'it is a link or not a plain folder';
   // .keel, .keel/tasks or .keel/local may be links that lead out of the project.
-  const real = path.join(realPath(root), path.relative(root, expected));
+  const home = t.local ? mainOf(root) : root;
+  const real = path.join(realPath(home), path.relative(home, expected));
   if (!samePath(realPath(target), real)) return 'a folder on its path is a link';
   return null;
 }

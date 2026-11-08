@@ -147,7 +147,7 @@ if (require.main === module) {
     const argv = process.argv.slice(2);
     const { opts, pos } = parseArgs(argv);
     opts.skip = argv.flatMap((a, i) => (a === '--skip' && argv[i + 1] && !argv[i + 1].startsWith('--') ? [argv[i + 1]] : []));
-    out = run(path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || '.'), opts);
+    out = run(require('./lib/project-dir.js').scriptProject(pos[0]), opts);
   } catch (e) {
     out = `changes: unavailable (${e.message})`;
   }

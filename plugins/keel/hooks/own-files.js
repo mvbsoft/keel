@@ -4,7 +4,8 @@
 // - reading or searching inside the keel plugin folder;
 // - running one of keel's own scripts listed below with node, as one command with no shell
 //   operators or characters a shell would expand (~ included; inside quotes only $ and ` count), on
-//   the current project: the first argument must be the project folder itself, as an absolute path
+//   the current project (in a linked worktree of the project, that worktree; the main checkout named
+//   for it counts as it): the first argument must be the project folder itself, as an absolute path
 //   (a relative one is resolved from the shell's folder, a sub-folder may hold another project's
 //   .keel), and for Bash no unquoted backslash (bash drops it, so the script would get another path),
 //   no double backslash (the Bash tool folds it into one; a network path is written //server/share)
@@ -228,7 +229,7 @@ const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the ste
 
 // The decision for `node <keel>/scripts/<name> <args>`. Arguments are read with the scripts' own
 // parseArgs, so the step the hook judges is the step the script runs.
-function ownScript(name, argText, projectDir, bash) {
+function ownScript(name, argText, projectDir, bash, cwd) {
   const split = splitWords(argText, bash);
   // keel's instructions never need shell expansions; refused, the model sends the plain form, which the
   // steps that always ask can recognise.
@@ -236,6 +237,13 @@ function ownScript(name, argText, projectDir, bash) {
   const argv = split.words;
   // Loaded here, not at the top: this hook runs on every shell command and these pull in the catalog.
   const { opts, pos } = require('../scripts/lib/project.js').parseArgs(argv);
+  // A script given the main checkout works on the linked worktree of it the shell is in, as the scripts
+  // do (lib/project-dir.js); both sides map to one worktree only for one main checkout.
+  const { worktreeOf } = require('../scripts/lib/project-dir.js');
+  const here = (p) => worktreeOf(p, cwd) || p;
+  if (projectDir) projectDir = here(projectDir);
+  if (pos[0] && path.isAbsolute(pos[0])) pos[0] = here(pos[0]);
+  if (typeof opts.project === 'string' && path.isAbsolute(opts.project)) opts.project = here(opts.project);
   // Every listed script but usage.js takes the project folder first; none is called on a sub-folder.
   if (name !== 'usage.js' && !(projectDir && pos[0] && path.isAbsolute(pos[0]) && sameFs(norm(pos[0]), norm(projectDir)))) {
     // A split the hook cannot see may hide the project, so a confirmed step's word anywhere is refused
@@ -288,7 +296,7 @@ function main() {
   // keel's QA agents write their helper scripts only under the project's .keel/local/tmp/qa/: a write
   // anywhere else (a gitignored .env, dist/) would not show in the tree check that follows them.
   if (tool === 'Write' && /^(keel:)?qa(-break)?$/.test(String(input.agent_type || ''))) {
-    const project = process.env.CLAUDE_PROJECT_DIR || input.cwd;
+    const project = require('../scripts/lib/project-dir.js').hookProject(input);
     const tmp = project && path.join(project, '.keel', 'local', 'tmp', 'qa');
     if (tmp && typeof args.file_path === 'string' && inside(path.resolve(project, args.file_path), tmp)) return allow('keel\'s QA agent writes in its temporary folder');
     return decide('deny', 'keel: a QA agent writes only under <project>/.keel/local/tmp/qa/. Nothing was written; write the file there.');
@@ -321,7 +329,7 @@ function main() {
       // The script's path reaches node changed in the same ways as its arguments: with keel on a
       // network share, \\srv\plug or //srv\plug would run a script in another folder.
       if (bash && ((m[4] && m[4].includes('\\')) || script.includes('\\\\') || bashRewrites(script))) return decide('deny', PLAIN_FORM);
-      return ownScript(name, m[5] || '', process.env.CLAUDE_PROJECT_DIR || input.cwd, bash);
+      return ownScript(name, m[5] || '', require('../scripts/lib/project-dir.js').hookProject(input), bash, input.cwd);
     }
     if (runsLib(cmd, root)) return decide('deny', LIB);
     // Any other shape that runs a keel script (node flags, env, bash -c, a wrapper) is one the hook

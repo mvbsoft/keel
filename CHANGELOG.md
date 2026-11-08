@@ -206,6 +206,13 @@ All notable changes to keel are listed here. The format follows
   feature: `plan-steps.js` prints a `very big:` line.
 
 ### Fixed
+- In a session that works in a linked git worktree of the project (a worktree session of the Claude
+  desktop app, or after Claude enters a worktree), keel used the main checkout: its note, session
+  record, task files and git steps went there, and parallel sessions shared them. keel now works on
+  the worktree and names it once (`project: <folder>`). What this machine shares between
+  conversations stays with the main checkout: planning drafts, settings and briefs, local tasks,
+  keel's trash (an item from a worktree goes back there), keel's project options and the confirmation
+  of autonomous git.
 - `comments.js` no longer stops when `comments.ticket_prefixes` is not a list; it is skipped.
 - A planning folder written with a double slash, such as `docs//plans`, is refused like `docs/plans`.
 - The cost report counts a message that starts with a system reminder, such as the desktop app's

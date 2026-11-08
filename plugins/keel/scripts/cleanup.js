@@ -361,7 +361,7 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const root = require('./lib/project-dir.js').scriptProject(pos[0]);
     const command = pos[1] || 'find';
     if (command === 'find') lines = find(root);
     else if (command === 'move') lines = move(root, opts.items, opts.red);

@@ -208,7 +208,7 @@ function apply(root, changesFile) {
 
 if (require.main === module) {
   const { pos } = parseArgs(process.argv.slice(2));
-  const root = path.resolve(pos[0] || '.');
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   const say = (w) => process.stdout.write(`written ${w.file}: ${w.keys.join(', ')}${w.backup ? `; previous file kept as ${w.backup}` : ''}\n`);
   try {
     if (pos[1] === 'show') process.stdout.write(`${report(show(root))}\n`);

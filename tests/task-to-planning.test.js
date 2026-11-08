@@ -34,7 +34,9 @@ test('start-task: a new chat gets a brief in four handoff sections and the exact
   assert.match(section, /Planning starts\s+from the open questions and does not ask again what is settled\./);
   assert.match(section, /- \*\*Here\*\* → the task leaves \(below\), then ask the user to type `\/keel:start-planning`; the plan in\s+this chat is its source\. No brief\./);
   const brief = part(section, '**The brief**');
-  assert.ok(brief.startsWith(`**The brief** \`${BRIEF}\` (Write; on this machine only), \`<name>\` the\nfeature name start-planning would propose`), 'one name for the brief and the feature');
+  assert.ok(brief.startsWith(`**The brief** \`${BRIEF}\` (Write; on this machine only;`), 'the brief is this machine\'s');
+  assert.match(brief, /in a worktree,\s+under the main checkout a script's `project:` line names, so a new chat finds it/, 'from a worktree, in the main checkout');
+  assert.match(brief, /`<name>` the\s+feature name start-planning would propose/, 'one name for the brief and the feature');
   // The name follows start-planning's own rule for feature names (lib/plans-drafts.js FEATURE).
   assert.match(brief, /2-4 English words joined by `-`, `\[a-z0-9-\]`, at most 40\s+characters, starting with a letter, no digit right after a hyphen/);
   assert.match(read('skills', 'start-planning', 'SKILL.md'), /propose 2-4 English words joined by `-`, `\[a-z0-9-\]`, at most 40 characters, starting with\s+a letter, no digit right after a hyphen/);

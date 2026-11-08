@@ -14,7 +14,7 @@ const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 // The chat the planning cases resume: its id is SID in shop-base.js, each case's history.jsonl keeps it.
 const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(path.join(EVALS, '_fixtures', 'shop-base.js'), 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh', 'task-on-main', 'ticket-on-feature'];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh', 'task-on-main', 'ticket-on-feature', 'worktree'];
 
 const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
@@ -270,6 +270,15 @@ const STATE = {
     assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: none$/m, 'the chat works on a task, it plans nothing');
     assert.equal(git('rev-parse', 'origin/csv-export'), git('rev-parse', 'csv-export'), 'the task is pushed');
   },
+  // A linked worktree on its own branch, with keel's committed config, and no session start anywhere yet.
+  worktree: (work, git) => {
+    const wt = path.join(work, '.claude', 'worktrees', 'wt');
+    assert.equal(execFileSync('git', ['-C', wt, 'symbolic-ref', '--short', 'HEAD'], { encoding: 'utf8' }).trim(), 'wt');
+    assert.equal(git('symbolic-ref', '--short', 'HEAD'), 'main');
+    assert.ok(fs.existsSync(path.join(wt, '.keel', 'config.json')), 'the worktree has keel\'s config');
+    assert.equal(git('status', '--porcelain'), '', '.claude/ stays out of the project');
+    for (const dir of [work, wt]) assert.ok(!fs.existsSync(path.join(dir, '.keel', 'local', 'session-start.json')), dir);
+  },
 };
 
 test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
@@ -278,7 +287,7 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
     planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'], 'planning-new': ['main', 0, ''],
     'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''], 'task-fresh': ['main', 0, ''],
-    'task-on-main': ['main', 1, '?? src/history.js'], 'ticket-on-feature': ['csv-export', 1, 'M src/invoices.js'] };
+    'task-on-main': ['main', 1, '?? src/history.js'], 'ticket-on-feature': ['csv-export', 1, 'M src/invoices.js'], worktree: ['main', 0, ''] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   assert.deepEqual(Object.keys(STATE).sort(), [...VARIANTS].sort(), 'every variant checks the state its cases read');
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {

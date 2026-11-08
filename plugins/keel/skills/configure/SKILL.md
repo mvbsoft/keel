@@ -9,7 +9,7 @@ allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/config-check.js" *), Pow
 # keel: configure
 
 - `<keel>` (the plugin folder): `${CLAUDE_PLUGIN_ROOT}`
-- `<project>` (the project folder): `${CLAUDE_PROJECT_DIR}`
+- `<project>` (the project folder): `${CLAUDE_PROJECT_DIR}`; a keel script's `project: <folder>` line (this session works in a worktree of it) replaces it from then on
 - Current conversation language (section 1 confirms or changes it): the language in keel's session-start line (this project's own, else the machine's: ${user_config.conversation_language}; a language the user explicitly asks for in this session wins, for this session only)
 - Arguments: `$ARGUMENTS` (`check`: only say what to reconfigure; one or more sections to change in a
   configured project, separated by commas; `machine`: only this machine's settings, for every project;

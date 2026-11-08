@@ -29,6 +29,7 @@ const { unsafeRel, localLink, safeLocalPath, safeLocalWrite } = require('./safe-
 const { validSid } = require('./ids.js');
 const { setFront, dateOf } = require('./tasks.js');
 const { base, badFolder, settings } = require('./plans-settings.js');
+const { mainOf } = require('./project-dir.js');
 const {
   PLAN_FILE, STATES, TICKET_FILE, FEATURE_RULE, validFeature, draftDirs, listDrafts, needDraft,
   reopens, exportedHere, tickets, ticketIds, openQuestions, ticketHash, pageCode, PAGE_CODE, draftHash,
@@ -283,17 +284,24 @@ function draftState(root, feature, to) {
 
 // --- the planning chat marks ---
 
-const marksDir = (root) => path.join(base(root), 'sessions');
+// A chat mark is this conversation's, so it is in the folder keel works on; in a linked worktree it is
+// also read from the main checkout, where it is when the chat entered the worktree after it set the mark
+// (lib/project-dir.js).
+const markHomes = (root) => [...new Set([root, mainOf(root)])];
+const marksDir = (home) => path.join(home, '.keel', 'local', 'plans', 'keel', 'sessions');
 
 function marks(root) {
-  let names = [];
-  try { names = fs.readdirSync(marksDir(root)).filter((n) => n.endsWith('.json')); } catch { /* none */ }
   const out = [];
-  for (const name of names) {
-    try {
-      const m = JSON.parse(fs.readFileSync(path.join(marksDir(root), name), 'utf8'));
-      out.push({ session: name.slice(0, -5), feature: m.feature, folder: m.folder });
-    } catch { /* unreadable mark: ignored */ }
+  for (const home of markHomes(root)) {
+    let names = [];
+    try { names = fs.readdirSync(marksDir(home)).filter((n) => n.endsWith('.json')); } catch { /* none */ }
+    for (const name of names) {
+      if (out.some((m) => m.session === name.slice(0, -5))) continue;
+      try {
+        const m = JSON.parse(fs.readFileSync(path.join(marksDir(home), name), 'utf8'));
+        out.push({ session: name.slice(0, -5), feature: m.feature, folder: m.folder, home });
+      } catch { /* unreadable mark: ignored */ }
+    }
   }
   return out;
 }
@@ -317,7 +325,9 @@ function markedFolder(root, sid) {
 }
 
 function clearMarks(root, match) {
-  for (const m of marks(root)) if (match(m)) fs.rmSync(safeLocalPath(root, 'plans', 'keel', 'sessions', `${m.session}.json`), { force: true });
+  for (const home of markHomes(root)) {
+    for (const m of marks(home)) if (m.home === home && match(m)) fs.rmSync(safeLocalPath(home, 'plans', 'keel', 'sessions', `${m.session}.json`), { force: true });
+  }
 }
 
 function markCommand(root, sub, feature, sid) {
