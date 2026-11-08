@@ -3,7 +3,7 @@
 // in .git/eval-remote.git (inside the workspace, so the sandboxed run can push to it).
 // Usage: node shop.js <base | tasks | finish | session | session-level | messy | overbuilt | planning |
 //                      planning-openq | planning-ready | planning-repo | planning-new | planning-brief | planned |
-//                      task-active | task-fresh>
+//                      task-active | task-fresh | task-on-main | ticket-on-feature>
 //   base            no tasks, no note
 //   tasks           handed-off tasks CAN-123 (discount, Jira link) and fix-reset-500 on their branches; on main
 //   finish          task CAN-200 done and committed on its branch, checked out there
@@ -18,6 +18,8 @@
 //                   committed), checked out on CAN-123-discount
 //   task-fresh      tasks, with csv-report handed off on its branch after its plan was approved for a fresh
 //                   conversation (execution: fresh): plan.md has 9 steps, none done; on main
+//   task-on-main    task order-history working directly on main (branch = base = main), active for the chat
+//                   SID, pushed; not committed: half of it, src/history.js with no tests, used nowhere
 // Every variant's config has the planning settings: ticket prefix INV, tickets in the repository.
 // The planning variants add the invoices (src/invoices.js, src/server.js, public/invoices.html) on main:
 //   planning        a draft csv-export on this machine (draft pc): plan.md and tickets T1, T2 (T2 depends
@@ -35,9 +37,12 @@
 //                   main) and merged into main: INV-1 done on origin/main, INV-2 in progress (branch
 //                   INV-2-download-button, its tip by Dana Smith), INV-3 done on its branch INV-3-date-range
 //                   only (waiting for merge into the feature branch), INV-4 to do (depends on INV-3); on main
+//   ticket-on-feature  csv-export exported and pushed; ticket INV-1 a task working directly on the shared
+//                   feature branch (branch = base = csv-export), active for the chat SID; not committed:
+//                   half of it, toCsv() in src/invoices.js with no tests and no route; on csv-export
 const { base, messy } = require('./shop-base.js');
-const { tasks, finish, session, overbuilt, taskActive, taskFresh } = require('./shop-tasks.js');
-const { planning, planningReady, planningNew, planningBrief, planned } = require('./shop-planning.js');
+const { tasks, finish, session, overbuilt, taskActive, taskFresh, taskOnMain } = require('./shop-tasks.js');
+const { planning, planningReady, planningNew, planningBrief, planned, ticketOnFeature } = require('./shop-planning.js');
 
 const variant = process.argv[2] || 'base';
 
@@ -57,4 +62,6 @@ else if (variant === 'planning-brief') planningBrief();
 else if (variant === 'planned') planned();
 else if (variant === 'task-active') taskActive();
 else if (variant === 'task-fresh') taskFresh();
+else if (variant === 'task-on-main') taskOnMain();
+else if (variant === 'ticket-on-feature') ticketOnFeature();
 else if (variant !== 'base') throw new Error(`unknown variant "${variant}"`);

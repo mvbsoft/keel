@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { KEEL, root, git, write, commitAll, SID } = require('./shop-base.js');
+const { taskFile, activate } = require('./shop-tasks.js');
 
 // plans.js as the skills run it; a refusal stops the fixture.
 const plans = (...a) => {
@@ -383,4 +384,39 @@ function planned() {
   git('switch', '-q', 'main');
 }
 
-module.exports = { planning, planningReady, planningNew, planningBrief, planned };
+// csv-export exported and pushed; ticket INV-1 a task working directly on the shared feature branch
+// (branch = base = csv-export), active for the chat SID; half of it not committed: toCsv() with no
+// tests of its own and no route yet.
+function ticketOnFeature() {
+  invoices();
+  draft({ list: TICKETS });
+  plans('state', 'csv-export', 'ready');
+  git('switch', '-q', '-c', 'csv-export');
+  plans('export', 'csv-export');
+  plans('commit', 'csv-export');
+  plans('mark', 'clear', '--session', SID);
+  git('push', '-q', '-u', 'origin', 'csv-export');
+  const started = git('rev-parse', 'HEAD');
+  const ticket = fs.readdirSync(path.join(root, 'tickets', 'csv-export')).find((f) => f.startsWith('INV-1-'));
+  write('.keel/tasks/INV-1/task.md', taskFile({
+    id: 'INV-1', title: 'CSV export endpoint for invoices', source: 'file', link: `tickets/csv-export/${ticket}`,
+    status: 'handed-off', branch: 'csv-export', base: 'csv-export', created: '2026-11-07', updated: '2026-11-07', last: git('rev-parse', '--short', 'HEAD'),
+    goal: 'GET /invoices.csv returns the invoices GET /invoices returns, as a CSV file.',
+    next: 'Write tests for toCsv in test/invoices.test.js, then the route in src/server.js.',
+    criteria: '- the acceptance criteria of the ticket',
+    state: '- ✅ toCsv(invoices) in src/invoices.js (not committed)\n- ⬜ tests for toCsv\n- ⬜ the route GET /invoices.csv',
+    files: '- Changed: src/invoices.js: toCsv(invoices)\n- Next: test/invoices.test.js, src/server.js',
+  }));
+  commitAll('keel: task INV-1');
+  activate('INV-1', started);
+  git('push', '-q', 'origin', 'csv-export');
+  write('src/invoices.js', [...INVOICES,
+    '// The invoices as CSV: a header row, then one line per invoice; totals with two decimals.',
+    'function toCsv(invoices) {',
+    "  const rows = invoices.map((i) => [i.number, i.date, i.customer, i.total.toFixed(2)].join(','));",
+    "  return ['number,date,customer,total', ...rows].join('\\n') + '\\n';",
+    '}',
+    'module.exports = { list, toCsv };', ''].join('\n'));
+}
+
+module.exports = { planning, planningReady, planningNew, planningBrief, planned, ticketOnFeature };
