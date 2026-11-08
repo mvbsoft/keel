@@ -25,28 +25,21 @@ A **task handoff** whose instruction asks to merge, with the task folder in git:
 the task is not finished, so the merge puts its folder `.keel/tasks/<id>/` into the target; ask "Finish
 the task instead, or merge anyway?". Finish → stop here and run it as a finish; merge anyway → go on.
 
+**Unfinished work never stays on this machine only**: a task handoff commits it as work in progress on
+a branch of its own and pushes it, so another machine goes on from that branch. Uncommitted changes
+or a stash exist on one machine only. The user's own instruction (e.g. "do not commit") wins.
 **A task handoff without its own branch** (the task's `branch:` is the base, the main branch or `-`:
-the work sits in a branch other work shares) and no instruction about git: before any git step ask,
-in both git modes, naming the branches:
-- a new branch `<id>-<short-name>` from here: commit and push there, then back on `<current>`
-  (recommended);
-- commit and push to the current branch `<current>` (not offered when it is the main branch: keel never
-  commits or pushes there);
-- no commit: the changes stay uncommitted here for the next session (they move with you if you
-  switch branches; say so);
-- the user's own instruction.
-The answer is the instruction for the steps below; manual git mode then runs them too, because the
-user asked.
-A planned ticket on its feature branch asks this instead, when the feature has 2 or more tickets
-(`plans.js tickets <feature>`; one ticket → the usual commit and push to its branch):
-- a new ticket branch `<KEY>-<short-name>` from the feature branch (recommended; later merged back
-  into it): `start --name <it> --from <the feature branch>` carries the changes; set the task file's `branch` to it and `base` and
-  `merge_into` to the feature branch before the commit;
-- commit and push to the feature branch (you work on it alone);
-- no commit: the changes stay uncommitted here for the next session.
+the work sits in a branch other work shares) and no instruction about git: no question: a new branch `<id>-<short-name>` from here, `start --name <it>` (it carries the
+changes), commit and push there, then back on `<current>`. Say it in one line, naming the new branch
+(manual mode: the same steps as commands, below).
+A planned ticket on its feature branch, when the feature has 2 or more tickets
+(`plans.js tickets <feature>`; one ticket → the usual commit and push to its branch), also no
+question: a new ticket branch `<KEY>-<short-name>` from the feature branch (later merged
+back into it): `start --name <it> --from <the feature branch>` carries the changes; set the task file's `branch` to it and `base` and
+`merge_into` to the feature branch before the commit.
 
 **Default steps** in autonomous mode (manual mode: below). Never ask which git
-steps to take (except the question above): the instruction only adds or changes steps.
+steps to take (except the merge question above): the instruction only adds or changes steps.
 
 | Ending | Steps |
 |---|---|
@@ -58,6 +51,9 @@ steps to take (except the question above): the instruction only adds or changes 
 Follow the style of `git log --oneline -10`; with no clear style use Conventional Commits. Subject at
 most 72 characters, imperative, with the task id when it is a tracker key; a short body says why.
 Language: `repo_language`. No mention of AI, assistants or generated code; no co-author trailers for tools.
+A **task handoff** commit's subject is "Work in progress: <title>", with the task id first when it
+is a tracker key ("Work in progress: CAN-123 <title>"), the title shortened to keep the subject
+within 72 characters; so the log shows the work is unfinished.
 
 ## Manual mode
 Run no git step the user did not ask for. When the instruction or the user's answer to a keel question
@@ -68,10 +64,11 @@ everything else stays with the user. Give the user:
 - the commit message, ready to copy;
 - **finish**: the task folder's removal (it is in keel's trash) is part of that commit; then merge as
   they usually do (a planned ticket on its feature branch: commit and push only, see above);
-- **handoff of a task**: commit the work and the task folder on the task branch (preferred), then
-  `git switch <base>`. Not a commit: commit only the task folder when it is in git, then
-  `git stash push -u -m "keel: <id>"` for the rest. Say which one in the task's State. A task without
-  its own branch: the question above first; the user's answer is run, not only shown;
+- **handoff of a task**: commit the work and the task folder on the task branch, push it,
+  then `git switch <base>`. A task without its own branch: first `git switch -c <id>-<short-name>`
+  (it carries the changes; a planned ticket: `<KEY>-<short-name>`, as above); keel runs no `start`
+  here, so set the task file's `branch:` to that new branch before the task file is
+  written (a planned ticket: `base` and `merge_into` to the feature branch);
 - **handoff of a session**: "Commit and push when convenient; the note is part of the commit" (when
   `git.state_in_git`).
 
@@ -86,8 +83,8 @@ the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<proj
 1. `status`. Its line `autonomous on this machine: not confirmed` (or `settings changed`) → offer
    `node "<keel>/scripts/git-flow.js" "<project>" trust` (the user confirms once), or each git step
    asks. On the main branch (or the base) with changes → `start --name <branch>` (it carries the
-   changes); not for a planned ticket on its feature branch (no `start`, see above), unless a branch
-   question above chose a new branch. The branch is the one the instruction, the task file or the note
+   changes); not for a planned ticket on its feature branch (no `start`, see above), except its
+   task handoff when the feature has 2 or more tickets (a new ticket branch, above). The branch is the one the instruction, the task file or the note
    names; only when none is named, make one as in `<keel>/skills/_shared/intake.md` step 6. An
    instruction naming another branch (e.g. `bug/FIX-123`) → `start --name <it>` (it carries the
    changes).
@@ -95,7 +92,8 @@ the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<proj
    `commit --message-file "<project>/.keel/local/tmp/commit-message.txt"`. The script leaves out
    secret files and lists them: tell the user. `nothing to commit` is fine. In a **finish** the task
    folder went to keel's trash before this step, so its removal is in this commit.
-3. **Handoff**: `push` (refused → say so, it does not stop the handoff). The instruction asks to
+3. **Handoff**: `push` (refused → say so and that the work is on this machine only; it does not stop the
+   handoff). The instruction asks to
    merge → step 6 now, still on this branch (a refused push: no merge, say so). A task: then
    `switch --name <base>`. Done, skip the rest.
 4. `sync --from <base>`. On the base itself (a planned ticket on its feature branch) it merges

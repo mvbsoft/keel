@@ -105,7 +105,7 @@ is done. Every case, including continuing a task and a planned ticket:
 |---|---|
 | `/keel:end-task` | a menu: finish fully / hand off / your own instruction |
 | `/keel:end-task finish` | verification (you pick the level), fixes, Claude Code's own confirmation "task <id> is done?" (every time; yes moves the folder to keel's trash, no keeps the task active), git, report |
-| `/keel:end-task hand off` (any words: "park it", "prepare for the next conversation") | gates only, the task file updated, git, report. A task without its own branch and no git instruction: keel first asks where the work goes (a new branch, the current branch, no commit, or your instruction) and runs the answer |
+| `/keel:end-task hand off` (any words: "park it", "prepare for the next conversation") | gates only, the task file updated, git, report. A task without its own branch and no git instruction: the work goes to a new branch of its own, committed as work in progress and pushed (your git instruction wins) |
 | `/keel:end-task finish and merge into main` | as finish, then the [merge](workflows.md#merging-into-the-main-branch) (Claude Code asks first, unless you confirmed autonomous git on this machine and set `git.ask_before_merge: false`) |
 | `/keel:end-task push` | asks: finish or hand off? |
 

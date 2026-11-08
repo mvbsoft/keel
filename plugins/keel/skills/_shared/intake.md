@@ -233,8 +233,8 @@ stop; keel never types it for the user.
 
 ## Before any branch change (new task or resume)
 Run `node "<keel>/scripts/git-flow.js" "<project>" status`. `changed files:` not 0 → stop and offer:
-hand off the current task first (`/keel:end-task`), commit, or `git stash push -m "keel: <id>"`
-(use `-u` for new files). Never carry changes into another task unless the user says they belong to it.
+hand off the current task first (`/keel:end-task hand off`: a work-in-progress commit on
+its own branch, pushed), or commit them. Never carry changes into another task unless the user says they belong to it.
 When every changed file is keel's setup (`.keel/` outside `tasks/`, and README, CLAUDE.md, `.gitignore`
 or `.claude/settings.json` changed by `/keel:configure`) and there is no task yet, offer first (recommended):
 take the setup into this task's branch, so it reaches the main branch with the task's merge; a yes
@@ -335,14 +335,14 @@ rest still needs to know goes into the brief as an open question, not into a que
   branch, or a planned ticket's feature branch) gets a new one from `<base>`, `<KEY>-<short-name>` for
   a planned ticket, else `<name>`, so a half never lands in a shared branch. The brief says "already
   done on branch <branch>: ..." and that the feature goes on in `<branch>` and merges into the task's
-  `merge_into` (a new branch: into `<base>`). Then ask "Commit the work on <branch> as work in
-  progress and push it, so another machine sees it?". On the answer, say "<id> goes to keel's trash
-  (its code and branch stay)" and run `task drop <id>` (as above, never the branch). Then, on a yes:
+  `merge_into` (a new branch: into `<base>`). Then say "<id> goes to keel's trash
+  (its code and branch stay)" and run `task drop <id>` (as above, never the branch). Then, with no
+  question (unfinished work never stays on this machine only, git.md; manual git: give these steps as
+  commands):
   a new branch first, `node "<keel>/scripts/git-flow.js" "<project>" start --name <branch> --from
   <base>` (it carries the changes); commit as `<keel>/skills/_shared/git.md` step 2 does, with the
-  message "Work in progress: <title>", so the task's removal is in that commit; then `push`. On a no
-  nothing happens in git: the changes stay uncommitted where they are, and a new branch is made when
-  the work goes on; say so. Then the user types
+  subject git.md gives a task handoff ("Work in progress: <title>"), so the task's removal is in that commit; then `push`, so
+  another machine sees it. Then the user types
   `/keel:start-planning .keel/local/plans/briefs/<name>-brief.md`; its first ticket goes on in
   `<branch>`. (b) **finish first**: bring the half to a working state in
   this task (tests pass, a finished piece), finish it with `/keel:end-task`, and plan the rest with a

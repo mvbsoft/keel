@@ -121,7 +121,7 @@ step stops it, and keel shows what happened and asks. It never pushes or merges 
 unless your instruction says so.
 
 The branch comes before the task folder, so the folder is born on it. Uncommitted changes stop the
-start first: keel offers to hand off the current task, commit, or stash. The setup files that
+start first: keel offers to hand off the current task (its work committed and pushed), or commit. The setup files that
 `/keel:configure` left uncommitted are the exception: the first task offers to take them into its
 branch, so they reach the main branch with the task's merge.
 
@@ -130,7 +130,7 @@ branch, so they reach the main branch with the task's merge.
 `/keel:start-task CAN-123`, then "continuation" (or the id of an unfinished task). keel:
 
 1. when it has to switch branches and there are uncommitted changes, stops first and offers: hand off
-   the current task, commit, or `git stash push -m "keel: <id>"`. It carries changes into another task
+   the current task (a work-in-progress commit on its own branch, pushed), or commit. It carries changes into another task
    only when you say they belong to it. On the task's branch already, the changes stay and belong to
    the task;
 2. switches to the task's branch (manual git: gives `git switch <branch>` and waits);
@@ -171,8 +171,8 @@ the feature branch too. Only a passed verification (gates green, no "must fix" l
 leaves it `todo` (manual git: keel reminds you to commit the ticket file with the code). On the shared
 feature branch keel only commits, pulls the branch and pushes: the feature branch merges at the
 [end of the feature](planning.md#end-of-a-feature), after its last ticket. A handoff there, with 2 or more
-tickets, asks: a new ticket branch from the feature branch (recommended), commit and push to the
-feature branch (you work on it alone), or no commit.
+tickets, goes to a new ticket branch from the feature branch, committed as work in progress and
+pushed.
 
 **Too big for a task.** When the task's plan comes out very big (10 steps or 40 files), keel offers to plan it as a feature
 with one question: 1) a new chat (recommended when this one is long), 2) plan here, 3) do not split,
@@ -196,7 +196,7 @@ you choose:
   task's branch, or, when the task works directly on a shared branch (the main branch, a feature
   branch), a new one from it (`<KEY>-<short-name>` for a planned ticket, else the feature's name), so
   a half never lands in a shared branch. keel writes the brief ("already done on branch X: ..."),
-  moves the task to keel's trash (its code and branch stay), and on your yes commits the work in
+  moves the task to keel's trash (its code and branch stay), and commits the work in
   progress there and pushes it, so another machine sees it; planning goes on in that branch and its
   first ticket continues it. Or (b) bring it to a working state, finish the task, and plan the rest
   with a brief.
@@ -269,15 +269,11 @@ What guarantees each step: [How keel behaves](behavior.md).
 4. **The final report**: "handed off: continue with `/keel:start-task <id>`".
 
 **A handoff without the task's own branch** (the task works in the base branch or the main branch,
-which other work shares) and no git instruction from you: before any git step keel asks, in both git
-modes:
-
-- a new branch from here: commit and push there, then back on the current branch (recommended);
-- commit and push to the current branch (not offered on the main branch, where keel never commits);
-- no commit: the changes stay uncommitted for next time (they move with you if you switch branches);
-- your own instruction.
-
-Your answer is then run, in manual git too, because you asked for it.
+which other work shares) and no git instruction from you: no question. keel makes a new branch
+`<id>-<short-name>` from here, commits the work there as "Work in progress: <title>", pushes it and
+switches back to the current branch. Unfinished work never stays on one machine only: uncommitted
+changes or a stash would. Manual git: keel gives the same steps as commands. Your own git
+instruction wins (for example "do not commit").
 
 ### See and drop tasks: `/keel:tasks`
 
@@ -450,7 +446,7 @@ history and the code, so the file is a brief written in advance:
 |---|---|
 | Goal | one sentence |
 | Next action | one concrete step |
-| State | one line per step: ✅ done and verified · ◐ in progress · ⚠ broken · ⬜ not started; and where the work is: the branch and "committed together with this note" (manual git: "uncommitted: the user commits it on branch X"; a stash by name); never push or merge results |
+| State | one line per step: ✅ done and verified · ◐ in progress · ⚠ broken · ⬜ not started; and where the work is: the branch and "committed together with this note" (manual git: "uncommitted: the user commits and pushes it on branch X"); never push or merge results |
 | Files | changed / important, read / next |
 | Decisions and why | so they are not reopened |
 | Tried and did not work | so it is not retried |
@@ -518,15 +514,14 @@ Set by `git.mode` (required: `/keel:configure` asks it and recommends `manual` f
 |---|---|---|
 | Start a task | keel runs the branch you chose ([which branch](#start-a-task-keelstart-task)) before the task folder, so the folder is born on it. A new branch starts from the current branch, updated first. With uncommitted changes you said belong to the task (such as keel's setup files), the branch starts from the current commit and carries them | the same: your choice is your instruction, so keel runs it (a new branch with `git switch -c <branch>`; Claude Code may ask) |
 | Continue a task | keel switches to the task's branch | keel gives `git switch <branch>` and waits |
-| Hand off a task | commit (secret files and untouched files from before the task left out), push (if refused, the handoff stands and keel says so), the merge when your instruction asks for it ([above](#merging-into-the-main-branch)), switch back to the base branch | the changed files and a commit message; commit the work and the task folder on the task branch, then `git switch <base>`; or commit only the folder and `git stash push -u -m "keel: <id>"` for the rest |
-| Hand off a task without its own branch, no git instruction | keel asks where the work goes ([above](#end-a-task-keelend-task)) and runs your answer | the same: keel asks and runs your answer |
+| Hand off a task | commit (secret files and untouched files from before the task left out), push (if refused, the handoff stands and keel says so), the merge when your instruction asks for it ([above](#merging-into-the-main-branch)), switch back to the base branch | the changed files and a commit message; commit the work and the task folder on the task branch, push it, then `git switch <base>` (a task without its own branch: `git switch -c <id>-<short-name>` first) |
+| Hand off a task without its own branch, no git instruction | a new branch from here, commit, push, back on the current branch ([above](#end-a-task-keelend-task)) | the same steps as commands: `git switch -c <id>-<short-name>`, commit, push |
 | Finish a task | commit (with the folder's removal), update from the base branch, push; the merge only as [above](#merging-into-the-main-branch). When a step stops: [what can go wrong](#what-can-go-wrong-in-a-finish) | the changed files and a ready commit message (the removed folder is part of it); you merge as you usually do |
 | Start a new line (session) | keel creates the branch for the line | keel gives `git switch -c <name>` |
 | End a session or prepare the next one | commit, push; no update from the base branch | "commit and push when convenient; the note is part of the commit" |
 | Finish a line (session) | commit, update from the base branch, push; the merge only as above | a ready commit message; you merge as you usually do |
 
-keel never asks which git steps to take (except the branch at a task's start, a handoff without
-the task's own branch, each step at the [end of a feature](planning.md#end-of-a-feature) and each commit and push
+keel never asks which git steps to take (except the branch at a task's start, each step at the [end of a feature](planning.md#end-of-a-feature) and each commit and push
 of planning files): these are the defaults, and your instruction only adds or changes steps.
 Actions from your instruction run after verification; "create branch bug/FIX-12" moves the work to that
 branch. Red verification and an instruction to push or merge → keel stops and asks before any git step.

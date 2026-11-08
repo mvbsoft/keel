@@ -63,7 +63,7 @@ More: [start a task](workflows.md#start-a-task-keelstart-task).
   brings the task back).
   No: the task stays active.
 - **Hand off:** gates only → the task file updated → commit, push, back to the base branch → report. A task
-  without its own branch first asks where the work goes.
+  without its own branch goes to a new branch of its own, committed as work in progress and pushed.
 - Merging into main only on your instruction (or on a finish with `git.ask_before_merge: false`).
 
 More: [end a task](workflows.md#end-a-task-keelend-task); what guarantees each step:

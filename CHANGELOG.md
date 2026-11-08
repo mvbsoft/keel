@@ -133,6 +133,12 @@ All notable changes to keel are listed here. The format follows
   starts from its open questions.
 
 ### Changed
+- Unfinished work never stays on one machine only: a `/keel:end-task` handoff of a task without its
+  own branch no longer asks where the work goes; it makes a new branch, commits the work there as
+  "Work in progress: <title>" and pushes it (a planned ticket of a feature with 2 or more tickets: a new
+  ticket branch). A task moved to planning commits and pushes its half the same way, without asking.
+  The "no commit" and `git stash` options are gone. Every task handoff commit is titled
+  "Work in progress: <title>" (a tracker key comes first: "Work in progress: CAN-123 <title>"). Your own git instruction still wins.
 - `usage.artifact_url` in `.keel/config.json` is no longer used: each machine syncs to its owner's own
   page and Share on the page shows it to others. The key stays valid in the schema and is ignored; keel
   says so once per machine.

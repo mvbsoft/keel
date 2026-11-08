@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { PLUGIN, read, shared, skill } = require('./fixtures/texts.js');
+const { PLUGIN, read, shared, skill, part } = require('./fixtures/texts.js');
 const frontmatter = (text) => (/^---\r?\n([\s\S]*?)\r?\n---/.exec(text) || [])[1] || '';
 
 test('end-session is the long-work lane only: the note, never the task files', () => {
@@ -43,7 +43,9 @@ test('start-task: one lane per conversation, uncommitted changes stop a task swi
   const before = intake.slice(intake.indexOf('## Before any branch change'));
   assert.match(before, /git-flow\.js" "<project>" status/);
   assert.match(before, /`changed files:` not 0 → stop and offer/);
-  assert.match(before, /git stash push -m "keel: <id>"/);
+  // A stash stays on this machine only: the offer is a handoff, which commits and pushes.
+  assert.match(before, /hand off the current task first \(`\/keel:end-task hand off`: a work-in-progress commit on\s+its own branch, pushed\)/);
+  assert.doesNotMatch(before, /stash/);
   assert.match(before, /Never carry changes into another task/);
   const resume = intake.slice(intake.indexOf('## Resume'), intake.indexOf('## Before any branch change'));
   assert.ok(resume.indexOf('Uncommitted changes') < resume.indexOf('switch --name'), 'changes are dealt with before the switch');
@@ -250,7 +252,7 @@ test('end-task: a task on another branch is switched to first; no task at all of
   assert.ok(text.indexOf('switch --name <branch>') < text.indexOf('task activate <id>'), 'switch, then activate');
   assert.match(text, /without a\s+remote prefix: `origin\/x` → `x`/);
   assert.match(text, /No task at all → offer: create one from what this conversation did[\s\S]*task new <id>[\s\S]*or verify without a task file/);
-  assert.match(text, /after any `start` of git\.md \(a branch the instruction names\s+or one git\.md makes\) → set the task file's `branch:` to the `branch:` that `start` printed, before\s+the commit/, 'a branch git.md made also reaches the task file');
+  assert.match(text, /after any `start` of git\.md \(a branch the instruction names\s+or one git\.md makes; manual git: the new branch git\.md's Manual mode names\) → set the task file's\s+`branch:` to the `branch:` that `start` printed \(manual git: to that new branch\), before the commit/, 'a branch git.md made also reaches the task file');
   assert.match(text, /add `--finish <id> --session <sid>` to every `start`, `commit`,\s+`sync` and `push`\. A step that stops puts the task back by itself/, 'git stopped after the deletion: git-flow itself puts the task back');
 });
 
@@ -286,8 +288,31 @@ test('only the command instruction gives a level; one from a brief or the note i
 
 test('git.md: default steps per ending in one table; branches are deleted only by /keel:tasks drop', () => {
   const git = shared('git.md');
-  assert.match(git, /Never ask which git\s+steps to take \(except the question above\): the instruction only adds or changes steps/);
-  assert.match(git, /\*\*A task handoff without its own branch\*\*[\s\S]*a new branch `<id>-<short-name>` from here[\s\S]*commit and push to the current branch[\s\S]*no commit: the changes stay uncommitted/);
+  // The one question left above the steps is the merge one; no branch question remains.
+  assert.match(git, /Never ask which git\s+steps to take \(except the merge question above\): the instruction only adds or changes steps/);
+  assert.doesNotMatch(git, /branch question/);
+  assert.match(git, /\*\*Unfinished work never stays on this machine only\*\*/);
+  // The only way out of the automatic commit and push.
+  assert.match(git, /The user's own instruction \(e\.g\. "do not commit"\) wins/);
+  const noBranch = part(git, '**A task handoff without its own branch**', 'A planned ticket on its feature branch');
+  assert.match(noBranch, /no question: a new branch `<id>-<short-name>` from here, `start --name <it>` \(it carries the\s+changes\), commit and push there, then back on `<current>`/);
+  assert.match(noBranch, /Say it in one line, naming the new branch/);
+  assert.doesNotMatch(git, /no commit: the changes stay uncommitted|commit and push to the current branch|git stash/);
+  const message = part(git, '## Commit message', '## Manual mode');
+  assert.match(message, /A \*\*task handoff\*\* commit's subject is "Work in progress: <title>", with the task id first when it\s+is a tracker key \("Work in progress: CAN-123 <title>"\), the title shortened to keep the subject\s+within 72 characters/);
+  assert.match(part(git, '3. **Handoff**', '4. `sync'), /refused → say so and that the work is on this machine only; it does not stop the\s+handoff/);
+  const manual = part(git, '## Manual mode', '## Autonomous mode');
+  assert.match(manual, /\*\*handoff of a task\*\*: commit the work and the task folder on the task branch, push it,\s+then `git switch <base>`/);
+  // Manual git runs no `start`, so the task file learns the new branch here, before its commit.
+  assert.match(manual, /A task without its own branch: first `git switch -c <id>-<short-name>`/);
+  assert.match(manual, /set the task file's `branch:` to that new branch before the task file is\s+written/);
+  assert.match(skill('end-task'), /On a hand off, after any `start` of git\.md \(a branch the instruction names\s+or one git\.md makes; manual git: the new branch git\.md's Manual mode names\)[\s\S]*?\(manual git: to that new branch\), before the commit/);
+  assert.match(shared('handoff.md'), /the branch \(a task handoff\s+without its own branch: the new branch git\.md makes\)/);
+  assert.doesNotMatch(shared('handoff.md'), /stash/);
+  // The docs describe no handoff question any more.
+  const docs = ['overview.md', 'under-the-hood.md', 'workflows.md'].map((f) => fs.readFileSync(path.join(PLUGIN, '..', '..', 'docs', f), 'utf8')).join('\n');
+  assert.doesNotMatch(docs, /first asks where the work goes|answer\s+to a handoff without|a handoff without\s+the task's own branch, each step/);
+  assert.doesNotMatch(read('templates', 'keel', 'task.md'), /stash/i);
   assert.match(git, /\| finish \(task or session\) \| commit, sync, push;/);
   assert.match(git, /\| task handoff \| commit, push, switch to the base branch \|/);
   assert.match(git, /\| session handoff or prepare \| commit, push; no sync \|/);

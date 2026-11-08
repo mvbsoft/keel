@@ -36,7 +36,7 @@ created. -->
 - <what this task does not do>
 
 ## State
-<one line per step: "- ✅ step" done and verified, "- ◐ 40% step" in progress, "- ⚠ step: what broke" broken, "- ⬜ step" not started. A big plan: plan.md in this folder (`plan: plan.md`) and here only "see plan.md". A stash: "- Stash: keel: <id>".>
+<one line per step: "- ✅ step" done and verified, "- ◐ 40% step" in progress, "- ⚠ step: what broke" broken, "- ⬜ step" not started. A big plan: plan.md in this folder (`plan: plan.md`) and here only "see plan.md".>
 
 ## Files
 - Changed: <path: what changed; a step's files move here from Next when it is done; tests as "N new, M total">

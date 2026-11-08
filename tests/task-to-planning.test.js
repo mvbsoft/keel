@@ -77,13 +77,15 @@ test('start-task: with code changed keel advises by its state and asks; it never
   assert.match(a, /the task's `branch` when it\s+differs from `base`/);
   assert.match(a, /A task working directly on a shared branch \(`branch` is `base`: the main\s+branch, or a planned ticket's feature branch\) gets a new one from `<base>`, `<KEY>-<short-name>` for\s+a planned ticket, else `<name>`, so a half never lands in a shared branch\./);
   assert.match(a, /The brief says "already\s+done on branch <branch>: \.\.\." and that the feature goes on in `<branch>` and merges into the task's\s+`merge_into` \(a new branch: into `<base>`\)/);
-  order(a, 'The brief says', 'Commit the work on <branch> as work in\n  progress and push it, so another machine sees it?', 'the brief first, while the chat still has it all');
+  // Unfinished work is always committed and pushed: no question, so another machine sees it.
+  order(a, 'The brief says', 'say "<id> goes to keel\'s trash', 'the brief first, while the chat still has it all');
+  assert.doesNotMatch(a, /Commit the work on <branch> as work in\s+progress and push it\?|On a no|stay uncommitted/);
+  assert.match(a, /then `push`, so\s+another machine sees it/);
   order(a, 'run `task drop <id>`', 'start --name <branch> --from\n  <base>', 'the drop comes before git, so its removal is in the commit');
   order(a, 'start --name <branch> --from\n  <base>` (it carries the changes)', 'commit as `<keel>/skills/_shared/git.md` step 2 does', 'the new branch takes the changes before the commit');
   order(a, 'commit as `<keel>/skills/_shared/git.md` step 2 does', 'then `push`', 'pushed, so another machine sees the work');
   assert.match(a, /"<id> goes to keel's trash\s+\(its code and branch stay\)"/);
   assert.match(a, /\(as above, never the branch\)/, 'the branch is the feature\'s now');
-  assert.match(a, /On a no\s+nothing happens in git: the changes stay uncommitted where they are, and a new branch is made when\s+the work goes on; say so\./);
   assert.match(a, /its first ticket goes on in\s+`<branch>`/);
   assert.match(half, /\(b\) \*\*finish first\*\*: bring the half to a working state in\s+this task \(tests pass, a finished piece\), finish it with `\/keel:end-task`, and plan the rest with a\s+brief as above \(`\/keel:start-planning \.keel\/local\/plans\/briefs\/<name>-brief\.md`\)/);
   assert.match(section, /the branch case \(a\): "- The feature goes on\s+in branch <branch> and merges into <merge_into> - already done there: \.\.\."/);
