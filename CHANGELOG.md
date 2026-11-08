@@ -209,10 +209,20 @@ All notable changes to keel are listed here. The format follows
 - In a session that works in a linked git worktree of the project (a worktree session of the Claude
   desktop app, or after Claude enters a worktree), keel used the main checkout: its note, session
   record, task files and git steps went there, and parallel sessions shared them. keel now works on
-  the worktree and names it once (`project: <folder>`). What this machine shares between
-  conversations stays with the main checkout: planning drafts, settings and briefs, local tasks,
-  keel's trash (an item from a worktree goes back there), keel's project options and the confirmation
-  of autonomous git.
+  the worktree, and every keel script run there names it (`project: <folder>`). What this machine
+  shares between conversations stays with the main checkout: planning drafts, settings and briefs,
+  local tasks, keel's trash (an item from a worktree goes back there; a bare `/keel:cleanup restore`
+  takes only the items this folder moved, and an item whose worktree is gone stays in the trash),
+  keel's project options, the confirmation of autonomous git, and which conversation plans or works on
+  what, so a planning or task lock holds in every folder of the project. The project's Claude Code
+  settings that configure writes and the context warning reads are those of the folder Claude Code
+  started in: in a desktop worktree session, the main checkout's. A worktree without
+  its own `.keel/config.json` uses the main checkout's. If you opened a project directly in a linked
+  worktree with keel 1.4.0, these stores were kept in that worktree's `.keel/local/`; keel now reads
+  them from the main checkout: move `tasks/`, `closed-tasks.json`, `active/`, `plans/keel/`,
+  `plans/briefs/` and `options.json` there by hand (keep the main checkout's copy when both have one).
+  Restore what you need from that worktree's trash before you update (`/keel:cleanup restore`): a
+  batch moved by hand would put its items back into the main checkout.
 - `comments.js` no longer stops when `comments.ticket_prefixes` is not a list; it is skipped.
 - A planning folder written with a double slash, such as `docs//plans`, is refused like `docs/plans`.
 - The cost report counts a message that starts with a system reminder, such as the desktop app's

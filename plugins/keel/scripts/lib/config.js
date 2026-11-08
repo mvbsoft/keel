@@ -14,7 +14,7 @@ function loadSchema() {
 }
 
 function checkConfig(projectDir) {
-  const file = path.join(projectDir, '.keel', 'config.json');
+  const file = path.join(require('./project-dir.js').configHome(projectDir), '.keel', 'config.json');
   let text;
   try {
     text = fs.readFileSync(file, 'utf8');

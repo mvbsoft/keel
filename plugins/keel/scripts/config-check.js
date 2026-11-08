@@ -19,7 +19,8 @@ function main(argv) {
   const { opts, pos } = parseArgs(argv);
   const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   const scanned = memo(() => require('./scan.js').scan(root));
-  const config = readJson(path.join(root, '.keel', 'config.json'));
+  const home = require('./lib/project-dir.js').configHome(root);
+  const config = readJson(path.join(home, '.keel', 'config.json'));
   if (pos[1] === 'save') {
     // Before the check, so a manifest change the user just confirmed reads as current.
     drift.saveSnapshot(root, { scanResult: scanned(), sections: drift.sectionList(opts.sections) });
@@ -32,7 +33,7 @@ function main(argv) {
   const lines = report(root, true, scanned);
   if (lines[0] !== 'keel-config: ok' || lines.some((l) => l.startsWith('git: '))) return lines;
   try {
-    return [...lines, ...drift.check(root, { scanResult: scanned(), config, profile: readJson(path.join(root, '.keel', 'profile.json')), snapshot })];
+    return [...lines, ...drift.check(root, { scanResult: scanned(), config, profile: readJson(path.join(home, '.keel', 'profile.json')), snapshot })];
   } catch (e) {
     return [...lines, `config-check: error: ${e.message}`];
   }

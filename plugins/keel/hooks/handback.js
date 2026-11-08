@@ -13,7 +13,7 @@ function main() {
   const message = input.tool_input && input.tool_input.message;
   if (input.tool_name !== 'SubagentHandback' || typeof message !== 'string' || !input.agent_id) return;
   const project = require('../scripts/lib/project-dir.js').hookProject(input);
-  if (!project || !fs.existsSync(path.join(project, '.keel'))) return;
+  if (!project || !require('../scripts/lib/active.js').started(project)) return;
   saveReply(project, String(input.agent_type || ''), String(input.agent_id).replace(/[^A-Za-z0-9_-]/g, ''), message, { session: String(input.session_id || '') });
 }
 

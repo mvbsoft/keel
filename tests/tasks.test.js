@@ -35,7 +35,7 @@ test('task new: a folder with task.md from the template, status active; bad inpu
   assert.doesNotMatch(text, /<!--|Sources:/, "the template's comment is not copied into the task");
   const headings = [...text.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
   assert.deepEqual(headings, ['Goal', 'Next action', 'Acceptance criteria', 'Out of scope', 'State', 'Files', 'Decisions and why', 'Tried and did not work', 'Open questions', 'How to check', "User's changes"]);
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, '.keel', 'local', 'active', 's1.json'), 'utf8')), { id: 'PROJ-1' });
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, '.keel', 'local', 'active', 's1.json'), 'utf8')), { id: 'PROJ-1', root: path.resolve(dir) });
 
   assert.match(notes(dir, 'task', 'new', 'PROJ-1', '--title', 'x', '--source', 'jira')[0], /already exists \(\.keel\/tasks\/PROJ-1\/\)/);
   assert.match(notes(dir, 'task', 'new', '../evil', '--title', 'x', '--source', 'text')[0], /^notes: task new refused \(invalid id/);

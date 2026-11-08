@@ -5,7 +5,8 @@
 //   and handoff in one file) and plan.md when the plan is big. Listing also reads every local and
 //   remote-tracking branch, because a handed-off task is committed on its own branch and is absent
 //   from the base branch. Only folders count: any other file in .keel/tasks (a README) is not a task.
-// - Which task a session works on: .keel/local/active/<session id>.json = { "id": "<task id>" }.
+// - Which task a session works on: .keel/local/active/<session id>.json = { "id": "<task id>" }, in the
+//   main checkout of a linked worktree.
 // - A finished or dropped task's folder goes to keel's trash (restorable until
 //   cleanup.trash_max_age_days) and is noted in .keel/local/closed-tasks.json, so a stale copy
 //   on another branch is not listed again.
@@ -15,9 +16,9 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { checkConfig } = require('./config.js');
 const { parseSteps, planAllowed } = require('../plan-steps.js');
-const { moveToTrash, listBatches, restore } = require('./trash.js');
+const { moveToTrash, listBatches, restore, fromHere } = require('./trash.js');
 const { git, read, noBom, frontmatter, count, freshRef, clean } = require('./repo-read.js');
-const { realPath, samePath, linkOnWay, localLink, safeLocalPath, safeLocalWrite } = require('./safe-path.js');
+const { realPath, samePath, linkOnWay, localLink, safeLocalPath, safeLocalWrite, safeLocalReplace, withLocalLock } = require('./safe-path.js');
 const { readFinish, writeFinish, clearFinish, ownItem } = require('./finish.js');
 const { validId, validSid } = require('./ids.js');
 const { mainOf } = require('./project-dir.js');
@@ -185,11 +186,16 @@ function guardLocal(root) {
   const linked = localLink(root);
   if (linked) throw new Error(`${linked}: keel does not write through it`);
 }
+// Worktree sessions share closed-tasks.json: the read-change-write runs under a lock, and the new content
+// replaces the file by rename (lib/safe-path.js).
 function writeClosed(root, mutate) {
-  guardLocal(mainOf(root));
-  const closed = readClosed(root);
-  mutate(closed);
-  safeLocalWrite(mainOf(root), 'closed-tasks.json', JSON.stringify(closed) + '\n');
+  const home = mainOf(root);
+  guardLocal(home);
+  withLocalLock(home, 'closed-tasks.json', () => {
+    const closed = readClosed(root);
+    mutate(closed);
+    safeLocalReplace(home, 'closed-tasks.json', JSON.stringify(closed) + '\n');
+  });
 }
 const closedEntry = (closed, id) => closed[Object.keys(closed).find((k) => sameId(k, id))] || null;
 const forget = (closed, id) => { for (const k of Object.keys(closed)) if (sameId(k, id)) delete closed[k]; };
@@ -308,8 +314,9 @@ function baseMoved(root, fm, main) {
 
 // --- active markers ---
 
-const activeDir = (root) => path.join(root, '.keel', 'local', 'active');
-const markerFile = (root, sid) => path.join(activeDir(root), `${sid}.json`);
+// A marker is keyed by session and kept in the main checkout (lib/project-dir.js): it holds wherever the
+// chat works, and every worktree sees the tasks another session works on.
+const activeDir = (root) => path.join(mainOf(root), '.keel', 'local', 'active');
 
 function markers(root) {
   let names = [];
@@ -318,10 +325,18 @@ function markers(root) {
   for (const name of names) {
     try {
       const file = path.join(activeDir(root), name);
-      out.push({ session: name.slice(0, -5), id: JSON.parse(fs.readFileSync(file, 'utf8')).id, at: fs.statSync(file).mtimeMs });
+      const m = JSON.parse(fs.readFileSync(file, 'utf8'));
+      out.push({ session: name.slice(0, -5), id: m.id, root: typeof m.root === 'string' ? m.root : null, at: fs.statSync(file).mtimeMs });
     } catch { /* unreadable marker: ignored */ }
   }
   return out;
+}
+
+// This session's marker with a valid task id, or null. It counts even when the task's file cannot be
+// seen from this folder (not committed yet, in another checkout).
+function sessionMarker(root, sid) {
+  if (!validSession(sid)) return null;
+  return markers(root).find((m) => m.session === sid && validId(m.id)) || null;
 }
 
 // The task this session works on, or null (no marker, or its task is gone).
@@ -338,12 +353,12 @@ function busyTasks(root, now = Date.now()) {
 }
 
 function setMarker(root, sid, id) {
-  safeLocalWrite(root, ['active', `${sid}.json`], JSON.stringify({ id }) + '\n');
+  safeLocalWrite(mainOf(root), ['active', `${sid}.json`], JSON.stringify({ id, root: path.resolve(root) }) + '\n');
 }
 
 function clearMarkers(root, match) {
-  safeLocalPath(root, 'active');
-  for (const m of markers(root)) if (match(m)) fs.rmSync(safeLocalPath(root, 'active', `${m.session}.json`), { force: true });
+  safeLocalPath(mainOf(root), 'active');
+  for (const m of markers(root)) if (match(m)) fs.rmSync(safeLocalPath(mainOf(root), 'active', `${m.session}.json`), { force: true });
 }
 
 // Replaces or adds "key: value" lines of the leading --- block; null when there is none.
@@ -416,6 +431,7 @@ function taskNew(root, id, o, now = new Date()) {
     if (taken) return refuse('task new', `${rel(root, path.join(dir, taken))} exists (ids compare without case)`);
   }
   const folder = path.join(treeDirs(root)[0], id);
+  // Local tasks live in the main checkout, tasks in git in this folder: links are checked in the one that holds it.
   const linked = linkOnWay(treeDirs(root)[0] === localRoot(root) ? mainOf(root) : root, path.join(folder, TASK_FILE));
   if (linked) return refuse('task new', linked);
   const { main } = settings(root);
@@ -430,10 +446,13 @@ function taskNew(root, id, o, now = new Date()) {
   };
   const template = fs.readFileSync(TEMPLATE, 'utf8').replace(/\r\n/g, '\n').replace(/<!--[\s\S]*?-->\s*/g, '');
   const body = template.replace(/^---\n[\s\S]*?\n---\n/, '').trimStart().replace(/^# .*$/m, () => `# ${id}: ${title}`);
+  // A task made again after it was finished or dropped is a new one: its branch copies count again.
+  // Before the folder, so a closed-tasks.json that cannot be written leaves nothing half made.
+  try {
+    if (closedEntry(readClosed(root), id)) writeClosed(root, (c) => forget(c, id));
+  } catch (e) { return refuse('task new', e.message); }
   fs.mkdirSync(folder, { recursive: true });
   fs.writeFileSync(path.join(folder, TASK_FILE), `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n${body}`);
-  // A task made again after it was finished or dropped is a new one: its branch copies count again.
-  if (closedEntry(readClosed(root), id)) writeClosed(root, (c) => forget(c, id));
   const out = [`created: ${rel(root, path.join(folder, TASK_FILE))}`, `folder: ${rel(root, folder)}/ (a big plan goes into ${PLAN_FILE} here)`, 'status: active'];
   if (o.session) { setMarker(root, o.session, id); out.push(`active task: ${id}`); }
   return out;
@@ -489,7 +508,8 @@ function unsafeTarget(root, t) {
   let st;
   try { st = fs.lstatSync(target); } catch { return 'it is gone'; }
   if (st.isSymbolicLink() || !st.isDirectory()) return 'it is a link or not a plain folder';
-  // .keel, .keel/tasks or .keel/local may be links that lead out of the project.
+  // .keel, .keel/tasks or .keel/local may be links that lead out of the project. A local task is in the
+  // main checkout, a task in git in this folder.
   const home = t.local ? mainOf(root) : root;
   const real = path.join(realPath(home), path.relative(home, expected));
   if (!samePath(realPath(target), real)) return 'a folder on its path is a link';
@@ -518,7 +538,8 @@ function toTrash(root, id, sid, what, guard = () => null) {
   if (!r.batch) return { why: refuse(what, `could not move it: ${r.failed.map((f) => f.reason).join(', ')}`) };
   try {
     markClosed(root, t);
-    clearMarkers(root, (m) => sameId(m.id, t.id));
+    // A task in git keeps its folder in the other checkouts: only the markers set in this one go.
+    clearMarkers(root, (m) => sameId(m.id, t.id) && (t.local || !m.root || samePath(path.resolve(m.root), path.resolve(root))));
   } catch (e) {
     // Half a step is worse than none: the folder goes back.
     restore(root, r.batch);
@@ -576,15 +597,20 @@ function taskRestore(root, id, sid, now = new Date()) {
   if (!validSession(sid)) return refuse('task restore', 'needs --session <id>');
   const local = localRefusal(root, 'task restore');
   if (local) return local;
-  const own = (i) => ownItem(i, id);
+  // The trash is shared by the worktrees: only a copy this folder dropped comes back here.
+  const own = (i) => ownItem(i, id) && fromHere(root, i);
   const b = listBatches(root).filter((x) => x.by === 'task' && x.items.some(own)).pop();
   if (!b) return refuse('task restore', `no trash batch holds ${id}`);
   const taken = idEntries(root, id);
   if (taken.length) return refuse('task restore', `${taken.join(', ')} already holds the id ${id} (ids compare without case): the trash batch ${b.batch} stays as it is`);
+  // The closed record changes first: when it cannot be written, the folder stays in the trash.
+  const was = closedEntry(readClosed(root), id);
+  try { writeClosed(root, (c) => forget(c, id)); } catch (e) { return refuse('task restore', `${e.message}; the trash batch ${b.batch} stays as it is`); }
   const r = restore(root, b.batch, own);
-  if (r.refused) return refuse('task restore', r.refused);
-  if (!r.restored.length) return refuse('task restore', `nothing put back: ${r.kept.map((k) => `${k.path} (${k.reason})`).join(', ')}`);
-  writeClosed(root, (c) => forget(c, id));
+  if (r.refused || !r.restored.length) {
+    try { if (was) writeClosed(root, (c) => { c[id] = was; }); } catch { /* the task then lists again; the batch still holds it */ }
+    return refuse('task restore', r.refused || `nothing put back: ${r.kept.map((k) => `${k.path} (${k.reason})`).join(', ')}`);
+  }
   const pending = readFinish(root, sid);
   if (pending && sameId(pending.id, id)) clearFinish(root, sid);
   return [`restored: ${r.restored.map((i) => i.path).join(', ')} (trash batch ${b.batch})`, ...taskActivate(root, id, sid, now)];
@@ -641,6 +667,6 @@ function taskInventory(root, id) {
 }
 
 module.exports = {
-  validId, readBlobs, listTasks, treeTasks, findTask, activeTask, busyTasks, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
+  validId, readBlobs, listTasks, treeTasks, findTask, activeTask, sessionMarker, busyTasks, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
   taskDelete, taskRestore, taskDrop, taskInventory, sections, setFront, stepCounts, planText, readClosed, dateOf,
 };

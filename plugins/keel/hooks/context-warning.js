@@ -2,7 +2,6 @@
 // UserPromptSubmit hook: warns before Claude Code auto-compacts the conversation, so the user can run
 // /compact with a focus or start a new session first. Only in a project keel is set up in. Fails soft: never blocks a prompt.
 const fs = require('node:fs');
-const path = require('node:path');
 const { pickLanguage, translator } = require('../scripts/lib/i18n.js');
 const { readJsonFile } = require('../scripts/lib/json.js');
 
@@ -81,12 +80,9 @@ function threshold(info, project) {
 function customWindow({ model }, project) {
   const fromEnv = process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
   if (/^\d+$/.test(fromEnv || '') && Number(fromEnv) > 0) return Number(fromEnv);
-  const files = [
-    path.join(project, '.claude', 'settings.local.json'),
-    path.join(project, '.claude', 'settings.json'),
-    // Required here, not at the top, so a broken import still ends in the silent catch below.
-    require('../scripts/claude-settings.js').userFile(),
-  ];
+  // Required here, not at the top, so a broken import still ends in the silent catch below.
+  const settings = require('../scripts/claude-settings.js');
+  const files = [...settings.projectFiles(project), settings.userFile()];
   for (const file of files) {
     const value = windowIn(readJson(file), model);
     if (value === 'auto') break;

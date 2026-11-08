@@ -178,7 +178,7 @@ function pricesApply(file) {
 
 if (require.main === module) {
   const { pos: args } = parseArgs(process.argv.slice(2));
-  const root = path.resolve(args[0] || '.');
+  const root = require('./lib/project-dir.js').scriptProject(args[0] || '.');
   const pos = args.slice(1);
   try {
     if (pos[0] === 'show') process.stdout.write(`${show(root)}\n`);

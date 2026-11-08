@@ -25,7 +25,7 @@ const keyOf = (collection, id) => (collection === 'days' ? id : `${collection}/$
 const readJson = (file) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
 const r2 = (x) => Math.round(x * 100) / 100;
 
-const projectRoot = (opts) => path.resolve(typeof opts.project === 'string' ? opts.project : process.env.CLAUDE_PROJECT_DIR || process.cwd());
+const projectRoot = (opts) => require('./lib/project-dir.js').scriptProject(typeof opts.project === 'string' ? opts.project : undefined);
 
 // A fresh folder for the query files, so documents from an earlier run are never counted again, and no clear
 // time left by an earlier run that was not finished.

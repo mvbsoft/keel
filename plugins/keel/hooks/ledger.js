@@ -63,9 +63,7 @@ function summarize(transcriptPath) {
 
 // Whether the conversation plans a feature (its chat mark, scripts/lib/plans.js).
 function planning(project, session) {
-  // The mark may also be in the main checkout of a linked worktree (lib/plans.js marks).
-  const homes = [project, require('../scripts/lib/project-dir.js').mainOf(project)];
-  return require('../scripts/lib/ids.js').validSid(session) && homes.some((h) => fs.existsSync(path.join(h, '.keel', 'local', 'plans', 'keel', 'sessions', `${session}.json`)))
+  return require('../scripts/lib/ids.js').validSid(session) && fs.existsSync(require('../scripts/lib/chat-marks.js').markFile(project, session))
     && require('../scripts/lib/plans.js').planningMark(project, session) !== null;
 }
 
@@ -122,7 +120,7 @@ function main() {
   const type = String(input.agent_type || '');
   if (!type || !input.agent_id) return;
   const project = require('../scripts/lib/project-dir.js').hookProject(input);
-  if (!project || !fs.existsSync(path.join(project, '.keel'))) return;
+  if (!project || !require('../scripts/lib/active.js').started(project)) return;
   // Every write refuses a link on the way or at the file (a junction below .keel/local would carry
   // agent replies out of the project).
   const { safeLocalWrite } = require('../scripts/lib/safe-path.js');

@@ -57,11 +57,10 @@ function main() {
   const { hookProject, mainOf } = require('../scripts/lib/project-dir.js');
   const root = hookProject(input);
   const sid = input.session_id;
-  // In a linked worktree the main checkout is the project too: the chat mark may be there (set before
-  // the chat entered the worktree), and its files are as much the project's.
-  const roots = root ? [...new Set([root, mainOf(root)])] : [];
-  // Most conversations do not plan: one file check per folder before anything is loaded.
-  if (!validSid(sid) || !roots.some((r) => fs.existsSync(path.join(r, '.keel', 'local', 'plans', 'keel', 'sessions', `${sid}.json`)))) return null;
+  // Most conversations do not plan: one file check before anything else is loaded.
+  if (!root || !validSid(sid) || !fs.existsSync(require('../scripts/lib/chat-marks.js').markFile(root, sid))) return null;
+  // In a linked worktree the main checkout's files are as much the project's.
+  const roots = [...new Set([root, mainOf(root)])];
   const feature = require('../scripts/lib/plans.js').planningMark(root, sid);
   if (!feature) return null;
   const places = roots.flatMap((r) => allowedPlaces(r, feature, sid));
