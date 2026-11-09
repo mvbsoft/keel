@@ -283,6 +283,9 @@ Claude to delete it and run `/keel:configure usage` for a new one.
 `plugins/keel`) compares this machine's dollars and tokens per session on the page with the local
 transcripts. `<folder>` is a folder under the project's `.keel/local/` with the database documents saved from
 the page; any other folder is refused. The expected number of differences is zero.
+One exception: a session too big for one page document is shortened on the page (its cheapest agents
+are left out), so its line shows the page's lower dollars against all of the session's and says
+"shortened on the page".
 It also names the difference between keel's dollars and Claude Code's own cost.
 
 ## Prices

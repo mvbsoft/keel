@@ -13,7 +13,7 @@ function perSession(docs) {
   const synced = new Map();
   for (const d of docs) for (const s of d.sessions || []) synced.set(s.id, later(synced.get(s.id), d.synced_until));
   const { sessions, rows } = flatten(docs);
-  const out = new Map(sessions.map((s) => [s.id, { date: s.date, usd: 0, tokens: 0, end: s.end, cost_cc: s.cost_cc, synced_until: synced.get(s.id) }]));
+  const out = new Map(sessions.map((s) => [s.id, { date: s.date, usd: 0, tokens: 0, end: s.end, cost_cc: s.cost_cc, synced_until: synced.get(s.id), truncated: s.truncated === true }]));
   for (const r of rows) {
     const e = out.get(r.session_id);
     if (e) { e.usd += r.usd; e.tokens += r.tokens; }
@@ -38,7 +38,8 @@ function audit({ pageFiles, machine, usageDir, projectsRoot, clearedAt, unwrap, 
   const dates = [...page.values()].map((s) => s.date).sort();
   if (!dates.length) return { compared: 0, days: 0, diffs: [], page: 0 };
   const fromMs = clearedAt ? Date.parse(clearedAt) : undefined;
-  const built = store.buildDays({ projectsRoot, machine, usageDir, sinceMs: Date.parse(`${dates[0]}T00:00:00Z`), nowMs, fromMs });
+  // No size limit here: a session the page had to shorten is compared with all of it, so its undercount shows.
+  const built = store.buildDays({ projectsRoot, machine, usageDir, sinceMs: Date.parse(`${dates[0]}T00:00:00Z`), nowMs, fromMs, maxDocBytes: Infinity });
   const local = perSession(built.docs.map((d) => d.doc));
   const lastSync = [...page.values()].reduce((a, s) => later(a, s.synced_until), null);
   const diffs = [];
@@ -52,7 +53,7 @@ function audit({ pageFiles, machine, usageDir, projectsRoot, clearedAt, unwrap, 
     if (l.end && p.synced_until && Date.parse(l.end) > Date.parse(p.synced_until)) continue;
     compared++;
     days.add(p.date);
-    if (Math.abs(p.usd - l.usd) >= CENT || p.tokens !== l.tokens) diffs.push({ id, date: p.date, kind: 'differs', page: p.usd, local: l.usd, page_tokens: p.tokens, local_tokens: l.tokens });
+    if (Math.abs(p.usd - l.usd) >= CENT || p.tokens !== l.tokens) diffs.push({ id, date: p.date, kind: 'differs', page: p.usd, local: l.usd, page_tokens: p.tokens, local_tokens: l.tokens, shortened: p.truncated });
     if (typeof l.cost_cc === 'number') { ours += l.usd; cc += l.cost_cc; }
   }
   // Not compared: sessions before the page's first day, and those that ended after its last sync (not sent yet).
@@ -73,7 +74,7 @@ function auditText(opts) {
   for (const d of r.diffs) {
     if (d.kind === 'only_page') out.push(`  ${d.date} ${d.id}: only on the page (${usd(d.page)})`);
     else if (d.kind === 'only_local') out.push(`  ${d.date} ${d.id}: only in the local transcripts (${usd(d.local)})`);
-    else out.push(`  ${d.date} ${d.id}: page ${usd(d.page)} / ${d.page_tokens} tokens, local ${usd(d.local)} / ${d.local_tokens} tokens`);
+    else out.push(`  ${d.date} ${d.id}: page ${usd(d.page)} / ${d.page_tokens} tokens, local ${usd(d.local)} / ${d.local_tokens} tokens${d.shortened ? '; shortened on the page (too big for one document)' : ''}`);
   }
   if (r.cc) out.push(`Claude Code's own cost of the compared sessions: ${usd(r.cc.cc)}, keel's: ${usd(r.cc.ours)} (${usd(r.cc.ours - r.cc.cc)})`);
   return out.join('\n');

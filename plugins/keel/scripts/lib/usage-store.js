@@ -527,7 +527,7 @@ function buildDays(opts = {}) {
     const hours = hoursFor(date, touching, walletFor, fromMs);
     // The day of the clear holds nothing yet: no empty document goes back to the cleared page.
     if (fromMs > -Infinity && !hours.length && !daySnaps.length && !own.length) continue;
-    const built = packDay(header, hours, daySnaps, own);
+    const built = packDay(header, hours, daySnaps, own, opts.maxDocBytes);
     const id = `${date}_${pc}`;
     built.forEach((doc, i) => docs.push({ id: partId(id, i + 1), key: partId(id, i + 1), doc, hash: hashOf(doc) }));
   }
