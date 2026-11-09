@@ -208,10 +208,27 @@ A project can only turn previews off: when the machine's value is off, a project
 Each end step (`/keel:end-task`, `/keel:end-session`, `/keel:end-planning`) builds this machine's days from
 Claude Code's logs, compares them with what it sent before (`sync-state.json`) and writes only the day
 documents that changed to the page's database, through files, never through the conversation. One
-document holds one day of one machine (`<date>_<pc>`); a large day is split into parts. It costs about
-$0.01-0.04 (an estimate). The first sync reaches back 30 days (`history_days`). Then keel reads the other
-machines' data back to calibrate the limits, and the page's settings to know whether it runs this keel's
-page ([updating the page](#updating-the-page)).
+document holds one day of one machine (`<date>_<pc>`); a large day is split into parts. The first sync
+reaches back 30 days (`history_days`). Then keel reads the other machines' data back to calibrate the
+limits, and the page's settings to know whether it runs this keel's page
+([updating the page](#updating-the-page)).
+
+The sync runs in a small sync agent on Haiku, which the end step starts. Every request of a model
+re-reads its whole conversation, so the five or so requests of a sync done in the session itself would
+re-read a long session five times. The sync agent's conversation is short, and the session pays only
+for two requests: starting the sync agent and reading its one-line answer.
+
+**What it costs** per end of work, at list prices with an Opus session:
+
+| | cost |
+|---|---|
+| the sync agent (Haiku, about 8 requests) | $0.015-0.017 (2 runs measured) |
+| the session's 2 requests | $0.04-0.06 each at 140-185k tokens of conversation (measured); they grow with the length of the conversation |
+| **in all** | **$0.10-0.14 at 140-185k tokens (measured)**; computed from the same prices: about $0.07 after a short session (100k tokens), about $0.20 after a very long one (450k) |
+
+Done in the session itself it cost $0.15-0.55, typically $0.35 (58 syncs measured). On a subscription the
+same tokens count against your plan limits instead of money. With a Sonnet session the session's
+requests cost about half (computed from the price table, not measured).
 
 - **Days already on the page stay.** A sync never deletes: when Claude Code removes old logs (after 30
   days by default), the days built from them stay on the page as they were. Only a

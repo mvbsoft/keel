@@ -390,9 +390,10 @@ test('end-planning: the chat mark is cleared in every mode, then the costs, and 
   before(text, '**B. Final.**', 'mark clear --session <sid>', 'the mark is cleared after both modes');
   before(text, 'mark clear --session <sid>', 'usage-sync.md');
   // Changed on purpose: reading the other machines' data is part of the sync step now, so the sync is steps 1-3 and the report step 4.
-  says(text, ['`<keel>/skills/_shared/usage-sync.md`', 'follow its steps 1-3', 'session id `${CLAUDE_SESSION_ID}`']);
+  // Changed on purpose: the sync runs in a small Haiku agent the end command starts, which costs a fraction of doing it in the session.
+  says(text, ['`<keel>/skills/_shared/usage-sync.md`', 'start its sync agent (steps 1-3)', 'session id `${CLAUDE_SESSION_ID}`']);
   // The mark is gone by now: the feature name reaches the usage record through the flag.
-  says(text, ['steps 1-3 with session id `${CLAUDE_SESSION_ID}`', 'and `--feature <f>`', '`<f>` of step 2']);
+  says(text, ['steps 1-3) with session id `${CLAUDE_SESSION_ID}`', 'and `--feature <f>`', '`<f>` of step 2']);
   before(text, 'mark clear --session <sid>', '`--feature <f>`');
   says(text, ['run usage-sync.md step 4 last']);
   says(text, ['final-report.md` block 5 says']);

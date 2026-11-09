@@ -474,10 +474,11 @@ test('git.md: red gates after a sync offer a fix or putting the task back, never
 test('the cost report runs last and is pasted whole: the only cost numbers in the final report', () => {
   const sync = shared('usage-sync.md');
   // Changed on purpose: reading the other machines' data is part of the sync step now, so the sync is steps 1-3 and the report step 4.
+  // Changed on purpose: the sync runs in a small Haiku agent the end command starts, which costs a fraction of doing it in the session.
   says(sync, ['4. **Not now: last, right before you write the final report**']);
   for (const name of ['end-task', 'end-session']) {
     const text = skill(name);
-    says(text, ['follow its steps 1-3'], name);
+    says(text, ['start its sync agent (steps 1-3)'], name);
     says(text, ['Report: run usage-sync.md step 4 (the cost report), then read'], name);
     assert.ok(text.indexOf('run usage-sync.md step 4') > text.indexOf('git.md'), `${name}: the report runs after git`);
   }

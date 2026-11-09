@@ -226,7 +226,7 @@ In a set-up project keel adds about 3.6k tokens to every conversation: its worki
 project's comment rules (about 2.3k) and the skill and agent descriptions (about 1.3k). The standards
 are added again after `/clear` and after compaction. In a project keel is not set up in, only the
 skill and agent descriptions remain, because Claude Code lists them wherever keel is installed.
-Each end of work syncs the cost data for about $0.01-0.04 when the dashboard is set up (`/keel:usage off` stops it; [syncing](usage-dashboard.md#syncing-between-machines)).
+Each end of work syncs the cost data through a small Haiku sync agent for about $0.07-0.20, more after a longer session, when the dashboard is set up (`/keel:usage off` stops it; [syncing](usage-dashboard.md#syncing-between-machines)).
 
 ## Advisory skills
 

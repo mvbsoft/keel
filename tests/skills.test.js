@@ -327,6 +327,36 @@ test('usage-sync.md: the page tool is found first and passed to prepare', () => 
   assert.doesNotMatch(text, /restart(ing)? Claude Code/i);
 });
 
+test('usage-sync.md: the sync runs in a small Haiku agent; the calling session waits for it and reports', () => {
+  const text = read('skills', '_shared', 'usage-sync.md');
+  const start = text.slice(text.indexOf('**Start the sync agent**'), text.indexOf('1. **Limits snapshot'));
+  says(start, ['`subagent_type: "general-purpose"`', '`model: "haiku"`', 'do its steps 1-3 exactly', 'every `<...>` replaced by its']);
+  says(start, ['`synced`, `skip: <reason>` or `incomplete: <what failed>`']);
+  // end-task deletes the task right after the sync, and prepare reads that task.
+  says(start, ['Wait for its reply before the command\'s next step']);
+  says(start, ['no `Agent` tool, or the agent cannot start → do steps 1-3 yourself']);
+  // A session without the page tool (an API key) keeps prepare's own skip reason instead of an agent's.
+  says(start, ['`ArtifactData` is not', 'start no agent: do steps 1-2 yourself']);
+  // A half-finished agent may have written batches: the session must not sync a second time.
+  says(start, ['No reply, or another reply', 'do not run steps 1-3 again']);
+  says(text, ['`skip: no page tool in the agent`', 'the calling session then syncs itself']);
+  says(text, ['in the same message as the last ack']);
+  says(text, ['4. **Not now: last, right before you write the final report** (the calling session']);
+});
+
+test('the sync cost is given in measured dollars only: no old estimate, no share of a plan limit', () => {
+  const docs = (f) => fs.readFileSync(path.join(__dirname, '..', 'docs', f), 'utf8');
+  const flow = read('skills', '_shared', 'configure-flow.md');
+  const step5 = flow.slice(flow.indexOf('5. **Usage page**'), flow.indexOf('6. **Price update**'));
+  const texts = { 'usage-dashboard.md': docs('usage-dashboard.md'), 'under-the-hood.md': docs('under-the-hood.md'), 'configure step 5': step5, 'usage-sync.md': read('skills', '_shared', 'usage-sync.md') };
+  for (const [name, text] of Object.entries(texts)) {
+    assert.doesNotMatch(text, /0\.01.{0,3}0\.04|few cents/, `${name}: the old sync estimate is back`);
+  }
+  // Plans differ, so only the end reports, which calibrate per account, give shares of a limit.
+  for (const name of ['configure step 5', 'usage-sync.md']) assert.doesNotMatch(texts[name], /\d\s?% of/, `${name}: a share of a plan limit`);
+  says(step5, ['about $0.07-0.20', 'The longer the session, the more it costs', 'dollars only']);
+});
+
 // Changed on purpose: /keel:usage-clear became /keel:usage clear, so the skill may run usage-clear.js too.
 test('/keel:usage: user-only, reads only the usage settings and gives or opens the page link; on, off and clear', () => {
   const { fields, body } = parse('usage');
