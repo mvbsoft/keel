@@ -70,6 +70,10 @@ npm run eval
 
 - **A fix comes with a test that fails without it.** An existing test changes only when the
   behaviour it pins changes on purpose; say why in the pull request.
+- **A test of an instruction text checks its key words, not its sentence**: `says(text, [keys])` from
+  `tests/fixtures/texts.js` wants every key in one paragraph, list item or table row, so a rewording
+  that keeps the rule keeps the test green. Keys include the words the rule hinges on (never, only, a
+  number). What a script prints or parses (a command line, an output line) stays exact.
 - **Docs change in the same pull request** as the behaviour they describe (README, skills, agents,
   CHANGELOG under `[Unreleased]`). Only `README.md` has a Ukrainian copy, `README.uk.md`, kept in
   step with the English one, which is the source: a change to `README.md` changes `README.uk.md` in
