@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { tempDir } = require('./fixtures/tmp.js');
-const { writeSession } = require('./fixtures/usage.js');
+const { writeSession, usageOf } = require('./fixtures/usage.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const CLI = path.join(PLUGIN, 'scripts', 'usage.js');
@@ -179,6 +179,30 @@ test('audit: a session only on the page, one only in the transcripts, one that w
   assert.match(out, / c: only in the local transcripts \(\$1\.00\)/);
   assert.doesNotMatch(out, / d: /, 'a session that went on after the sync is not compared');
   assert.match(out, /Claude Code's own cost of the compared sessions: \$2\.50, keel's: \$2\.00 \(\$-0\.50\)/);
+});
+
+test('audit: a session too big for one document shows its undercount on the page, marked as shortened', () => {
+  const w = world();
+  const t0 = Date.now() - 3 * HOUR;
+  const { file } = session(w, 'huge', t0, 1);
+  // Enough agents that dropping texts, turns and tools is not enough: the cheapest agents leave the page.
+  const sub = path.join(path.dirname(file), 'huge', 'subagents');
+  fs.mkdirSync(sub, { recursive: true });
+  const base = { sessionId: 'huge', cwd: 'O:\\work\\demo', isSidechain: true };
+  for (let i = 0; i < 1500; i++) {
+    const at = t0 + 1000 + i;
+    fs.writeFileSync(path.join(sub, `agent-a${i}.jsonl`), [
+      { ...base, type: 'user', timestamp: new Date(at).toISOString(), message: { role: 'user', content: 'go' } },
+      { ...base, type: 'assistant', timestamp: new Date(at + 1).toISOString(), message: { role: 'assistant', id: `msg_a${i}`, model: OPUS, content: [{ type: 'text', text: 'ok' }], usage: usageOf({ in: 0.01e6 }) } },
+    ].map((r) => JSON.stringify(r)).join('\n') + '\n');
+  }
+  const spec = w.prepare();
+  const saved = saveDays(w, spec);
+  const sent = dayWrites(spec).map((x) => read(x.file_path)).flatMap((d) => d.sessions).find((s) => s.id === 'huge');
+  assert.ok(sent.truncated && sent.participants.length < 1501, 'the page holds a shortened session');
+  const out = w.run(['audit', '--project', w.project, '--page', saved]);
+  assert.match(out, /^audit: 1 sessions on 1 days compared; differences: 1$/m, out);
+  assert.match(out, / huge: page \$\d+\.\d\d \/ \d+ tokens, local \$76\.00 \/ \d+ tokens; shortened on the page \(too big for one document\)$/m, out);
 });
 
 test('after this machine\'s clear, the hour of the clear keeps the requests after it', () => {

@@ -14,7 +14,8 @@ All notable changes to keel are listed here. The format follows
   the end reports still show the costs, and `on` sends what Claude Code's logs still hold of the time it was off.
   `usage.json` gets `sync` and `sync_off_since`.
 - `usage.js audit --page <folder>` compares this machine's dollars and tokens per session on the page
-  with the local transcripts and names the difference to Claude Code's own cost.
+  with the local transcripts and names the difference to Claude Code's own cost. A session too big for
+  one page document is compared with all of it, so what the page left out shows as a difference.
 - The docs and the instructions tell the three account cases: API key only (exact dollars, no usage page,
   no page questions in configure), subscription only, and both.
 - `.keel/config.json` has a `planning` section, the same for the whole team: the ticket prefix
