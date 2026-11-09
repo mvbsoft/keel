@@ -5,7 +5,8 @@
 //   repository when settings say `draft: repo`. Both places are always read, so changing the setting
 //   does not hide a draft.
 // - plan.md (front matter `type: plan`, `status`, `branch`, `merge_into`, `last_ticket`...),
-//   tickets/T<n>-<slug>.md (front matter `id`, `repo`, `depends_on`, `review_hash`), reviews/ (written by the
+//   tickets/T<n>-<slug>.md (front matter `id`, `repo`, `depends_on`, `review_hash`; `type: stub` for a
+//   stub, lib/plans-stubs.js), reviews/ (written by the
 //   conversation). `branch` (the feature branch) and `merge_into` (where the feature merges) go into
 //   every exported ticket (lib/plans-export.js), and so does `page`, the feature's random code that
 //   names its page (feature-page.js) the same from every machine and repository.
@@ -108,6 +109,9 @@ function ticketNew(root, feature, o) {
   if (!found && !ex) return why;
   const d = ex ? null : settle(root, found);
   if (d && !['draft', 'ready'].includes(d.fm.status)) return refuse('ticket', `the plan is ${d.fm.status}`);
+  if (o['from-stub'] !== undefined) return stubs().fromStub(root, feature, d, ex, o['from-stub']);
+  if (o.stub !== undefined && ex) return refuse('ticket', '--stub: the feature is exported; a stub is planned while the feature is a draft');
+  if (o.stub !== undefined && o.repo !== undefined) return refuse('ticket', '--stub names the repository itself: --stub WEB, without --repo');
   if (typeof o.title !== 'string' || !oneLine(o.title)) return refuse('ticket', 'needs --title');
   const slug = slugOf(typeof o.slug === 'string' ? o.slug : o.title);
   if (!slug) return refuse('ticket', 'the title has no English words for the file name: add --slug <english-words>');
@@ -115,7 +119,11 @@ function ticketNew(root, feature, o) {
   if (o.repo !== undefined && (typeof o.repo !== 'string' || !o.repo.trim())) return refuse('ticket', '--repo needs a ticket prefix: --repo WEB');
   if (ex) return require('./plans-export.js').exportedTicket(root, feature, ex, { title: oneLine(o.title), slug, deps, repo: o.repo });
   let repo = null;
-  if (o.repo !== undefined) {
+  if (o.stub !== undefined) {
+    const r = stubs().stubRepo(root, o.stub, feature);
+    if (r.why) return refuse('ticket', r.why);
+    repo = r.prefix;
+  } else if (o.repo !== undefined) {
     const asked = o.repo.trim().toUpperCase();
     const own = settings(root).ticket_prefix;
     if (asked !== own && !repos().planRepos(d.fm).includes(asked)) return refuse('ticket', `--repo: ${clean(asked, 20)} is not in the plan's repos (plans.js set ${feature} --repos ...)`);
@@ -130,7 +138,8 @@ function ticketNew(root, feature, o) {
   const n = Math.max(Number(d.fm.last_ticket) || 0, ...all.map((t) => t.n)) + 1;
   const id = `T${n}`;
   const file = path.join(d.folder, 'tickets', `${id}-${slug}.md`);
-  const t = fromTemplate('ticket.md', { id, ...(repo ? { repo } : {}), depends_on: `[${deps.join(', ')}]`, review_hash: '-' });
+  const t = o.stub !== undefined ? fromTemplate('stub.md', { id, type: 'stub', repo, depends_on: `[${deps.join(', ')}]`, review_hash: '-' })
+    : fromTemplate('ticket.md', { id, ...(repo ? { repo } : {}), depends_on: `[${deps.join(', ')}]`, review_hash: '-' });
   try {
     writeFile(root, d, file, t.text(t.body.replace(/^# .*$/m, () => `# [${id}] ${oneLine(o.title)}`)));
     writePlan(root, d, { last_ticket: n, ...(d.fm.status === 'ready' ? { status: 'draft', ready_hash: '-' } : {}) });
@@ -140,6 +149,7 @@ function ticketNew(root, feature, o) {
 
 const neighbours = () => require('./plans-neighbours.js');
 const repos = () => require('./plans-repos.js');
+const stubs = () => require('./plans-stubs.js');
 // Another repository's keys among a draft's dependencies (lib/plans-neighbours.js).
 const otherRepos = (root, deps) => neighbours().lookUp(root, deps);
 

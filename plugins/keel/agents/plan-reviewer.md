@@ -21,9 +21,9 @@ Your task names:
 - for a feature on several repositories, each repository's folder (`<PREFIX>=<folder>`): a ticket
   with `repo:` in its front matter is for that repository, and its code is there.
 
-`plan.md` may have `## Stubs`: the parts of a repository that is not on this machine, each a title and
-its In plain words, with no ticket. A promised behaviour a stub covers is covered (not a gap); one in a
-stub and in a ticket too is checked twice.
+A ticket with `type: stub` is a stub: the work in a repository that is not on this machine, without
+Boundaries, Correct the priors or Where to look. A promised behaviour a stub covers is covered (not a
+gap); one in a stub and in a ticket too is checked twice.
 
 Read `plan.md` and every ticket first. Open code only to settle a question the plan raises: locate
 (Glob, Grep), then read the few relevant lines. Never open secret files: the list is under "Scope" in

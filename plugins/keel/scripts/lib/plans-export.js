@@ -22,6 +22,7 @@ const { TRACKER } = require('../notes.js');
 const flow = require('../git-flow.js');
 
 const TEMP = '.export-tmp';
+const stubs = () => require('./plans-stubs.js');
 // How deep the file names of ticket folders are read: <folder>/<feature>/<file> and a little more.
 const WALK_DEPTH = 4;
 
@@ -223,8 +224,10 @@ function exportedTicket(root, feature, f, { title, slug, deps, repo }) {
   const git = fetched(root);
   const there = at.root === root ? git : fetched(at.root);
   const depends = deps.map((x) => x.toUpperCase());
-  const m = missingKeys(root, depends, f);
-  if (m.missing.length) return refuse(what, `--depends: no ticket ${m.missing.map((x) => missingText(m, x)).join(', ')}`);
+  const sd = stubs().stubDeps(root, depends, f.folder, feature);
+  const m = missingKeys(root, depends.filter((x) => !sd.stubs.includes(x)), f);
+  const lacking = [...m.missing.map((x) => missingText(m, x)), ...[...sd.missing].map(([k, why]) => `${clean(k)} ${why}`)];
+  if (lacking.length) return refuse(what, `--depends: no ticket ${lacking.join(', ')}`);
   const sibling = at.f.list[0];
   const prefix = prefixOfKey(sibling.fm.key);
   // The folder's own keys too: found by its name, it may be outside the folders highestKey reads, and a
@@ -241,16 +244,23 @@ function exportedTicket(root, feature, f, { title, slug, deps, repo }) {
   });
   try { plans.writeFile(at.root, { local: at.f.local }, file, t.text(t.body.replace(/^# .*$/m, () => `# [${key}] ${title}`))); } catch (e) { return refuse(what, e.message); }
   const overviews = across.addToOverviews(root, feature, f, ticketLine(key, title, repoName(at.root)));
-  return [`created: ${shown}`, `ticket: ${key}`, ...overviews, ...[...m.notes].map(([k, why]) => require('./plans-neighbours.js').noteLine(key, k, why)), ...git.notes, ...(there === git ? [] : there.notes.map((n) => `note: ${at.prefix}: ${n}`))];
+  return [`created: ${shown}`, `ticket: ${key}`, ...overviews, ...[...m.notes, ...sd.notes].map(([k, why]) => require('./plans-neighbours.js').noteLine(key, k, why)), ...git.notes, ...(there === git ? [] : there.notes.map((n) => `note: ${at.prefix}: ${n}`))];
 }
 
 // plans.js check on an exported feature: each ticket's structure as in a draft, its key, status and
-// depends_on (keys of the feature or other existing ones), no cycles.
+// depends_on (keys of the feature or other existing ones), no cycles. Its stubs: their structure and
+// depends_on; a stub key in depends_on is a stub here or one a ticket of its repository replaces.
 function exportedProblems(root, f) {
   const out = [];
-  const list = f.list.map((t) => ({ ...t, id: t.fm.key.toUpperCase(), deps: plans.ticketIds(t.fm.depends_on).map((x) => x.toUpperCase()) }));
-  const m = missingKeys(root, list.flatMap((t) => t.deps.filter((x) => x !== t.id)), f);
+  const asEntry = (t) => ({ ...t, id: t.fm.key.toUpperCase(), deps: plans.ticketIds(t.fm.depends_on).map((x) => x.toUpperCase()) });
+  const stubList = stubs().stubFiles(f.folder).map(asEntry);
+  const list = f.list.map(asEntry);
+  const every = [...list, ...stubList];
+  const sd = stubs().stubDeps(root, every.flatMap((t) => t.deps), f.folder, f.list[0].fm.feature || path.basename(f.folder));
+  const m = missingKeys(root, every.flatMap((t) => t.deps.filter((x) => x !== t.id && !sd.stubs.includes(x))), f);
   const missing = new Set(m.missing);
+  for (const k of sd.missing.keys()) { missing.add(k); m.where.set(k, sd.missing.get(k)); }
+  for (const [k, why] of sd.notes) m.notes.set(k, why);
   const notes = [];
   const twins = new Map();
   for (const t of list) twins.set(t.id, [...(twins.get(t.id) || []), t.name]);
@@ -260,17 +270,24 @@ function exportedProblems(root, f) {
     if (!upper.startsWith(`${t.id}-`) && upper !== `${t.id}.MD`) out.push(`${t.id}: the file name ${clean(t.name)} does not start with the key`);
     if (!['todo', 'done'].includes(t.fm.status)) out.push(`${t.id}: status is "${clean(t.fm.status || '')}"; todo or done`);
     out.push(...plans.ticketProblems(root, t.id, t.text));
+  }
+  for (const t of stubList) {
+    if (!t.name.toUpperCase().startsWith(`${t.id}-`)) out.push(`${t.id}: the file name ${clean(t.name)} does not start with the key`);
+    out.push(...plans.ticketProblems(root, t.id, t.text, null));
+  }
+  for (const t of every) {
     for (const dep of t.deps) {
       if (dep === t.id) out.push(`${t.id}: depends on itself`);
       else if (missing.has(dep)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist${m.where.has(dep) ? ` ${m.where.get(dep)}` : ''}`);
       else if (m.notes.has(dep)) notes.push(require('./plans-neighbours.js').noteLine(t.id, dep, m.notes.get(dep)));
     }
   }
-  for (const c of plans.cycles(list.map((t) => ({ id: t.id, fm: { depends_on: t.deps.join(',') } })))) out.push(`dependency cycle: ${c}`);
+  for (const c of plans.cycles(every.map((t) => ({ id: t.id, fm: { depends_on: t.deps.join(',') } })))) out.push(`dependency cycle: ${c}`);
   const folders = plans.machineFolders(root);
   const overview = read(path.join(f.folder, 'README.md'));
   if (overview !== null) out.push(...plans.localProblems('README.md', overview, folders));
   for (const r of plans.researchTexts(f.folder)) out.push(...plans.localProblems(r.name, r.text, folders));
+  notes.push(...stubs().stubNotes(root, f, f.list[0].fm.feature || path.basename(f.folder)));
   return { out, count: list.length, notes };
 }
 
@@ -490,6 +507,6 @@ module.exports = {
   commitFeature, pushFeature, fetched, highestKey, keyCheck,
   // for lib/plans.js, lib/plans-drafts.js and lib/plans-check.js
   featureFolder, branchWith, exportedTicket, exportedProblems,
-  // for lib/plans-export-repos.js
-  TEMP, safe, folderFiles,
+  // for lib/plans-export-repos.js and lib/plans-stubs.js
+  TEMP, safe, folderFiles, fileNames, keyFolders,
 };

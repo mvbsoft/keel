@@ -94,8 +94,8 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   Decisions (`D1. decision - why`), Contract (APIs, events and formats between repositories), Out of
   scope, Design sketch, Terms, What was gathered,
   Open questions (`Q1. question - what depends on it`; an answered Q leaves the list and becomes a D),
-  Tickets (one line per ticket: `T3 title`), Stubs, Next action. Sections stay, empty when there is
-  nothing to say (Stubs may go); no TBD and no `<...>`.
+  Tickets (one line per ticket or stub: `T3 title`), Next action. Sections stay, empty when there is
+  nothing to say; no TBD and no `<...>`.
 - **Pictures in In plain words.** The plan's and each ticket's In plain words show the work with a
   picture where it says more than words: steps between people and parts of the system → a `mermaid`
   block with `sequenceDiagram`; states → `stateDiagram-v2`; branches → `flowchart`; options or
@@ -171,20 +171,30 @@ others read). This one conversation plans all of it; each ticket is for one repo
 5. **Another repository's files** are outside this project, so Claude Code may ask to allow each read
    there. Before the first one, say once that `/add-dir <folder>` lets this conversation read it
    without asking; never change settings without a yes.
-6. **Stubs.** For a repository not on this machine, `## Stubs` in `plan.md` gets one part per piece of
-   work there: `### <repository>: <title>` (a title that says what it is), one line saying it is a
-   stub for that repository, not planned or built here, then its In plain words, as long as a
-   developer there needs to plan it. A stub has no key: `depends_on` never names one; a ticket that
-   needs it says so in its Dependencies.
+6. **Stubs.** For a repository not on this machine, each piece of work there is a stub: a ticket with
+   only what can be written without that repository's code.
+   `plans.js ticket <f> --title "<title>" --stub <PREFIX> [--depends "T1"]` (the prefix it plans
+   with, or 3-4 capital letters from its name) → `created:` and `ticket: T<n>`, front matter
+   `type: stub`. Fill it as a ticket, without Boundaries, Correct the priors and Where to look (they
+   need the code); How to check holds only the manual steps a person does. A ticket that needs it
+   names it in `depends_on` like any other; its state is never read, so it never holds a ticket back.
+   It is reviewed as a ticket.
 7. **Tickets and the plan.** `--repo <PREFIX>` for another repository's ticket (`repo:` in its front
    matter); a ticket never mixes repositories. Design sketch gets one `### <PREFIX>` part per
    repository of `repos:`. `plans.js check` looks for another repository's Where to look in its
-   folder: `note: <T>: Where to look not checked (<why>)` → say why. A draft continued: a stub's
-   repository is now in `plans.js repos` → offer to turn its stubs into tickets.
-8. **Export.** `plans.js repos` once more first: a stub's repository is listed now → offer its stubs as
-   tickets before the export. `plans.js export <f>` puts each repository's tickets into that
+   folder: `note: <T>: Where to look not checked (<why>)` → say why.
+   **A stub's repository is here now** (`plans.js check` says `note: <T>: <PREFIX> is on this machine
+   now`, or `plans.js repos` lists it): offer to turn the stub into a full ticket; yes →
+   `plans.js ticket <f> --from-stub <T>`: the same T becomes a ticket for that repository (added to
+   the plan's repos; `--from-stub: ... not on this machine yet` → map its folder first, item 2). Then
+   study that repository with the stub as the start and write Boundaries, Correct the priors and Where
+   to look (placeholders until then; check stops on them), then check and a review of that ticket.
+8. **Export.** `plans.js repos` once more first: a stub's repository is listed now → offer item 7's
+   turn before the export. `plans.js export <f>` puts each repository's tickets into that
    repository's feature folder, by its own planning settings and keys, and the same overview in each;
-   all or nothing. Its `exported:` lines come once per repository; say each `note: <PREFIX>: ...`.
+   all or nothing. Its `exported:` lines come once per repository; say each `note: <PREFIX>: ...`. A
+   stub goes into this project's feature folder with the key `<PREFIX>-S<n>` (`(stub)` on its line)
+   and is listed in the overview.
    - `plans: export refused (not ready: <PREFIX>, ...)` and a `not ready: <PREFIX> (<folder>): <why>`
      line per problem → nothing is written, the plan stays `ready`. Say the lines, then ask for each
      repository: (1) it is on its main branch with a clean tree and the line names
@@ -194,7 +204,8 @@ others read). This one conversation plans all of it; each ticket is for one repo
      line with `(or --as-is <PREFIX>: ...)`: do as is → `plans.js export <f> --as-is "<PREFIX>,<PREFIX>"`
      (quoted); (4) other: what the user says. Never commit, stash or end a task in another repository.
    - `<PREFIX> is in repos but has no ticket` → offer a ticket for it, or `plans.js set <f> --repos`
-     without it.
+     without it. `this project (<PREFIX>) has no ticket` (also a plan of stubs only) → offer a ticket
+     for this project.
 
 ## Exported feature
 Its tickets live in the feature folder; work there continues while others may already build them.
@@ -217,6 +228,16 @@ Its tickets live in the feature folder; work there continues while others may al
    for another repository of its overview puts the ticket in that repository's feature folder with
    its next key; `overview:` lines name each overview that got its line, `note: <PREFIX>: its
    overview is not updated (<why>)` → say it.
+   A stub (`<PREFIX>-S<n>`) whose repository is on this machine now (its line in step 1 or a note of
+   check says so): offer to turn it into a ticket;
+   yes → `plans.js ticket <f> --from-stub <PREFIX>-S<n>` → `converted: <stub> -> <KEY>`: the ticket
+   is in that repository's feature folder with its next key and `replaces: <stub>` (tickets that name
+   the stub now wait for it; none is edited), the overview there and here lists it, the stub went to
+   keel's trash. `plans: ticket refused (...; nothing converted)` → say why; the stub is back and
+   nothing was written there. `plans: ticket refused (--from-stub: <PREFIX> is not ready)` with `not ready:` lines
+   → say them and ask as Export's item 8 does (no `--as-is`). Then write its Boundaries, Correct the
+   priors and Where to look from that repository, check and review it there; `note: the overview in
+   ... still lists <stub>` → run the `plans.js align` it names.
 6. Done → `/keel:end-planning` checks the folder and offers the commit and push of every repository
    it changed.
 

@@ -32,12 +32,15 @@
 //   revert (a revert of the revert) is still read as undone: the dependency then shows as not done.
 //   Another repository's dependency (a prefix neither the planning one nor a ticket's here) is read in
 //   that repository's folder on this machine (lib/plans-neighbours.js) and counts the same way; one not
-//   checked (no folder) does not hold the ticket back, its line says so.
+//   checked (no folder) does not hold the ticket back, its line says so. A stub's key (<PREFIX>-S<n>,
+//   lib/plans-stubs.js) is read the same way, as the ticket there whose `replaces:` names it; a stub
+//   no ticket replaces yet is never read and never holds a ticket back.
 const path = require('node:path');
 const { git, clean } = require('./repo-read.js');
 const { listTasks, readBlobs } = require('./tasks.js');
 const { TRACKER, noteKeys } = require('../notes.js');
-const { collect, serverData, ticketOf, dirOf, upper, keyList, DAY_MS, FRESH_DAYS } = require('./plans-state-read.js');
+const { collect, serverData, ticketOf, dirOf, upper, keyList, stubList, DAY_MS, FRESH_DAYS } = require('./plans-state-read.js');
+const { STUB_KEY } = require('./plans-format.js');
 // Loaded when used: lib/plans-neighbours.js reads other repositories with this file's code.
 const neighbours = () => require('./plans-neighbours.js');
 
@@ -143,6 +146,12 @@ const revertedIn = (d, c, target) => revertsOn(d, target).merges.some((m) => isA
 // working tree's, else the newest branch's).
 function byKeys(d) {
   const keys = new Map();
+  // The stub keys in a folder of the project (lib/plans-stubs.js), read once per folder.
+  const stubsIn = new Map();
+  const stubKeys = (folder) => {
+    if (!stubsIn.has(folder)) stubsIn.set(folder, new Set(require('./plans-stubs.js').stubFiles(path.join(d.root, folder)).map((st) => upper(st.fm.key))));
+    return stubsIn.get(folder);
+  };
   const entry = (t) => {
     if (!keys.has(t.key)) keys.set(t.key, { key: t.key, found: [], pc: [] });
     return keys.get(t.key);
@@ -159,8 +168,13 @@ function byKeys(d) {
     e.branch = given(rep.fm.branch) ? rep.fm.branch : e.feature;
     e.mergeInto = given(rep.fm.merge_into) ? rep.fm.merge_into : d.main || '-';
     e.depends = keyList(rep.fm.depends_on);
+    e.stubs = stubList(rep.fm.depends_on);
     e.paths = [...new Set([...e.found.map((f) => f.path), ...e.pc.map((t) => t.path)])];
     e.folders = [...new Set(e.found.map((f) => dirOf(f.path)))];
+    // The stubs it depends on that its folder in the working tree (or on this machine) no longer has:
+    // converted. A ticket read from a branch only cannot tell, so there its stubs count as here.
+    const work = e.found.find((f) => f.view.work) || e.pc[0];
+    e.stubsGone = work && e.stubs.length ? e.stubs.filter((k) => !stubKeys(dirOf(work.path)).has(k)) : [];
   }
   return keys;
 }
@@ -343,16 +357,28 @@ function doneInHistory(d, keys, wanted = null, foreign = () => false) {
 function stateIn(folder, list, now = new Date(), d = collect(folder, now)) {
   const read = (d) => {
     const keys = states(d);
+    // A stub's key has no ticket of its own: `by` holds, per feature, the state of the ticket whose
+    // `replaces:` names it (lib/plans-neighbours.js stubState picks the dependent's feature).
+    const by = new Map();
+    for (const e of keys.values()) {
+      if (!given(e.rep.fm.replaces)) continue;
+      const k = upper(e.rep.fm.replaces.trim());
+      by.set(k, { ...(by.get(k) || {}), [e.feature]: stateOf(e) });
+    }
     const target = d.main ? targetRef(d, d.main) : null;
-    const missing = list.filter((k) => !keys.has(k));
+    // A stub's key is never a file name, so history has none.
+    const missing = list.filter((k) => !keys.has(k) && !STUB_KEY.test(k));
     const gone = d.inRepo && target && missing.length ? doneInHistory(d, keys, new Map([[target, new Set(missing)]])) : new Map();
-    return new Map(list.map((k) => [k, keys.has(k) ? stateOf(keys.get(k)) : { state: gone.get(`${target} ${k}`) || 'not found' }]));
+    return new Map(list.map((k) => [k, STUB_KEY.test(k) ? { state: 'not found', by: by.get(k) || {} }
+      : keys.has(k) ? stateOf(keys.get(k)) : { state: gone.get(`${target} ${k}`) || 'not found' }]));
   };
   // `d`: that folder's collect() when the caller has it already (lib/plans-linked.js).
   const out = read(d);
-  // Only a key still not found is read again on every branch: one found in history keeps that state.
-  if (d.inRepo && [...out.values()].some((s) => s.state === 'not found')) {
-    for (const [k, s] of read(collect(folder, now, { all: true }))) if (out.get(k).state === 'not found') out.set(k, s);
+  // Only a key still not found (a stub key: no ticket replaces it) is read again on every branch: one
+  // found in history keeps that state.
+  const open = (k) => (STUB_KEY.test(k) ? !Object.keys(out.get(k).by).length : out.get(k).state === 'not found');
+  if (d.inRepo && list.some(open)) {
+    for (const [k, s] of read(collect(folder, now, { all: true }))) if (open(k)) out.set(k, s);
   }
   return { keys: out, data: serverData(d), inRepo: d.inRepo };
 }
@@ -409,13 +435,16 @@ function whereLine(k, w, e, repo = null) {
 
 // The next ticket of each feature: the first to do whose dependencies are done (also one found done in
 // history), waiting for the feature merge in the same feature, or done on its own feature branch;
-// another repository's (`others`, lib/plans-neighbours.js) by its state, and one not checked does not
-// hold it back.
+// another repository's (`others`, lib/plans-neighbours.js) by its state, one not checked passes; a
+// stub's key as lib/plans-neighbours.js stubState reads it.
 function nextOf(keys, list, gone, others) {
   return list.find((e) => e.state === 4 && e.depends.every((k) => {
     const dep = keys.get(k);
     if (others.has(k)) return neighbours().met(others.get(k), e.feature);
     return dep ? metBy(STATES[dep.state], dep.feature, e.feature) || inBranch(dep, e) : gone.get(`${e.target} ${k}`) === 'done';
+  }) && e.stubs.every((k) => {
+    const s = neighbours().stubState(others.get(k), e.feature, !e.stubsGone.includes(k));
+    return !s || neighbours().met(s, e.feature);
   })) || null;
 }
 

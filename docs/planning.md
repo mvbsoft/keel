@@ -43,7 +43,7 @@ keel writes the draft first and then replies, so the answer and the next questio
 message.
 keel keeps `plan.md` true as you go: In plain words (the whole feature for a person), Level, Decisions (`D1. decision - why`), Contract, Out of scope, Design sketch,
 Terms, What was gathered, Open questions (`Q1. question - what depends on it`; an answered Q becomes a
-D), Tickets, Stubs (may go), Next action. Tickets are written at once, their sections always in this
+D), Tickets, Next action. Tickets are written at once, their sections always in this
 order: In plain words (the whole task in plain words, without code or paths but with a diagram or a table where it helps, as long as it needs),
 Example (may go), Goal, Acceptance criteria (a `- [ ]` list, each item a sentence "situation → what
 we see" with concrete people and values), How to check, Boundaries (`- always:`, `- ask first:`,
@@ -127,16 +127,35 @@ a new event in `api` and a badge in `web`; each ticket is for one repository onl
   --after-commit` when you hand over).
 - **A repository not on this machine.** keel says what it found ("a front is needed, but no
   repository was found") and offers: a repository that may be it, to confirm; stubs; leave it out; or
-  your own way. A stub in `plan.md` `## Stubs` is `### <repository>: <title>`, a line saying it is not
-  planned or built here, and its In plain words, for a developer there to plan it. It has no key, so no
-  ticket depends on it by `depends_on`; the plan reviewer counts it as covered in its coverage check. When that
-  repository appears later, keel offers to turn the stubs into tickets.
+  your own way. A stub is a ticket of its own type (`plans.js ticket <f> --title "..." --stub ADM`,
+  front matter `type: stub`, `repo: ADM`) with only what can be written without that repository's
+  code: no Boundaries, Correct the priors or Where to look, and How to check in manual steps. Tickets
+  name it in `depends_on` like any other; its state is never read, so it never holds a ticket back, and
+  the plan reviewer counts its behaviour as covered. Export puts it into this project's feature folder
+  as `ADM-S1-<slug>.md` (`S` and a number counted per prefix, past every `ADM-S<n>` this project's
+  folders and git history have), listed in the overview's Tickets; the feature page shows it with
+  state unknown and a "stub" mark, and a dependency on it as unknown. This project needs at least one
+  ticket of its own: a plan of stubs only is not exported. While a stub is left, the feature is not
+  complete: `plans.js done` names the stubs left and `plans.js drop` refuses. A plan from before stubs
+  were tickets has a `## Stubs` section; check stops on it until each stub is a ticket.
+- **When that repository is here.** `plans.js check` (and `plans.js tickets <f>` for an exported
+  feature) says so, and keel offers to turn the stub into a full ticket: `plans.js ticket <f>
+  --from-stub T2` in a draft (the same T, the repository added to the plan's `repos:`), or
+  `--from-stub ADM-S1` in an exported feature (the ticket goes into that repository's feature folder
+  with its next key, `ADM-7`, and `replaces: ADM-S1`; a folder of the feature there already, from an
+  earlier stub or a ticket of the plan, takes it beside its tickets; the overviews list it and the stub
+  goes to keel's trash first, so of two runs at once only one converts). Tickets that name `ADM-S1`
+  are not edited: a dependency on a stub key reads the ticket of the same feature that replaces it
+  (another feature's or project's `ADM-S1` is not it). Once the stub has left and that repository's
+  clone has no such ticket yet (not pulled since), the dependency is not found and holds the ticket
+  back. keel then studies that repository, with the stub as the start, for the sections
+  it lacked; until they are written they are placeholders and the check stops on them.
 - **Export** puts each repository's tickets into that repository, by its own planning settings: its
   prefix and its own next number after its own `git fetch` (`API-1` here, `WEB-10` there), its ticket
   place, and its main branch as `merge_into` (the plan's `merge_into` when you changed it). All or
   nothing across the repositories: nothing is written until every one is checked. Each repository gets
-  the same `README.md` overview, already from 1 ticket: `repos: [API, WEB]`, every repository's tickets,
-  `## Stubs` as in the plan and `## Parts` from the Design sketch (`### web (WEB)`). `research/`: this
+  the same `README.md` overview, already from 1 ticket: `repos: [API, WEB]`, every repository's tickets
+  and stubs, and `## Parts` from the Design sketch (`### web (WEB)`). `research/`: this
   project gets every report, another repository the reports its tickets or the overview name.
 - **Another repository must be ready**: on the feature branch with a clean tree, its prefix set, no
   keel task active there, no folder of the feature yet (tickets on that machine only: just the prefix
@@ -203,7 +222,7 @@ Every end, also after a no, frees the conversation from planning. The report: **
   feature folder and the plan `ready`.
 - **After**: the feature folder is the one source: the tickets (`type: ticket`, `key`, `status: todo`,
   `feature`, `branch`, `merge_into`, `depends_on`) and, from 2 tickets, a `README.md` overview: the
-  plan's In plain words, Level, Decisions, Contract, Out of scope, Terms and Stubs that have text, and a
+  plan's In plain words, Level, Decisions, Contract, Out of scope and Terms that have text, and a
   Tickets list keel builds (each ticket's key, title and repository, the last part of the remote's URL
   or else the project folder's name; no states, each ticket carries its own), and the research
   reports in `research/`. A draft on this machine goes to keel's trash; one in the repository leaves with the commit of the tickets.

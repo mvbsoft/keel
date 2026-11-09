@@ -131,12 +131,6 @@ The badge of T2.
 T1 event
 T2 badge
 
-## Stubs
-### mobile: Push on a new message
-Stub for the mobile repository: not planned or built here.
-
-The phone buzzes when a message comes.
-
 ## Next action
 Export.
 `;
@@ -187,9 +181,8 @@ gitTest('export puts each repository\'s tickets into it with its own numbers, on
   assert.match(overview, /^- API-1 Ticket API-1 \(api\)$/m);
   assert.match(overview, /^- WEB-10 Ticket WEB-10 \(web\)$/m);
   assert.match(overview, /^## Contract\nThe event message\.created carries the chat id\.$/m);
-  assert.match(overview, /## Stubs\n### mobile: Push on a new message\n/);
   assert.match(overview, /## Parts\n### api \(API\)\nThe event API-1 sends\.\n### web \(WEB\)\nThe badge of WEB-10\.\n/);
-  assert.ok(overview.indexOf('## Tickets') < overview.indexOf('## Stubs') && overview.indexOf('## Stubs') < overview.indexOf('## Parts'));
+  assert.ok(overview.indexOf('## Tickets') < overview.indexOf('## Parts'));
 
   assert.deepEqual(listed(w.api, `${OUT}/research`), ['chart-lib.md', 'queue.md'], 'this project keeps every report');
   assert.deepEqual(listed(w.web, `${OUT}/research`), ['chart-lib.md'], 'web gets the report its ticket names');

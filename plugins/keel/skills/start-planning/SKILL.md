@@ -89,7 +89,8 @@ Current state of this project:
 6. **Continue a draft.** `plans.js check <f>` and `plans.js review <f>`; read `plan.md` only (not the
    tickets): the ticket list, open Q, What was gathered, Next action; and in `reviews/` the findings without a decision.
    Stale? `plans.js stale <f>`: show its `stale:` lines as they are (one more per other repository).
-   Stubs whose repository is now here → "Several repositories" item 7. A repository draft → planning.md
+   A stub whose repository is now here (check's `note: <T>: <PREFIX> is on this machine now`) →
+   "Several repositories" item 7. A repository draft → planning.md
    "Branch hints". Then a summary in 3-6 lines and the Next action. A `ready` plan: any change makes it a draft again.
 7. `plans.js mark set <f> --session <sid>` → `planning: <f>` (an exported feature:
    `planning: <f> (exported: <folder>)`). Say in one line: this conversation now

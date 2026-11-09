@@ -129,7 +129,8 @@ at a time:
    feature waits for that merge and stop here. Anywhere else (e.g. the main branch) → "Switch to
    `<branch>`?" → `switch --name <branch>` (a clean tree); no → stop here.
 1. The tickets: keep them (default) or delete them. Delete →
-   `node "<keel>/scripts/plans.js" "<project>" drop <f>` → `drop: <folder> -> trash <batch>`; a
+   `node "<keel>/scripts/plans.js" "<project>" drop <f>` (`plans: drop refused (<f> still has stubs:
+   ...)` → say it; the tickets stay) → `drop: <folder> -> trash <batch>`; a
    folder in the repository then leaves in its own commit on the feature branch, before the merge
    (keel never commits on the main branch): "Claude Code will now ask you to allow it.", then
    `node "<keel>/scripts/plans.js" "<project>" commit <f>`, then step 5 (`push`).

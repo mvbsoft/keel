@@ -136,12 +136,6 @@ The badge.
 T1 badge
 T2 event
 
-## Stubs
-### mobile: Push on a new message
-Stub for the mobile repository: not planned or built here.
-
-The phone buzzes when a message comes.
-
 ## Next action
 Review.
 `;

@@ -18,7 +18,7 @@ const plans = require('./plans.js');
 const { collect, states, ticketLine: stateLine, serverData, stateIn, prefixOf, STATES } = require('./plans-state.js');
 const { settings, PREFIX } = require('./plans-settings.js');
 const { planRepos, isFolder, isRepoTop, same } = require('./plans-repos.js');
-const { repoName } = require('./plans-format.js');
+const { repoName, STUB_KEY } = require('./plans-format.js');
 const { git, read, frontmatter, clean } = require('./repo-read.js');
 const { readBlobs } = require('./tasks.js');
 
@@ -59,12 +59,13 @@ function overviewOf(d, list) {
   return text && { text, ref: view.view.ref, path: p };
 }
 
-// The overview's Tickets lines: "- KEY title (repository)" (lib/plans-format.js ticketLine).
+// The overview's Tickets lines: "- KEY title (repository)" (lib/plans-format.js ticketLine); a stub's
+// key is <PREFIX>-S<n> (lib/plans-stubs.js).
 function listed(text) {
   const m = /^## Tickets[ \t]*\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(lf(text));
   const out = [];
   for (const l of (m ? m[1] : '').split('\n')) {
-    const t = /^- ([A-Za-z][A-Za-z0-9]+-\d+) (.*?)(?: \(([^()]+)\))?\s*$/.exec(l);
+    const t = /^- ([A-Za-z][A-Za-z0-9]+-S?\d+) (.*?)(?: \(([^()]+)\))?\s*$/.exec(l);
     if (t) out.push({ key: t[1].toUpperCase(), title: t[2], repo: t[3] || null });
   }
   return out;
@@ -156,10 +157,13 @@ function linkedLines(d, keys, now = new Date()) {
       const rows = [
         ...found.map((e) => ({ key: e.key, text: stateLine(e, null), done: STATES[e.state] === DONE })),
         ...lost.map((t) => {
-          const s = gone.get(place.folder).get(t.key).state;
+          // A stub no ticket of this feature there replaces yet has no state.
+          const known = gone.get(place.folder).get(t.key);
+          const replaced = STUB_KEY.test(t.key) ? require('./plans-neighbours.js').stubState(known, feature) : known;
+          const s = replaced ? replaced.state : 'stub';
           return { key: t.key, text: `  ${clean(t.key, 40)} ${clean(t.title, 80)} — ${s}`, done: s === DONE };
         }),
-      ].sort((a, b) => prefixOf(a.key).localeCompare(prefixOf(b.key)) || Number(a.key.split('-').pop()) - Number(b.key.split('-').pop()));
+      ].sort((a, b) => require('./plans-state-read.js').byKey(a.key, b.key));
       open = open || rows.some((x) => !x.done);
       lines.push(`linked: ${feature} in ${name} (${prefix}; ${clean(place.folder, 200)}, ${serverData(r.d)})`, ...rows.map((x) => x.text));
       const there = own.length ? overviewOf(r.d, own) : null;

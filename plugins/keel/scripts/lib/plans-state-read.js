@@ -13,6 +13,7 @@ const plans = require('./plans.js');
 const { git, read, frontmatter } = require('./repo-read.js');
 const { readBlobs } = require('./tasks.js');
 const { pickRemote } = require('../git-flow.js');
+const { STUB_KEY } = require('./plans-format.js');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FRESH_DAYS = 30;
@@ -28,9 +29,13 @@ const dirOf = (p) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
 const upper = (k) => String(k).toUpperCase();
 const given = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '-';
 const prefixOf = (key) => key.slice(0, key.lastIndexOf('-'));
-const numberOf = (key) => Number(key.slice(key.lastIndexOf('-') + 1));
-const byKey = (a, b) => prefixOf(a).localeCompare(prefixOf(b)) || numberOf(a) - numberOf(b);
+// The number of a key, also of a stub's (ADM-S2: 2).
+const numberOf = (key) => Number(key.slice(key.lastIndexOf('-') + 1).replace(/^S/i, ''));
+// Keys by prefix and number; a prefix's stubs (<PREFIX>-S<n>) after its tickets.
+const byKey = (a, b) => upper(prefixOf(a)).localeCompare(upper(prefixOf(b))) || STUB_KEY.test(a) - STUB_KEY.test(b) || numberOf(a) - numberOf(b);
 const keyList = (value) => String(value || '').replace(/[[\]]/g, '').split(/[\s,;]+/).filter((x) => KEY.test(x)).map(upper);
+// The stub keys (<PREFIX>-S<n>, lib/plans-stubs.js) among depends_on, in capitals as check reads them.
+const stubList = (value) => String(value || '').replace(/[[\]]/g, '').split(/[\s,;]+/).map(upper).filter((x) => STUB_KEY.test(x));
 
 // --- reading the tickets ---
 
@@ -179,5 +184,5 @@ function serverData(d) {
 
 module.exports = {
   collect, serverData, ticketOf, pickTickets, workPaths, pcTickets,
-  KEY, DAY_MS, FRESH_DAYS, dirOf, upper, prefixOf, byKey, keyList,
+  KEY, DAY_MS, FRESH_DAYS, dirOf, upper, prefixOf, byKey, keyList, stubList,
 };

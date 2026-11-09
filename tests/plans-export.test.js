@@ -230,7 +230,6 @@ gitTest('export on this machine: keys after the highest, tickets and README in t
     '## Out of scope', 'Deleting files.', '',
     '## Terms', 'Bucket: the S3 folder of the project.', '',
     '## Tickets', '- PROJ-101 Title of PROJ-101 (work)', '- PROJ-102 Title of PROJ-102 (work)', '',
-    '## Stubs', 'The web app shows the files PROJ-101 uploads.', '',
   ].join('\n'));
   // The draft left the folder for keel's trash, marked exported; the folder holds only the tickets.
   assert.deepEqual(fs.readdirSync(path.join(work, LOCAL, 's3-storage')), ['tickets']);

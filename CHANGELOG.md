@@ -71,13 +71,23 @@ All notable changes to keel are listed here. The format follows
   `plans.js review` names the folder for the reviewers, and `plans.js stale` compares each
   repository's tickets with its own commit, `after_commit_repos`, which `plans.js set <f>
   --after-commit` records with `after_commit` at a hand-over. A repository not on this machine gets
-  stubs in `plan.md` `## Stubs` (a title and In plain words, no key), which the plan reviewer counts
-  as covered in its coverage check.
+  stubs: tickets of their own type (`plans.js ticket <f> --title "..." --stub ADM`, `type: stub`)
+  with only what needs no code of that repository (no Boundaries, Correct the priors or Where to
+  look; How to check in manual steps). Tickets name a stub in `depends_on`; its state is never read
+  and it never holds a ticket back; the plan reviewer counts it as covered. Export puts it into this
+  project's feature folder as `ADM-S1-<slug>.md`, listed in the overview; the feature page shows it
+  with state unknown and a "stub" mark. Once that repository is here, `plans.js check` and
+  `plans.js tickets <f>` say so, and `plans.js ticket <f> --from-stub T2` (a draft) or
+  `--from-stub ADM-S1` (exported: the ticket in that repository with its next key and
+  `replaces: ADM-S1`, which a dependency on the stub key of that same feature then reads) turns it
+  into a full ticket, also beside tickets already in that repository's feature folder. A plan of
+  stubs only is not exported, and a feature with a stub left is not complete (`plans.js done` names
+  it, `plans.js drop` refuses). Exported stubs count as planning files, so a task leaves them alone.
 - Exporting a feature on several repositories: `plans.js export` puts each repository's tickets into
   that repository by its own planning settings (prefix, ticket place, main branch) and its own key
   counter after its own `git fetch`, all or nothing across the repositories. Each gets the same
-  `README.md` overview, already from 1 ticket, with `repos:`, every repository's tickets, `## Stubs`
-  and `## Parts`; `research/` goes to each repository whose tickets or overview name the report.
+  `README.md` overview, already from 1 ticket, with `repos:`, every repository's tickets and
+  `## Parts`; `research/` goes to each repository whose tickets or overview name the report.
   Another repository must be ready (on the feature branch, clean tree, its prefix set, no active keel
   task, no folder of the feature yet); the refusal says why per repository, and `--as-is "WEB"` lets
   uncommitted changes or another branch stay. `plans.js commit|push <f> --repo WEB` commit and push in
@@ -198,10 +208,10 @@ All notable changes to keel are listed here. The format follows
   technical part may take 150-500 words (was 150-400). The plan's Level says which of how many, what
   the scale means, what this level builds and what is put off. The ticket reviewer has a new check,
   `clear-to-newcomer`: a "no" in Goal or Acceptance criteria is important, elsewhere advice.
-- A planning draft's `plan.md` has In plain words, Level, Contract, What was gathered and an optional
-  Stubs instead of Summary and Problem / Goal; `plans.js find` reads In plain words.
+- A planning draft's `plan.md` has In plain words, Level, Contract and What was gathered instead of
+  Summary and Problem / Goal; `plans.js find` reads In plain words.
 - The feature overview `README.md` takes the plan's In plain words, Level, Decisions, Contract, Out of
-  scope, Terms and Stubs (no more Design sketch) and lists the feature's tickets: key, title and
+  scope and Terms (no more Design sketch) and lists the feature's tickets: key, title and
   repository (the last part of the remote's URL, else the project folder's name), without states.
   Tickets and plans in the earlier format fail `plans.js check`; nothing converts them.
 - A big plan (8 steps or 15 files, unchanged) is run in a fresh conversation first: the plan names the

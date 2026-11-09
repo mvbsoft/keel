@@ -448,12 +448,16 @@ test('several repositories: the projects question comes after the premise check,
 test('several repositories: a repository not here gets 4 options and stubs; one ticket, one repository; reads may ask', () => {
   const several = section('Several repositories');
   says(several, ['ask with 4 options', '(1) a repository from the list that may be it, without certainty: confirm it', '(2) stubs (item 6)', '(3) leave that repository out', '(4) other: a path, or what to do']);
-  says(several, ['`### <repository>: <title>`']);
-  says(several, ['A stub has no key', '`depends_on` never names one', 'says so in its Dependencies']);
+  says(several, ['`plans.js ticket <f> --title "<title>" --stub <PREFIX>', 'front matter', '`type: stub`']);
+  says(several, ['without Boundaries, Correct the priors and Where to look', 'How to check holds only the manual steps']);
+  says(several, ['names it in `depends_on`', 'its state is never read', 'never holds a ticket back']);
+  assert.doesNotMatch(several, /`### <repository>: <title>`|A stub has no key/);
   says(several, ['a ticket never mixes repositories']);
   says(several, ['Design sketch gets one `### <PREFIX>` part', 'per repository of `repos:`']);
   says(several, ['`/add-dir <folder>` lets this conversation read it', 'without asking', 'never change settings without a yes']);
-  says(several, ['offer to turn its stubs into tickets']);
+  says(several, ["A stub's repository is here now", 'offer to turn the stub into a full ticket', '`plans.js ticket <f> --from-stub <T>`']);
+  says(several, ['study that repository with the stub as the start', 'write Boundaries, Correct the priors and Where', 'check stops on them']);
+  says(several, ["stub goes into this project's feature folder with the key `<PREFIX>-S<n>`"]);
   assert.doesNotMatch(several, /refuses a plan that names other repositories/);
 });
 
@@ -472,6 +476,8 @@ test('several repositories: export into each repository; a repository not ready 
   says(git, ['a failed push does not stop the others', 'name each one with its `retry:` command', 'a network or access failure', 'with its refusal', 'a protected branch']);
   const exported = section('Exported feature');
   assert.match(exported, /`--repo <PREFIX>`\s+for another repository of its overview/);
+  says(exported, ['whose repository is on this machine now', '`plans.js ticket <f> --from-stub <PREFIX>-S<n>`', '`replaces: <stub>`', 'none is edited']);
+  says(exported, ['`plans: ticket refused (--from-stub: <PREFIX> is not ready)`', '(no `--as-is`)']);
   assert.match(exported, /offers the commit and push of every repository\s+it changed/);
   const b = end().slice(end().indexOf('**B. Final.**'), end().indexOf('**Always**'));
   assert.doesNotMatch(b, /`\/keel:end-planning` again|for the next end-planning/);
@@ -498,6 +504,7 @@ test('several repositories: the helpers read another repository in its folder; t
   says(ticket, ['"not on this machine"', "`true-in-code`'s `note`", 'its code was not checked']);
   const plan = read('agents', 'plan-reviewer.md');
   says(plan, ['each repository\'s folder (`<PREFIX>=<folder>`)']);
-  says(plan, ['A promised behaviour a stub covers is covered (not a gap)', 'one in a stub and in a ticket too', 'checked twice']);
+  says(plan, ['`type: stub`', 'A promised behaviour a stub covers is covered (not a', 'one in a stub and in a ticket too', 'checked twice']);
+  says(ticket, ['A stub (`type: stub`', 'no Boundaries, Correct the priors or Where to look', 'manual steps', 'their absence is never a finding']);
   assert.match(read('schemas', 'plan-findings.schema.json'), /relative to the root of the ticket's repository/);
 });
