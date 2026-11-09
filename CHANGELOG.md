@@ -116,7 +116,10 @@ All notable changes to keel are listed here. The format follows
   the states on the page as of the last fetch (a draft's page has no git states, so no mark). The
   planning fetch (also for the export and `plans.js tickets --fetch`) counts a remote with no answer
   within 60 s as failed instead of waiting. No feature named: the current branch's. A path of this machine
-  in the feature's files is never published: the page is refused with each one named.
+  in the feature's files is never published: the page is refused with each one named. The
+  conversation only finds the page and asks its questions; building, translating and publishing run
+  in one Sonnet agent (`skills/_shared/feature-page-build.md`), so the page never stays in the
+  conversation: about $0.6-0.75 for a new 6-ticket page translated in full.
 - `plans.js check`, and with it the export, reports a path of this machine anywhere in a feature's
   files: the plan or overview, a ticket, a research report (a drive such as `C:\`, `/home/<user>`,
   `/Users/<user>`, `/root`, `/mnt/c/`, the project's or a neighbouring repository's folder). Paths

@@ -313,12 +313,13 @@ gitTest('the page\'s other files lie beside it as they are, and the page loads n
 test('the page\'s other files: the list, the template and the publish step name the same files', () => {
   const template = path.join(__dirname, '..', 'plugins', 'keel', 'templates', 'feature-page');
   assert.deepEqual([...PAGE_ASSETS].sort(), fs.readdirSync(template).filter((n) => n !== 'index.html').sort());
-  const skill = fs.readFileSync(path.join(__dirname, '..', 'plugins', 'keel', 'skills', 'feature-page', 'SKILL.md'), 'utf8');
-  const step = skill.slice(skill.indexOf('6. Read the whole page file'), skill.indexOf('7. Tell the result'));
+  const build = fs.readFileSync(path.join(__dirname, '..', 'plugins', 'keel', 'skills', '_shared', 'feature-page-build.md'), 'utf8');
+  const step = build.slice(build.indexOf('3. **Publish.**'), build.indexOf('4. **Reply**'));
+  assert.ok(step.length > 0, 'the build instructions have the publish step');
   for (const name of PAGE_ASSETS) {
     const n = name.replace(/\./g, '\\.');
-    assert.match(step, new RegExp(`Read the whole page file and the \`${n}\``), `step 6 reads ${name}`);
-    assert.match(step, new RegExp(`"${n}":`), `step 6 publishes ${name}`);
+    assert.match(step, new RegExp(`Read the whole page file and the \`${n}\``), `the publish step reads ${name}`);
+    assert.match(step, new RegExp(`"${n}":`), `the publish step publishes ${name}`);
   }
 });
 

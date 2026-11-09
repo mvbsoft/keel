@@ -213,7 +213,10 @@ fresh; when the fetch fails (no network, no access, or no answer within 60 s), t
 feature card marks the states as of the last fetch. Other repositories of the feature are read as they
 are on this machine, without a fetch. Its feature card says when it was built and gives
 the command that updates it, `/keel:feature-page <feature>`, with a Copy button. keel publishes it with
-the `Artifact` tool.
+the `Artifact` tool. Your conversation only finds the page and asks you what it must (which feature,
+which of several pages); building, translating and publishing run in one Sonnet agent, so the page
+does not stay in the conversation. A new page of 6 tickets translated in full cost about $0.45 in the
+agent and $0.15-0.30 in the conversation (measured; more in a longer conversation).
 
 **Language.** `--lang`, else the language the page already has, else your conversation language.
 The labels come from keel's language files (English and Ukrainian today; English for another
