@@ -57,7 +57,12 @@ npm run eval
   ```
 
   The first `run` signs Claude Code in once; the named volume keeps the login. The two
-  `--security-opt` flags let the sandbox create its namespaces inside the container.
+  `--security-opt` flags let the sandbox create its namespaces inside the container. The image pins
+  the Claude Code version (move it on purpose and run the evals after) and sets `TMPDIR` to
+  `/scratch`: since Claude Code 2.1.316 the eval sandbox denies writes under `/tmp`, `/var/tmp`,
+  `/dev/shm` and `/run/shm` but puts each run's temp folder under `TMPDIR`, so the run's shell
+  commands fail and a skill that starts with a `!` line ends with 0 turns
+  (anthropics/claude-code#104631). Keep `TMPDIR` outside those four folders. Rebuild the image after a change in `tools/docker/`.
 - **Not in CI by default**, because it costs money. To add it, run the same command in a job with
   `ANTHROPIC_API_KEY` as a secret, `--json results.json` and a `--threshold`, on a release tag only.
 - `start-planning-compares-packages` reads package registries on the web (WebFetch and WebSearch,
