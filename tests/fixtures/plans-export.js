@@ -50,9 +50,6 @@ src/app.js has no upload yet.
 ## Tickets
 T1 client
 
-## Stubs
-The web app shows the files T1 uploads.
-
 ## Next action
 Export.
 `;

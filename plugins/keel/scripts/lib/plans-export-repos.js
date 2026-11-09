@@ -18,6 +18,8 @@
 //   commit of its tickets. The researcher's reports (the draft's research/) go with the tickets: into
 //   research/ beside them (<feature>/tickets/research/ on this machine, <feature>/research/ in the
 //   repository); another repository gets the reports its tickets or the overview name.
+// - A stub (lib/plans-stubs.js) goes into this project's feature folder as <PREFIX>-S<n>-<slug>.md; its
+//   repository is not one of the plan's and takes nothing.
 const fs = require('node:fs');
 const path = require('node:path');
 const plans = require('./plans.js');
@@ -25,21 +27,20 @@ const { settings, settingsFile, setUp, notSetUp, exportDir } = require('./plans-
 const { git: readGit, read, frontmatter, clean } = require('./repo-read.js');
 const { samePath } = require('./safe-path.js');
 const { moveToTrash, restore } = require('./trash.js');
-const { overviewSections, repoName } = require('./plans-format.js');
+const { overviewSections, repoName, isStub, frontText, bodyOf } = require('./plans-format.js');
 const { namedRepos, planRepos, isFolder, isRepoTop } = require('./plans-repos.js');
 const { busyTasks } = require('./tasks.js');
 const { fetched, highestKey, TEMP, safe, folderFiles, featureFolder } = require('./plans-export.js');
 const flow = require('../git-flow.js');
 
 const README = 'README.md';
+const stubs = () => require('./plans-stubs.js');
 
 const refuse = (what, why) => [`plans: ${what} refused (${why})`];
 const rel = (root, file) => path.relative(root, file).split(path.sep).join('/');
 const slashes = (p) => p.replace(/\\/g, '/');
 const given = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '-';
 const lf = (text) => String(text).replace(/\r\n/g, '\n');
-const bodyOf = (text) => lf(text).replace(/^---\n[\s\S]*?\n---\n?/, '').trimStart();
-const frontText = (front) => `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n`;
 
 // The researcher's reports of the draft (research/*.md), as they are. Anything else there (a link, a
 // folder, another file) would leave with the draft without a copy, so it stops the export.
@@ -53,7 +54,7 @@ function researchFiles(d) {
 }
 
 // What an export into the draft's own folder that did not finish left there: its tickets and overview.
-const leftovers = (d) => folderFiles(d.folder).filter((f) => (f.fm.type === 'ticket' && f.fm.feature === d.feature) || (f.fm.type === 'feature' && f.name === README));
+const leftovers = (d) => folderFiles(d.folder).filter((f) => ((f.fm.type === 'ticket' || isStub(f.fm)) && f.fm.feature === d.feature) || (f.fm.type === 'feature' && f.name === README));
 
 // --- another repository of the plan ---
 
@@ -126,7 +127,8 @@ function exportFeature(root, feature, { stop = () => {}, asIs = [] } = {}) {
   if (!setUp(s)) return refuse(what, notSetUp(root));
   const own = s.ticket_prefix;
   const all = plans.tickets(d);
-  const others = namedRepos(d.fm, all, own);
+  const real = all.filter((t) => !isStub(t.fm));
+  const others = namedRepos(d.fm, real, own);
   const multi = others.length > 0;
   const { branch, merge_into: mergeInto } = plans.branchesOf(root, d);
   if (!mergeInto) return refuse(what, `the plan names no branch to merge into: plans.js set ${feature} --merge-into <branch>`);
@@ -149,9 +151,11 @@ function exportFeature(root, feature, { stop = () => {}, asIs = [] } = {}) {
   const targets = [ownTarget];
 
   // Every repository first: nothing is written while one is not ready.
-  const repoOf = (t) => (given(t.fm.repo) ? t.fm.repo.trim() : own);
-  const empty = [own, ...others].find((x) => !all.some((t) => repoOf(t) === x));
-  if (multi && empty === own) return refuse(what, `this project (${own}) has no ticket: give it one; nothing exported, the plan stays ready`);
+  // A stub's repository in capitals, as plans.js check reads it: `adm` and `ADM` are one S-number sequence.
+  const repoOf = (t) => (given(t.fm.repo) ? (isStub(t.fm) ? t.fm.repo.trim().toUpperCase() : t.fm.repo.trim()) : own);
+  const empty = [own, ...others].find((x) => !real.some((t) => repoOf(t) === x));
+  // Also a plan of stubs only: an exported feature is found by its tickets, so with none here it is lost.
+  if (empty === own) return refuse(what, `this project (${own}) has no ticket: give it one; nothing exported, the plan stays ready`);
   if (multi && empty) return refuse(what, `${empty} is in repos but has no ticket: give it one, or leave it out (plans.js set ${feature} --repos); nothing exported, the plan stays ready`);
   if (multi && mapTracked(root)) return trackedMap(root, what);
   const p = { s, own, branch, mergeInto, explicitMerge: mergeInto !== plans.mainBranch(root), asIs: asIs.map((x) => x.toUpperCase()) };
@@ -180,9 +184,17 @@ function exportFeature(root, feature, { stop = () => {}, asIs = [] } = {}) {
   for (const t of targets) {
     const git = fetched(t.root);
     const first = highestKey(t.root, t.prefix, t.s, git.repo, git.notes) + 1;
-    all.filter((x) => repoOf(x) === t.prefix).forEach((x, i) => keys.set(x.id, `${t.prefix}-${first + i}`));
+    real.filter((x) => repoOf(x) === t.prefix).forEach((x, i) => keys.set(x.id, `${t.prefix}-${first + i}`));
     gitNotes.push(...git.notes.map((n) => (t.own ? n : `note: ${t.prefix}: ${n}`)));
     t.name = repoName(t.root);
+  }
+  // Stubs: <PREFIX>-S<n> in this project, per prefix.
+  const stubList = all.filter((x) => isStub(x.fm));
+  const stubFirst = stubs().firstStubNumbers(root, s, [...new Set(stubList.map(repoOf))], readGit(root, ['rev-parse', '--git-dir']) !== null);
+  for (const x of stubList) {
+    const p2 = repoOf(x);
+    keys.set(x.id, `${p2}-S${stubFirst.get(p2)}`);
+    stubFirst.set(p2, stubFirst.get(p2) + 1);
   }
   // T-numbers replaced in one pass, only those of the draft (T1 is never part of T10).
   const swap = (text) => text.replace(/\bT(\d+)\b/g, (m) => keys.get(m) || m);
@@ -190,11 +202,13 @@ function exportFeature(root, feature, { stop = () => {}, asIs = [] } = {}) {
   // A draft made before plans carried the code gets one here.
   const page = plans.PAGE_CODE.test(d.fm.page || '') ? d.fm.page : plans.pageCode();
   const files = all.map((x) => {
-    const t = byPrefix.get(repoOf(x));
+    const stub = isStub(x.fm);
+    const t = stub ? ownTarget : byPrefix.get(repoOf(x));
     const key = keys.get(x.id);
     const deps = plans.ticketIds(x.fm.depends_on).map((k) => keys.get(k) || k);
-    const front = { type: 'ticket', key, status: 'todo', feature, page, branch, merge_into: t.mergeInto, depends_on: `[${deps.join(', ')}]` };
-    return { id: x.id, key, prefix: t.prefix, repo: t.name, name: `${key}-${x.name.replace(/^T\d+-/, '')}`, text: frontText(front) + swap(bodyOf(x.text)) };
+    const front = stub ? { type: 'stub', key, repo: repoOf(x), feature, page, depends_on: `[${deps.join(', ')}]` }
+      : { type: 'ticket', key, status: 'todo', feature, page, branch, merge_into: t.mergeInto, depends_on: `[${deps.join(', ')}]` };
+    return { id: x.id, key, stub, prefix: t.prefix, repo: stub ? stubs().stubRepoName(root, repoOf(x)) : t.name, name: `${key}-${x.name.replace(/^T\d+-/, '')}`, text: frontText(front) + swap(bodyOf(x.text)) };
   });
   let readme = null;
   if (withReadme) {
@@ -274,7 +288,10 @@ function exportFeature(root, feature, { stop = () => {}, asIs = [] } = {}) {
   } else draft = `draft: plan.md, reviews/${ownTarget.temp && research.length ? ', research/' : ''} and T-files leave with the commit (plans.js commit ${feature})`;
   const shown = (t) => show(t, t.local ? path.join(t.target, 'tickets') : t.target);
   return [
-    ...targets.flatMap((t) => [`exported: ${shown(t)}/ (${t.files.length} tickets)`, ...t.files.map((f) => `- ${f.id} -> ${f.key}: ${shown(t)}/${f.name}`)]),
+    ...targets.flatMap((t) => {
+      const n = t.files.filter((f) => f.stub).length;
+      return [`exported: ${shown(t)}/ (${t.files.length - n} tickets${n ? `, ${n} stub${n === 1 ? '' : 's'}` : ''})`, ...t.files.map((f) => `- ${f.id} -> ${f.key}: ${shown(t)}/${f.name}${f.stub ? ' (stub)' : ''}`)];
+    }),
     `readme: ${readme ? targets.map((t) => `${shown(t)}/${README}`).join(', ') : 'none (1 ticket)'}`,
     ...targets.filter((t) => t.reports).map((t) => `research: ${shown(t)}/research/ (${t.reports} reports)`),
     draft,
@@ -370,4 +387,4 @@ function addToOverviews(root, feature, f, line) {
   return out;
 }
 
-module.exports = { exportFeature, repoFor, otherFeature, addToOverviews, mapTracked, trackedMap };
+module.exports = { exportFeature, repoFor, otherFeature, addToOverviews, mapTracked, trackedMap, neighbour };

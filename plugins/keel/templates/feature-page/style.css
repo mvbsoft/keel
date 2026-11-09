@@ -77,6 +77,8 @@ button.chip:hover, button.chip[aria-expanded="true"] { border-color: var(--accen
 /* A mark, not a state: why a ticket's state is unknown ("not on this machine"). */
 .pill.off { font-size: 12px; padding: 1px 8px; cursor: help; background: none; color: var(--wait); border: 1px solid var(--wait); }
 .pill.off svg { width: 14px; height: 14px; }
+/* A stub: planned without its repository's code; not a warning. */
+.pill.stub { color: var(--accent); border-color: var(--accent); }
 .item:has(.off) { grid-template-columns: 10px max-content minmax(0, 1fr) max-content; }
 .s-draft { background: var(--wait-soft); color: var(--wait); }
 .s-risk { background: var(--risk-soft); color: var(--risk); }

@@ -344,11 +344,18 @@
   // A ticket's repository: by its key's prefix, else by its name (this repository's tickets under
   // another prefix); null for one the page does not list. Names alone may repeat.
   const repoOf = (t) => data.repos.find((r) => r.prefix === t.prefix) || data.repos.find((r) => r.name === t.repo) || null;
-  const isOff = (t) => Boolean(repoOf(t) && !repoOf(t).commit);
+  // A stub: a ticket planned while its repository was not on the machine; its own mark, not "not on this machine".
+  const isStub = (t) => Boolean(t && t.stub);
+  const isOff = (t) => !isStub(t) && Boolean(repoOf(t) && !repoOf(t).commit);
   const repoOfKey = (key) => (data.repos.find((r) => r.prefix === key.split('-')[0]) || { name: key.split('-')[0] }).name;
   const offText = (repo) => L('not_on_pc_title', { repo });
   const offBadge = (repo) => bubbleButton('pill off', [icon('alert'), el('span', '', L('not_on_pc'))], offText(repo));
   const offMark = () => el('span', 'pill off', L('not_on_pc'));
+  const stubText = (repo) => L('stub_title', { repo });
+  const stubBadge = (repo) => bubbleButton('pill off stub', [icon('braces'), el('span', '', L('stub'))], stubText(repo));
+  const stubMark = () => el('span', 'pill off stub', L('stub'));
+  // Why a ticket's or a dependency's state is unknown: a stub, or a repository not on this machine.
+  const unknownText = (t, key) => (isStub(t) ? stubText(t.repo) : offText(t ? t.repo : repoOfKey(key)));
   // A ticket of this repository whose file is only on another branch: its text is read from there.
   const branchMark = (branch) => el('span', 'pill off', L('on_branch', { branch }));
   const branchBadge = (branch) => bubbleButton('pill off', [el('span', '', L('on_branch', { branch }))], L('on_branch_title', { branch }));
@@ -377,7 +384,7 @@
   // --- the left column ---
 
   const OVERVIEW_ICONS = { Decisions: 'bulb', Contract: 'braces', Level: 'stairs', 'Out of scope': 'ban', Terms: 'book', Parts: 'stack',
-    'Design sketch': 'stack', 'Open questions': 'alert', 'What was gathered': 'list', Stubs: 'braces', 'Next action': 'play' };
+    'Design sketch': 'stack', 'Open questions': 'alert', 'What was gathered': 'list', 'Next action': 'play' };
   function featureCard() {
     const card = el('header', 'card');
     add(card, add(el('div', 'rowline'), add(el('span', 'tag'), icon('stack'), el('span', '', L('feature'))), el('span', 'featname', data.feature)),
@@ -493,8 +500,8 @@
         const dot = el('span', `dot ${groupOf(t)}`);
         dot.title = stateText(t.next ? 'next' : t.state);
         const off = isOff(t);
-        const b = btn('item', [dot, el('span', 'k', t.key), el('span', 'tt', t.title || t.key), off ? offMark() : t.onBranch ? branchMark(t.onBranch) : null], () => select(t.key, true));
-        b.title = `${t.key} · ${t.title} · ${dot.title}${off ? ` · ${offText(t.repo)}` : ''}`;
+        const b = btn('item', [dot, el('span', 'k', t.key), el('span', 'tt', t.title || t.key), off ? offMark() : isStub(t) ? stubMark() : t.onBranch ? branchMark(t.onBranch) : null], () => select(t.key, true));
+        b.title = `${t.key} · ${t.title} · ${dot.title}${off || isStub(t) ? ` · ${unknownText(t)}` : ''}`;
         items.set(t.key, b);
         card.append(b);
       }
@@ -504,7 +511,7 @@
 
   // --- the chosen ticket ---
 
-  const BLOCK_ICONS = { 'In plain words': 'message', Example: 'list', 'Acceptance criteria': 'check', 'How to check': 'terminal', Boundaries: 'shield',
+  const BLOCK_ICONS = { 'In plain words': 'message', Example: 'list', 'Acceptance criteria': 'check', 'How to check': 'terminal', Boundaries: 'shield', 'Out of scope': 'ban',
     'Correct the priors': 'alert', 'Where to look': 'folder', Why: 'bulb', Dependencies: 'link' };
   function block(name, cls, ...body) {
     const box = el('section', `block${cls ? ` ${cls}` : ''}`);
@@ -530,7 +537,7 @@
         other ? el('span', 'small muted', other.repo) : null], () => { if (other) select(d.key, true); });
       if (!other) main.disabled = true;
       const row = el('div', 'dep');
-      box.append(add(row, main, unknown ? offBadge(other ? other.repo : repoOfKey(d.key)) : elsewhere));
+      box.append(add(row, main, unknown ? (isStub(other) ? stubBadge(other.repo) : offBadge(other ? other.repo : repoOfKey(d.key))) : elsewhere));
     }
     return box;
   }
@@ -588,7 +595,7 @@
     const back = btn('back', [icon('arrowLeft'), el('span', '', L('back'))], () => { document.body.classList.remove('reading'); const i = items.get(t.key); if (i) i.focus(); });
     const g = groupOf(t);
     const top = add(el('div', 'rowline'), pill(PILL[g], stateText(t.next ? 'next' : t.state)), el('span', 'key', t.key), el('span', 'chip', t.repo),
-      isOff(t) ? offBadge(t.repo) : t.onBranch ? branchBadge(t.onBranch) : null, el('span', 'sp'));
+      isOff(t) ? offBadge(t.repo) : isStub(t) ? stubBadge(t.repo) : t.onBranch ? branchBadge(t.onBranch) : null, el('span', 'sp'));
     if (t.md) top.append(btn('btn', [icon('file'), el('span', '', L('show_md'))], () => mdFile(t)));
     const meta = el('div', 'rowline');
     meta.append(...viaChips(t.via));
@@ -596,12 +603,13 @@
     if (t.criteria) meta.append(add(el('span', 'chip'), icon('check'), el('span', '', L('criteria', { n: t.criteria }))));
     for (const d of t.depends) {
       const kids = [icon('link'), el('span', '', `${L('after')} ${d.key}${d.met ? ' ✓' : d.met === null ? ' ?' : ''}`)];
-      meta.append(d.met === null ? bubbleButton('chip', kids, `${L('state.unknown')}: ${offText(byKey.has(d.key) ? byKey.get(d.key).repo : repoOfKey(d.key))}`) : add(el('span', 'chip'), ...kids));
+      meta.append(d.met === null ? bubbleButton('chip', kids, `${L('state.unknown')}: ${unknownText(byKey.get(d.key), d.key)}`) : add(el('span', 'chip'), ...kids));
     }
     const title = el('h2', 'ttl', t.title || t.key);
     title.tabIndex = -1;
     add(detail, back, add(el('div', 'dhead'), top, title, meta.childNodes.length ? meta : null));
     if (!t.sections) { detail.append(el('p', 'muted', L('not_here', { repo: t.repo }))); return; }
+    if (isStub(t)) detail.append(el('p', 'note', L('stub_note', { repo: t.repo })));
     const s = (name) => named(t.sections, name);
     const goal = s('Goal') ? add(el('div', 'goal'), el('span', 'lb', sectionName('Goal')), md(s('Goal'))) : null;
     if (s('In plain words') || goal) detail.append(block('In plain words', 'plain', s('In plain words') ? md(s('In plain words')) : null, goal));
@@ -609,10 +617,10 @@
     if (s('Example')) detail.append(block('Example', 'example', md(s('Example'))));
     if (s('Acceptance criteria')) detail.append(block('Acceptance criteria', '', md(s('Acceptance criteria'))));
     if (s('How to check')) detail.append(block('How to check', '', md(s('How to check'))));
-    if (s('Boundaries') || s('Out of scope')) {
-      detail.append(block('Boundaries', '', s('Boundaries') ? bounds(s('Boundaries')) : null,
+    if (s('Boundaries')) {
+      detail.append(block('Boundaries', '', bounds(s('Boundaries')),
         s('Out of scope') ? add(el('div', 'oos'), el('span', 'lb', sectionName('Out of scope')), md(s('Out of scope'))) : null));
-    }
+    } else if (s('Out of scope')) detail.append(block('Out of scope', '', md(s('Out of scope'))));
     if (s('Where to look')) detail.append(block('Where to look', '', md(s('Where to look'))));
     add(detail, whyBlock(t));
     detail.append(block('Dependencies', '', dependencies(t), s('Dependencies') && s('Dependencies').trim() !== '-' ? md(s('Dependencies')) : null));

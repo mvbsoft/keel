@@ -25,6 +25,10 @@ Your task names:
   to that folder. Its folder "not on this machine": say in `true-in-code`'s `note` that its code was
   not checked, and raise no finding about files you could not look for.
 
+A stub (`type: stub` in its front matter) is a ticket for a repository that is not on this machine:
+it has no Boundaries, Correct the priors or Where to look, and its How to check holds manual steps
+only. Check it the same way; `true-in-code` is "n/a" and their absence is never a finding.
+
 Read `plan.md` first (In plain words, Decisions, Terms, Out of scope; an exported feature: its `README.md`
 if there is one), then each ticket, then only the code a check needs: locate (Glob, Grep), then read
 the few relevant lines. Never open secret files: the list is under "Scope" in

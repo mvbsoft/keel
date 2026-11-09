@@ -5,7 +5,8 @@
 // - A draft (plan.md, tickets/T<n>-*.md, research/) or an exported feature (README.md, its tickets and
 //   research/ in its folder). An exported feature's states come from lib/plans-state.js; the tickets of
 //   its other repositories are read in their folders from this machine's repos map, else only their
-//   overview lines are shown, state unknown.
+//   overview lines are shown, state unknown. A stub (lib/plans-stubs.js) is shown with its text, state
+//   unknown and marked; a dependency on it is unknown until a ticket replaces it.
 // - The page's title, the same from every machine and repository of the feature:
 //   [<PREFIX>, ...] - <the overview's heading> (<code>): the prefixes of the repositories with tickets,
 //   the heading cut to 80 characters, and the feature's code (`page:` in plan.md and in every exported
@@ -28,11 +29,12 @@ const plans = require('./lib/plans.js');
 const { featureFolder, fetched } = require('./lib/plans-export.js');
 const { mapTracked } = require('./lib/plans-export-repos.js');
 const { readStates, collect, states, nextOf, byKey, prefixOf, metBy, depWhere, STATES } = require('./lib/plans-state.js');
-const { neighbourStates, met, NOT_CHECKED } = require('./lib/plans-neighbours.js');
+const { neighbourStates, stubStates, stubState, met, NOT_CHECKED } = require('./lib/plans-neighbours.js');
 const { listed, placeOf, ownPrefixes, UNKNOWN } = require('./lib/plans-linked.js');
 const { settings, PREFIX } = require('./lib/plans-settings.js');
 const { planRepos, headOf } = require('./lib/plans-repos.js');
-const { outsideFences, heading, repoName } = require('./lib/plans-format.js');
+const { outsideFences, heading, repoName, isStub, STUB_KEY } = require('./lib/plans-format.js');
+const stubs = require('./lib/plans-stubs.js');
 const { git, read, frontmatter, clean } = require('./lib/repo-read.js');
 const { safeLocalPath } = require('./lib/safe-path.js');
 const { parseArgs } = require('./lib/project.js');
@@ -126,9 +128,14 @@ function draftData(root, found) {
   const prefixes = planRepos(d.fm);
   const repos = reposOf(root, own || prefixes[0], prefixes, null);
   const nameOf = (p) => (repos.find((r) => r.prefix === p) || { name: p }).name;
-  const tickets = plans.tickets(d).map((t) => {
+  const all = plans.tickets(d);
+  // A stub's state is never read: unknown, also as a dependency.
+  const stubIds = new Set(all.filter((t) => isStub(t.fm)).map((t) => t.id));
+  const depOf = (k) => (stubIds.has(k.toUpperCase()) ? { key: k, met: null, state: UNKNOWN, feature: null, where: null } : { key: k, met: false });
+  const tickets = all.map((t) => {
     const prefix = given(t.fm.repo) ? t.fm.repo.trim().toUpperCase() : own;
-    return ticketOf(t.id, t.text, { prefix, repo: nameOf(prefix), state: 'draft', next: false, depends: plans.ticketIds(t.fm.depends_on).map((k) => ({ key: k, met: false })) });
+    const stub = stubIds.has(t.id);
+    return ticketOf(t.id, t.text, { prefix, repo: stub ? stubs.stubRepoName(root, prefix) : nameOf(prefix), state: stub ? UNKNOWN : 'draft', ...(stub ? { stub } : {}), next: false, depends: plans.ticketIds(t.fm.depends_on).map(depOf) });
   });
   return { code: d.fm.page, written: [], stage: `draft${plans.stateOf(d) === 'ready' ? ' (ready)' : ''}`, overviewText: d.text, overviewFile: 'plan.md', prefixes, own, repos, tickets, research: researchOf(d.folder), folder: d.folder, language: given(d.fm.language) ? d.fm.language : settings(root).language };
 }
@@ -142,8 +149,10 @@ function exportedData(root, feature, f, now) {
   const own = settings(root).ticket_prefix || prefixOf(mine.length ? mine[0].key : f.list[0].fm.key.toUpperCase());
   const mineToo = new Set([own, ...ownPrefixes(root, mine)]);
   const prefixes = overview ? planRepos(frontmatter(overview)) : [];
-  // The overview's Tickets lines may name a repository its repos: lacks: it is listed too.
-  const linkedPrefixes = [...new Set([...prefixes, ...(overview ? listed(overview).map((t) => prefixOf(t.key)) : [])])];
+  const stubsHere = stubs.stubFiles(f.folder);
+  const keyOfStub = (t) => t.fm.key.toUpperCase();
+  // The overview's Tickets lines may name a repository its repos: lacks (a stub's): it is listed too.
+  const linkedPrefixes = [...new Set([...prefixes, ...(overview ? listed(overview).map((t) => prefixOf(t.key)) : []), ...stubsHere.map((t) => prefixOf(keyOfStub(t)))])];
   const repos = reposOf(root, own, linkedPrefixes.filter((p) => !mineToo.has(p) || p === own), overview);
   // Where a dependency's code is (lib/plans-state.js depWhere); `pull`: the feature branch to merge it
   // into, for one of this repository waiting in another feature branch.
@@ -162,6 +171,14 @@ function exportedData(root, feature, f, now) {
     : states.has(k) ? { state: states.get(k).state, feature: states.get(k).feature || null }
       : { state: target && gone.get(`${target} ${k}`) === 'done' ? 'done' : UNKNOWN, feature: null });
   const textOf = (list, key) => (list.find((t) => t.fm.key.toUpperCase() === key) || {}).text || null;
+  // A stub's key: the ticket of e's feature that replaces it (lib/plans-neighbours.js stubState), else
+  // unknown (never met, never holding a ticket back); not found once the stub is gone with none.
+  const stubDep = (k, e, stated) => {
+    const s = stubState(stated.get(k), e.feature, !(e.stubsGone || []).includes(k));
+    if (!s || s.state === NOT_CHECKED) return { key: k, met: null, state: UNKNOWN, feature: null, where: null };
+    const one = new Map([[k, s]]);
+    return { key: s.shown || k, met: metThere(s, e.feature), ...depState(k, one, e.target), where: whereTo(k, e, one) };
+  };
   // A ticket with no file in this working tree: its text from the newest branch that has it, by the
   // commit read (`./`: the path is the project's, which may be a sub-folder of the repository).
   const elsewhere = (e) => {
@@ -174,10 +191,10 @@ function exportedData(root, feature, f, now) {
     const away = here === null ? elsewhere(e) : null;
     return ticketOf(e.shown, here === null && away ? away.text : here, {
       title: e.title, prefix: prefixOf(e.key), repo: repos[0].name, state: STATES[e.state], next: e === next, via: e.via || null, onBranch: away ? away.branch : null,
-      depends: e.depends.map((k) => {
+      depends: [...e.depends.map((k) => {
         const where = whereTo(k, e, others);
         return { key: k, met: depMet(k, e, where), ...depState(k, others, e.target), where };
-      }),
+      }), ...e.stubs.map((k) => stubDep(k, e, others))],
     });
   });
   const codes = f.list.map((t) => codeIn(t.fm));
@@ -186,17 +203,25 @@ function exportedData(root, feature, f, now) {
     const there = r.folder ? featureFolder(r.folder, feature) : null;
     const list = there ? there.list : [];
     codes.push(...list.map((t) => codeIn(t.fm)));
-    const all = [...new Set([...theirs.map((t) => t.key), ...list.map((t) => t.fm.key.toUpperCase())])].sort(byKey);
-    const fileOf = (k) => list.find((t) => t.fm.key.toUpperCase() === k);
+    const mineStubs = stubsHere.filter((t) => prefixOf(keyOfStub(t)) === r.prefix);
+    const all = [...new Set([...theirs.map((t) => t.key), ...list.map((t) => t.fm.key.toUpperCase()), ...mineStubs.map(keyOfStub)])].sort(byKey);
+    const fileOf = (k) => list.find((t) => t.fm.key.toUpperCase() === k) || mineStubs.find((t) => keyOfStub(t) === k);
     const depsOf = (k) => (fileOf(k) ? plans.ticketIds(fileOf(k).fm.depends_on).map((x) => x.toUpperCase()) : []);
     const deps = [...new Set(all.flatMap(depsOf))].filter((k) => !keys.has(k));
-    const stated = r.folder && all.length ? neighbourStates(root, [...new Set([...all, ...deps])], now) : new Map();
+    // A stub's keys are read in their own repositories, also when this one is not here.
+    const wanted = [...new Set([...all, ...deps])];
+    const plain = wanted.filter((k) => !STUB_KEY.test(k));
+    const stubKeys = wanted.filter((k) => STUB_KEY.test(k));
+    const stated = new Map([...(r.folder && plain.length ? neighbourStates(root, plain, now) : []), ...(stubKeys.length ? stubStates(root, stubKeys, { now, here: [...keys.keys()] }) : [])]);
     const theirMet = (k) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, feature) : stated.has(k) ? metThere(stated.get(k), feature) : null);
     for (const k of all) {
       const s = stated.get(k);
       // A ticket there: its feature branch is not read here, so a dependency is never in it.
       const there = { feature, branch: null, tips: [] };
-      const t = ticketOf((s && s.shown) || k, textOf(list, k), { prefix: r.prefix, repo: r.name, state: s ? s.state : UNKNOWN, next: false, depends: depsOf(k).map((d) => ({ key: d, met: theirMet(d), ...depState(d, stated), where: whereTo(d, there, stated) })) });
+      const stub = mineStubs.find((t) => keyOfStub(t) === k);
+      const depends = depsOf(k).map((d) => (STUB_KEY.test(d) ? stubDep(d, there, stated) : { key: d, met: theirMet(d), ...depState(d, stated), where: whereTo(d, there, stated) }));
+      const t = stub ? ticketOf(stub.fm.key, stub.text, { prefix: r.prefix, repo: r.name, state: UNKNOWN, stub: true, next: false, via: null, depends })
+        : ticketOf((s && s.shown) || k, textOf(list, k), { prefix: r.prefix, repo: r.name, state: s ? s.state : UNKNOWN, next: false, depends });
       if (!t.title) t.title = (theirs.find((x) => x.key === k) || {}).title || '';
       tickets.push(t);
     }
@@ -265,8 +290,10 @@ function build(root, arg, { now = new Date(), lang = null, previous = null, fetc
   if (!prefix) return refuse('no ticket prefix: /keel:configure planning');
   // A ticket's repository as the page finds it: by its prefix, else by its name.
   const repoOfTicket = (t) => data.repos.find((r) => r.prefix === t.prefix) || data.repos.find((r) => r.name === t.repo);
-  // In the overview's repos: order, so every repository of the feature gives the same title.
-  const rank = (p) => (data.prefixes.includes(p) ? data.prefixes.indexOf(p) : data.prefixes.length);
+  // In the overview's repos: order, so every repository of the feature gives the same title; with no
+  // repos: (one repository, maybe with stubs) this project's first.
+  const order = data.prefixes.length ? data.prefixes : [data.own];
+  const rank = (p) => (order.includes(p) ? order.indexOf(p) : order.length);
   const withTickets = data.repos.filter((r) => data.tickets.some((t) => repoOfTicket(t) === r)).map((r) => r.prefix)
     .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   const heading = (data.overviewText && titleOf(data.overviewText)) || feature;

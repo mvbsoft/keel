@@ -7,8 +7,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { git, read, clean } = require('./repo-read.js');
 const { sections } = require('./tasks.js');
-const { ticketStructure, planStructure } = require('./plans-format.js');
-const { settings } = require('./plans-settings.js');
+const { ticketStructure, planStructure, isStub } = require('./plans-format.js');
+const { settings, PREFIX } = require('./plans-settings.js');
 const { PLAN_FILE, needDraft, exportedHere, settle, tickets, ticketIds } = require('./plans-drafts.js');
 
 // Files a ticket names in "Where to look" without a folder or a line count only with a known extension:
@@ -156,11 +156,19 @@ function problems(root, d) {
   const notes = [];
   for (const t of list) {
     if (t.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(t.fm.id || '')}", the file name says ${t.id}`);
-    const target = repos().targetOf(root, t, s);
-    if (target.bad) out.push(`${t.id}: repo "${clean(target.prefix, 20)}" is not a ticket prefix`);
-    else if (!target.own && !planned.includes(target.prefix)) out.push(`${t.id}: repo ${target.prefix} is not in the plan's repos`);
-    if (!target.own && !target.bad && !target.folder) notes.push(`note: ${t.id}: Where to look not checked (${clean(target.why, 200)})`);
-    out.push(...ticketProblems(root, t.id, t.text, target.own ? root : target.folder));
+    if (isStub(t.fm)) {
+      // A stub's repository is not on this machine: never in the plan's repos, no Where to look to check.
+      const r = given(t.fm.repo) ? t.fm.repo.trim().toUpperCase() : '';
+      if (!PREFIX.test(r) || r === s.ticket_prefix) out.push(`${t.id}: a stub's repo "${clean(r, 20)}" is not another repository's ticket prefix`);
+      else if (s.repos[r] && repos().isFolder(s.repos[r])) notes.push(require('./plans-stubs.js').offerNote(d.feature, t.id, r));
+      out.push(...ticketProblems(root, t.id, t.text, null));
+    } else {
+      const target = repos().targetOf(root, t, s);
+      if (target.bad) out.push(`${t.id}: repo "${clean(target.prefix, 20)}" is not a ticket prefix`);
+      else if (!target.own && !planned.includes(target.prefix)) out.push(`${t.id}: repo ${target.prefix} is not in the plan's repos`);
+      if (!target.own && !target.bad && !target.folder) notes.push(`note: ${t.id}: Where to look not checked (${clean(target.why, 200)})`);
+      out.push(...ticketProblems(root, t.id, t.text, target.own ? root : target.folder));
+    }
     for (const dep of ticketIds(t.fm.depends_on)) {
       const k = dep.toUpperCase();
       if (dep === t.id) out.push(`${t.id}: depends on itself`);
@@ -223,7 +231,8 @@ function draftStale(root, feature) {
   const s = settings(root);
   const own = [];
   const other = new Map();
-  for (const t of tickets(d)) {
+  // A stub has no Where to look.
+  for (const t of tickets(d).filter((x) => !isStub(x.fm))) {
     const target = repos().targetOf(root, t, s);
     if (target.own) own.push(t);
     else other.set(target.prefix, { target, list: [...(other.has(target.prefix) ? other.get(target.prefix).list : []), t] });

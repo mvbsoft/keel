@@ -3,18 +3,25 @@
 // T<n>-<slug>.md or an exported <KEY>-<slug>.md), a draft's plan.md and the feature overview README.md
 // that export builds from plan.md. plans.js check stops a review or an export on what ticketStructure
 // and planStructure find; style is the ticket reviewer's advice, never checked here.
+// A stub (front matter `type: stub`) is a ticket for a repository that is not on this machine: only the
+// sections that need no code of that repository (STUB_SECTIONS); its exported key is <PREFIX>-S<n>.
 const path = require('node:path');
-const { git, clean } = require('./repo-read.js');
+const { git, clean, frontmatter } = require('./repo-read.js');
 const { sections } = require('./tasks.js');
 
 const TICKET_SECTIONS = ['In plain words', 'Example', 'Goal', 'Acceptance criteria', 'How to check', 'Boundaries', 'Correct the priors', 'Where to look', 'Out of scope', 'Why', 'Dependencies'];
-const PLAN_SECTIONS = ['In plain words', 'Level', 'Decisions', 'Contract', 'Out of scope', 'Design sketch', 'Terms', 'What was gathered', 'Open questions', 'Tickets', 'Stubs', 'Next action'];
+// The sections that need the repository's code: a stub has none of them.
+const CODE_SECTIONS = ['Boundaries', 'Correct the priors', 'Where to look'];
+const STUB_SECTIONS = TICKET_SECTIONS.filter((n) => !CODE_SECTIONS.includes(n));
+const PLAN_SECTIONS = ['In plain words', 'Level', 'Decisions', 'Contract', 'Out of scope', 'Design sketch', 'Terms', 'What was gathered', 'Open questions', 'Tickets', 'Next action'];
 // plan.md's sections the overview takes, in its order; Tickets is built from the exported tickets and
 // Parts (a feature on several repositories) from Design sketch.
-const README_SECTIONS = ['In plain words', 'Level', 'Decisions', 'Contract', 'Out of scope', 'Terms', 'Tickets', 'Stubs', 'Parts'];
+const README_SECTIONS = ['In plain words', 'Level', 'Decisions', 'Contract', 'Out of scope', 'Terms', 'Tickets', 'Parts'];
 // May be left out; when present they keep their place.
-const OPTIONAL = new Set(['Example', 'Correct the priors', 'Stubs']);
+const OPTIONAL = new Set(['Example', 'Correct the priors']);
 const BOUNDARIES = ['always', 'ask first', 'never'];
+const STUB_KEY = /^[A-Za-z][A-Za-z0-9]+-S\d+$/;
+const isStub = (fm) => Boolean(fm) && fm.type === 'stub';
 
 const missing = (label, secs, names) => names.filter((n) => !OPTIONAL.has(n) && !(n in secs)).map((n) => `${label}: no section "## ${n}"`);
 
@@ -40,14 +47,16 @@ function heading(text) {
 
 // A ticket's structure: its "# [<id>] <title>" heading, its sections once each and in the template's
 // order, the three Boundaries labels, the acceptance criteria as a "- [ ]" list. Headings it does not
-// know are left alone.
+// know are left alone. A stub has the sections of STUB_SECTIONS and none of CODE_SECTIONS.
 function ticketStructure(label, text) {
   const body = outsideFences(text);
   const secs = sections(body);
   const out = [];
   const [id, title] = heading(body);
+  const stub = isStub(frontmatter(text));
   if (id !== label || !title) out.push(`${label}: no "# [${label}] <title>" heading`);
-  out.push(...missing(label, secs, TICKET_SECTIONS));
+  out.push(...missing(label, secs, stub ? STUB_SECTIONS : TICKET_SECTIONS));
+  if (stub) for (const n of CODE_SECTIONS.filter((x) => x in secs)) out.push(`${label}: a stub has no "## ${n}" (it needs the code of the stub's repository)`);
   const all = [...body.matchAll(/^##\s+(.*\S)\s*$/gm)].map((m) => m[1]).filter((n) => TICKET_SECTIONS.includes(n));
   const known = [...new Set(all)];
   for (const n of new Set(all.filter((n, i) => all.indexOf(n) !== i))) out.push(`${label}: "## ${n}" appears twice`);
@@ -68,7 +77,11 @@ function ticketStructure(label, text) {
   return out;
 }
 
-const planStructure = (text) => missing('plan.md', sections(text), PLAN_SECTIONS);
+// A plan written before stubs were tickets has "## Stubs": export would drop it, so check stops on it.
+const planStructure = (text) => {
+  const secs = sections(text);
+  return [...missing('plan.md', secs, PLAN_SECTIONS), ...('Stubs' in secs ? ['plan.md: "## Stubs" is no section any more: make each stub a ticket (plans.js ticket <feature> --title <t> --stub <PREFIX>), then remove the section'] : [])];
+};
 
 // One ticket's line in the overview's Tickets.
 const ticketLine = (key, title, repo) => `- ${key} ${title} (${repo})`;
@@ -110,4 +123,8 @@ function repoName(root) {
   return clean(m ? m[1] : path.basename(path.resolve(root)), 60);
 }
 
-module.exports = { TICKET_SECTIONS, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName, outsideFences, heading };
+// An exported ticket's file: its front matter as `key: value` lines, and its text below the front matter.
+const frontText = (front) => `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n`;
+const bodyOf = (text) => String(text).replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n?/, '').trimStart();
+
+module.exports = { frontText, bodyOf, TICKET_SECTIONS, CODE_SECTIONS, STUB_SECTIONS, STUB_KEY, isStub, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName, outsideFences, heading };

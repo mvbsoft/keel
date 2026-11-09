@@ -41,6 +41,35 @@ function neighbourStates(root, keys, now = new Date()) {
   return out;
 }
 
+// The entries of stub keys (lib/plans-stubs.js), as neighbourStates gives them; stateIn adds `by`. A
+// stub of this project's own prefix (here: a stub a ticket of this repository replaced) is read here.
+// `here`: this project's keys and `d` its collect(), when the caller has them.
+function stubStates(root, keys, { now = new Date(), here = null, d } = {}) {
+  const list = [...new Set(keys.map((x) => x.toUpperCase()))];
+  const stubPrefix = (k) => k.slice(0, k.lastIndexOf('-S'));
+  const own = new Set([settings(root).ticket_prefix, ...(here || keysHere(root)).map(prefixOf)]);
+  const mine = list.filter((k) => own.has(stubPrefix(k)));
+  const out = neighbourStates(root, list.filter((k) => !own.has(stubPrefix(k))), now);
+  if (mine.length) {
+    const read = stateIn(root, mine, now, d);
+    for (const [k, s] of read.keys) out.set(k, { ...s, folder: clean(root, 200), data: read.data, own: true });
+  }
+  return out;
+}
+
+// A stub key's state for a ticket of `feature` (`s`: its stubStates entry): the state of that feature's
+// ticket whose `replaces:` names it. Without one: null while the stub is still in the feature folder
+// (`here`), as its state is never read and it holds nothing back; once the stub is gone (converted, and
+// that repository not fetched since), not found, and not checked stays not checked. In the stub's own
+// repository (`own`) a stub file is never there, so there it stays unknown.
+function stubState(s, feature, here = true) {
+  const r = s && s.by && s.by[feature];
+  if (r) return { ...r, folder: s.folder, data: s.data };
+  if (here || (s && s.own)) return null;
+  if (!s) return { state: 'not found', why: 'no stub here' };
+  return s.state === NOT_CHECKED ? s : { state: 'not found', folder: s.folder, data: s.data };
+}
+
 // Whether another repository's dependency lets a ticket of `feature` start: as a dependency here
 // (lib/plans-state.js metBy); not checked does not hold it back.
 const met = (s, feature) => s.state === NOT_CHECKED || metBy(s.state, s.feature, feature);
@@ -70,4 +99,4 @@ function lookUp(root, deps) {
   return { foreign: (dep) => states.has(String(dep).toUpperCase()), missing, notes };
 }
 
-module.exports = { NOT_CHECKED, foreignTest, neighbourStates, met, stateText, noteLine, lookUp };
+module.exports = { NOT_CHECKED, foreignTest, neighbourStates, stubStates, stubState, met, stateText, noteLine, lookUp };

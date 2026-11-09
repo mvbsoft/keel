@@ -1,12 +1,13 @@
 'use strict';
 // Which files of a project belong to planning (/keel:start-planning), so tasks leave them alone: a task's
-// commit, its verification and the fingerprint of its work skip them. Three kinds, told by their front
+// commit, its verification and the fingerprint of its work skip them. Four kinds, told by their front
 // matter, not by where they live (a project picks its own ticket folder):
 //   draft    everything in a folder whose plan.md says `type: plan` with a plan status (the draft of a
 //            feature in the repository: plan.md, tickets/, reviews/)
 //   ticket   a .md file with `type: ticket` and a `key` (an exported ticket)
+//   stub     a .md file with `type: stub` and a `key` (an exported stub, lib/plans-stubs.js)
 //   feature  a README.md with `type: feature` (the overview of an exported feature)
-// A ticket or overview that is gone from the working tree is read from HEAD; a draft folder counts while
+// A ticket, stub or overview that is gone from the working tree is read from HEAD; a draft folder counts while
 // its plan.md is there. Planning drafts kept on this machine live in .keel/local/, which tasks already
 // leave out.
 const fs = require('node:fs');
@@ -34,7 +35,7 @@ function head(root, rel, fromHead) {
 
 const fields = (text) => frontmatter(noBom(text || ''));
 
-// (rel) => null | { kind: 'draft' | 'ticket' | 'feature', key }, for paths relative to the project
+// (rel) => null | { kind: 'draft' | 'ticket' | 'stub' | 'feature', key }, for paths relative to the project
 // folder with forward slashes. One checker per run: draft folders are looked up once.
 function planningFiles(root) {
   const drafts = new Map();
@@ -52,6 +53,7 @@ function planningFiles(root) {
     if (!/\.md$/i.test(rel)) return null;
     const fm = fields(head(root, rel, true));
     if (fm.type === 'ticket' && fm.key) return { kind: 'ticket', key: fm.key };
+    if (fm.type === 'stub' && fm.key) return { kind: 'stub', key: fm.key };
     if (fm.type === 'feature' && parts[parts.length - 1].toLowerCase() === 'readme.md') return { kind: 'feature', key: null };
     return null;
   };

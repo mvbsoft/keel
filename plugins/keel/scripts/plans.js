@@ -20,7 +20,13 @@
 //                                         export gives them), status todo, --depends "K1,K2", --repo: in
 //                                         that repository's folder of the feature; a line in Tickets of
 //                                         every overview of the feature on this machine
-//   check <feature>                       the structure (lib/plans-format.js): the "# [id] title" heading,
+//   ticket <feature> --title <t> [--slug ...] [--depends ...] --stub <PREFIX>
+//                                         a draft's stub (type: stub) for a repository not on this machine
+//                                         (lib/plans-stubs.js); exported as <PREFIX>-S<n> in this project
+//   ticket <feature> --from-stub <T | PREFIX-S<n>>   the stub as a full ticket once its repository is
+//                                         here: in place in a draft; exported: in that repository with its
+//                                         next key and `replaces:`
+//   check <feature>                      the structure (lib/plans-format.js): the "# [id] title" heading,
 //                                         sections once and in their order, the Boundaries labels, acceptance criteria as a list, no TBD or <...>,
 //                                         the files Where to look names exist, depends_on valid, no cycles;
 //                                         an exported feature: its tickets, depends_on are keys. Another

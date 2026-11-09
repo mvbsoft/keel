@@ -33,7 +33,8 @@ Current state of this project:
    (`server data from <date>`, `no remote` or `never fetched`), and "Start the next one with
    `/keel:start-task <KEY>`" with the key of its `next:` line (`next: none` → no such line). A
    feature whose every ticket is `done` or `waiting for the feature merge` (all done in its feature
-   branch) → offer its end as `<keel>/skills/_shared/git.md` "End of feature" says.
+   branch) and that has no `— stub (` line in `plans.js tickets <f>` → offer its end as
+   `<keel>/skills/_shared/git.md` "End of feature" says; with a stub left, say it is not complete yet.
    `linked:` lines after `next:` → a block "Other repositories" (tickets of the same features there,
    never the next one here): each `linked: <feature> in <name> (<PREFIX>; <folder>, <data date>)`
    with its ticket lines as printed; `... has more tickets, state unknown (<why>):` → "<name> is not

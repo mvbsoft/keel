@@ -194,7 +194,7 @@ test('git.md: the end of a feature says so, then asks one step at a time; the fe
 
 test('git advice: keys are allowed inside ticket files; a planned ticket works on its feature branch', () => {
   const advice = read('skills', 'git', 'SKILL.md');
-  says(advice, ['Ticket files themselves', '(front matter `type: ticket` or `type: feature`)', 'may hold keys']);
+  says(advice, ['Ticket files themselves', '(front matter `type: ticket`, `type: stub` or `type: feature`)', 'may hold keys']);
   says(advice, ['A planned ticket (a file with `type: ticket`)', 'works on its feature branch', '(its `branch:` field)', 'not from the main branch']);
   // A rule about what files may hold, not about commit messages: it lives with the comment rule only.
   assert.doesNotMatch(shared('git.md'), /Keys inside ticket files/);

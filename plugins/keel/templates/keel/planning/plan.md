@@ -16,15 +16,14 @@ ready_hash: <set by plans.js state ready; any later change makes the plan a draf
 ---
 <!-- The plan of one feature (plans.js new). Headings and front matter keys stay in English; the text is
 in the plan's language. plans.js check reads the sections by these names: keep them all, empty when
-there is nothing to say; Stubs may be removed. Export builds the feature overview README.md from In
-plain words, Level, Decisions, Contract, Out of scope, Terms and Stubs, with a Tickets list of its own.
+there is nothing to say. Export builds the feature overview README.md from In plain words, Level,
+Decisions, Contract, Out of scope and Terms, with a Tickets list of its own.
 Level: for a reader who has not seen the levels, which of how many and what the scale means, what this
 level builds, and what is left for later and why. Contract: the APIs, events and formats
 between repositories. Design sketch of a feature on several repositories: one "### <PREFIX>" part per
-repository of repos. What was gathered: what was found before the questions. Stubs: for each part a
-repository that is not on this machine would do, "### <repository>: <title>", a line saying it is a stub
-for that repository, not planned or built here, then its In plain words; no ticket names a stub in
-depends_on. No TBD and no <...> left in the text. Comments are removed when the file is made. -->
+repository of repos. What was gathered: what was found before the questions. A repository that is not
+on this machine gets stubs, not a part here (plans.js ticket --stub). No TBD and no <...> left in the
+text. Comments are removed when the file is made. -->
 # <feature>
 
 ## In plain words
@@ -51,7 +50,5 @@ depends_on. No TBD and no <...> left in the text. Comments are removed when the 
 
 ## Tickets
 <T1 title, one line per ticket>
-
-## Stubs
 
 ## Next action

@@ -84,7 +84,8 @@ Current state of this project:
      no verification is not a pass): `node "<keel>/scripts/plans.js" "<project>" done <id>` marks a
      planned ticket done in the same commit as its code. `done: <KEY> (<path>)` or
      `done: <KEY> (already)` → go on; then `done: feature <f> complete (<n> tickets)` → git.md "End of
-     feature" after the push. `done: none (no ticket <KEY> here)` → `plans.js tickets <id>`:
+     feature" after the push; `done: feature <f> has stubs left: ...` → say it in the report (the
+     feature is not complete). `done: none (no ticket <KEY> here)` → `plans.js tickets <id>`:
      `tickets: none ...` → not a ticket, go on; else warn that the ticket's file is not in this working
      tree, so its status is not written, put the task back
      (`node "<keel>/scripts/notes.js" "<project>" task restore <id> --session <sid>`) and stop before git

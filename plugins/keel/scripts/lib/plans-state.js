@@ -35,7 +35,10 @@ function readStates(root, now) {
   const keys = states(d);
   const isForeign = neighbours().foreignTest(root, [...keys.keys()]);
   const foreign = (k) => !keys.has(k) && isForeign(k);
-  const others = neighbours().neighbourStates(root, [...new Set([...keys.values()].flatMap((e) => e.depends))].filter(foreign), now);
+  const others = neighbours().neighbourStates(root, [...new Set([...keys.values()].flatMap((e) => e.depends.filter(foreign)))], now);
+  // A stub's key is read in its repository too: a ticket there may replace it (lib/plans-stubs.js).
+  const stubKeys = [...new Set([...keys.values()].flatMap((e) => e.stubs))];
+  if (stubKeys.length) for (const [k, s] of neighbours().stubStates(root, stubKeys, { now, here: [...keys.keys()], d })) others.set(k, s);
   const gone = d.inRepo ? doneInHistory(d, keys, null, foreign) : new Map();
   return { d, keys, others, gone };
 }
@@ -75,6 +78,8 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
       const w = depWhere(keys, others, e, k);
       return w && (w.kind === 'feature' || w.kind === 'ticket') ? `${k} only in ${w.word} ${w.branch}` : null;
     }).filter(Boolean));
+    // A feature's view lists its stubs too (lib/plans-stubs.js): no state, maybe their repository here now.
+    const stubRows = arg && !asKey ? require('./plans-stubs.js').stubLines(root, f) : [];
     for (const e of lines) {
       out.push(ticketLine(e, own, marks(e)));
       if (!asKey) continue;
@@ -83,12 +88,18 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
         out.push(`  file: ${where ? `${short(where)}:` : ''}${p}`);
       }
       const dep = (k) => (others.has(k) ? neighbours().stateText(k, others.get(k)) : `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : gone.get(`${e.target} ${k}`) || 'not found'}`);
-      if (e.depends.length) out.push(`  depends: ${e.depends.map(dep).join(', ')}`);
+      // A stub no ticket replaces yet: its state is never read.
+      const stub = (k) => {
+        const s = neighbours().stubState(others.get(k), e.feature, !e.stubsGone.includes(k));
+        return s ? neighbours().stateText(k, s) : `${k} stub`;
+      };
+      if (e.depends.length || e.stubs.length) out.push(`  depends: ${[...e.depends.map(dep), ...e.stubs.map(stub)].join(', ')}`);
       for (const k of e.state === 4 ? e.depends : []) {
         const w = depWhere(keys, others, e, k);
         if (w) out.push(`  where: ${whereLine(keys.has(k) ? keys.get(k).shown : others.get(k).shown || k, w, e, others.has(k) ? others.get(k).folder : null)}`);
       }
     }
+    out.push(...stubRows);
     count += lines.length;
   }
   return [
@@ -110,6 +121,7 @@ function workTickets(root) {
 }
 
 const folderOf = (t) => dirOf(t.path);
+const openStubs = (root, folder) => require('./plans-stubs.js').stubFiles(path.join(root, folder)).map((st) => upper(st.fm.key)).sort();
 
 function doneCommand(root, key, undo = false) {
   const what = 'done';
@@ -128,7 +140,11 @@ function doneCommand(root, key, undo = false) {
   try { plans.writeFile(root, { local: Boolean(t.pc) }, file, text); } catch (e) { return refuse(what, e.message); }
   const out = [`done: ${shown} (${t.path})`];
   const mates = all.filter((x) => folderOf(x) === folderOf(t));
-  if (!undo && mates.every((x) => x === t || x.fm.status === 'done')) out.push(`done: feature ${t.pc ? t.feature : given(t.fm.feature) ? t.fm.feature : path.posix.basename(folderOf(t))} complete (${plural(mates.length, 'ticket')})`);
+  if (undo || !mates.every((x) => x === t || x.fm.status === 'done')) return out;
+  const feature = t.pc ? t.feature : given(t.fm.feature) ? t.fm.feature : path.posix.basename(folderOf(t));
+  // A stub is work another repository still owes: the feature is not complete while one is left.
+  const left = openStubs(root, folderOf(t));
+  out.push(left.length ? `done: feature ${feature} has stubs left: ${left.join(', ')} (plans.js ticket ${feature} --from-stub <key> once its repository is here)` : `done: feature ${feature} complete (${plural(mates.length, 'ticket')})`);
   return out;
 }
 
@@ -143,6 +159,8 @@ function dropCommand(root, feature) {
   if (!here.length) return refuse(what, `no tickets of ${feature} in this working tree`);
   const open = keys.filter((e) => (e.found.length ? e.state > 1 : e.state !== 0));
   if (open.length) return refuse(what, `not every ticket of ${feature} is done: ${open.map((e) => `${e.shown} ${STATES[e.state]}`).join(', ')}`);
+  const left = [...new Set(here.map(folderOf))].flatMap((f) => openStubs(root, f));
+  if (left.length) return refuse(what, `${feature} still has stubs: ${left.join(', ')}; turn each into a ticket once its repository is here (plans.js ticket ${feature} --from-stub <key>), or remove it`);
   const repo = here.filter((t) => !t.pc);
   const folders = [...new Set(here.map((t) => (t.pc ? rel(root, path.join(plans.base(root), feature)) : folderOf(t))))];
   if (repo.length) {
