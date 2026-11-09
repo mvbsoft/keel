@@ -67,7 +67,7 @@ Current state of this project:
    `status: handed-off`, `updated` (today), `after_commit` (`git rev-parse --short HEAD` now; the file's
    own commit follows), `branch`. Then `notes.js check`; the task `over the limit` → compress as that
    section says. Before the git step, so the file is in the commit.
-7. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-3 with session id
+7. Costs: read `<keel>/skills/_shared/usage-sync.md` and start its sync agent (steps 1-3) with session id
    `${CLAUDE_SESSION_ID}` and the level and findings from step 4 (it reads the task title, so it runs
    before the deletion); its step 4 runs in step 11, right before the report.
    **Finish**: say in one line "Claude Code will now ask you to confirm: the task is done and its

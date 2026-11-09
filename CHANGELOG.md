@@ -134,6 +134,11 @@ All notable changes to keel are listed here. The format follows
   starts from its open questions.
 
 ### Changed
+- The usage page sync at the end of `/keel:end-task`, `/keel:end-session` and `/keel:end-planning` runs in a
+  small Haiku sync agent: about $0.07-0.20 per end of work instead of $0.15-0.55, because the long session no
+  longer re-reads its conversation for every step of the sync. The docs and `/keel:configure usage` give
+  these costs in dollars (measured for a medium session, computed for short and very long ones) instead
+  of the old estimate.
 - Unfinished work never stays on one machine only: a `/keel:end-task` handoff of a task without its
   own branch no longer asks where the work goes; it makes a new branch, commits the work there as
   "Work in progress: <title>" and pushes it (a planned ticket of a feature with 2 or more tickets: a new

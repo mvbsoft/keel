@@ -416,7 +416,12 @@ Then, in one question group:
    machine of the account (charts, filters, every keel session with its agents and the cost of each
    request; other conversations count only in the hourly totals the limit calibration needs), so it
    shows which project, session, agent or model costs most. It is updated at the end of every
-   `/keel:end-*`, for a few cents each (well under 0.1 % of a week's limit). The choice holds for this
+   `/keel:end-*` by a small Haiku sync agent, and each update adds a cost: about $0.07-0.20 at list
+   prices (on a subscription it counts toward the plan limits instead; give it in dollars only, never as
+   a share of a limit: plans differ). The longer the session, the more it costs, because starting the
+   sync agent re-reads the whole conversation: about $0.07 after a short session, $0.10-0.14 after a
+   medium one (measured), about $0.20 after a very long one. Without the page the end reports still show
+   the costs; only the page is missing. The choice holds for this
    whole machine; `/keel:usage off` stops the sync later and `/keel:usage on`
    starts it again (it sends what Claude Code's logs still hold of that time (they keep 30 days by default)). Nothing leaves the machine except into that private page.
    `artifact_url` in `show` → the page exists: keep it, and when `show` says
