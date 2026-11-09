@@ -80,7 +80,7 @@ test('the workflow commands and cleanup are user-only, check the config first an
     says(body, ['skills/_shared/preflight.md'], `${name} reads the preflight`);
     assert.ok(body.indexOf('preflight.md') < body.search(/intake\.md|handoff\.md|verify\.md|planning\.md|cleanup\.js|notes\.js|plans\.js|feature-page\.js/), `${name}: preflight comes first`);
   }
-  for (const file of [...COMMANDS.map((c) => `skills/${c}/SKILL.md`), 'skills/_shared/intake.md', 'skills/_shared/handoff.md', 'skills/_shared/planning.md', 'skills/_shared/git.md', 'skills/_shared/delegate.md', 'skills/_shared/migrate.md', 'templates/keel/plan.md']) {
+  for (const file of [...COMMANDS.map((c) => `skills/${c}/SKILL.md`), 'skills/_shared/intake.md', 'skills/_shared/handoff.md', 'skills/_shared/planning.md', 'skills/_shared/git.md', 'skills/_shared/delegate.md', 'skills/_shared/migrate.md', 'skills/_shared/feature-page-build.md', 'templates/keel/plan.md']) {
     const body = fs.readFileSync(path.join(root, file), 'utf8');
     for (const [, ref] of body.matchAll(/<keel>\/([A-Za-z0-9_./-]+)/g)) {
       assert.ok(fs.existsSync(path.join(root, ref)), `${file} names <keel>/${ref}, which does not exist`);
@@ -97,9 +97,36 @@ test('feature-page: may run the scripts it names, finds its page by the feature\
     for (const shell of ['Bash', 'PowerShell']) assert.ok(fields['allowed-tools'].includes(`${shell}(node "\${CLAUDE_PLUGIN_ROOT}/scripts/${run} *)`), `${shell}: ${run} is allowed`);
   }
   says(body, ["This feature's page is the one whose title", 'ends with ` (<code>)`', 'the `code:` line']);
-  says(body, ['An update whose title is not the `title:` line', 'takes that title too', "the tool's title"]);
   says(body, ['`code written: <files> (...)`', 'commit and push them', 'every machine finds this page']);
   assert.doesNotMatch(body, /--taken|marker|title if taken/);
+  const build = fs.readFileSync(path.join(SKILLS, '_shared', 'feature-page-build.md'), 'utf8');
+  says(build, ["its title is not the `title:` line", 'takes that title too', "the tool's title"]);
+});
+
+test('feature-page: the questions stay in the session, the page is built and published in one Sonnet agent', () => {
+  const { body } = parse('feature-page');
+  const build = fs.readFileSync(path.join(SKILLS, '_shared', 'feature-page-build.md'), 'utf8');
+  // The session never reads the page: neither the earlier one nor the built one.
+  assert.doesNotMatch(body, /action: read|Read the whole page|translated\.json/);
+  says(body, ['Do not read it here', 'the page agent reads it']);
+  assert.ok(body.indexOf('Several → ask which') < body.indexOf('feature-page-build.md'), 'the questions come before the agent');
+  says(build, ['one `Agent` call', '`subagent_type: "general-purpose"`', '`model: "sonnet"`']);
+  says(build, ['No `Agent` tool', 'do steps 1-4 yourself']);
+  says(build, ['`skip: no page tool in the agent`', 'the agent cannot start', 'do steps 1-4 yourself']);
+  says(build, ['an error after the agent started', 'no reply', 'running the command again', 'Do not do the steps yourself', 'made twice']);
+  says(build, ['the agent cannot start', 'the `Agent` call is refused before any work']);
+  // A page the user links is updated only when it is this feature's: its title carries the code.
+  says(build, ['`<code>` = <the `code:` line>']);
+  says(build, ['Its `<title>` must end with ` (<code>)</title>`', '`failed: not this feature\'s page (<its title>)`', 'never publish over another page']);
+  says(build, ['`failed: not this feature\'s page (<its title>)` → say the link is not this feature\'s page', 'start the agent again with `<url>` = new']);
+  assert.ok(build.indexOf("never publish over another page") < build.indexOf('feature-page.js" "<project>" <args>'), 'the title is checked before the build and the publish');
+  says(body, ['the `code:` line and the page from step 4']);
+  says(build, ['read it into a file', 'never into the conversation']);
+  says(build, ['`published: <link> <new|updated>; <n> tickets; as of <the as of hashes>; language <code>`']);
+  says(build, ['`; fetch failed: <its reason>`', '`; no labels for <code>`']);
+  says(body, ["the reply's `published:` line", '`fetch failed: <reason>`', '`no labels for <code>`']);
+  const runs = [...build.matchAll(/node "<keel>\/scripts\/([\w-]+\.js)"/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(runs)], ['feature-page.js'], 'the agent runs only the page script');
 });
 
 test('end commands verify, then write the note and do git in the agreed order', () => {

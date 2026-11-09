@@ -26,13 +26,14 @@ another language than the tickets' are translated on the page only; the page kee
 so an update translates only what changed.
 
 1. Read `<keel>/skills/_shared/preflight.md` and act on the state above.
-2. The page is published with the Artifact tool (`action: list`, `read`, publish). No such tool (a
+2. The page is found with the Artifact tool here (`action: list`) and published with it by the page
+   agent (step 5). No such tool (a
    session that uses an API key has none) → one line: "No feature page here: pages are
    published only when Claude Code is signed in to a claude.ai account." Stop; nothing else runs.
 3. Run `node "<keel>/scripts/feature-page.js" "<project>" [<feature>] [--lang <code>]`; here only its
    `title:`, `code:` and `code written:` lines count.
    - `code written: <files> (...)` → the feature was exported before it had a code: keel gave it one and
-     wrote it into those ticket files. After the result (step 7) say so in one line, naming the files:
+     wrote it into those ticket files. After the result (step 6) say so in one line, naming the files:
      commit and push them, so every machine finds this page.
    - `feature: none (<why>)` → say why in plain words. `features: none` → there is no planned feature
      here (`/keel:start-planning` plans one); stop. Else ask which feature (AskUserQuestion, from the
@@ -42,38 +43,21 @@ so an update translates only what changed.
      files, never on the page.
 4. Find the page. List your own pages: `action: list`, mine, `limit` 200. This feature's page is the one whose title
    ends with ` (<code>)`, the `code:` line; the rest of its title may have changed.
-   - One → the page to update. Read it into a file, never the whole page into the conversation (the
-     earlier page: its language and translations): `action: read`, its `url`, `path` "index.html";
-     the result says where the file is.
+   - One → the page to update (its `url`). Do not read it here: the page agent reads it.
    - Several → ask which to update (their links), or a new page.
    - None and the listing may hold more pages than it shows (`200 of <N>`) →
      ask: "I did not find the page among your latest ones. Give its link, or I make a new one." A link
-     whose title ends with ` (<code>)` → the page to update, read as above; another → say it is not
-     this feature's page and make a new one.
+     → the page to update: the page agent checks that its title ends with ` (<code>)` before it
+     changes anything; another page → it says so and a new page is made.
    - None otherwise → a new page.
-5. Build it: `node "<keel>/scripts/feature-page.js" "<project>" [<feature>] [--lang <code>] [--previous "<the earlier page's file>"] --fetch`.
-   `--fetch` fetches the remote first, so the tickets' states are fresh. A `fetch: <remote> failed (...)`
-   line → the page is still built, its states as of the last fetch, and the page says so; tell it in
-   step 7.
-   - `translate: <file> (...)` → Read that file and translate each text from `from` to `to`: the
-     words only; markdown, line breaks, code blocks, inline code, paths, URLs, keys such as API-121
-     and D1, and the Boundaries labels `always:`, `ask first:`, `never:` stay as they are. Write `translated.json` beside it, `{ "<id>": "<translated text>" }`
-     for every text, then run `node "<keel>/scripts/feature-page.js" "<project>" apply`. Refused →
-     fix what it names and run apply again. Its `page:` line is the page.
-   - Else its `page:` line is the page. `language:` says the page's language; labels in English
-     there → say once that this language has no labels of its own yet.
-6. Read the whole page file and the `style.css` beside it (a page is published only once read in
-   full), then publish both:
-   An update whose title is not the `title:` line any more (a new heading or repository) takes that
-   title too (the tool's title, when it takes one). The Artifact tool, `file_path` that file and `files`
-   `{ "style.css": "<the style.css beside it>" }`: an update with the page's `url`; a new page with
-   `icon` "document" and `description` "Feature <feature>: its overview, tickets with their states,
-   and research." An update refused for not reading the page first → publish the same files again.
-   Then run `node "<keel>/scripts/feature-page.js" "<project>" clean`.
-7. Tell the result in one or two lines: "Done: the page of feature <feature>, <n> tickets, as of
-   commit <the `as of:` hashes>, in <language>." with the link, and whether it is new or updated.
-   A failed fetch in step 5 → one more line: the fetch failed (its reason in plain words), so the
-   ticket states are as of the last fetch; run the command again once the remote is reachable.
+5. Build, translate and publish: read `<keel>/skills/_shared/feature-page-build.md` and follow its
+   "Start the page agent", with the `code:` line and the page from step 4 (its `url`, or new). The page and its
+   translation stay in a Sonnet agent; this conversation gets its one-line reply.
+6. Tell the result from the reply's `published:` line in one or two lines: "Done: the page of feature
+   <feature>, <n> tickets, as of commit <the as of hashes>, in <language>." with the link, and whether
+   it is new or updated. `fetch failed: <reason>` → one more line: the fetch failed (its reason in
+   plain words), so the ticket states are as of the last fetch; run the command again once the remote
+   is reachable. `no labels for <code>` → say once that this language has no labels of its own yet.
    The page is private; its Share menu shares it.
-8. Last, run `node "<keel>/scripts/usage.js" report --project "<project>" --session <sid> --last-turn --lang <the conversation language code>`
+7. Last, run `node "<keel>/scripts/usage.js" report --project "<project>" --session <sid> --last-turn --lang <the conversation language code>`
    and give its one line as it is, as the report's last line.
