@@ -180,7 +180,7 @@ a new event in `api` and a badge in `web`; each ticket is for one repository onl
 | `/keel:end-planning` | Open questions or structure problems → hands over, with the reason in one line; otherwise asks "Final review and export, or hand over?". |
 
 **Final.** 1) The gates: no open questions, a clean structure check (the `# [id] title` heading, each section
-once and in its order, headings inside code blocks being text, the three Boundaries labels, acceptance criteria as a `- [ ]` list, no TBD, the named files exist, no path of this machine in the plan, a ticket or a report (`C:\…`, `/home/<user>/…`, `/Users/<user>/…`, `/mnt/c/…`, the project or a neighbouring repository by its folder: paths go from the repository's root),
+once and in its order, headings inside code blocks being text, every code block closed, the three Boundaries labels, acceptance criteria as a `- [ ]` list, no TBD, the named files exist, no path of this machine in the plan, a ticket or a report (`C:\…`, `/home/<user>/…`, `/Users/<user>/…`, `/mnt/c/…`, the project or a neighbouring repository by its folder: paths go from the repository's root),
 dependencies without cycles; style is the ticket reviewer's advice and never blocks), and a decision for every finding; else keel
 shows what blocks and offers to hand over. 2) Ticket reviews of the tickets not reviewed as they are
 (`keel:ticket-reviewer`, up to 4 tickets per call), then one review of the whole plan
@@ -221,7 +221,8 @@ Every end, also after a no, frees the conversation from planning. The report: **
   overview), the files written into a temporary folder and renamed once. A failed run leaves no
   feature folder and the plan `ready`.
 - **After**: the feature folder is the one source: the tickets (`type: ticket`, `key`, `status: todo`,
-  `feature`, `branch`, `merge_into`, `depends_on`) and, from 2 tickets, a `README.md` overview: the
+  `feature`, `page` (the feature's page code), `branch`, `merge_into`, `depends_on`; a stub has `type: stub`,
+  `key`, `repo`, `feature`, `page` and `depends_on`, and a ticket made from a stub adds `replaces`) and, from 2 tickets, a `README.md` overview: the
   plan's In plain words, Level, Decisions, Contract, Out of scope and Terms that have text, and a
   Tickets list keel builds (each ticket's key, title and repository, the last part of the remote's URL
   or else the project folder's name; no states, each ticket carries its own), and the research
@@ -258,6 +259,7 @@ and the feature list marks it (`PROJ-1 only in feature branch chat`):
 |---|---|---|
 | already in this ticket's feature branch (through main, or merged in by hand) | `PROJ-1 is in your feature branch notify: PROJ-5 can start` | may start |
 | only in another feature's branch | `PROJ-1 is ready in feature branch chat, not in main. To start PROJ-5: wait for its merge into main, or pull it into notify: git merge chat` | you decide |
+| done only in a local branch, not pushed yet | `PROJ-6 is done in the local chat, not pushed yet: wait for its push` | waits |
 | only in its ticket branch | `PROJ-2 is ready in ticket branch PROJ-2-read, not in feature branch chat yet: wait for that merge` | waits |
 | in progress, or not started | `PROJ-3 is in progress (branch PROJ-3-edit, ...): wait for it`, `PROJ-4 is not started: wait for it` | waits |
 
@@ -329,3 +331,5 @@ each step only on its yes, in both git modes: 1) onto the feature branch (a tick
 into it); 2) keep the tickets (default) or delete them: the folder goes to keel's trash, and one in the
 repository leaves in its own commit on the feature branch, before the merge; 3) "Merge `<branch>` into
 `<merge_into>`?"; 4) after the merge, "Delete the branch `<branch>`?".
+A feature with a stub left is not complete: no end is offered, and `plans.js done` and `plans.js drop`
+name the stubs.

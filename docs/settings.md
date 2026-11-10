@@ -38,7 +38,7 @@ before keel changes them (project files in `.keel/local/backups/`, the machine f
 
 keel works only in a project that has `.keel/config.json`, the file `/keel:configure` writes. In any
 other project its hooks add nothing to the conversation, Claude cannot load its skills on its own
-(configure and help run only when you type them), and its agents are refused until `/keel:configure` has created the
+(configure, help and usage run only when you type them), and its agents are refused until `/keel:configure` has created the
 `.keel/` folder. A keel command you type there offers to run `/keel:configure` first. Two things keep
 working everywhere: recording which wallet a session pays from, and the status line. Installed for
 your user, keel's agents and skills are still listed in every project, because Claude Code lists them.
@@ -91,6 +91,7 @@ In `~/.claude/keel/usage.json` unless noted. Set in `/keel:configure` (section "
 | Setting | What it does | Values | Default |
 |---|---|---|---|
 | `statusLine` (in `~/.claude/settings.json`) | the status line; keel's own, or yours wrapped so keel can record the plan-limit percentages | keel / wrap yours / none | none |
+| `statusline` | keel's record of the status line it set up (the `statusLine` above): `mode` (keel / wrap / none) and, when it wraps yours, the one you had; written by `/keel:configure` | written by keel | `none` |
 | `wallet_default` | the wallet of a session keel's hook did not mark at its start; a marked session is `api` with an API key, token or helper (or Bedrock, Vertex, Foundry, Mantle), `cloud_wallet` on the web, otherwise `subscription` | `subscription` / `api` / `credit` | `subscription` |
 | `cloud_wallet` | how Claude Code on the web pays | `subscription` / `api` / `credit` | `credit` |
 | `also_api` | this machine uses both a subscription and an API key. On: a session keel's hook did not mark is shown as `unknown` instead of `wallet_default`, and is left out of the limit calibration | on / off | off |

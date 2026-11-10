@@ -155,8 +155,25 @@ test('audit: the page as published matches the local transcripts; a changed file
   const saved = saveDays(w, spec);
   assert.match(w.run(['audit', '--project', w.project, '--page', saved]), /^audit: 1 sessions on 1 days compared; differences: 0$/);
   saveDays(w, spec, (doc) => { doc.sessions[0].participants[0].usd += 1; return doc; });
-  assert.match(w.run(['audit', '--project', w.project, '--page', saved]), /differences: 1\n {2}\d{4}-\d{2}-\d{2} sess-a: page \$3\.00/);
+  const differs = w.run(['audit', '--project', w.project, '--page', saved]);
+  assert.match(differs, /differences: 1\n {2}\d{4}-\d{2}-\d{2} sess-a: page \$3\.00/);
+  assert.doesNotMatch(differs, /shortened/, 'a session the page did not shorten has no mark');
   assert.match(w.run(['audit', '--project', w.project, '--page', w.home]), /must be a folder under/);
+});
+
+test('audit: a page copy that lost only its turn texts and differs for another reason is not marked as shortened', () => {
+  const w = world();
+  session(w, 'sess-a', Date.now() - 3 * HOUR, 2);
+  const saved = saveDays(w, w.prepare(), (doc) => {
+    const s = doc.sessions[0];
+    s.truncated = true;
+    s.turns = (s.turns || []).map(({ text, ...t }) => t);
+    s.participants[0].usd += 1;
+    return doc;
+  });
+  const out = w.run(['audit', '--project', w.project, '--page', saved]);
+  assert.match(out, /differences: 1\n {2}\d{4}-\d{2}-\d{2} sess-a: page \$3\.00/, out);
+  assert.doesNotMatch(out, /shortened/, 'every participant is on the page, so the shortening is not the cause');
 });
 
 test('audit: a session only on the page, one only in the transcripts, one that went on after the sync, and Claude Code\'s own cost', () => {
@@ -203,6 +220,12 @@ test('audit: a session too big for one document shows its undercount on the page
   const out = w.run(['audit', '--project', w.project, '--page', saved]);
   assert.match(out, /^audit: 1 sessions on 1 days compared; differences: 1$/m, out);
   assert.match(out, / huge: page \$\d+\.\d\d \/ \d+ tokens, local \$76\.00 \/ \d+ tokens; shortened on the page \(too big for one document\)$/m, out);
+  // The same day document saved more than once (re-syncs): the page still holds one copy of the session,
+  // though the copies together list more agents than the local session has.
+  const [file1] = fs.readdirSync(saved);
+  for (const n of [1, 2, 3]) fs.copyFileSync(path.join(saved, file1), path.join(saved, `again-${n}-${file1}`));
+  const twice = w.run(['audit', '--project', w.project, '--page', saved]);
+  assert.match(twice, / huge: .*; shortened on the page \(too big for one document\)$/m, twice);
 });
 
 test('after this machine\'s clear, the hour of the clear keeps the requests after it', () => {

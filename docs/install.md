@@ -28,7 +28,7 @@ Optional, used when present:
 
 - **[gh](https://cli.github.com)**, to read a GitHub issue or pull request link given to
   `/keel:start-task`.
-- **A Claude Code connector** for Jira, Linear or Asana, to read a ticket link. Without it, or with any
+- **A Claude Code connector** for Jira, Linear, Asana, Google Docs or Notion, to read a ticket link. Without it, or with any
   link keel cannot read, keel asks you to paste the text.
 - **Security scanners** such as [gitleaks](https://github.com/gitleaks/gitleaks) and
   [semgrep](https://semgrep.dev). A scanner the project's setup names but this machine does not have
@@ -88,7 +88,7 @@ values: [settings](settings.md#installing-for-one-project).
   rules, no context warning, no skill hints, no AI-attribution check;
 - its agents and advisory skills are refused, so Claude Code uses its own (keel's agents run again as
   soon as the project has a `.keel/` folder, for example while `/keel:configure` runs);
-- `/keel:configure` and `/keel:help` still work.
+- `/keel:configure`, `/keel:help` and `/keel:usage` still work.
 
 Two things run in every project, because they belong to the machine: the usage recording (one line
 per conversation start in `~/.claude/keel/sessions.jsonl`, nothing for the model to read) and keel's
@@ -183,12 +183,14 @@ keel also leaves these, which you can remove by hand:
   options, `env`, `bash -c`, joined commands, in PowerShell `--%` or an empty argument) is refused, and
   keel sends it again in the plain form ([under the hood](under-the-hood.md#safety)); reading a keel
   script with `grep` or `sed` follows your normal permissions. Some steps ask on purpose, every time:
-  - steps that write outside keel's own folders: applying Claude Code settings, moving another notes
-    system into keel, and the usage setup (its settings, a price update, installing the status line);
+  - steps that write outside keel's own folders: applying Claude Code settings, moving older Plan Mode
+    files into keel's folder, moving another notes system into keel, and the usage setup (its settings,
+    a price update, installing the status line, turning the sync on or off);
   - in autonomous git, the git steps until you confirm autonomous git for the project on this machine
     (and again after the project's git settings change), and a push from the main branch;
   - confirmations that start with "keel:": finishing or dropping a task (its folder goes to keel's
-    trash), deleting a branch, emptying the trash, confirming autonomous git, and a merge (unless
+    trash), deleting a branch, emptying the trash, confirming autonomous git, committing or pushing the
+    planning files of a repository, and a merge (unless
     `git.ask_before_merge` is off in a confirmed autonomous mode).
 
   Why each step is guarded: [how keel behaves](behavior.md).

@@ -45,13 +45,14 @@ recommended one comes first, and you can always write your own answer. Ask for m
 the setting in full. Quick setup explains too; it only asks fewer questions.
 
 - **Quick setup** asks only: the two languages (the one keel talks in and the one it writes into the
-  repository), the gate commands (the commands that must pass) and one dry run of them, the git mode
-  and the main branch, the recommended Claude Code settings (all, one by one, or none), and, when this machine
+  repository), the gate commands (the commands that must pass) and one dry run of them, the run command of a part that serves something, the git mode
+  and the main branch, the planning ticket prefix and where the tickets live, the recommended Claude Code
+  settings (all, one by one, or none), and, when this machine
   has no usage settings yet, how it pays, the status line and the usage page. Every other value is
   keel's recommendation; the summary lists each one with the command that changes it, for example
   `/keel:configure verification`.
 - **Detailed setup** goes through every section: languages, gates, security scanners, git,
-  verification thresholds, code size and comments, stack plugins, documentation, moving from another
+  verification thresholds, code size and comments, planning tickets, stack plugins, documentation, moving from another
   notes system, Claude Code settings, and costs. Some sections can be skipped; the repository
   language, gates, git, thresholds, file sizes and comment level, and the documentation profile cannot
   be skipped, but you can accept the proposal with one answer.

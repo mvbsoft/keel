@@ -15,7 +15,8 @@ All notable changes to keel are listed here. The format follows
   `usage.json` gets `sync` and `sync_off_since`.
 - `usage.js audit --page <folder>` compares this machine's dollars and tokens per session on the page
   with the local transcripts and names the difference to Claude Code's own cost. A session too big for
-  one page document is compared with all of it, so what the page left out shows as a difference.
+  one page document is compared with all of it, so what the page left out shows as a difference,
+  marked "shortened on the page" only when the page left out some of its agents.
 - The docs and the instructions tell the three account cases: API key only (exact dollars, no usage page,
   no page questions in configure), subscription only, and both.
 - `.keel/config.json` has a `planning` section, the same for the whole team: the ticket prefix
@@ -145,6 +146,7 @@ All notable changes to keel are listed here. The format follows
   Open questions), and gives the exact `/keel:start-planning` command. Planning from a brief takes its
   content into `plan.md` with the new `plans.js brief`, which moves the brief to keel's trash, and
   starts from its open questions.
+- `usage.js report --last-turn` prints the end report as one line, for the latest user turn only.
 
 ### Changed
 - The usage page sync at the end of `/keel:end-task`, `/keel:end-session` and `/keel:end-planning` runs in a
@@ -223,6 +225,7 @@ All notable changes to keel are listed here. The format follows
   `plan-steps.js` prints both wordings of the question.
 - A very big plan, 10 steps or 40 files (not a setting), goes to `/keel:start-task`'s planning as a
   feature: `plan-steps.js` prints a `very big:` line.
+- The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
 - In a session that works in a linked git worktree of the project (a worktree session of the Claude
@@ -249,8 +252,9 @@ All notable changes to keel are listed here. The format follows
   started from another one showed a single turn.
 - `plans.js check` no longer reports a comparison such as `| < 30 s | > 1 min |` or `x <= 3 | y > 2`
   as an unfilled `<...>` placeholder; a `<` followed by a space or `=` is not one, and neither is
-  `| <30 s | >1 min |`, `<30 s, then >1 min` or anything in a code block indented under a list item,
-  such as a mermaid diagram.
+  `| <30 s | >1 min |`, `<30 s, then >1 min` or anything in a code block indented under a list item
+  or fenced with `~~~`, such as a mermaid diagram. A code block that is never closed is reported, so
+  the text it would hide is not taken as clean.
 - A finish with `/keel:end-task`, and `/keel:end-session` with verification, ask for the level when
   the command names none, also when a brief, the session note or memory names one: that level is
   shown as advice next to the recommended proposal.
@@ -260,6 +264,7 @@ All notable changes to keel are listed here. The format follows
 - `language`, `export`, `export_dir` and `prefix` in `.keel/local/plans/keel/settings.json`, and their
   `plans.js settings set` options: the project's `planning` section replaces them. Values saved there
   are not carried over: set them again with `/keel:configure planning`.
+- The Ukrainian copies of the documents in `docs/` (`docs/*.uk.md`); only `README.uk.md` stays.
 
 ## [1.4.0] - 2026-10-27
 

@@ -28,15 +28,23 @@ const missing = (label, secs, names) => names.filter((n) => !OPTIONAL.has(n) && 
 // The text with every line of a fenced code block blanked: a "## Why" in a markdown sample is not a
 // section.
 function outsideFences(text) {
+  return fences(text).lines.join('\n');
+}
+
+// The line (from 1) of a code block's opening fence that no fence closes, or 0.
+const unclosedFence = (text) => fences(text).openAt;
+
+function fences(text) {
   let open = '';
-  return String(text || '').split(/\r?\n/).map((l) => {
+  let openAt = 0;
+  const lines = String(text || '').split(/\r?\n/).map((l, i) => {
     const fence = (/^\s*(`{3,}|~{3,})/.exec(l) || [])[1];
     const blank = open || fence;
     // A block closes only on a fence of its own character, at least as long as the one that opened it.
-    if (fence && !open) open = fence;
-    else if (fence && fence[0] === open[0] && fence.length >= open.length) open = '';
+    if (fence && !open) { open = fence; openAt = i + 1; } else if (fence && fence[0] === open[0] && fence.length >= open.length) open = '';
     return blank ? '' : l;
-  }).join('\n');
+  });
+  return { lines, openAt: open ? openAt : 0 };
 }
 
 // A ticket's "# [<id>] <title>" heading as [id, title], both empty when there is none.
@@ -127,4 +135,4 @@ function repoName(root) {
 const frontText = (front) => `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n`;
 const bodyOf = (text) => String(text).replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n?/, '').trimStart();
 
-module.exports = { frontText, bodyOf, TICKET_SECTIONS, CODE_SECTIONS, STUB_SECTIONS, STUB_KEY, isStub, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName, outsideFences, heading };
+module.exports = { frontText, bodyOf, TICKET_SECTIONS, CODE_SECTIONS, STUB_SECTIONS, STUB_KEY, isStub, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName, outsideFences, unclosedFence, heading };
