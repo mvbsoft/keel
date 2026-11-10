@@ -100,7 +100,8 @@ What triggers a specialist group:
   an HTML sink (`innerHTML`, `dangerouslySetInnerHTML`, `v-html`); weak hashing or randomness (`md5`,
   `sha1`, `createCipher`, `Math.random`); or a recursive file removal (`rm -rf`, `shutil.rmtree`,
   `fs.rm` or `fs.rmSync` with `recursive: true`). A file removal deletes files, not data, so it
-  proposes Standard, not Maximum; the security group checks what the removed path can be.
+  proposes Standard, not Maximum; the security group checks what the removed path can be. The words above are the main ones; the full
+  lists are in `plugins/keel/data/change-signals.json`.
 - **data**: a migration, a schema or model file (`.sql`, `models/`, `entities/`, `schema/`,
   `schema.prisma`), an API file (routes, controllers, endpoints, handlers), or the project's data paths.
 - **env**: a dependency manifest or lock file, or the project's environment paths.
@@ -205,7 +206,7 @@ permission prompts, the same checks); scoring was done by a separate model, with
 |---|---|---|---|---|
 | Gates only | ≈$0.2 | $0.21, $0.20 ($0.18-0.27) | 0.7 / 0.7 | 0 in 24 runs |
 | Basic | ≈$0.25-0.5 | $0.34, $0.34 ($0.25-0.41) | 15.3 / 15.0 | 0 in 24 runs |
-| Standard | ≈$1.4-4.3 | $2.38, $2.00 ($1.39-4.30) | 16.3 / 15.0 | 1 in 24 runs |
+| Standard | ≈$1.4-4.3 | $2.38, $2.00 ($1.39-4.30) | 16.3 / 15.0 | 0 in 24 runs |
 | Maximum | ≈$2.7-7.6 | $4.97, $4.74 ($2.72-7.60) | 17 / 14 | 0 in 8 runs |
 
 **On what.** 8 changes of 73 to 1083 lines, all JavaScript, with 17 known defects: 3 real bugs from

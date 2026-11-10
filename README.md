@@ -192,7 +192,7 @@ The full walkthrough: [Getting started](docs/getting-started.md).
 
 | Command | What it does | Example |
 |---|---|---|
-| `/keel:configure [section \| machine]` | set up or change keel for this project or this machine | `/keel:configure git` |
+| `/keel:configure [check \| section \| machine]` | set up or change keel for this project or this machine, or check what to reconfigure | `/keel:configure git` |
 | `/keel:start-task <link, key or words>` | start a task, continue one or take the next planned ticket: retell, plan, code | `/keel:start-task password reset returns 500` |
 | `/keel:end-task [instruction]` | finish the task (verification, git) or hand it off; no instruction: a menu | `/keel:end-task finish and merge into main` |
 | `/keel:tasks [id \| drop id]` | list the unfinished tasks and the planned tickets, show one, or drop one with what it left | `/keel:tasks drop fix-reset-500` |
@@ -202,6 +202,7 @@ The full walkthrough: [Getting started](docs/getting-started.md).
 | `/keel:end-planning [instruction]` | hand the plan over for later, or review it and export the tickets into the feature folder | `/keel:end-planning final review and export` |
 | `/keel:feature-page [feature] [--lang code]` | a private page of a planned feature in your claude.ai account: overview, tickets with their states, research; in your language | `/keel:feature-page csv-export` |
 | `/keel:cleanup [restore \| empty-trash]` | move leftovers to keel's trash, put them back, or empty old trash | `/keel:cleanup` |
+| `/keel:usage [on \| off \| clear]` | give the link to your private usage page (what each session cost) and open it; turn this machine's sync on or off, or clear its data on the page | `/keel:usage off` |
 | `/keel:help` | a short table of the commands | `/keel:help` |
 
 Every variant: [Commands](docs/commands.md).

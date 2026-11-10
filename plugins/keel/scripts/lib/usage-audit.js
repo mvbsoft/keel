@@ -8,12 +8,13 @@ const { flatten } = require('../../templates/usage/pivot.js');
 // Half a cent: a smaller gap is rounding of the six-decimal dollars, not a difference.
 const CENT = 0.005;
 
-// Per session id: {date, usd, tokens, end, cost_cc, synced_until}, summed over the rows flatten makes.
+// Per session id: {date, usd, tokens, end, cost_cc, synced_until, truncated, participants}, summed over
+// the rows flatten makes. flatten keeps one copy of each session, so participants counts that copy's.
 function perSession(docs) {
   const synced = new Map();
   for (const d of docs) for (const s of d.sessions || []) synced.set(s.id, later(synced.get(s.id), d.synced_until));
   const { sessions, rows } = flatten(docs);
-  const out = new Map(sessions.map((s) => [s.id, { date: s.date, usd: 0, tokens: 0, end: s.end, cost_cc: s.cost_cc, synced_until: synced.get(s.id), truncated: s.truncated === true }]));
+  const out = new Map(sessions.map((s) => [s.id, { date: s.date, usd: 0, tokens: 0, end: s.end, cost_cc: s.cost_cc, synced_until: synced.get(s.id), truncated: s.truncated === true, participants: (s.participants || []).length }]));
   for (const r of rows) {
     const e = out.get(r.session_id);
     if (e) { e.usd += r.usd; e.tokens += r.tokens; }
@@ -53,7 +54,8 @@ function audit({ pageFiles, machine, usageDir, projectsRoot, clearedAt, unwrap, 
     if (l.end && p.synced_until && Date.parse(l.end) > Date.parse(p.synced_until)) continue;
     compared++;
     days.add(p.date);
-    if (Math.abs(p.usd - l.usd) >= CENT || p.tokens !== l.tokens) diffs.push({ id, date: p.date, kind: 'differs', page: p.usd, local: l.usd, page_tokens: p.tokens, local_tokens: l.tokens, shortened: p.truncated });
+    // Shortened only when the page dropped agents: a copy that lost just its turn texts still holds every dollar.
+    if (Math.abs(p.usd - l.usd) >= CENT || p.tokens !== l.tokens) diffs.push({ id, date: p.date, kind: 'differs', page: p.usd, local: l.usd, page_tokens: p.tokens, local_tokens: l.tokens, shortened: p.truncated && p.participants < l.participants });
     if (typeof l.cost_cc === 'number') { ours += l.usd; cc += l.cost_cc; }
   }
   // Not compared: sessions before the page's first day, and those that ended after its last sync (not sent yet).

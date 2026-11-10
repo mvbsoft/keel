@@ -5,7 +5,7 @@ model never runs them on its own.
 
 **How instructions work.** After the task, session and planning commands you write what you want in plain
 words; there are no keyword arguments. `/keel:tasks` (`drop`), `/keel:cleanup` (`restore`,
-`empty-trash`) and `/keel:configure` (`machine`, a section name) take the words shown below. keel works out what you mean, asks when it is not sure, and says in one line what
+`empty-trash`) and `/keel:configure` (`check`, `machine`, a section name) take the words shown below. keel works out what you mean, asks when it is not sure, and says in one line what
 each action will do before it runs. A level word (`gates`, `basic`, `standard`, `maximum`,
 `none`; `quick` means `basic`) picks the verification level when it stands alone or after "level" (`level standard`); the
 levels: [verification](verification.md).
@@ -27,7 +27,7 @@ levels: [verification](verification.md).
 
 ## `/keel:configure`
 
-`/keel:configure [section | machine]`
+`/keel:configure [check | section | machine]`
 
 Without `machine`, every run first asks: this project, or only this machine? keel needs a git
 repository: in a folder without one, `/keel:configure` and every other command offer `git init` and a
@@ -35,7 +35,7 @@ first commit of the current state, and stop on a no.
 
 | You type | keel does |
 |---|---|
-| `/keel:configure` in a new project | Asks: quick setup (recommended, about six questions) or detailed. Scans the project (languages, package managers, monorepo parts, test, lint and type commands, CI, existing AI rules, security scanners). **Quick** asks the two languages, the gate commands with one dry run, the git mode and main branch, the recommended Claude Code settings (all, one by one, or none), and the usage settings when this machine has none; every other value is the recommendation, and the summary names the section that changes it. **Detailed** goes through every section: languages, gates, git, verification thresholds, file sizes and comments, stack plugins, documentation, moving from another notes system, Claude Code settings, usage and costs. Each group of questions starts with a plain explanation (what the setting is, what it changes, an example); each decision is its own question with every option, the recommended one first. Quick keeps your existing docs as they are; detailed setup, when the docs pattern you pick differs from the one your docs follow, offers to prepare their move as a task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)). |
+| `/keel:configure` in a new project | Asks: quick setup (recommended, about six questions) or detailed. Scans the project (languages, package managers, monorepo parts, test, lint and type commands, CI, existing AI rules, security scanners). **Quick** asks the two languages, the gate commands with one dry run, the run command of a part that serves something, the git mode and main branch, the planning ticket prefix and where the tickets live, the recommended Claude Code settings (all, one by one, or none), and the usage settings when this machine has none; every other value is the recommendation, and the summary names the section that changes it. **Detailed** goes through every section: languages, gates, git, verification thresholds, file sizes and comments, planning tickets, stack plugins, documentation, moving from another notes system, Claude Code settings, usage and costs. Each group of questions starts with a plain explanation (what the setting is, what it changes, an example); each decision is its own question with every option, the recommended one first. Quick keeps your existing docs as they are; detailed setup, when the docs pattern you pick differs from the one your docs follow, offers to prepare their move as a task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)). |
 | `/keel:configure` in a configured project | Asks what to change: a section, a new scan, or everything. |
 | `/keel:configure` when the config is out of date or broken | Repairs it: asks only about fields a newer keel added, or lists each problem with a proposed fix, and keeps everything else. |
 | `/keel:configure machine` | Only this machine's settings, for every project: the conversation language, the machine values of the Claude Code settings, usage and costs. Writes no `.keel/` files. |
@@ -230,14 +230,13 @@ random, made once with the draft (`page:` in `plan.md`) and written by the expor
 of the feature, so it travels with the feature in git: every machine and every repository of the
 feature finds the same page, whether or not the other repositories are on that machine or have a
 remote, and two projects with the same prefix and feature name never share a page. keel looks the
-page up among your latest ones (200, or 500 with the artifact server's tools) by the code at the end
+page up among your latest 200 by the code at the end
 of its title and updates it, renaming it when the heading or the repositories changed. A feature
 exported before the code gets one, written into its tickets in this working tree: commit and push
 them. Not found while you have more → keel asks for its link or makes a new one. A path of this machine in the feature's files (a ticket, the overview, a report) is never
 published: keel names each one and stops; write it from the repository's root. Nothing is kept on this machine: the
 page is built in `.keel/local/tmp/` and removed after publishing. It needs Claude Code signed in to a
-claude.ai account; with an API key there is no page. Each run costs about $0.1-0.4 (an estimate:
-reading the page and the generated file); the run's own cost is the last line of its report.
+claude.ai account; with an API key there is no page. The run's own cost is the last line of its report.
 
 ## `/keel:cleanup`
 

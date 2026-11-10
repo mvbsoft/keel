@@ -368,6 +368,23 @@ test('check: an indented code block and "<30 s" are not placeholders, a <name> s
   ]);
 });
 
+test('check: a diagram fenced with ~~~ is code, not a placeholder; the line numbers after it hold', () => {
+  const dir = project();
+  filled(dir, 's3-connection');
+  const text = 'The states:\n\n~~~mermaid\nflowchart TD\n  A <--> B\n~~~';
+  body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(text));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)']);
+  body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(`${text}\n\nSent by <who>.`));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 28)']);
+});
+
+test('check: a code block that is never closed is a problem, so the text it hides is not taken as clean', () => {
+  const dir = project();
+  filled(dir, 's3-connection');
+  body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY('The states:\n\n~~~mermaid\nflowchart TD\n\nSent by <who>.'));
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: the code block from line 23 is never closed']);
+});
+
 test('check: the unfilled templates show only their placeholders', () => {
   const dir = project();
   run(dir, 'new', 's3-connection');

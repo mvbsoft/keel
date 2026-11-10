@@ -144,8 +144,8 @@ findings must/should/nice, gates, lines, files, plan steps) and the cache.
 ![Calibration tab with sample data](images/usage-calib.png)
 
 *Sample data.* The weekly and 5-hour medians, every point with its window, gain, dollars, rate and status
-(kept, dropped or waiting for sync, with the reason), and the machines with their last sync and whether
-the calibration waits for them.
+(kept, dropped or waiting for sync, with the reason), a tile with how many points were dropped, and the
+machines with their last sync, when each was last seen and whether the calibration waits for them.
 
 An empty page says that data arrives after the first `/keel:end-task`, `/keel:end-session` or
 `/keel:end-planning` on any machine. Adding `?demo=1` to the page address shows sample data for a layout
@@ -230,6 +230,8 @@ Done in the session itself it cost $0.15-0.55, typically $0.35 (58 syncs measure
 same tokens count against your plan limits instead of money. With a Sonnet session the session's
 requests cost about half (computed from the price table, not measured).
 
+- **No sync agent.** A session without the `Agent` tool, or one whose agent cannot start or has no page
+  tool, does the sync itself; that costs $0.15-0.55, as said above.
 - **Days already on the page stay.** A sync never deletes: when Claude Code removes old logs (after 30
   days by default), the days built from them stay on the page as they were. Only a
   [clear](#clearing-the-page) deletes them. A machine that does not sync for longer than its logs are kept
@@ -302,7 +304,8 @@ transcripts. `<folder>` is a folder under the project's `.keel/local/` with the 
 the page; any other folder is refused. The expected number of differences is zero.
 One exception: a session too big for one page document is shortened on the page (its cheapest agents
 are left out), so its line shows the page's lower dollars against all of the session's and says
-"shortened on the page".
+"shortened on the page". A session that lost only its turn texts keeps all its agents and dollars, so
+a difference there has another cause and gets no such mark.
 It also names the difference between keel's dollars and Claude Code's own cost.
 
 ## Prices

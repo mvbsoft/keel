@@ -25,13 +25,13 @@ This page lists what keel does in each situation and what makes sure it happens.
 | **Stop hook** | One case only: in autonomous git, when this conversation moved a finished task's folder to keel's trash and no commit holds it, Claude Code does not let keel end its answer and tells it to go on with git or put the task back. It pushes once: when keel stops again right after, the answer ends. It does not block when keel's last message ends with a question, and it ignores a finish older than a day or a task no longer in keel's trash. |
 | **Hook** | Another of keel's hooks, such as the one that keeps keel out of projects that are not set up. |
 | **Instruction** | The model follows keel's instructions; nothing checks it in code. |
-| **Instruction + eval** | The same, and a behaviour test suite (`npm run eval`, 38 cases) checks it. The suite is run by hand before each release, not on every change; it is not a guarantee for every run. |
+| **Instruction + eval** | The same, and a behaviour test suite (`npm run eval`, 49 cases) checks it. The suite is run by hand before each release, not on every change; it is not a guarantee for every run. |
 
 ## Before any command
 
 | Situation | What keel does | Guaranteed by |
 |---|---|---|
-| A project without `.keel/config.json` | keel stays out of the way: its hooks add nothing to the conversation, its agents are refused until `/keel:configure` has started there, and keel's skills that Claude would call by itself are refused (configure and help run only when you type them). Usage recording and the status line keep working. | Hook |
+| A project without `.keel/config.json` | keel stays out of the way: its hooks add nothing to the conversation, its agents are refused until `/keel:configure` has started there, and keel's skills that Claude would call by itself are refused (configure, help and usage run only when you type them). Usage recording and the status line keep working. | Hook |
 | You type a keel command in such a project | Says the project has no keel settings and offers `/keel:configure`; no → the command does not run. | Instruction |
 | No git repository | The check reports `git: none`; keel offers `git init` and a first commit of the current state, with secret files (`.env`, keys) put in `.gitignore` first. No → the command stops. | Script check + instruction |
 | git does not trust the folder's owner ("dubious ownership") | The check reports `git: refused` with git's own fix, `git config --global --add safe.directory "<folder>"`, which you run yourself; the command stops. | Script check + instruction |

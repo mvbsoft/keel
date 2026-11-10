@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { git, read, clean } = require('./repo-read.js');
 const { sections } = require('./tasks.js');
-const { ticketStructure, planStructure, isStub } = require('./plans-format.js');
+const { ticketStructure, planStructure, isStub, outsideFences, unclosedFence } = require('./plans-format.js');
 const { settings, PREFIX } = require('./plans-settings.js');
 const { PLAN_FILE, needDraft, exportedHere, settle, tickets, ticketIds } = require('./plans-drafts.js');
 
@@ -27,9 +27,9 @@ const otherRepos = (root, deps) => neighbours().lookUp(root, deps);
 
 // --- the structure check ---
 
-// The text a placeholder search reads: no code blocks (also indented ones, as in a list item), no
-// inline code, no links in angle brackets.
-const prose = (text) => lf(text).replace(/^[ \t]*```[\s\S]*?^[ \t]*```/gm, (m) => m.replace(/[^\n]/g, ' ')).replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length)).replace(/<https?:[^>\s]*>/g, (m) => ' '.repeat(m.length));
+// The text a placeholder search reads: no code blocks (also indented or ~~~ ones), no inline code, no
+// links in angle brackets. Blanked lines stay, so line numbers still match the file.
+const prose = (text) => outsideFences(lf(text)).replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length)).replace(/<https?:[^>\s]*>/g, (m) => ' '.repeat(m.length));
 
 // "TBD" or "<...>" left in the text after the front matter, with its line. Comparisons are not
 // placeholders: a "<" followed by a space or "=" ("< 30 s", "x <= 3"), a "<...>" across table cells
@@ -130,6 +130,7 @@ function ticketProblems(root, label, text, filesRoot = root) {
   const out = ticketStructure(label, text);
   const secs = sections(text);
   for (const p of placeholders(text)) out.push(`${label}: placeholder ${p}`);
+  if (unclosedFence(text)) out.push(`${label}: the code block from line ${unclosedFence(text)} is never closed`);
   out.push(...localProblems(label, text, machineFolders(root)));
   if (filesRoot === null) return out;
   const own = filesRoot === root;
@@ -144,6 +145,7 @@ function ticketProblems(root, label, text, filesRoot = root) {
 function problems(root, d) {
   const out = planStructure(d.text);
   for (const p of placeholders(d.text)) out.push(`plan.md: placeholder ${p}`);
+  if (unclosedFence(d.text)) out.push(`plan.md: the code block from line ${unclosedFence(d.text)} is never closed`);
   const folders = machineFolders(root);
   out.push(...localProblems(PLAN_FILE, d.text, folders));
   for (const r of researchTexts(d.folder)) out.push(...localProblems(r.name, r.text, folders));

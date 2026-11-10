@@ -154,7 +154,8 @@ More: [git in each mode](workflows.md#git-in-each-mode).
 ## 12. Other commands
 
 `/keel:configure` sets up a project (quick or detailed) or this machine; `/keel:cleanup` moves
-leftovers to keel's trash and back; `/keel:help` shows a table of the commands.
+leftovers to keel's trash and back; `/keel:usage` opens your usage page and turns this machine's sync on or off;
+`/keel:feature-page` builds a private page of a planned feature in your claude.ai account; `/keel:help` shows a table of the commands.
 More: [commands](commands.md) and [settings](settings.md).
 
 ## 13. What runs in the background

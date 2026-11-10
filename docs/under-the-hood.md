@@ -8,7 +8,7 @@ any of this to use keel; it is here so you know what is going on.
 
 keel works only in a project that has `.keel/config.json`, the file `/keel:configure` writes. In any
 other project its hooks add nothing to the conversation, Claude cannot load keel's skills on its own
-(configure and help run only when you type them), and keel's agents are refused until `/keel:configure` has created the
+(configure, help and usage run only when you type them), and keel's agents are refused until `/keel:configure` has created the
 `.keel/` folder; a keel command you type there offers to run `/keel:configure` first. Two things keep
 working in every project: the record of which wallet a session pays from, and the status line. They
 cost no tokens and Claude does not see them. The hook for keel's own files also runs everywhere, but it
@@ -29,9 +29,9 @@ project with `.keel/config.json`.
 | A conversation starts, resumes, after `/clear` and after compaction | `session-start` | Set-up projects only. Adds keel's **working standards** (ask instead of guessing, a source for every claim, a fix never breaks what worked, no secrets in git, merge only when you ask...), the language to talk in, and the project's **code-comment rules**. On a fresh start, warns once when Node is older than 22. |
 | A conversation starts, resumes and after `/clear` | `session-wallet` | Every project. Notes which **wallet** the conversation pays from (subscription, API or credit) for the cost report, and keeps the plugin folder that keel's status line runs from up to date. Adds nothing to the conversation. |
 | Every prompt you send | `context-warning` | Set-up projects only. **Context warning**: at 90 % of the point where Claude Code would compact the conversation on its own, Claude is told to start its reply with one warning line (also sent as a message for you), so you can run `/compact` with a focus or start a new conversation first. That point is `CLAUDE_CODE_AUTO_COMPACT_WINDOW` when it is set, else `autoCompactWindow` from the project's `.claude/settings.local.json`, its `.claude/settings.json` or `~/.claude/settings.json` (a per-model value wins), else Claude Code's own (about 967k with a 1M model, 200k with a model that has a 200k window). A value of your own counts only from 100k up and at most the model's own point above: the environment variable is raised to 100k, a settings value below 100k is ignored. Your prompt itself is not changed. |
-| Every prompt you send | `lane-gate` | Set-up projects only. **Lanes**: a planning conversation refuses the task, session, configure and cleanup commands, a task conversation the planning ones ([how keel behaves](behavior.md#planning)). |
+| Every prompt you send | `lane-gate` | Set-up projects only. **Lanes**: a planning conversation refuses the task, session, configure and cleanup commands, a task conversation the planning ones ([how keel behaves](behavior.md#planning)); `/keel:start-planning` also refuses in `claude -p`, where no person answers. |
 | Before an agent starts | `agent-model` | **Agent model**: keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on: an agent without an explicit model runs on Sonnet (not on your conversation's model), one asked to run on a Fable model runs on Opus; with `allow_opus` off, Sonnet takes Opus's place. In a project without a `.keel/` folder keel's agents are refused, so Claude uses another agent. Other plugins' agents and your own are left alone. |
-| Before Claude loads a skill | `skill-gate` | In a project without `.keel/config.json`, keel's skills are refused (the hook lets configure and help through; you type those two yourself), so Claude goes on without them. The same lane refusals as `lane-gate`, for a command Claude runs by itself. A command you type yourself does not pass this hook; keel's commands check the setup themselves, and `lane-gate` checks the lane. |
+| Before Claude loads a skill | `skill-gate` | In a project without `.keel/config.json`, keel's skills are refused (the hook lets configure, help and usage through; you type those yourself), so Claude goes on without them. The same lane refusals as `lane-gate`, for a command Claude runs by itself. A command you type yourself does not pass this hook; keel's commands check the setup themselves, and `lane-gate` checks the lane. |
 | Before a write, an edit or a shell command | `planning-guard` | Only in a conversation that plans a feature. **Planning guard**: refuses a change to a project file outside planning's own files; a safeguard against slips, not a wall ([how keel behaves](behavior.md#planning)). |
 | Before a read, search, write or shell command | `own-files` | Every project. **keel's own files**: reading keel's plugin folder and running keel's own scripts need no permission prompt, within strict rules ([safety](#safety)). The steps that remove something (a finished or dropped task's folder to keel's trash, a task branch, emptying the trash), confirming autonomous git, a commit or push of planning files, and a merge (unless autonomous mode is confirmed on this machine and `git.ask_before_merge` is off) get **Claude Code's own confirmation** with keel's reason, even when your allow rules would let them run ([how keel behaves](behavior.md)). Such a step named with any project but the current one's exact absolute path, a keel script command that holds such a step's words as words without quotes but does not read as that step ([safety](#safety) has `plans.js`'s rule), a keel script whose arguments the hook cannot read safely, and a keel script run in any form but the plain one (node options, `env`, `bash -c`, a wrapper) are refused with the plain form to use. keel's QA agents may write only in the project's `.keel/local/tmp/qa/` (there without a prompt). |
 | Before a `git commit` or `gh pr create/edit` | `no-ai-attribution` | Set-up projects only. **No AI attribution**: a commit or pull request whose text (the command, or a message file it names with `-F`, `--file` or `--body-file`) carries an AI co-author trailer or "Generated with ..." is refused with the reason, and Claude sends it again without. A co-author counts as AI when its address is a tool's or its name is a tool's name, alone or with model or version words (`Claude`, `Claude Opus 5.5`, `Claude Code`); a person such as `Claude Martin` is not refused. |
@@ -75,6 +75,10 @@ keel has 17 agents. Read-only agents cannot write; the ones that run code are ch
 With `allow_opus` off every Opus agent above runs on Sonnet. keel never switches your conversation's model;
 which main model to use: [cost optimization](cost-optimization.md#1-choose-the-main-model).
 
+Two more agents run outside this table: a Sonnet agent that builds and publishes the feature page
+([`/keel:feature-page`](commands.md#keelfeature-page)) and a Haiku agent that syncs the usage data
+([syncing](usage-dashboard.md#syncing-between-machines)).
+
 ## Delegation
 
 When a plan passes the thresholds (8 steps or 15 files by default, `delegation.min_plan_steps` and
@@ -111,7 +115,7 @@ checkout's `config.json` and `profile.json`.
 On each machine keel also keeps `~/.claude/keel/`:
 
 - `usage.json`: this machine's usage settings ([settings](settings.md#this-machine));
-- the wallet of each conversation, limit snapshots, the usage cache, the sync state of the usage page, the last plan-limit calibration (`calib-latest.json`);
+- the wallet of each conversation, limit snapshots, the usage cache, the sync state of the usage page, the last plan-limit calibration (`calib-latest.json`), and `keel-tasks.jsonl`, the keel fields of each session (task, level, findings) that the usage page shows;
 - `trusted-git.json`: the projects where you confirmed autonomous git, each with a fingerprint of its
   `git` settings;
 - `prices.json`: your own price table, when you updated it, with the previous one as `prices.json.bak`;
@@ -153,7 +157,8 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
   permissions; a step that always asks, or a command that holds one of its words (for `plans.js` only
   `commit` and `push`), is refused instead, so no allow rule can run it unconfirmed.
   `usage.js` takes no project folder first: its `--project`, when given, must be the current project,
-  and it writes only under that project's `.keel/local/`; its `prepare` and `report` run without a
+  and its `--out`, `--keel` and `--page` must be under that project's `.keel/local/` (this machine's own
+  files stay in `~/.claude/keel`); its `prepare` and `report` run without a
   prompt only with `--project`. Refused, with the plain form to use:
   - a command joined with shell operators (`;`, `&&`, `|`, redirection, `$(...)`, a line break) that
     names keel's folder;
@@ -187,7 +192,7 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
     affected.
 
   The steps that change your Claude Code settings, move your files in a migration or set up usage
-  (`apply`, `prices-apply`, `install-statusline`) are left to your normal permissions too.
+  (`apply`, `prices-apply`, `install-statusline`, `sync`, and `move-plans` for the old Plan Mode files) are left to your normal permissions too.
 - **Secrets are handled by path only**: `.env`, keys, certificates and credential files are listed by
   path, the diff that agents get leaves their content out, and keel's git script never commits them. Agents are instructed never to open them; that is an instruction, not something a hook
   enforces.
@@ -209,6 +214,8 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
   account, in the page's database
   ([what goes there and what never does](usage-dashboard.md#what-goes-to-the-page-and-what-never-does);
   [syncing between machines](usage-dashboard.md#syncing-between-machines)).
+  `/keel:feature-page` publishes the feature's overview, its tickets with their states and its research
+  to a private page in the same account.
   Other network use: keel's git steps fetch from and push to your remote (in autonomous mode, or in
   manual mode when you ask for that step); a task link you give is read with a connector, `gh` or a
   web fetch;

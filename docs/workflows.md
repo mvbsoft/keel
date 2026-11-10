@@ -156,7 +156,7 @@ search. For the last two keel fetches first; then it reads the ticket's [state](
 | `to do` or `next` | Reads it, checks its Goal, Acceptance criteria and Where to look against the code, then the usual retell, questions and plan. The task id is the key (`PROJ-104`), the title is the ticket's. |
 | `in progress` or `waiting for ...` | Names the branch, author and date behind it and asks: continue it on that branch, start over, or take another ticket. A waiting ticket is never offered as free; with `stale`: "Nobody touched it for 30 days: treat it as free?" |
 | `reverted` | Explains that the branch was merged once and the merge reverted: merging it again brings nothing back; it needs a revert of that revert, or new commits. |
-| blocked by a dependency | A dependency of this repository done only on its ticket branch, or not done in another feature → start from its branch, wait for its merge, or start anyway. One of the same feature not done, or not found → take the next ticket, or start anyway. Another repository's: [Ticket states](planning.md#ticket-states). |
+| blocked by a dependency | A dependency of this repository done only on its ticket branch, or not done in another feature → pull it in (`git merge <branch>`), wait for its merge, or start anyway. One of the same feature not done, or not found → take the next ticket, or start anyway. Another repository's: [Ticket states](planning.md#ticket-states). |
 | `done` | Says so; starts it again only on your yes. |
 | `duplicate key` | Warns first: two tickets with this key, naming the files. |
 
@@ -314,7 +314,7 @@ Start the next one with /keel:start-task PROJ-104.
 ```
 
 A feature whose every ticket is `done` or `waiting for the feature merge` gets the offer of its
-[end](planning.md#end-of-a-feature).
+[end](planning.md#end-of-a-feature); a feature with a stub left is not complete, and no end is offered.
 
 | You type | keel does |
 |---|---|
@@ -481,6 +481,7 @@ Rules:
 | `.keel/local/trash/<batch>/` | the folders of finished and dropped tasks; exported, abandoned and dropped planning folders | no, this machine only |
 | `.keel/local/plans/claude/` | Claude Code's Plan Mode plans (the `plansDirectory` keel recommends) | no, this machine only |
 | `.keel/local/plans/keel/<feature>/` | a planning draft on this machine: `plan.md`, `tickets/T<n>-<slug>.md`, `reviews/`, `research/` (the researcher's reports); after an export to this machine, its `tickets/` holds the exported tickets and their `research/` | no, this machine only |
+| `.keel/local/plans/briefs/<name>-brief.md` | the brief of a task too big for one, written for `/keel:start-planning`; it goes to keel's trash when planning takes it | no, this machine only |
 | `.keel/local/plans/keel/sessions/`, `settings.json`, `samples/` | which conversation plans which feature; this machine's planning settings (where drafts live, where neighbouring repositories are); the ticket reviewers' inputs and replies, kept to compare models later | no, this machine only |
 | `tickets/<feature>/` (or the folder you chose) | a planning draft in the repository, and the feature folder: `<KEY>-<slug>.md` tickets, from 2 tickets `README.md`, and the reports in `research/` | yes, on the feature branch, after your yes |
 | `<tickets_dir>/<feature>/` in another repository | that repository's tickets of a feature on several repositories, by its own settings, and the same `README.md` | yes, on the feature branch there, after your yes |
