@@ -179,6 +179,8 @@ test('config.schema.json rejects broken configs', () => {
   expectInvalid(s, ok, (d) => { d.gates.checks[0].command = ''; }, /command: shorter than 1/);
   expectInvalid(s, ok, (d) => { d.docs.profile = 5; }, /profile: above 4/);
   expectInvalid(s, ok, (d) => { d.docs.pattern = 'c4'; }, /pattern: must be one of/);
+  for (const style of ['journal', 'living', 'custom']) assert.deepEqual(validate({ ...ok, docs: { ...ok.docs, adr_style: style } }, s), [], `ADR style ${style} is valid`);
+  expectInvalid(s, ok, (d) => { d.docs.adr_style = 'mixed'; }, /adr_style: must be one of/);
   expectInvalid(s, ok, (d) => { d.verification.verifier_caps.basic = 2.5; }, /expected integer/);
   expectInvalid(s, ok, (d) => { d.verification.verifier_caps.basic = -1; }, /basic: below 0/);
   expectInvalid(s, ok, (d) => { d.verification.verifier_caps.quick = 2; }, /quick: unexpected property/);

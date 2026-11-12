@@ -107,6 +107,29 @@ test('scan: documentation shape, files loaded every session with line counts, su
   assert.equal(scan(project({ 'a.js': '1' })).findings.docs.suggested_profile, 1);
 });
 
+test('scan: how the existing ADRs are kept, counted from their text', () => {
+  const dir = project({
+    'docs/adr/README.md': '# Decisions\nSuperseded records stay.\n',
+    'docs/adr/0001-db.md': '# Postgres\nStatus: Superseded by 0003\n',
+    'docs/adr/0002-queue.md': '# Queue\nStatus: Accepted\nAmended 2026-01-02: retries 5.\n',
+    'docs/adr/0003-db.md': '# SQLite\nStatus: Accepted\nSupersedes 0001.\n',
+    'docs/adr/0004-cache.md': '# Cache\nStatus: Accepted\n',
+  });
+  // one supersede is one superseded record: the newer record's "Supersedes 0001" is not a second one
+  assert.deepEqual(scan(dir).findings.docs.adr_records, { records: 4, superseded: 1, amended: 1 });
+  const plain = project({
+    'docs/decisions/0001-cache.md': '# Cache\nStatus: Accepted\n\nThe cache is partially warmed at start; a clock-skew correction of 5 s applies.\n',
+    'docs/decisions/0002-api.md': '# API\nStatus: Accepted\n\nHandlers return void. This supersedes nothing; it refines the error model.\n',
+  });
+  assert.deepEqual(scan(plain).findings.docs.adr_records, { records: 2, superseded: 0, amended: 0 }, 'ordinary words in a record are not history marks');
+  const marks = project({
+    'docs/adr/0001-a.md': '# A\n**Status:** Partly superseded by 0002\n',
+    'docs/adr/0002-b.md': '# B\nStatus: Accepted\n\n> Was: 3 retries.\n',
+  });
+  assert.deepEqual(scan(marks).findings.docs.adr_records, { records: 2, superseded: 1, amended: 2 }, 'a bold status line, a partial supersede and a quoted note count');
+  assert.deepEqual(scan(project({ 'a.js': '1' })).findings.docs.adr_records, { records: 0, superseded: 0, amended: 0 });
+});
+
 function withUserFile(content, fn) {
   const dir = tempDir('keel-user-');
   const file = path.join(dir, 'settings.json');

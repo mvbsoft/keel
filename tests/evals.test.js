@@ -14,7 +14,7 @@ const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 // The chat the planning cases resume: its id is SID in shop-base.js, each case's history.jsonl keeps it.
 const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(path.join(EVALS, '_fixtures', 'shop-base.js'), 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh', 'task-on-main', 'ticket-on-feature', 'worktree', 'db', 'db-rule', 'db-big', 'db-renamed', 'db-renamed-open', 'planning-db'];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh', 'task-on-main', 'ticket-on-feature', 'worktree', 'db', 'db-rule', 'db-big', 'db-renamed', 'db-renamed-open', 'planning-db', 'adr-journal', 'adr-mixed', 'adr-living', 'adr-journal-breach', 'adr-living-breach'];
 
 const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
@@ -49,7 +49,9 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
     const graders = fs.readdirSync(path.join(dir, 'graders'));
     assert.ok(graders.length, `${name}: graders`);
     for (const g of graders) {
-      const { keys } = front(path.join(dir, 'graders', g));
+      const { keys, body } = front(path.join(dir, 'graders', g));
+      // The runner reads one front-matter block per file; a second one is silently dropped.
+      assert.doesNotMatch(body, /^---$/m, `${name}/${g}: one grader per file`);
       assert.ok(['regex', 'tool_used', 'tool_order', 'file_exists', 'llm'].includes(keys.type), `${name}/${g}: type ${keys.type}`);
       for (const re of [keys.pattern, keys.input_match].filter(Boolean)) new RegExp(re.replace(/^'|'$/g, '')); // compiles
     }
@@ -150,6 +152,14 @@ const dbState = (work, git) => {
   assert.deepEqual(git('ls-files', 'db/migrations').split('\n'), ['db/migrations/001_users.sql', 'db/migrations/002_orders.sql']);
   // The schema cases expect no maintenance mode to offer as ready; CLAUDE.md names it only to rule it out.
   for (const f of git('ls-files').split('\n').filter((f) => !f.startsWith('.keel/') && f !== 'CLAUDE.md')) assert.doesNotMatch(read(work, f), /maintenance|artisan down/i, f);
+};
+
+// Docs profile 2, the ADR style (undefined: not chosen) and, when given, the records as the scan counts them.
+const adrState = (work, style, records) => {
+  const docs = JSON.parse(read(work, '.keel/config.json')).docs;
+  assert.equal(docs.profile, 2);
+  assert.equal(docs.adr_style, style);
+  if (records) assert.deepEqual(require('../plugins/keel/scripts/scan.js').scan(work).findings.docs.adr_records, records);
 };
 
 // What each variant beyond the branch, tasks and changes must give the scripts the skills run.
@@ -312,6 +322,26 @@ const STATE = {
     dbState(work, git);
     assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: notification-system$/m);
   },
+  // The ADR-style cases: how the scan reads the records decides what configure says is there now.
+  'adr-journal': (work) => adrState(work, undefined, { records: 3, superseded: 1, amended: 0 }),
+  'adr-mixed': (work) => adrState(work, undefined, { records: 3, superseded: 0, amended: 2 }),
+  'adr-living': (work) => adrState(work, 'living', { records: 3, superseded: 0, amended: 0 }),
+  'adr-journal-breach': (work) => {
+    adrState(work, 'journal');
+    assert.match(read(work, 'docs/adr/0002-job-queue.md'), /Status: Accepted[\s\S]*retried 5 times/);
+    assert.match(read(work, 'docs/adr/0004-queue-retries.md'), /Supersedes the "Decision" part of 0002/);
+    assert.match(read(work, 'docs/ops.md'), /0001-database\.md/);
+    assert.match(read(work, '.keel/local/tmp/keel/protocols/docs.md'), /adr-journal\.md/, "keel's current review rules, readable inside the run");
+    assert.match(read(work, '.keel/local/tmp/keel/skills/_shared/adr-journal.md'), /## Reviewers check/);
+  },
+  'adr-living-breach': (work) => {
+    adrState(work, 'living');
+    assert.match(read(work, 'docs/adr/0001-database.md'), /Amended[\s\S]*was: PostgreSQL 16/);
+    assert.match(read(work, 'docs/adr/0004-queue-retries.md'), /Amends 0002/);
+    assert.ok(!fs.existsSync(path.join(work, 'docs', 'adr', '0003-price-cache.md')));
+    assert.match(read(work, 'CLAUDE.md'), /0003-price-cache\.md/, 'the rules still link the deleted record');
+    assert.match(read(work, '.keel/local/tmp/keel/skills/_shared/adr-living.md'), /## Reviewers check/);
+  },
 };
 
 test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
@@ -322,7 +352,10 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''], 'task-fresh': ['main', 0, ''],
     'task-on-main': ['main', 1, '?? src/history.js'], 'ticket-on-feature': ['csv-export', 1, 'M src/invoices.js'], worktree: ['main', 0, ''],
     db: ['main', 0, ''], 'db-rule': ['main', 0, ''], 'db-big': ['main', 0, ''], 'db-renamed': ['main', 0, 'M src/users.js\n?? db/migrations/003_users_full_name.sql'],
-    'db-renamed-open': ['main', 0, 'M src/users.js\n?? db/migrations/003_users_full_name.sql'], 'planning-db': ['main', 0, ''] };
+    'db-renamed-open': ['main', 0, 'M src/users.js\n?? db/migrations/003_users_full_name.sql'], 'planning-db': ['main', 0, ''],
+    'adr-journal': ['main', 0, ''], 'adr-mixed': ['main', 0, ''], 'adr-living': ['main', 0, ''],
+    'adr-journal-breach': ['main', 0, 'M docs/adr/0002-job-queue.md\n?? docs/adr/0004-queue-retries.md\n?? docs/ops.md'],
+    'adr-living-breach': ['main', 0, 'M docs/adr/0001-database.md\n D docs/adr/0003-price-cache.md\n?? docs/adr/0004-queue-retries.md'] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   assert.deepEqual(Object.keys(STATE).sort(), [...VARIANTS].sort(), 'every variant checks the state its cases read');
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {

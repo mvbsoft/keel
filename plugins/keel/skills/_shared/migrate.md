@@ -121,6 +121,9 @@ itself; keel is already enabled.
 ## 11. Advice for what stays
 One line per `stays:` entry from step 1, e.g. "`adr/` is documentation: worth moving into `docs/` as a
 separate task"; "`cloud-keys.env` is a secret: keep it out of the repository". Nothing is moved.
+An ADR folder among them whose records go on being written, while `docs.adr_style` is not set (inside
+configure: section 8 did not ask it): ask the same question as configure section 8 asks ("ADR
+style", saying how these records are kept now) and write the answer with the config change.
 
 ## 12. Old files
 Already handled by the plan (trash or archive). Say where they are and how to bring them back from the

@@ -147,6 +147,16 @@ All notable changes to keel are listed here. The format follows
   content into `plan.md` with the new `plans.js brief`, which moves the brief to keel's trash, and
   starts from its open questions.
 - `usage.js report --last-turn` prints the end report as one line, for the latest user turn only.
+- `docs.adr_style` (`journal`, `living` or `custom`): how a project keeps its decision records.
+  `/keel:configure` asks it whenever the project has or will write ADRs, also when moving from another
+  system, and first says how the existing records are kept (the scan counts superseded and amended
+  records). The `adr-required` skill and the docs reviewer follow only the chosen style; `custom` is the
+  project's own rule in the ADR folder's README. Choosing `living` over a journal offers a one-time
+  clean-up task that renumbers the records once. `/keel:configure check` says when no style is chosen.
+  The skill now also loads before a decision record is written, and editing a file in an ADR folder
+  reminds Claude to load it.
+  Not set reads as `journal`, which now also asks a new record to restate everything still valid, and
+  forbids partial supersedes and links left on a superseded record.
 
 ### Changed
 - keel no longer teaches one deploy style for schema changes (expand → migrate → contract over several

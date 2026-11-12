@@ -47,7 +47,8 @@ the setting in full. Quick setup explains too; it only asks fewer questions.
 - **Quick setup** asks only: the two languages (the one keel talks in and the one it writes into the
   repository), the gate commands (the commands that must pass) and one dry run of them, the run command of a part that serves something, the git mode
   and the main branch, the planning ticket prefix and where the tickets live, the recommended Claude Code
-  settings (all, one by one, or none), and, when this machine
+  settings (all, one by one, or none), the [ADR style](settings.md#adr-styles) when the project has or
+  will write decision records (an ADR folder or documentation profile 2 or higher), and, when this machine
   has no usage settings yet, how it pays, the status line and the usage page. Every other value is
   keel's recommendation; the summary lists each one with the command that changes it, for example
   `/keel:configure verification`.
@@ -68,7 +69,9 @@ where and gives the cost as an estimate, with how it made it: the docs' characte
 an ordinary keel task: its own branch, a plan you approve, Haiku implementers for the moves, Sonnet
 for content and links, then Standard verification. On your yes keel prepares the task file
 `.keel/local/docs-migration.md`, and the setup summary tells you to run
-`/keel:start-task .keel/local/docs-migration.md` first, so new docs land in the new places. When the
+`/keel:start-task .keel/local/docs-migration.md` first, so new docs land in the new places. When you
+also agreed to the one-time [ADR clean-up](settings.md#adr-styles), `/keel:start-task .keel/local/adr-cleanup.md`
+comes before it. When the
 docs already follow the pattern, keel says there is nothing to move.
 
 An abridged example of a quick setup:
