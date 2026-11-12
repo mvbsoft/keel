@@ -160,6 +160,11 @@ const RESEARCH = [
   ].join('\n')],
 ];
 
+// The level chosen, and the person adds a rename of a column in a table with data (shop.js planning-db).
+const RISKY = [
+  ['assistant', 'Level 2 it is. Before I write the tickets: is there anything the e-mails must say or use?'],
+];
+
 const CASES = {
   'start-planning-offers-gathering': () => conversation(START()),
   'start-planning-gathers-then-asks': () => conversation([...START(), ...OFFER]),
@@ -167,6 +172,7 @@ const CASES = {
   'start-planning-elementary-choice': () => conversation([...START(), ...OFFER, ...GOAL, ...LEVELS, ...SNOOZE]),
   'start-planning-compares-packages': () => conversation([...START(), ...OFFER, ...GOAL, ...LEVELS, ...RESEARCH]),
   'start-planning-from-brief': () => conversation(START_BRIEF()),
+  'start-planning-risky-change-asks': () => conversation([...START(), ...OFFER, ...GOAL, ...LEVELS, ...RISKY]),
 };
 
 if (require.main === module) {

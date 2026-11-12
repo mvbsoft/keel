@@ -3,7 +3,8 @@
 // in .git/eval-remote.git (inside the workspace, so the sandboxed run can push to it).
 // Usage: node shop.js <base | tasks | finish | session | session-level | messy | overbuilt | planning |
 //                      planning-openq | planning-ready | planning-repo | planning-new | planning-brief | planned |
-//                      task-active | task-fresh | task-on-main | ticket-on-feature | worktree>
+//                      task-active | task-fresh | task-on-main | ticket-on-feature | worktree | db | db-rule |
+//                      db-big | db-renamed | db-renamed-open | planning-db>
 //   base            no tasks, no note
 //   worktree        base, and a linked worktree of it at .claude/worktrees/wt on branch wt (not entered)
 //   tasks           handed-off tasks CAN-123 (discount, Jira link) and fix-reset-500 on their branches; on main
@@ -21,6 +22,15 @@
 //                   conversation (execution: fresh): plan.md has 9 steps, none done; on main
 //   task-on-main    task order-history working directly on main (branch = base = main), active for the chat
 //                   SID, pushed; not committed: half of it, src/history.js with no tests, used nowhere
+// The database variants (shop-db.js) add PostgreSQL migrations, users (about 2,000 rows), orders and a
+// partner API (GET /api/orders with API keys), no maintenance mode:
+//   db              committed on main
+//   db-rule         db, and a committed CLAUDE.md: schema changes ship in one release, just apply the migration
+//   db-big          db-rule, and the README says orders has about 3.5 million rows, busy all day
+//   db-renamed      db-rule; not committed: users.name renamed to full_name in one migration, src/users.js moved to it;
+//                   keel's protocols copied into .keel/local/tmp/keel for the reviewing agent
+//   db-renamed-open as db-renamed on db: no rule, so the way to ship the rename was never chosen
+//   planning-db     db, then planning-new
 // Every variant's config has the planning settings: ticket prefix INV, tickets in the repository.
 // The planning variants add the invoices (src/invoices.js, src/server.js, public/invoices.html) on main:
 //   planning        a draft csv-export on this machine (draft pc): plan.md and tickets T1, T2 (T2 depends
@@ -44,6 +54,7 @@
 const { base, worktree, messy } = require('./shop-base.js');
 const { tasks, finish, session, overbuilt, taskActive, taskFresh, taskOnMain } = require('./shop-tasks.js');
 const { planning, planningReady, planningNew, planningBrief, planned, ticketOnFeature } = require('./shop-planning.js');
+const { db, dbRule, dbBig, dbRenamed } = require('./shop-db.js');
 
 const variant = process.argv[2] || 'base';
 
@@ -66,4 +77,10 @@ else if (variant === 'task-fresh') taskFresh();
 else if (variant === 'task-on-main') taskOnMain();
 else if (variant === 'ticket-on-feature') ticketOnFeature();
 else if (variant === 'worktree') worktree();
+else if (variant === 'db') db();
+else if (variant === 'db-rule') dbRule();
+else if (variant === 'db-big') dbBig();
+else if (variant === 'db-renamed') dbRenamed();
+else if (variant === 'db-renamed-open') dbRenamed({ rule: false });
+else if (variant === 'planning-db') { db(); planningNew(); }
 else if (variant !== 'base') throw new Error(`unknown variant "${variant}"`);

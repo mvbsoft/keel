@@ -112,7 +112,7 @@
         ]
       },
       {
-        "matcher": "Read|Edit|Write|Bash|PowerShell",
+        "matcher": "Edit|Write|Bash|PowerShell",
         "hooks": [
           {
             "type": "command",

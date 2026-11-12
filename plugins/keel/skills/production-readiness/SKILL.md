@@ -1,6 +1,6 @@
 ---
 name: production-readiness
-description: Use before marking backend or service work done. Checks it is safe to ship - logs, migrations, rollback, backward compatibility, retries and failure handling.
+description: Use before marking backend or service work done, or before a risky schema or API change. Checks it is safe to ship - logs, migrations, undo, existing clients, retries and failure handling.
 ---
 
 # Production readiness
@@ -15,12 +15,15 @@ Confirm each item, or mark it not applicable with a reason:
 
 - **Observability:** structured logs at the right level following the project's convention, with no
   secrets or personal data; key paths emit metrics where the project uses them.
-- **Migrations:** additive first and reversible; destructive changes go expand → migrate → contract.
-  See `migration-safety`.
-- **Backward compatibility:** API and contract changes are additive or versioned; existing clients
-  (frontend, other services, webhooks) keep working.
-- **Rollback:** the change can be reverted without data loss; risky behaviour sits behind a flag or
-  config where the project has them.
+- **Migrations:** no long lock on a busy table; a destructive change says what data it loses. See
+  `migration-safety`.
+- **Existing clients:** clients outside this change (other services, mobile apps, webhooks, public
+  API users) keep working, or the break is the variant the user chose.
+- **Undo:** it is known how a bad release is undone (a revert, one more migration forward, a restore
+  from a backup); risky behaviour sits behind a flag or config where the project has them.
+- **Risky changes** to a table with data or to an API others can call follow
+  `${CLAUDE_PLUGIN_ROOT}/skills/_shared/risky-changes.md`: the user picked the variant, and every
+  pick (one made against the warning in more places) is written down where that file says.
 - **Idempotency:** queue, stream and webhook handlers are safe to receive twice.
 - **Failure modes:** timeouts, failed external calls and partial writes are handled on purpose, never
   swallowed.
