@@ -1,7 +1,7 @@
 'use strict';
 // PreToolUse hook on Edit, Write, Bash and PowerShell: when the session touches something one of
 // keel's advisory skills covers (a migration, Python code, docs, a new source file, a dependency
-// manifest, a commit), it adds a one-line reminder to load that skill. Each skill is named at most
+// manifest, a decision record, a commit), it adds a one-line reminder to load that skill. Each skill is named at most
 // once per session (one marker file per skill in the OS temp folder, keyed by the session id, so nothing
 // is written into the project). Subagents get no hints, except keel's implementer, which has the Skill
 // tool and does the work. Only in a project keel is set up in. Rules: data/skill-hints.json. Never decides permissions; prints nothing when no rule
@@ -21,6 +21,7 @@ const PLUGIN = path.resolve(__dirname, '..');
 const RULES = require('../data/skill-hints.json').rules;
 const MIGRATION_DIRS = require('../data/catalog.json').database.migration_dirs;
 const MIGRATION_GLOBS = MIGRATION_DIRS.flatMap((d) => [`${d}/**`, `**/${d}/**`]);
+const ADR_GLOBS = require('../data/catalog.json').docs.adr_dirs.flatMap((d) => [`${d}/**`, `**/${d}/**`]);
 
 const READERS = new Set(['cat', 'head', 'tail', 'less', 'more', 'type', 'get-content', 'gc', 'grep', 'rg']);
 const WRITERS = new Set(['set-content', 'add-content', 'out-file', 'new-item', 'tee', 'touch']);
@@ -97,6 +98,7 @@ function fileMatches(rule, file, root) {
   if (rule.not && matchesAny(rel, rule.not)) return false;
   if (rule.new_file && fs.existsSync(path.resolve(root, file))) return false;
   if (rule.migrations) return matchesAny(rel, MIGRATION_GLOBS);
+  if (rule.adr_dirs) return matchesAny(rel, ADR_GLOBS);
   return matchesAny(rel, rule.paths);
 }
 

@@ -4,7 +4,8 @@
 // Usage: node shop.js <base | tasks | finish | session | session-level | messy | overbuilt | planning |
 //                      planning-openq | planning-ready | planning-repo | planning-new | planning-brief | planned |
 //                      task-active | task-fresh | task-on-main | ticket-on-feature | worktree | db | db-rule |
-//                      db-big | db-renamed | db-renamed-open | planning-db>
+//                      db-big | db-renamed | db-renamed-open | planning-db | adr-journal | adr-mixed |
+//                      adr-living | adr-journal-breach | adr-living-breach>
 //   base            no tasks, no note
 //   worktree        base, and a linked worktree of it at .claude/worktrees/wt on branch wt (not entered)
 //   tasks           handed-off tasks CAN-123 (discount, Jira link) and fix-reset-500 on their branches; on main
@@ -31,6 +32,14 @@
 //                   keel's protocols copied into .keel/local/tmp/keel for the reviewing agent
 //   db-renamed-open as db-renamed on db: no rule, so the way to ship the rename was never chosen
 //   planning-db     db, then planning-new
+// The ADR variants (shop-adr.js) set docs profile 2 and commit records in docs/adr:
+//   adr-journal     a journal (0001 superseded by 0003), no ADR style chosen
+//   adr-mixed       neither style (0003 amends part of 0002, a correction note in 0001), no style chosen
+//   adr-living      living records, one per topic, style living
+//   adr-journal-breach  adr-journal with style journal; not committed: 0002 edited, 0004 supersedes part
+//                   of 0002, docs/ops.md links the superseded 0001; keel's review rules in .keel/local/tmp/keel
+//   adr-living-breach   adr-living; not committed: history marks in 0001, 0004 amends 0002, 0003 deleted
+//                   while CLAUDE.md links it; keel's review rules in .keel/local/tmp/keel
 // Every variant's config has the planning settings: ticket prefix INV, tickets in the repository.
 // The planning variants add the invoices (src/invoices.js, src/server.js, public/invoices.html) on main:
 //   planning        a draft csv-export on this machine (draft pc): plan.md and tickets T1, T2 (T2 depends
@@ -55,6 +64,7 @@ const { base, worktree, messy } = require('./shop-base.js');
 const { tasks, finish, session, overbuilt, taskActive, taskFresh, taskOnMain } = require('./shop-tasks.js');
 const { planning, planningReady, planningNew, planningBrief, planned, ticketOnFeature } = require('./shop-planning.js');
 const { db, dbRule, dbBig, dbRenamed } = require('./shop-db.js');
+const { adrJournal, adrMixed, adrLiving, adrJournalBreach, adrLivingBreach } = require('./shop-adr.js');
 
 const variant = process.argv[2] || 'base';
 
@@ -83,4 +93,9 @@ else if (variant === 'db-big') dbBig();
 else if (variant === 'db-renamed') dbRenamed();
 else if (variant === 'db-renamed-open') dbRenamed({ rule: false });
 else if (variant === 'planning-db') { db(); planningNew(); }
+else if (variant === 'adr-journal') adrJournal();
+else if (variant === 'adr-mixed') adrMixed();
+else if (variant === 'adr-living') adrLiving();
+else if (variant === 'adr-journal-breach') adrJournalBreach();
+else if (variant === 'adr-living-breach') adrLivingBreach();
 else if (variant !== 'base') throw new Error(`unknown variant "${variant}"`);

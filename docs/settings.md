@@ -134,6 +134,7 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 | `comments.refs_exempt` | more files where ids are the subject and are not reported; the built-in ones (decision records, task and ticket folders, changelogs, `.keel/`) always apply | glob patterns | none |
 | ★ `docs.profile` | how much documentation keel writes: 1 keep docs true, 2 + ADRs, 3 + a spec per feature, 4 heavy | 1-4 | 1 |
 | ★ `docs.pattern` | where new docs go (profiles 3-4). Existing docs are not moved as a side effect: when detailed setup picks a pattern your docs do not follow yet, keel offers to prepare the move as its own task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)) | `none` / `diataxis` / `arc42` / `arc42-c4` | `none` |
+| `docs.adr_style` | how decision records (ADRs) are kept when the project has or writes them ([ADR styles](#adr-styles)). `/keel:configure` asks it, says how your ADRs are kept now, and `/keel:configure check` reminds you while it is not chosen | `journal` / `living` / `custom` | `journal` |
 | `delegation.min_plan_steps`, `min_plan_files` | from this plan size keel recommends a fresh conversation for the plan, or handing the steps to implementer agents | steps, files | 8, 15 |
 | `cleanup.trash_max_age_days` | `/keel:cleanup empty-trash` deletes batches this many days old or more by default | days | 30 |
 | `tasks.in_git` | where unfinished task folders live: `true` in `.keel/tasks/<id>/`, committed on the task's branch so the team sees them; `false` in `.keel/local/tasks/<id>/`, this machine only. See [ways of working](workflows.md#where-the-files-live) | on / off | on |
@@ -148,6 +149,28 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 the project, their languages and commands, and the secret files by path. Its `run_command` per part is
 the command that starts the app, which the QA agent uses (or `null` when there is none). Change the
 profile with `/keel:configure scan`.
+
+### ADR styles
+
+An ADR (architecture decision record) is a short file on why a decision was made, for example
+"we use Postgres because...". When the decision changes, say to SQLite, a project can treat its
+records in one of three ways:
+
+- **journal** (teams of people, regulated or audited work): an accepted record is never edited
+  except its status. The change is a new record that restates everything still valid, and the old
+  one only gets "Superseded by" the new one. Links in your rules and docs move to the new record.
+  Everyone sees who decided what and when; the folder grows by one record per change.
+- **living** (one owner, a small team, work done mostly by agents): one record per topic, always
+  the current decision. The Postgres record is rewritten in place to say SQLite, and Postgres moves to
+  its "Alternatives considered" with the reason it was dropped. A record whose decision is gone is
+  deleted after your yes and every link to it is fixed. The history is in git; numbers are never
+  reused. Choosing living in a project whose ADRs are a journal, keel offers a one-time clean-up as
+  its own task: merge, rewrite and renumber the records once, never again.
+- **custom**: your own way, or the way your ADRs are kept now when it is neither of the two. keel
+  writes the rule into the ADR folder's README and follows it.
+
+Both keel styles require an "Alternatives considered" section. With `living`, configure proposes
+`comments.adr_refs: forbidden`, because a record may be deleted.
 
 Two more project settings are personal and live in `.claude/settings.local.json` (outside git; when
 git does not ignore that file yet, `/keel:configure` offers to add it to `.gitignore`):

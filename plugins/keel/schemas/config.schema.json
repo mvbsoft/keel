@@ -237,6 +237,15 @@
             "arc42-c4"
           ],
           "default": "none"
+        },
+        "adr_style": {
+          "description": "How decision records are kept. journal: an accepted record is history, a change is a new record that supersedes it; living: one record per topic, rewritten in place; custom: the project's own rule in the ADR folder's README. Not set reads as journal. Details: skills/_shared/adr-journal.md, adr-living.md.",
+          "enum": [
+            "journal",
+            "living",
+            "custom"
+          ],
+          "default": "journal"
         }
       }
     },

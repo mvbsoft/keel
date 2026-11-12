@@ -284,6 +284,11 @@ function liveReasons(root, now, ctx) {
       add('git', 'needed', `main branch "${main}" is not in the repository${head ? `; the remote's default branch is "${head}"` : ''}`, 'keel starts each task from it and merges the work back into it');
     }
   }
+  // 8 docs: a project that keeps ADRs, or will (profile 2+), without a chosen way of keeping them
+  const docs = config.docs || {};
+  const known = require('../../data/catalog.json').docs.adr_dirs;
+  const adrDirs = now.docs.doc_dirs.filter((d) => known.includes(d));
+  if (!docs.adr_style && ((docs.profile || 1) >= 2 || adrDirs.length)) add('docs', 'worth', `no ADR style chosen${adrDirs.length ? ` (ADR folder ${adrDirs.join(', ')})` : ''}`, 'keel keeps ADRs as a journal until you choose: journal, living (one record per topic) or your own way');
   if (!rec) { ctx.skipped.push('ticket ids, new stack plugins, files loaded every session, new decision or spec folders, other notes systems'); return out; }
 
   // 6 code: ticket ids keel could keep out of comments

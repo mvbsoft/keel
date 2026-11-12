@@ -348,6 +348,10 @@ test('skill-hints: a matching file or command names its skill once per session; 
   assert.match(call('Edit', { file_path: path.join(dir, 'README.md') }).raw, /documentation-philosophy/);
   assert.equal(call('Edit', { file_path: path.join(dir, '.keel', 'next-session.md') }, `${sid}-5`).raw, '', "keel's own notes are not project docs");
   assert.match(call('Edit', { file_path: path.join(dir, 'package.json') }).raw, /adr-required/);
+  assert.match(call('Write', { file_path: path.join(dir, 'docs', 'adr', '0004-jobs.md') }, `${sid}-11`).raw, /adr-required/, 'a decision record follows the ADR style');
+  for (const [i, d] of require('../plugins/keel/data/catalog.json').docs.adr_dirs.entries()) {
+    assert.match(call('Edit', { file_path: path.join(dir, ...d.split('/'), '0002-queue.md') }, `${sid}-adr${i}`).raw, /adr-required/, `every ADR folder the scan knows: ${d}`);
+  }
   assert.match(call('Bash', { command: 'git commit -m "x"' }).raw, /keel:git/);
   assert.match(call('Bash', { command: 'GIT_AUTHOR_DATE="2026-01-01 10:00" git commit -m "x"' }, `${sid}-9`).raw, /keel:git/, 'after an env prefix');
 

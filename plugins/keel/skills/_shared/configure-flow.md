@@ -79,7 +79,7 @@ question group first. Quick runs:
 | 5 Verification | the defaults, stated in one line |
 | 6 Code | file sizes 700 / 1,000; the comment level `comments.js --project` recommends; planning tickets asked: the prefix and where they live, two questions in one call (the language is `repo_language`); ticket prefixes it lists from git history; `adr_refs` `allowed` |
 | 7 Stack plugins | skipped; the summary says `/keel:configure plugins` |
-| 8 Documentation | the suggested profile and pattern, stated with the reason; existing docs are kept up to date in every profile |
+| 8 Documentation | the suggested profile and pattern, stated with the reason; existing docs are kept up to date in every profile; the ADR style asked as one question when the profile is 2 or higher or there is an ADR folder (with the clean-up offer as in section 8) |
 | 9 Moving | asked only when `migrate.js find` finds another system |
 | 10 Claude Code settings | asked (never taken without a question: they change Claude Code's own settings) as one question: the recommended values from `show` (listed, each with what it does), written for the machine where it has none, else for this project only where they differ; options: yes to all / choose one by one (then as in section 10) / none |
 | 11 Usage and costs | asked when this machine has no usage settings: how it pays first (API key only → no page questions), then the status line and the usage page in one group; names and prompt previews take the defaults from `show` |
@@ -242,7 +242,8 @@ question:
   checked. The planning ticket prefix is always checked too: list it as "added on its own" and never
   write it into `ticket_prefixes`;
 - decision records (`ADR-12`): `allowed` (default) when the project keeps them for good; `forbidden`
-  when they may be removed or renamed, so a comment states the reason itself and a doc links the record;
+  when they may be removed or renamed, so a comment states the reason itself and a doc links the record
+  (the ADR style in section 8 may change it: `living` deletes records);
 - files where ids are the subject besides the built-in ones (decision records, task and ticket
   folders, changelogs, `.keel/`): a debt register, generated run records.
 
@@ -291,11 +292,45 @@ or C4 files, and the files Claude Code loads into every session with their line 
      read per task.
    The profile is the most a task may write; the task size decides. Details for the user if asked:
    `<keel>/skills/_shared/docs-profiles.md`.
-2. **Pattern** (`docs.pattern`), only for profiles 3-4: none / Diátaxis / arc42 / arc42 + C4;
+2. **ADR style** (`docs.adr_style`), when the chosen profile is 2 or higher or the scan found an ADR
+   folder (an old system's ADR folder is asked in section 9). Each style: the "In short" part of
+   `<keel>/skills/_shared/adr-journal.md` and `adr-living.md`.
+   - First say what the project has now: no ADRs yet, or how the existing ones are kept, from
+     `findings.docs.adr_records` (records, superseded, amended) and 2-3 records read, in one or two
+     plain sentences that name the records (for example "0001 is superseded by 0003", "0003 amends
+     part of 0002"). This line opens the question itself, also when all questions go in one message.
+   - Ask in one question, each option with its "In short" and cost: **journal**, **living**, **my
+     own way** (the user describes it). When the existing records already follow one style, mark that
+     option "this is how you keep them now". When they follow neither style (records that amend or
+     partly replace others, correction notes), add **keep them as they are**: describe the current
+     way in a few lines, in the option itself. Existing records with history marks (`superseded` or `amended` above 0) →
+     the **living** option also says that it comes with the one-time clean-up below, so its price is
+     known before the choice.
+   - Recommend `living` when the project has one human owner or is mostly worked on by agents (the
+     authors in `git shortlog -sn HEAD`, bots left out), `journal` otherwise; the recommended option
+     says why in its own words (how many people, who does the work).
+   - **keep them as they are** or **my own way** → `custom`: write the rule the user confirmed into
+     the ADR folder's README (`<ADR folder>/README.md`, a section "How we keep these records"; an
+     existing README gets the section), so keel's ADR skill and reviewers follow it. No ADR folder yet
+     → `docs/adr/README.md`.
+   - `comments.adr_refs` (section 6) is still `allowed` and the style is `living` → propose
+     `forbidden` in one line (a record may be deleted, so a comment states the reason itself and a doc
+     links the record); `journal` keeps `allowed`.
+   - `living` chosen while the existing records are kept as a journal (`superseded` or `amended`
+     above 0): offer once a one-time clean-up, done only after the user's yes: merge the records of
+     one topic into one, delete the dead ones (each after the user's yes), rewrite each to describe
+     only today's decision, then renumber once without gaps and fix every link and mention in the
+     same change. Say plainly that it renumbers once, at the switch, and never again (after it the
+     numbers are permanent), and that an old commit or note keeps the old numbers: the price of a
+     list without gaps. Prepare → write `<project>/.keel/local/adr-cleanup.md` with the Write tool
+     (goal, the records and what each becomes, acceptance criteria: one record per topic, no history
+     marks, numbers without gaps, every link resolves); section 12 names it as the first task. Not
+     now → nothing changes; new records follow `living`.
+3. **Pattern** (`docs.pattern`), only for profiles 3-4: none / Diátaxis / arc42 / arc42 + C4;
    recommend `findings.docs.suggested_pattern` when the project already follows one. Existing docs are
    never restructured as a side effect of other work; moving them is its own task (next item).
    Quick setup takes the suggested profile and pattern: keel keeps the docs the way they are.
-3. **Moving the existing docs** (detailed setup, when the chosen pattern is not the one the docs
+4. **Moving the existing docs** (detailed setup, when the chosen pattern is not the one the docs
    follow now, `findings.docs.suggested_pattern`; a profile alone needs no move: its first ADR or spec
    creates the folder). Same pattern → say "your docs already follow it; nothing to move". Otherwise:
    - count the doc files and their lines (`findings.docs.files` and the docs folders; sizes only, no
@@ -312,7 +347,7 @@ or C4 files, and the files Claude Code loads into every session with their line 
    to `<pattern>`), the current docs (files, folders), the target layout, acceptance criteria (every
    page's content kept, every link resolves, the navigation and README point to the new places), out
    of scope (rewriting content), and the estimate. Section 12 then names it as the first task.
-4. **Growth guard:** each file in `findings.docs.always_loaded` over 200 lines → say so: it is loaded
+5. **Growth guard:** each file in `findings.docs.always_loaded` over 200 lines → say so: it is loaded
    into every session, costs context each time and is followed less reliably; propose moving detail into files loaded on demand, as a separate task.
 
 ## 9. Moving from another system
@@ -503,7 +538,9 @@ Then, in one question group:
    at the start of a conversation in a project that has its config. A docs move was prepared (section
    8) → make it the first thing, on its own line: "First run `/keel:start-task .keel/local/docs-migration.md`:
    it moves your docs to <pattern> (about $X-Y); do it before other tasks, so new docs land in the
-   new places."
+   new places." An ADR clean-up was prepared (section 8) → the same, before the docs move: "First run
+   `/keel:start-task .keel/local/adr-cleanup.md`: it turns your ADRs into living records and renumbers
+   them once."
 6. **A picked LSP plugin whose program is not on PATH is a stop.** Give the install commands (the
    program and the plugin) and ask, as its own question: "installed, check again" or "skip for now".
    The setup is not finished before the answer: without AskUserQuestion, ask it in your message and

@@ -309,11 +309,15 @@ function scan(root) {
 
 // What the project's documentation looks like (configure section 8): doc files, ADR and spec folders,
 // a Diátaxis-like docs/ (at least three of its four kinds), arc42 and C4 files, the files Claude Code
-// loads into every session with their line counts, and the profile and pattern that fit what exists.
+// loads into every session with their line counts, how the existing ADRs are kept, and the profile
+// and pattern that fit what exists.
 function docsShape(list, pick, readText) {
   const d = catalog.docs;
   const hasDir = (dir) => list.some((r) => r.startsWith(`${dir}/`));
   const adrDirs = d.adr_dirs.filter(hasDir);
+  // A README or index states the folder's own rule ("superseded records stay"), not a decision, so its
+  // words are not counted as marks.
+  const adrTexts = list.filter((r) => adrDirs.some((dir) => r.startsWith(`${dir}/`)) && /\.md$/i.test(r) && !/(^|\/)(README|index)\.md$/i.test(r)).map((r) => readText(r) || '');
   const specDirs = d.spec_dirs.filter(hasDir);
   const kinds = Object.entries(d.diataxis).filter(([, names]) => names.some((n) => hasDir(`docs/${n}`))).map(([kind]) => kind);
   const arc42 = pick(d.arc42).length > 0;
@@ -324,6 +328,15 @@ function docsShape(list, pick, readText) {
   return {
     files: pick(d.files.map((f) => f.split('#')[0])).filter((f) => !f.includes('/') || f.startsWith('docs/')),
     adr_dirs: adrDirs,
+    // configure says from these how the records are kept now. superseded: a status line that marks the
+    // record superseded (the newer record's "Supersedes" is the same pair, not counted again). amended:
+    // a history note, a line that starts with Amended/Amends, Correction or Was: (after a list or quote
+    // mark), or a partial supersede; the same words inside a sentence are ordinary prose.
+    adr_records: {
+      records: adrTexts.length,
+      superseded: adrTexts.filter((t) => /^[\s>*_-]*status\W[^\n]*\bsuperseded\b/im.test(t)).length,
+      amended: adrTexts.filter((t) => /^[\s>*_-]*(amend(s|ed|ment)?|corrections?|was:)/im.test(t) || /\b(partly|partially) superseded\b/i.test(t)).length,
+    },
     spec_dirs: specDirs,
     diataxis_kinds: kinds,
     arc42,
@@ -354,7 +367,7 @@ function summary(result, outFile) {
   lines.push(`AI instruction files: ${profile.ai_rules.join(', ') || 'none'}`);
   lines.push(instructions.describe(findings.other_instructions));
   const d = findings.docs;
-  lines.push(`docs: ${d.files.join(', ') || 'no README or docs site'}; ADR ${d.adr_dirs.join(', ') || 'none'}; specs ${d.spec_dirs.join(', ') || 'none'}; pattern ${d.suggested_pattern}; suggested profile ${d.suggested_profile}`);
+  lines.push(`docs: ${d.files.join(', ') || 'no README or docs site'}; ADR ${d.adr_dirs.join(', ') || 'none'}${d.adr_dirs.length ? ` (${d.adr_records.records} records, ${d.adr_records.superseded} superseded, ${d.adr_records.amended} amended)` : ''}; specs ${d.spec_dirs.join(', ') || 'none'}; pattern ${d.suggested_pattern}; suggested profile ${d.suggested_profile}`);
   if (d.always_loaded.length) lines.push(`loaded every session: ${d.always_loaded.map((f) => `${f.path} ${f.lines} lines${f.lines > 200 ? ' (over 200)' : ''}`).join(', ')}`);
   lines.push(`gaps: ${findings.gaps.length ? findings.gaps.map((g) => `${g.kind}${g.part ? ` (${g.part})` : ''}: ${g.detail}`).join(' | ') : 'none'}`);
   lines.push(`scanners on PATH: ${Object.entries(findings.scanners_installed).map(([n, ok]) => `${n} ${ok ? 'yes' : 'no'}`).join(', ')}`);
