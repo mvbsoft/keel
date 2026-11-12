@@ -27,6 +27,9 @@ function pickLanguage(setting = require('./options.js').effectiveOptions().conve
   return 'en';
 }
 
+// The Russian guard (hooks/language-guard.js) is for exactly the settings that pick the Ukrainian catalog.
+const isUkrainian = (setting) => Boolean(setting) && pickLanguage(setting) === 'uk';
+
 function translator(code) {
   const own = catalog(code) || {};
   const en = catalog('en') || {};
@@ -38,4 +41,4 @@ function translator(code) {
   };
 }
 
-module.exports = { pickLanguage, translator, catalog };
+module.exports = { pickLanguage, isUkrainian, translator, catalog };

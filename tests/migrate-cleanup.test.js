@@ -241,6 +241,8 @@ test('cleanup find: three groups, secrets only by path, references move an item 
   assert.deepEqual(group('check'), ['.pytest_cache/', 'notes-draft.txt']);
   assert.ok(!list.items.some((i) => i.path.startsWith('.orbit') || i.path.startsWith('.claude/settings.local.json') && !i.path.includes('backup')), 'the old folder before a move and tool settings are not leftovers');
   assert.ok(!out.includes(CANARY));
+  // The user does not see a script's output: the last line tells the model to show the list first.
+  assert.match(out.trim().split('\n').pop(), /^next: show this list in your reply.*before you ask/);
   // A tracked file that mentions the draft: it moves to "do not touch".
   fs.appendFileSync(path.join(root, 'docs/setup.md'), 'Draft: notes-draft.txt\n');
   run('cleanup.js', root, ['find']);

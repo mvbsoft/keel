@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { commentRules } = require('./comment-rules.js');
 const { standards } = require('./standards.js');
-const { pickLanguage, translator } = require('../scripts/lib/i18n.js');
+const { pickLanguage, isUkrainian, translator } = require('../scripts/lib/i18n.js');
 const { effectiveOptions } = require('../scripts/lib/options.js');
 
 const MIN_NODE = 22;
@@ -19,6 +19,12 @@ function languageName(code) {
     return name && name.toLowerCase() !== code.toLowerCase() ? `${name} (${code})` : code;
   } catch { return code; }
 }
+
+// Models drift from Ukrainian into Russian in long conversations full of English tool output (seen in
+// planning sessions): Ukrainian gets one more sentence; hooks/language-guard.js also checks each reply.
+const russianGuard = (language) => (isUkrainian(language)
+  ? ' Ukrainian is never mixed with Russian: not one word, also in a reply after long English tool output, and not even when the user asks for Russian.'
+  : '');
 
 function main() {
   let source = '';
@@ -41,7 +47,7 @@ function main() {
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
       additionalContext: `${standards(root)}
-keel: talk to the user and write plans in this language: ${languageName(language)}. If the user explicitly asks for another language in this session, use that one for this session only. Code, paths, commands and technical names stay as they are.${sessionId ? `
+keel: talk to the user and write plans in this language: ${languageName(language)}. If the user explicitly asks for another language in this session, use that one for this session only. Code, paths, commands and technical names stay as they are.${russianGuard(language)}${sessionId ? `
 keel session id (for --session): ${sessionId}` : ''}
 
 ${commentRules(root, project)}`,

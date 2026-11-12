@@ -154,9 +154,16 @@ Then offer **one dry run** of the confirmed commands, so a wrong command is caug
 
 **Security scanners are a separate question**, never bulk-confirmed. Propose `gitleaks` (secrets) and
 `semgrep` (risky code patterns) plus the ecosystem's audit command (npm/pnpm audit, composer audit,
-pip-audit, cargo audit, govulncheck, dotnet list package --vulnerable, bundle audit). Which are
-installed comes from the scan's "scanners on PATH" line; do not run them to find out. A scanner that
-is not installed stays in the list and becomes a loud warning in reports, not a red gate; say so.
+pip-audit, cargo audit, govulncheck, dotnet list package --vulnerable, bundle audit). An audit that
+reads the lock file (npm/pnpm/yarn/bun audit, composer audit, cargo audit, bundle audit) is not
+proposed for an ecosystem the scan names in a part's `(no lock file: <ecosystems>)` mark (the
+part's other ecosystems keep theirs): it fails there on every task (npm: `ENOLOCK`);
+say so in one line and that it can be added with `/keel:configure gates` once the lock file exists.
+Which are installed comes from the scan's "scanners on PATH" line; do not run them to find out. In
+detailed setup a scanner that is not installed stays in the list and becomes a loud warning in
+reports, not a red gate; say so. Quick setup keeps only the installed ones (the Quick table) and
+names the missing ones as not added, with the command that adds them; never say there that they stay
+in the list.
 - **gitleaks is two scanners** (`<keel>/data/catalog.json`, `security.scanners`), because keel verifies
   before the user commits: `gitleaks detect --no-banner --redact --log-opts=<main>..HEAD` (the commits
   of this branch) and `gitleaks protect --no-banner --redact` (uncommitted changes). A plain
@@ -178,7 +185,9 @@ is not installed stays in the list and becomes a loud warning in reports, not a 
   on later with `/keel:configure git`. Autonomous → after the config is written,
   run `node "<keel>/scripts/git-flow.js" "<project>" trust` once (Claude Code asks the user to confirm).
 - **Main branch:** propose the repository's default (`git symbolic-ref refs/remotes/origin/HEAD`, else
-  the current branch). Confirm.
+  the current branch). Confirm. That command fails in many repositories that have a remote (one pushed
+  with `git push -u` has no `origin/HEAD`): it says nothing about the remote, so never tell the user
+  there is no remote or that no push is needed; `git remote` shows the remotes.
 - **Ask before merging** (`ask_before_merge`, autonomous only): yes by default: keel merges only when
   your instruction asks, and Claude Code asks you to confirm each such merge. No: a finish also merges
   into the target, without a confirmation.
@@ -308,7 +317,10 @@ or C4 files, and the files Claude Code loads into every session with their line 
      known before the choice.
    - Recommend `living` when the project has one human owner or is mostly worked on by agents (the
      authors in `git shortlog -sn HEAD`, bots left out), `journal` otherwise; the recommended option
-     says why in its own words (how many people, who does the work).
+     says why in its own words (how many people, who does the work). The project's own rules already
+     say how its records are kept (CLAUDE.md, AGENTS.md, the ADR folder's README or its template:
+     "propose a new ADR instead", a `superseded by` status) → recommend that style instead and say
+     the rule is theirs; the other option names the rule it would change.
    - **keep them as they are** or **my own way** → `custom`: write the rule the user confirmed into
      the ADR folder's README (`<ADR folder>/README.md`, a section "How we keep these records"; an
      existing README gets the section), so keel's ADR skill and reviewers follow it. No ADR folder yet

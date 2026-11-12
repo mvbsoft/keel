@@ -12,6 +12,7 @@ const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
 const { pushRefusal, sameBranch } = require(path.join(SCRIPTS, 'git-flow.js'));
 const { stripAttribution, hasAttribution } = require(path.join(SCRIPTS, 'lib', 'attribution.js'));
+const { fileStamp } = require(path.join(SCRIPTS, 'lib', 'diff.js'));
 
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const gitTest = (name, fn) => test(name, { skip: !hasGit && 'git is not installed' }, fn);
@@ -434,6 +435,43 @@ gitTest('commit leaves out untracked files that were there before the task and d
   const merged = flow(work, 'merge');
   assert.equal(merged[0], 'git-flow: ok', `a file that is not this task's work does not stop the finish: ${merged.join('\n')}`);
   assert.ok(fs.existsSync(path.join(work, 'dump.sql')));
+});
+
+gitTest("keel's own setup, not committed yet at the task start, goes into the task's commit", () => {
+  // /keel:configure wrote the setup and the user left it uncommitted: the first task takes it along.
+  const { work } = setup();
+  git(work, 'rm', '-q', '--cached', '.keel/config.json', '.keel/.gitignore');
+  git(work, 'commit', '-q', '-m', 'setup not committed yet');
+  write(work, '.keel/profile.json', '{}\n');
+  write(work, 'dump.sql', 'INSERT INTO customers VALUES (1);\n');
+  // Other untracked files under .keel/ are not setup: another task's folder, the user's own notes.
+  write(work, '.keel/tasks/other/task.md', '# other task\n');
+  write(work, '.keel/my-notes.md', 'private\n');
+  notes(work, 'check', '--begin', '--session', 'setup-1');
+  flow(work, 'start', '--name', 'first-task');
+  write(work, 'src/app.js', 'one\nfirst\nthree\n');
+  const out = commitWork(work);
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  const committed = git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n');
+  for (const f of ['.keel/config.json', '.keel/.gitignore', '.keel/profile.json']) assert.ok(committed.includes(f), `${f} goes in: ${committed.join(', ')}`);
+  for (const f of ['dump.sql', '.keel/tasks/other/task.md', '.keel/my-notes.md']) assert.ok(!committed.includes(f), `${f}, untracked before the task, stays out: ${committed.join(', ')}`);
+});
+
+gitTest('a task-start record written before keel skipped its setup still lets the setup into the commit', () => {
+  // An older keel recorded .keel/config.json as the user's file; the record is kept while a line is open.
+  const { work } = setup();
+  git(work, 'rm', '-q', '--cached', '.keel/config.json');
+  git(work, 'commit', '-q', '-m', 'setup not committed yet');
+  notes(work, 'check', '--begin', '--session', 'setup-2');
+  const file = path.join(work, '.keel', 'local', 'session-start.json');
+  const start = JSON.parse(fs.readFileSync(file, 'utf8'));
+  start.untracked = { ...start.untracked, '.keel/config.json': fileStamp(work, '.keel/config.json') };
+  fs.writeFileSync(file, JSON.stringify(start));
+  flow(work, 'start', '--name', 'old-record');
+  write(work, 'src/app.js', 'one\nold\nthree\n');
+  const out = commitWork(work);
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.ok(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').includes('.keel/config.json'));
 });
 
 gitTest('without a remote: push is skipped, merge is local', () => {

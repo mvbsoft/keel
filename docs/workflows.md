@@ -528,7 +528,8 @@ of planning files): these are the defaults, and your instruction only adds or ch
 Actions from your instruction run after verification; "create branch bug/FIX-12" moves the work to that
 branch. Red verification and an instruction to push or merge → keel stops and asks before any git step.
 Secret files, keel's `.keel/local/` files and untracked files that were there before the task and did
-not change (not this task's work; verification leaves them out too), which a commit leaves out on
+not change (not this task's work; verification leaves them out too; the setup `/keel:configure` writes,
+`.keel/config.json`, `.keel/profile.json` and `.keel/.gitignore`, is not among them, so it goes into the first task's commit), which a commit leaves out on
 purpose, do not stop the next git steps (git itself still refuses a merge that would overwrite such a file).
 Commit messages follow your `git log` style, name the task id when it is a tracker key and never mention
 AI. The git steps never force-push, rebase pushed work or commit to the main branch directly; only

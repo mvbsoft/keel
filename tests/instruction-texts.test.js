@@ -405,6 +405,25 @@ test('configure: the first question is always project or machine; optional secti
   says(shared('intake.md'), ["take the setup into this task's branch", "reaches the main branch with the task's merge"]);
 });
 
+test('configure: no lock-file audit without a lock file, quick setup never promises missing scanners, origin/HEAD is not the remote', () => {
+  const flow = shared('configure-flow.md');
+  says(flow, ['An audit that reads the lock file', 'proposed for an ecosystem the scan names', '`(no lock file: <ecosystems>)`', 'other ecosystems keep theirs', '`ENOLOCK`']);
+  says(flow, ['Quick setup keeps only the installed ones', 'never say there that they stay in the list']);
+  says(flow, ['no `origin/HEAD`', 'never tell the user there is no remote', '`git remote`']);
+});
+
+test('autonomous git not confirmed: keel offers to run trust itself, never a command with placeholders', () => {
+  says(shared('git.md'), ['offer to run', 'trust', 'on a yes run it', 'never give the user a command with `<project>`']);
+});
+
+test('configure ADR style: a project rule that already says how records are kept is the recommendation', () => {
+  says(shared('configure-flow.md'), ["The project's own rules already say how its records are kept", 'recommend that style', 'the rule is theirs']);
+});
+
+test('cleanup shows the found list in its own message before it asks for numbers', () => {
+  says(skill('cleanup'), ['Show the list in your message', 'does not see the script', 'before the question']);
+});
+
 test('cleanup never offers to empty old trash; the reminder line appears only when it names /keel:cleanup', () => {
   assert.doesNotMatch(skill('cleanup'), /offer `\/keel:cleanup empty-trash`/);
   says(skill('cleanup'), ['never offer it']);
