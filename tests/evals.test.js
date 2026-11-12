@@ -14,7 +14,7 @@ const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 // The chat the planning cases resume: its id is SID in shop-base.js, each case's history.jsonl keeps it.
 const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(path.join(EVALS, '_fixtures', 'shop-base.js'), 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh', 'task-on-main', 'ticket-on-feature', 'worktree'];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh', 'task-on-main', 'ticket-on-feature', 'worktree', 'db', 'db-rule', 'db-big', 'db-renamed', 'db-renamed-open', 'planning-db'];
 
 const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
@@ -141,6 +141,15 @@ const sessionState = (work, git) => {
   assert.match(note, /^## Next action\nAdd an "invoice" provider to PROVIDERS in src\/payment\.js/m);
   assert.match(read(work, 'src/payment.js'), /^ {2}invoice: \(o\) => /m, 'the uncommitted work is the invoice provider');
   pushed(git, 'payments-rework');
+};
+
+const dbState = (work, git) => {
+  assert.match(read(work, 'db/migrations/001_users.sql'), /name text NOT NULL[\s\S]*phone text/);
+  assert.match(read(work, 'src/api.js'), /x-api-key/);
+  assert.match(read(work, 'README.md'), /About 2,000 customers/);
+  assert.deepEqual(git('ls-files', 'db/migrations').split('\n'), ['db/migrations/001_users.sql', 'db/migrations/002_orders.sql']);
+  // The schema cases expect no maintenance mode to offer as ready; CLAUDE.md names it only to rule it out.
+  for (const f of git('ls-files').split('\n').filter((f) => !f.startsWith('.keel/') && f !== 'CLAUDE.md')) assert.doesNotMatch(read(work, f), /maintenance|artisan down/i, f);
 };
 
 // What each variant beyond the branch, tasks and changes must give the scripts the skills run.
@@ -279,6 +288,30 @@ const STATE = {
     assert.equal(git('status', '--porcelain'), '', '.claude/ stays out of the project');
     for (const dir of [work, wt]) assert.ok(!fs.existsSync(path.join(dir, '.keel', 'local', 'session-start.json')), dir);
   },
+  // The risky-change cases: users with data, a partner API, forward-only migrations, no maintenance mode.
+  db: dbState,
+  // The project's rule settles the deploy style.
+  'db-rule': (work, git) => { dbState(work, git); assert.match(read(work, 'CLAUDE.md'), /one release/); },
+  // The rule, and a table it would lock for long.
+  'db-big': (work, git) => { dbState(work, git); assert.match(read(work, 'README.md'), /3\.5\s+million rows/); },
+  // A one-release rename the project's rule asks for, for a reviewer to judge.
+  'db-renamed': (work, git) => {
+    assert.match(read(work, 'CLAUDE.md'), /one release/);
+    assert.equal(read(work, 'db/migrations/003_users_full_name.sql'), 'ALTER TABLE users RENAME COLUMN name TO full_name;\n');
+    assert.doesNotMatch(read(work, 'src/users.js'), /\bname\b/);
+    assert.match(read(work, '.keel/local/tmp/keel/protocols/database.md'), /risky-changes\.md/, "keel's current review rules, readable inside the run");
+  },
+  // The same rename with no rule: the way to ship it was never chosen.
+  'db-renamed-open': (work) => {
+    assert.ok(!fs.existsSync(path.join(work, 'CLAUDE.md')), 'no rule settles it');
+    assert.equal(read(work, 'db/migrations/003_users_full_name.sql'), 'ALTER TABLE users RENAME COLUMN name TO full_name;\n');
+    assert.match(read(work, '.keel/local/tmp/keel/protocols/database.md'), /risky-changes\.md/);
+  },
+  // Planning a feature in the database shop.
+  'planning-db': (work, git) => {
+    dbState(work, git);
+    assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: notification-system$/m);
+  },
 };
 
 test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
@@ -287,7 +320,9 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     messy: ['main', 0, ''], overbuilt: ['avg-total', 1, 'M src/cart.js\n M src/report.js\n?? test/report.test.js'],
     planning: ['main', 0, ''], 'planning-openq': ['main', 0, ''], 'planning-ready': ['main', 0, ''], 'planning-repo': ['main', 0, '?? tickets/'], 'planning-new': ['main', 0, ''],
     'planning-brief': ['main', 0, ''], planned: ['main', 0, ''], 'task-active': ['CAN-123-discount', 1, ''], 'task-fresh': ['main', 0, ''],
-    'task-on-main': ['main', 1, '?? src/history.js'], 'ticket-on-feature': ['csv-export', 1, 'M src/invoices.js'], worktree: ['main', 0, ''] };
+    'task-on-main': ['main', 1, '?? src/history.js'], 'ticket-on-feature': ['csv-export', 1, 'M src/invoices.js'], worktree: ['main', 0, ''],
+    db: ['main', 0, ''], 'db-rule': ['main', 0, ''], 'db-big': ['main', 0, ''], 'db-renamed': ['main', 0, 'M src/users.js\n?? db/migrations/003_users_full_name.sql'],
+    'db-renamed-open': ['main', 0, 'M src/users.js\n?? db/migrations/003_users_full_name.sql'], 'planning-db': ['main', 0, ''] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   assert.deepEqual(Object.keys(STATE).sort(), [...VARIANTS].sort(), 'every variant checks the state its cases read');
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {

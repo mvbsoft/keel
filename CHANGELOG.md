@@ -149,6 +149,13 @@ All notable changes to keel are listed here. The format follows
 - `usage.js report --last-turn` prints the end report as one line, for the latest user turn only.
 
 ### Changed
+- keel no longer teaches one deploy style for schema changes (expand → migrate → contract over several
+  releases, both app versions against every intermediate schema). On a risky change to a table with
+  data or to an API others can call, it offers the ways to do it for that change, from several releases
+  to one migration, with how to undo it or back up the data it destroys, and builds the one you pick; a
+  rule in the project's rules settles it. A very risky pick is asked about twice and written down. The
+  reviewers check a change against the pick instead of reporting "not expand/contract", and
+  `migration-safety` is suggested only when a migration is edited or written, not read.
 - The usage page sync at the end of `/keel:end-task`, `/keel:end-session` and `/keel:end-planning` runs in a
   small Haiku sync agent: about $0.07-0.20 per end of work instead of $0.15-0.55, because the long session no
   longer re-reads its conversation for every step of the sync. The docs and `/keel:configure usage` give

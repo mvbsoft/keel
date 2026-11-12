@@ -1,5 +1,5 @@
 'use strict';
-// PreToolUse hook on Read, Edit, Write, Bash and PowerShell: when the session touches something one of
+// PreToolUse hook on Edit, Write, Bash and PowerShell: when the session touches something one of
 // keel's advisory skills covers (a migration, Python code, docs, a new source file, a dependency
 // manifest, a commit), it adds a one-line reminder to load that skill. Each skill is named at most
 // once per session (one marker file per skill in the OS temp folder, keyed by the session id, so nothing
@@ -9,8 +9,8 @@
 //
 // The session often reads and writes files through the shell (`cat`, `sed -n`, `cat > f <<EOF`) and
 // starts with `cd "<dir>" &&`, so a shell command is split into its parts and each part is read as the
-// file tool it stands for: reading commands as Read, `>` to a new file as Write, `>>`, `sed -i` and
-// the like as Edit.
+// file tool it stands for: reading commands as Read (no rule lists Read, so they stay silent), `>` to
+// a new file as Write, `>>`, `sed -i` and the like as Edit.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');

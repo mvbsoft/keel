@@ -95,7 +95,10 @@ today's acceptance criteria: a request for everything at once gets a first worki
 each ticket is a thin slice through the layers it needs, and a new dependency, datastore, protocol,
 module boundary or public contract comes with an offer of a short ADR. Before writing the
 tickets keel looks at the plan as three colleagues would (the product and its users, the architect,
-operations and security) and offers what may be missing; you decide each. A research report goes into
+operations and security) and offers what may be missing; you decide each. A ticket that changes a
+table with data or breaks an API others can call first gets the risky-change question (the ways to do
+it, from the most reliable to the simplest, and a backup when data would be lost); your pick becomes
+a Decision, and the plan review reports a risky change with no pick. A research report goes into
 the draft's `research/<topic>.md`, and a ticket that follows it names it.
 
 **Abandon a draft**: say so in the planning conversation; after your yes the plan is `abandoned`. A

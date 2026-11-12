@@ -22,13 +22,13 @@ Claude Code CLI (`claude plugin validate --strict .` checks the marketplace file
 keel's instructions (the retell and the "new?" question, lanes, the end-task menu, a task handoff without its own branch (a new branch, a work-in-progress commit, the push), a session in a git worktree of the project (keel records its start there), the level question
 before any review agent, a recorded verification before a task folder moves, the session note, the
 planning lane: end-planning's modes and gates, ticket states on start-task, a task that turns into
-planning (also from a shared branch, main or a feature branch, where the half goes to a new branch before any commit; on main the rule against committing there also holds, so only the feature-branch cases fail without the shared-branch rule), a big plan run in a fresh conversation, the gathering, the levels and the package comparison in planning) and the coding standards. 48 of the 49 cases build a small shop project with git (`evals/_fixtures/shop.js`;
+planning (also from a shared branch, main or a feature branch, where the half goes to a new branch before any commit; on main the rule against committing there also holds, so only the feature-branch cases fail without the shared-branch rule), a big plan run in a fresh conversation, the gathering, the levels and the package comparison in planning), the coding standards and risky changes (tagged `risky-change`: the ways to ship a change to a table with data or to a partner API, a project rule, the second question on a very risky pick, a pick written down, the same question in planning, and a review that respects the chosen way or asks for it when none was chosen; the shop's database variants in `evals/_fixtures/shop-db.js`). 59 of the 60 cases build a small shop project with git (`evals/_fixtures/shop.js`;
 `help-lists-every-command` needs none). Each case runs one keel command in Claude Code, or a plain
-request for the two cases tagged `standards`; a case tagged `lanes` may also give a plain request or a
+request for the cases tagged `standards`; a case tagged `lanes` may also give a plain request or a
 bare command (`/start-task`), which the lane guards must stop too. Each case grades the reply and the
 tool calls. Every eval run is `claude -p`, where keel refuses `/keel:start-planning` without a person,
 so the planning cases resume a short written conversation instead (`history.jsonl` in the case folder,
-with the fixed session id the fixture marks as planning a feature or working on a task). The six cases
+with the fixed session id the fixture marks as planning a feature or working on a task). The seven cases
 tagged `start-planning` resume `/keel:start-planning` as Claude Code expanded it, with keel at
 `/work/plugins/keel` as the Docker command below mounts it, with the tool calls behind keel's first
 reply, and give the person's next words; a test keeps the expanded steps and the files it read
@@ -42,8 +42,9 @@ npm run eval
 
 - **When:** before every release, and after changing a skill or a shared instruction file.
 - **Cost:** every case runs on Sonnet (`model: sonnet` in each `prompt.md`). A full pass, 3 runs per case,
-  cost about $11.50 at list price in October 2026 (the four cases a lane hook stops before the model
-  cost nothing and run once), against your plan or API account. The script stops at $15 (`--max-cost-usd`). One case:
+  cost about $11.50 at list price in October 2026, before the 11 `risky-change` cases; they add about
+  $4.50 (November 2026). The four cases a lane hook stops before the model cost nothing and run once. It runs
+  against your plan or API account and stops at $30 (`--max-cost-usd`). One case:
   `npm run eval -- --case <name> --runs 1`.
 - **Where:** Linux, macOS or WSL2, with Claude Code's sandbox (`bubblewrap` and `socat` on Linux):
   the cases need the Bash tool, and on native Windows Claude Code refuses to grant it to an eval run.

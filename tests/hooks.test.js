@@ -337,7 +337,8 @@ test('skill-hints: a matching file or command names its skill once per session; 
   assert.equal(mig.out.hookSpecificOutput.permissionDecision, undefined, 'never decides permissions');
   assert.match(mig.out.hookSpecificOutput.additionalContext, /database migration\. Load the keel:migration-safety skill/);
   assert.equal(call('Edit', { file_path: path.join(dir, 'db', 'migrations', '003_y.sql') }).raw, '', 'once per session');
-  assert.match(call('Read', { file_path: 'db/migrations/002_x.sql' }, `${sid}-2`).raw, /migration-safety/, 'a new session hears it again');
+  assert.match(call('Edit', { file_path: 'db/migrations/002_x.sql' }, `${sid}-2`).raw, /migration-safety/, 'a new session hears it again');
+  assert.equal(call('Read', { file_path: 'db/migrations/002_x.sql' }, `${sid}-10`).raw, '', 'reading a migration does not load the skill');
 
   assert.match(call('Write', { file_path: path.join(dir, 'src', 'report.js') }).raw, /keel:architecture/, 'a new source file');
   fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
@@ -365,9 +366,11 @@ test('skill-hints: shell commands count as the file tool they stand for, after a
   let n = 0;
   const call = (command, cwd = dir) => runHook('skill-hints.js', { session_id: `t-${process.pid}-${Date.now()}-sh${n++}`, cwd, tool_name: 'Bash', tool_input: { command } }, { CLAUDE_PROJECT_DIR: dir }).raw;
 
-  assert.match(call('cat db/migrations/001_init.sql'), /migration-safety/, 'cat reads a migration');
-  assert.match(call(`cd "${dir}" && sed -n '1,40p' db/migrations/001_init.sql`, os.tmpdir()), /migration-safety/, 'a leading cd is followed');
-  assert.match(call('cd db && cat migrations/001_init.sql'), /migration-safety/, 'a relative cd too');
+  assert.equal(call('cat db/migrations/001_init.sql'), '', 'reading a migration does not load the skill');
+  assert.equal(call("sed -n '1,40p' db/migrations/001_init.sql"), '', 'sed -n only reads');
+  assert.equal(call('Get-Content db/migrations/001_init.sql'), '', 'Get-Content only reads');
+  assert.match(call(`cd "${dir}" && sed -i 's/a/b/' db/migrations/001_init.sql`, os.tmpdir()), /migration-safety/, 'a leading cd is followed');
+  assert.match(call("cd db && sed -i 's/a/b/' migrations/001_init.sql"), /migration-safety/, 'a relative cd too');
   assert.match(call("cat > db/migrations/002_x.sql <<'EOF'\nALTER TABLE t ADD c INT;\nEOF"), /migration-safety/, 'a heredoc writes a migration');
   assert.match(call("cat > src/report.js <<'EOF'\nmodule.exports = {};\nEOF"), /keel:architecture/, '> to a new source file is Write');
   assert.equal(call("cat > src/old.js <<'EOF'\nx\nEOF"), '', '> to an existing file is not a new file');
@@ -400,7 +403,7 @@ test('no-ai-attribution: refuses a commit or PR that names an AI as author, with
 test('hooks.json registers skill-hints on file and shell tools, in exec form', () => {
   const cfg = JSON.parse(fs.readFileSync(path.join(HOOKS, 'hooks.json'), 'utf8')).hooks;
   const h = cfg.PreToolUse.find((x) => x.hooks[0].args && x.hooks[0].args[0].endsWith('skill-hints.js'));
-  assert.deepEqual(h.matcher.split('|').sort(), ['Bash', 'Edit', 'PowerShell', 'Read', 'Write']);
+  assert.deepEqual(h.matcher.split('|').sort(), ['Bash', 'Edit', 'PowerShell', 'Write'], 'no rule lists Read, so reads do not start the hook');
 });
 
 test('own-files: usage.js and usage-setup.js read-only steps run silently; apply, prices-apply and install-statusline ask', () => {

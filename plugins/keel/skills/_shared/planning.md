@@ -82,6 +82,10 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   project's conventions. A new dependency, datastore, protocol, module boundary or public contract →
   offer a short ADR. Justify a design by its consequence ("one place to add a unit"), never by a
   principle's name.
+- **Risky changes.** A ticket that changes a table with data or breaks an API others can call →
+  before writing the tickets, follow `<keel>/skills/_shared/risky-changes.md`: the chosen variant
+  (deploy steps, backup, clients) becomes a Decision, the tickets follow it, and a pick made against
+  the warning goes into the ticket as that file says.
 - **Research.** `keel:researcher` runs only after a yes to an offer with its price in words. Its
   prompt: the question, the candidates (at most 2 packages) or what to compare, the project's stack and
   versions from its manifest, `<keel>`, `<project>` and the plan's language. Its reply → first write

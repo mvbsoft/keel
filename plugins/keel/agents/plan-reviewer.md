@@ -38,8 +38,10 @@ Read `plan.md` and every ticket first. Open code only to settle a question the p
   everywhere.
 - `order`: the order fits the dependencies; no ticket needs one that comes later or a cycle.
 - `forgotten`: each of these is covered by a ticket, out of scope on purpose, or does not apply: data
-  and migrations, permissions, errors and empty states, rollback, compatibility, security,
-  documentation, logs.
+  and migrations, permissions, errors and empty states, how a bad release is undone, clients outside
+  the change, security, documentation, logs. A risky change to a table with data or to an API others
+  can call (`<keel>/skills/_shared/risky-changes.md`, "When to ask"; read only that section) has its
+  chosen variant in Decisions; none → a "no".
 - `premortem`: imagine the feature shipped and broke. Name the most likely reason; "no" if no ticket
   or decision covers it.
 
@@ -57,7 +59,8 @@ Read `plan.md` and every ticket first. Open code only to settle a question the p
   scope. Never code.
 - Severity: **critical**: the feature would ship wrong or cannot be built in this order (a goal
   without a ticket, a contradiction, a cycle); **important**: a real gap a developer would hit (a
-  forgotten migration, rollback or empty state); **minor**: wording or terms.
+  forgotten migration, undo or empty state, a risky change with no chosen variant); **minor**:
+  wording or terms.
 - No findings is a valid result. Do not invent findings to look thorough.
 
 ## Output
