@@ -264,6 +264,7 @@ function find(root) {
   if (partial) out.push('references: checked only part of the repository (size budget); an unreferenced item may still be used');
   // Old batches are not offered: the trash is emptied only when the user asks (empty-trash).
   if (batches.length) out.push(`trash: ${batches.length} batches, ${human(batches.reduce((n, b) => n + b.bytes, 0))}`);
+  if (items.length) out.push('next: show this list in your reply, every item with its number (the user does not see this output), before you ask which to move');
   return out;
 }
 

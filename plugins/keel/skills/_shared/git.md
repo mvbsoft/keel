@@ -80,9 +80,10 @@ stop with raw git on your own. A **finish** whose task folder went to keel's tra
 `--finish <id> --session <sid>` (from the calling command) to every `start`, `commit`, `sync` and
 `push`: a step that stops then puts the task back by itself (`restored:` lines; say so). A ticket
 the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<project>" done <id> --undo`.
-1. `status`. Its line `autonomous on this machine: not confirmed` (or `settings changed`) → offer
-   `node "<keel>/scripts/git-flow.js" "<project>" trust` (the user confirms once), or each git step
-   asks. On the main branch (or the base) with changes → `start --name <branch>` (it carries the
+1. `status`. Its line `autonomous on this machine: not confirmed` (or `settings changed`) → offer to run
+   `node "<keel>/scripts/git-flow.js" "<project>" trust` now (the user confirms once in Claude Code's
+   prompt), or each git step asks; on a yes run it yourself; never give the user a command with
+   `<project>` or `<keel>` left in it. On the main branch (or the base) with changes → `start --name <branch>` (it carries the
    changes); not for a planned ticket on its feature branch (no `start`, see above), except its
    task handoff when the feature has 2 or more tickets (a new ticket branch, above). The branch is the one the instruction, the task file or the note
    names; only when none is named, make one as in `<keel>/skills/_shared/intake.md` step 6. An

@@ -10,7 +10,8 @@ the task file as open questions.
 
 Verification needs git to see what changed; in a folder without git keel offers `git init`. Untracked
 files that existed when the task started and did not change are not this task's work: they are left out
-and listed in the report. When keel has no record of the task start, it lists the untracked files and
+and listed in the report. The setup `/keel:configure` writes (`.keel/config.json`,
+`.keel/profile.json`, `.keel/.gitignore`) is the exception: not committed yet, it goes into the first task's commit. When keel has no record of the task start, it lists the untracked files and
 asks "Are all of these part of this task?".
 
 ## The four levels

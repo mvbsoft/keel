@@ -66,7 +66,7 @@ value it did not ask, with the section that changes it.
 
 | Setting | What it does | Values | Default | keel recommends |
 |---|---|---|---|---|
-| `conversation_language` | the language keel talks, asks, reports and plans in | a language code: `en`, `uk`, `de`... | `en` | your language |
+| `conversation_language` | the language keel talks, asks, reports and plans in; a Ukrainian conversation never switches to Russian, not even on request | a language code: `en`, `uk`, `de`... | `en` | your language |
 | `allow_opus` | off: keel agents that would run on Opus run on Sonnet instead (cheaper, less thorough) | on / off | on | on |
 | `autoCompactWindow` | at how many tokens Claude Code compacts the conversation; keel's [context warning](under-the-hood.md#what-runs-by-itself) comes at 90 % of it (of `CLAUDE_CODE_AUTO_COMPACT_WINDOW` when that is set), at most the model's own window; a value below 100,000 here is ignored (the environment variable is raised to 100,000) | a number of tokens | Claude Code's own (about 967k with a 1M model) | 300,000 |
 | `showClearContextOnPlanAccept` | after you approve a plan, offer to start the work from the plan alone, without the planning conversation | on / off | off | on |
@@ -115,7 +115,7 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 | ★ `schema_version` | the version of the config format; written by `/keel:configure`, do not edit it | `1` | `1` |
 | ★ `repo_language` | the language of what keel writes into the repository: commit messages, the note, memory, session logs, new documents | a lowercase language code, optionally with a region: `en`, `uk`, `pt-BR` | `en` |
 | ★ `gates.checks` | the commands keel runs as gates: tests, linters, type checks, per part of a monorepo | commands | proposed from the project scan |
-| ★ `gates.security_scanners` | security scanners run with the gates; one that is not installed is a loud warning, not a failure. A command may start with a path from the project folder (`./gradlew …`, `.venv/bin/bandit …`); a bare name is looked up on PATH | commands | proposed from the scan |
+| ★ `gates.security_scanners` | security scanners run with the gates; one that is not installed is a loud warning, not a failure. A command may start with a path from the project folder (`./gradlew …`, `.venv/bin/bandit …`); a bare name is looked up on PATH. An audit that reads the lock file (npm, pnpm, composer, cargo and similar) is proposed only for a part that has one | commands | proposed from the scan |
 | ★ `git.mode` | who does git: you (keel writes a commit message and runs no git step nobody asked for) or keel (commit, update from the main branch, push; merge as `git.ask_before_merge` says). In both modes keel runs what you ask for: the branch you choose at a task's start, your own git steps | `manual` / `autonomous` | none: `/keel:configure` asks and recommends `manual` for a first project |
 | ★ `git.main_branch` | the main branch | a branch name | from the repository |
 | ★ `git.ask_before_merge` | autonomous mode. On: keel merges into the main branch only when your instruction asks for it (`/keel:end-task finish and merge into main`), and Claude Code asks you to confirm. Off: finishing a task or a line of work also merges; it runs without asking only once you confirmed autonomous mode on this machine, otherwise Claude Code asks | on / off | on |
@@ -168,6 +168,10 @@ records in one of three ways:
   its own task: merge, rewrite and renumber the records once, never again.
 - **custom**: your own way, or the way your ADRs are kept now when it is neither of the two. keel
   writes the rule into the ADR folder's README and follows it.
+
+configure recommends living for one owner or work done mostly by agents, journal otherwise; when your
+own rules already say how records are kept (CLAUDE.md, AGENTS.md, the ADR folder's README or
+template), it recommends that style.
 
 Both keel styles require an "Alternatives considered" section. With `living`, configure proposes
 `comments.adr_refs: forbidden`, because a record may be deleted.

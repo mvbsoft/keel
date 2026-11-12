@@ -245,6 +245,22 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- The setup `/keel:configure` writes and you leave uncommitted (`.keel/config.json`, `.keel/profile.json`,
+  `.keel/.gitignore`) now goes into the first task's commit. Before, the task start recorded it as
+  your own untracked files, so the commit left it out and it stayed uncommitted on the main branch.
+- `/keel:configure` no longer proposes an audit that needs a lock file (`npm audit` and similar) for a
+  part without one (it failed with `ENOLOCK` on every task); the scan names the ecosystems without one,
+  `(no lock file: python)` (`findings.no_lock_file`), and counts a workspace root's lock and a
+  git-ignored one. Quick setup no longer says that missing scanners stay in the list, and a
+  repository without `origin/HEAD` is no longer reported as having no remote.
+- A Ukrainian conversation no longer slips into Russian: long planning conversations did, after
+  English agent reports. A new hook, `language-guard`, sends a reply with even one Russian letter or
+  word (outside code, also in quotes and when the user asked for Russian) back to be written again
+  without Russian, and reminds of the conversation language after each agent report; the session
+  start says it too.
+- `/keel:configure` recommends the ADR style the project's own rules already describe.
+- `/keel:cleanup` shows the found items before it asks which numbers to move, and a git step that
+  needs `git-flow.js trust` offers to run it instead of handing over a command with `<project>` in it.
 - In a session that works in a linked git worktree of the project (a worktree session of the Claude
   desktop app, or after Claude enters a worktree), keel used the main checkout: its note, session
   record, task files and git steps went there, and parallel sessions shared them. keel now works on

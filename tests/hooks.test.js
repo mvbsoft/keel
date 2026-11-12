@@ -116,6 +116,68 @@ test('session-start: the language line and the comment rules, silent about the p
   }
 });
 
+test('session-start: Ukrainian gets a guard against drifting into Russian; other languages do not', () => {
+  for (const language of ['uk', 'Ukrainian', 'ukr']) {
+    const r = runHook('session-start.js', { source: 'resume' }, { CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: language });
+    assert.match(r.out.hookSpecificOutput.additionalContext, /stay as they are\. Ukrainian is never mixed with Russian: not one word, also in a reply after long English tool output, and not even when the user asks for Russian\./, language);
+  }
+  const en = runHook('session-start.js', { source: 'startup' }, { CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: 'en' });
+  assert.doesNotMatch(en.out.hookSpecificOutput.additionalContext, /Russian/);
+});
+
+test('language-guard Stop: a reply with Russian in a Ukrainian conversation is sent back once to be rewritten', () => {
+  const env = (language) => ({ CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: language });
+  const stop = (message, extra = {}, language = 'uk') => runHook('language-guard.js', { hook_event_name: 'Stop', session_id: 's1', last_assistant_message: message, ...extra }, env(language)).out;
+  const russian = 'Второй раунд ревʼю нашёл 3 новые проблемы, две из них важные. Это был последний раунд.';
+  const blocked = stop(russian);
+  assert.equal(blocked.decision, 'block');
+  assert.match(blocked.reason, /Russian/);
+  assert.match(blocked.reason, /Rewrite the whole reply without Russian: in Ukrainian, or in the language the user asked for if it is not Russian/);
+  assert.equal(stop('Документація: профіль 1, бо в проєкті немає ни ADR.').decision, 'block', 'one Russian word is enough');
+  assert.equal(stop('Я исправил ошибку в функции расчёта. Теперь файл сохраняется правильно.').decision, 'block', 'one Russian letter is enough');
+  assert.equal(stop('План готов: сначала правим конфигурацию, затем запускаем проверку и после коммитим.').decision, 'block', 'Russian without its own letters');
+  assert.equal(stop('Задачу завершено: зміни закомічено в гілці й запушено. Тести пройшли, 8 з 8.'), null, 'Ukrainian passes');
+  assert.equal(stop('Ні, також можна ще раз: що тільки або інтернет, уже готово для всіх, при цьому так і є, де вони його мене бачили. Eval-и й PR-и зелені.'), null, 'Ukrainian words close to Russian ones pass');
+  assert.equal(stop('Ось лог:\n```\nОшибка: это не работает, нужно ещё\n```\nПомилка в `код это`, далі все гаразд.'), null, 'code is not counted');
+  assert.equal(stop('Лог:\n~~~\nОшибка: это не работает\n~~~\nДалі гаразд.'), null, 'a ~~~ fence is code too');
+  assert.equal(stop('Лог:\n````\n```\nЭто пример, что-то там\n```\n````\nДалі гаразд.'), null, 'a longer fence holds a shorter one');
+  assert.equal(stop('Ось ``это`` та ``что`` у коді.'), null, 'an inline span of two backticks is code');
+  assert.equal(stop('- пункт\n    ```\n    Ошибка: это не работает\n    ```\n- далі'), null, 'a fence indented in a list is code too');
+  assert.equal(stop('```x``` не огорожа, а далі что-то пішло не так.').decision, 'block', 'backticks in the opening line make no fence; что-то counts');
+  assert.equal(stop('Ви попросили російською, тож ось:\n\n> Файл хранит список книг. Ещё можно отметить книгу.').decision, 'block', 'a quote is no way around it');
+  assert.equal(stop(russian, {}, 'en'), null, 'other languages: nothing');
+  assert.equal(stop(russian, {}, 'Ukrainian').decision, 'block', 'the language may be given by name');
+  assert.equal(stop(russian, {}, 'ukr').decision, 'block', 'the three-letter code');
+  assert.equal(runHook('language-guard.js', { hook_event_name: 'Stop', session_id: 's1' }, env('uk')).out, null, 'no reply text: nothing');
+  assert.equal(runHook('language-guard.js', { hook_event_name: 'Stop', session_id: 's1', last_assistant_message: russian }, { CLAUDE_PROJECT_DIR: tempProject(), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: 'uk' }).out, null, 'a project keel is not set up in: nothing');
+});
+
+test('language-guard Stop: skips only the reply right after its own block, not one after another hook blocked', () => {
+  const env = { CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: 'uk' };
+  const stop = (active) => runHook('language-guard.js', { hook_event_name: 'Stop', session_id: 's2', last_assistant_message: 'Это готово.', stop_hook_active: active }, env).out;
+  // finish-check blocked the last stop: this reply is still checked.
+  assert.equal(stop(true).decision, 'block');
+  // The guard's own block: the rewrite passes, so a reply never loops.
+  assert.equal(stop(true), null);
+  assert.equal(stop(false).decision, 'block', 'a new turn is checked again');
+});
+
+test('hooks.json: language-guard runs on Stop and after every Agent call, in exec form', () => {
+  const cfg = JSON.parse(fs.readFileSync(path.join(HOOKS, 'hooks.json'), 'utf8')).hooks;
+  const guard = (h) => h.command === 'node' && h.args.length === 1 && h.args[0] === '${CLAUDE_PLUGIN_ROOT}/hooks/language-guard.js';
+  assert.ok(cfg.Stop.some((e) => e.hooks.some(guard)), 'Stop');
+  assert.ok(cfg.PostToolUse.some((e) => e.matcher === 'Agent' && e.hooks.some(guard)), 'PostToolUse, matcher Agent');
+});
+
+test('language-guard PostToolUse: after an agent report a Ukrainian conversation is reminded of its language', () => {
+  const env = (language) => ({ CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: language });
+  const after = (language) => runHook('language-guard.js', { hook_event_name: 'PostToolUse', tool_name: 'Agent', session_id: 's1' }, env(language)).out;
+  const uk = after('uk');
+  assert.equal(uk.hookSpecificOutput.hookEventName, 'PostToolUse');
+  assert.match(uk.hookSpecificOutput.additionalContext, /reply in the conversation's language \(Ukrainian unless the user asked for another one\), never Russian/);
+  assert.equal(after('en'), null);
+});
+
 test('session-start: language defaults to en; garbage stdin never breaks the session', () => {
   const r = runHook('session-start.js', 'not json', { CLAUDE_PROJECT_DIR: tempProject({}) });
   assert.equal(r.code, 0);

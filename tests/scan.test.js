@@ -139,6 +139,44 @@ test('--out writes the full result only inside .keel/local/tmp and prints a shor
   assert.ok(!fs.existsSync(path.join(dir, 'scan.json')));
 });
 
+test('a part without a lock file is marked, so configure proposes no audit that needs one', () => {
+  const dir = tempDir('keel-scan-nolock-');
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'lib', scripts: { test: 'node --test' } }));
+  const { findings } = scan(dir);
+  assert.deepEqual(findings.no_lock_file, [{ part: '.', ecosystems: ['npm'] }]);
+  const script = path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'scan.js');
+  const r = spawnSync(process.execPath, [script, dir, '--out', path.join(dir, '.keel', 'local', 'tmp', 'scan.json')], { encoding: 'utf8' });
+  assert.match(r.stdout, /part \.: npm:npm \(no lock file: npm\) \| test: npm test/);
+  assert.deepEqual(results['js-monorepo'].findings.no_lock_file, [], 'parts under the root pnpm lock have one');
+});
+
+test('the lock-file mark names the ecosystem: a locked npm next to an unlocked one keeps its lock', () => {
+  const project = (files) => {
+    const dir = tempDir('keel-scan-locks-');
+    for (const [rel, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+      fs.writeFileSync(path.join(dir, rel), text);
+    }
+    return dir;
+  };
+  const pkg = JSON.stringify({ name: 'app', scripts: { test: 'node --test' } });
+  const mixed = project({ 'package.json': pkg, 'package-lock.json': '{}', 'requirements.txt': 'flask\n' });
+  assert.deepEqual(scan(mixed).findings.no_lock_file, [{ part: '.', ecosystems: ['python'] }]);
+  const script = path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'scan.js');
+  const r = spawnSync(process.execPath, [script, mixed, '--out', path.join(mixed, '.keel', 'local', 'tmp', 'scan.json')], { encoding: 'utf8' });
+  assert.match(r.stdout, /part \.: npm:npm, python \(no lock file: python\)/);
+  assert.deepEqual(scan(project({ 'composer.json': '{}' })).findings.no_lock_file, [{ part: '.', ecosystems: ['composer'] }]);
+  assert.deepEqual(scan(project({ 'composer.json': '{}', 'composer.lock': '{}' })).findings.no_lock_file, []);
+  const workspace = project({ 'Cargo.toml': '[workspace]\nmembers = ["crates/a"]\n', 'Cargo.lock': '', 'crates/a/Cargo.toml': '[package]\nname = "a"\n' });
+  assert.deepEqual(scan(workspace).findings.no_lock_file, [], "a workspace member uses the root's Cargo.lock");
+  const ignoredLock = project({ 'package.json': pkg, 'package-lock.json': '{}', '.gitignore': 'package-lock.json\n' });
+  execFileSync('git', ['init', '-q'], { cwd: ignoredLock });
+  assert.deepEqual(scan(ignoredLock).findings.no_lock_file, [], 'a git-ignored lock file is still on disk for the audit');
+  const ignoredPnpm = project({ 'package.json': pkg, 'pnpm-lock.yaml': '', '.gitignore': 'pnpm-lock.yaml\n' });
+  execFileSync('git', ['init', '-q'], { cwd: ignoredPnpm });
+  assert.deepEqual(scan(ignoredPnpm).profile.parts[0].ecosystems, ['npm:pnpm'], 'the ignored lock also names the package manager');
+});
+
 test('installed scanners are found on PATH without running anything', () => {
   const bin = tempDir('keel-bin-');
   const exe = process.platform === 'win32' ? 'gitleaks.exe' : 'gitleaks';

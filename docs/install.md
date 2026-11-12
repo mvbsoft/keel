@@ -57,7 +57,7 @@ claude plugin install keel@keel --config conversation_language=en --config allow
 
 | Setting | What it does | Default |
 |---|---|---|
-| `conversation_language` | the language keel talks, reports and writes plans in (`en`, `uk`, `de`, ...); asking for another language in a conversation wins for that conversation | `en` |
+| `conversation_language` | the language keel talks, reports and writes plans in (`en`, `uk`, `de`, ...); asking for another language in a conversation wins for that conversation, except that a Ukrainian conversation never switches to Russian | `en` |
 | `allow_opus` | off: every keel agent that would run on Opus runs on Sonnet instead | on |
 
 Every other setting is asked by `/keel:configure`: [settings](settings.md).

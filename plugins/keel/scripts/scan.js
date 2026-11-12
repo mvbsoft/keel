@@ -108,7 +108,7 @@ function scan(root) {
   const { files: list, ignored, truncated, git } = listFiles(root, catalog.skip_dirs);
   const files = new Set(list);
   const { readText, readFirstLine, reads } = makeReader(root);
-  const findings = { git, truncated, files: list.length, gaps: [] };
+  const findings = { git, truncated, files: list.length, gaps: [], no_lock_file: [] };
 
   // Secrets: by name only, including git-ignored ones.
   const secretPaths = [...new Set([...list, ...ignored.filter((p) => !p.endsWith('/'))].filter(isSecret))].sort();
@@ -196,21 +196,29 @@ function scan(root) {
 
 
   // Parts: ecosystems, package managers, commands.
+  // A lock file counts when it is on disk, also git-ignored: the audit and the package manager run here.
+  const lockPresent = (rel) => files.has(rel) || fs.existsSync(path.join(root, rel));
   const parts = partDirs.map((dir) => {
     const ecos = [...(ecoByDir.get(dir) || [])];
     const packageManagers = {};
+    const unlocked = [];
     for (const id of ecos) {
-      const locks = Object.entries(ecoById[id].locks || {}).filter(([lock]) => files.has(dir === '.' ? lock : `${dir}/${lock}`));
+      const locks = Object.entries(ecoById[id].locks || {}).filter(([lock]) => lockPresent(dir === '.' ? lock : `${dir}/${lock}`));
       const pms = [...new Set(locks.map(([, pm]) => pm))];
       if (pms.length > 1) findings.gaps.push({ kind: 'conflict', part: dir, detail: `several lock files for ${id}: ${pms.join(', ')}` });
       if (pms.length) packageManagers[id] = pms[0];
       if (id === 'npm' && !pms.length) {
         // Inherit the monorepo root's lock file, or read packageManager from package.json.
-        const rootLock = Object.entries(ecoById.npm.locks).find(([lock]) => files.has(lock));
+        const rootLock = Object.entries(ecoById.npm.locks).find(([lock]) => lockPresent(lock));
         const declared = /"packageManager"\s*:\s*"([a-z]+)@/.exec(readText(dir === '.' ? 'package.json' : `${dir}/package.json`) || '');
         packageManagers.npm = rootLock ? rootLock[1] : declared ? declared[1] : 'npm';
       }
+      // No lock of its own and none at the root (workspace members of npm, pnpm, Cargo and uv share
+      // that one); an ecosystem without lock names in the catalog (gradle, ...) has nothing to miss.
+      const lockNames = Object.keys(ecoById[id].locks || {});
+      if (!pms.length && lockNames.length && !lockNames.some(lockPresent)) unlocked.push(id);
     }
+    if (unlocked.length) findings.no_lock_file.push({ part: dir, ecosystems: unlocked });
     const candidates = findCommands({ part: dir, files, readText, catalog, ecosystems: ecos.map((id) => ecoById[id]), packageManagers, isRoot: dir === '.' });
     const commands = {};
     for (const kind of ['test', 'lint', 'types']) {
@@ -361,7 +369,9 @@ function summary(result, outFile) {
   lines.push(`monorepo: ${profile.monorepo_tool || 'no'}`);
   for (const p of profile.parts) {
     const cmds = Object.entries(p.commands).map(([k, v]) => `${k}: ${v[0]}`).join('; ');
-    lines.push(`part ${p.path}: ${p.ecosystems.join(', ') || 'no manifest'}${cmds ? ` | ${cmds}` : ''}`);
+    const entry = findings.no_lock_file.find((u) => u.part === p.path);
+    const unlocked = entry ? ` (no lock file: ${entry.ecosystems.join(', ')})` : '';
+    lines.push(`part ${p.path}: ${p.ecosystems.join(', ') || 'no manifest'}${unlocked}${cmds ? ` | ${cmds}` : ''}`);
   }
   lines.push(`secret files (never opened): ${profile.secret_paths.join(', ') || 'none'}`);
   lines.push(`AI instruction files: ${profile.ai_rules.join(', ') || 'none'}`);
