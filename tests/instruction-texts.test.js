@@ -33,7 +33,8 @@ test('there is one word for parking a task: handoff (no pause, status handed-off
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : files.push(path.join(dir, e.name))));
   walk(path.join(PLUGIN, 'skills'));
   walk(path.join(PLUGIN, 'templates', 'keel'));
-  files.push(path.join(PLUGIN, 'scripts', 'notes.js'), path.join(PLUGIN, 'scripts', 'lib', 'tasks.js'));
+  const lib = path.join(PLUGIN, 'scripts', 'lib');
+  files.push(path.join(PLUGIN, 'scripts', 'notes.js'), ...fs.readdirSync(lib).filter((n) => /^tasks(-.+)?\.js$/.test(n)).map((n) => path.join(lib, n)));
   for (const file of files) assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /paus(e|ed|ing)/i, path.relative(PLUGIN, file));
   assert.match(read('templates', 'keel', 'task.md'), /^status: <active \| handed-off>$/m);
 });
