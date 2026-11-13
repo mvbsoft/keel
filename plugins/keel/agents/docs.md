@@ -1,6 +1,6 @@
 ---
 name: docs
-description: Read-only specialist group for documentation, code comments and requirements - checks that docs and comments match the code, that comments follow the project's comment rules, and that the task's requirements are done without unrequested extras.
+description: Read-only specialist group: docs, code comments and the task's requirements against a code change.
 model: sonnet
 effort: high
 maxTurns: 60

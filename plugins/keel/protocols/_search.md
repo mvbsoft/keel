@@ -17,7 +17,8 @@ Your task names:
 - for specialist groups: the topics to cover and their protocol files.
 
 Read the diff first, then only the code you need around it: locate (Glob, Grep), then read the few
-relevant lines. Do not read whole large files when a range answers the question.
+relevant lines. Do not read whole large files when a range answers the question. Independent Grep and
+Read calls go in one message.
 
 ## Scope
 - Review what this change introduced or made worse. A problem in untouched code is out of scope unless

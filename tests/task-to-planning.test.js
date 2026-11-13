@@ -5,8 +5,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, shared, flat, order, part, says } = require('./fixtures/texts.js');
 const intake = shared('intake.md');
-const section = part(intake, '## Task to planning');
+const section = shared('task-to-planning.md');
 const BRIEF = '.keel/local/plans/briefs/<name>-brief.md';
+
+test('intake.md hands the too-big case and the resume case to their own files, naming when each applies', () => {
+  says(part(intake, '## Task to planning', '\n## ', ), ['**Task to planning**', 'the task is too big', 'the user asks to split it or plan it as a feature', '`very big:`', '`<keel>/skills/_shared/task-to-planning.md`', 'read', 'follow it']);
+  says(part(intake, '## Resume', '## Before any branch change'), ['**Resume**', 'the task is a continuation', '`<keel>/skills/_shared/task-resume.md`', 'read', 'follow it']);
+  assert.ok(section.length > 5000 && shared('task-resume.md').length > 2000, 'the moved text is in the new files');
+});
 
 test('start-task: a task too big asks one question (new chat, here, do not split, or else); asked to split, it does not ask whether', () => {
   says(intake, ['Too big for one task', 'the user says so or asks to split it', '`plan-steps.js` says `very big:`', '10 steps or 40 files', '"Task to planning" below, at any step']);
@@ -82,10 +88,9 @@ test('start-task: with code changed keel advises by its state and asks; it never
   // Unfinished work is always committed and pushed: no question, so another machine sees it.
   order(a, 'The brief says', 'say "<id> goes to keel\'s trash', 'the brief first, while the chat still has it all');
   assert.doesNotMatch(a, /Commit the work on <branch> as work in\s+progress and push it\?|On a no|stay uncommitted/);
-  assert.match(a, /then `push`, so\s+another machine sees it/);
+  says(a, ['commit and push as `<keel>/skills/_shared/git.md` step 2 does', '(`save`, no `--back-to`)', 'another machine sees it']);
   order(a, 'run `task drop <id>`', 'start --name <branch> --from\n  <base>', 'the drop comes before git, so its removal is in the commit');
-  order(a, 'start --name <branch> --from\n  <base>` (it carries the changes)', 'commit as `<keel>/skills/_shared/git.md` step 2 does', 'the new branch takes the changes before the commit');
-  order(a, 'commit as `<keel>/skills/_shared/git.md` step 2 does', 'then `push`', 'pushed, so another machine sees the work');
+  order(a, 'start --name <branch> --from\n  <base>` (it carries the changes)', 'commit and push as `<keel>/skills/_shared/git.md` step 2 does', 'the new branch takes the changes before the commit');
   assert.match(a, /"<id> goes to keel's trash\s+\(its code and branch stay\)"/);
   says(a, ['(as above, never the branch)'], 'the branch is the feature\'s now');
   assert.match(a, /its first ticket goes on in\s+`<branch>`/);

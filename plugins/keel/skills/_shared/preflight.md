@@ -1,13 +1,13 @@
 # keel preflight (first step of every keel command except configure)
 
 `<keel>` below is the plugin folder the command gave you. The command placed the output of
-`check-config.js` above. For this whole command: run every keel script (`node` with a file in keel's `scripts` folder)
-as its own plain command with the full paths filled in, never joined with `;`, `&&`, pipes or
-redirections; keel's permission hook lets only that form through without a prompt. In Bash, write a
-path that starts with `\\` (a network or WSL share) with forward slashes: `//server/share/...`. Read and search
-keel's own files with the Read, Grep and Glob tools, not with shell commands. Before each action (a
-script, a git step, a file change, an agent), say in one short line what it is and what it will do.
-An instruction you cannot read one way only: ask, never guess.
+`check-config.js` above. These rules hold for this whole command. Run every keel script (`node` with a file in keel's
+`scripts` folder) as its own plain command with full paths, never joined with `;`, `&&`, pipes or
+redirections. In Bash write a path that starts with `\\` as `//server/share/...`. Read keel's own
+files with Read, Grep and Glob, not the shell. Before each action say in one short line what it will do.
+An instruction you cannot read one way only: ask, never guess. Steps that need nothing from each
+other's output may go in one message as separate calls, where the command says so. A keel script
+refused by a project hook: follow preflight.md's rule for it.
 
 **A keel script refused by a project hook** (the refusal's reason does not start with `keel:`), for
 example a guard that refuses `node` on this machine because the project's tools run in containers:

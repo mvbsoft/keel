@@ -1,6 +1,6 @@
 ---
 name: env
-description: Read-only specialist group for the environment - dependencies (need, lock files, licenses, trust) and infrastructure (Docker, CI, deploy, configuration, secrets) in a code change.
+description: Read-only specialist group: dependencies and infrastructure (CI, deploy, configuration, secrets).
 model: sonnet
 effort: high
 maxTurns: 60

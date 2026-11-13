@@ -1,8 +1,9 @@
 'use strict';
 // PreToolUse hook on Edit, Write, Bash and PowerShell: when the session touches something one of
 // keel's advisory skills covers (a migration, Python code, docs, a new source file, a dependency
-// manifest, a decision record, a commit), it adds a one-line reminder to load that skill. Each skill is named at most
-// once per session (one marker file per skill in the OS temp folder, keyed by the session id, so nothing
+// manifest, a decision record, a commit), it adds that skill's rules (its SKILL.md without the front
+// matter) to the context, so the session needs no extra request to load the skill; if the file cannot
+// be read, a one-line reminder to load it. Each skill is sent at most once per session (one marker file per skill in the OS temp folder, keyed by the session id, so nothing
 // is written into the project). Subagents get no hints, except keel's implementer, which has the Skill
 // tool and does the work. Only in a project keel is set up in. Rules: data/skill-hints.json. Never decides permissions; prints nothing when no rule
 // matches. Fails soft.
@@ -123,6 +124,22 @@ function claim(session, skill) {
   }
 }
 
+// The skill's text without its front matter, placeholders filled in as Claude Code fills them when it
+// loads the skill. null when the file cannot be read: the caller then sends the short reminder.
+function skillRules(skill, root) {
+  try {
+    const text = fs.readFileSync(path.join(PLUGIN, 'skills', skill, 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
+    const language = require('../scripts/lib/options.js').effectiveOptions(root).conversation_language;
+    return text
+      .replace(/^---\n[\s\S]*?\n---\n/, '')
+      .replace(/\$\{CLAUDE_PLUGIN_ROOT\}/g, norm(PLUGIN))
+      .replace(/\$\{user_config\.conversation_language\}/g, language)
+      .trim();
+  } catch {
+    return null;
+  }
+}
+
 function hint(input) {
   if (input.agent_id && input.agent_type !== HINTED_AGENT) return null;
   // Project files are judged against the project folder, not the folder the session cd'd into (a
@@ -141,10 +158,13 @@ function hint(input) {
   if (!found.length) return null;
   const rule = found.find((r) => claim(input.session_id, r.skill));
   if (!rule) return null;
+  const rules = skillRules(rule.skill, root);
   return {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
-      additionalContext: `keel: ${rule.why}. Load the keel:${rule.skill} skill (Skill tool) and follow it, unless you already did in this session.`,
+      additionalContext: rules
+        ? `keel: ${rule.why}. The rules of the keel:${rule.skill} skill apply (no need to load it):\n\n${rules}`
+        : `keel: ${rule.why}. Load the keel:${rule.skill} skill (Skill tool) and follow it, unless you already did in this session.`,
     },
   };
 }

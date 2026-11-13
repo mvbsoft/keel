@@ -37,7 +37,7 @@ test('feature-page: features that exist only on another branch are not offered',
 });
 
 test('an exported feature: removing a ticket has no command, and a page is offered after the export', () => {
-  const planning = shared('planning.md');
+  const planning = shared('planning-exported.md');
   says(planning, ['No command removes a ticket or cancels the feature', '`plans.js drop`', 'after a yes', '`plans.js check <f>`', '`plans.js tickets <f> --fetch` again', 'started on another machine']);
   says(skill('end-planning'), ['`/keel:feature-page <f>`', 'the user types it']);
 });

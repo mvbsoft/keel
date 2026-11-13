@@ -82,7 +82,7 @@ test('every eval case has a prompt, graders of known types and, when it needs a 
 test('a planning case resumes the current /keel:start-planning instructions', () => {
   const refresh = 'run node plugins/keel/evals/_fixtures/start-planning-history.js';
   const { CASES } = require(path.join(EVALS, '_fixtures', 'start-planning-history.js'));
-  const steps = (text) => text.slice(text.indexOf('\n1. Read '));
+  const steps = (text) => text.slice(text.indexOf('\n1. The state above'));
   const skill = steps(fs.readFileSync(path.join(PLUGIN, 'skills', 'start-planning', 'SKILL.md'), 'utf8')).replaceAll('${CLAUDE_PLUGIN_ROOT}', '/work/plugins/keel');
   const planning = cases.filter((n) => tagList(front(path.join(EVALS, n, 'prompt.md')).keys.tags).includes('start-planning'));
   assert.ok(planning.length >= 2, planning.join(', '));
@@ -101,7 +101,7 @@ test('a planning case resumes the current /keel:start-planning instructions', ()
     const calls = records.slice(0, records.findIndex((r) => r.type === 'assistant' && r.message.stop_reason === 'end_turn'))
       .filter((r) => r.type === 'assistant').flatMap((r) => r.message.content).filter((b) => b.type === 'tool_use');
     const ran = (re) => calls.some((b) => b.name === 'Bash' && re.test(b.input.command));
-    assert.ok(reads.some((b) => b.input.file_path === '/work/plugins/keel/skills/_shared/preflight.md'), `${name}: the history reads preflight.md`);
+    assert.ok(!reads.some((b) => b.input.file_path === '/work/plugins/keel/skills/_shared/preflight.md'), `${name}: the state is ok, so the history does not read preflight.md`);
     assert.ok(ran(/scripts\/notes\.js" "\." check --session /), `${name}: the history runs the lane check`);
     assert.ok(calls.some((b) => b.name === 'Grep'), `${name}: the history checks the premise in the code`);
     assert.ok(ran(/scripts\/plans\.js" "\." new notification-system$/), `${name}: the history makes the draft`);

@@ -318,8 +318,39 @@ test('configure flow section 6: the planning settings, quick setup too, alone wi
 });
 
 test('configure flow section 7: stack plugins are never preselected, also on "accept all"', () => {
-  const seven = flow().slice(flow().indexOf('## 7. Stack plugins'), flow().indexOf('## 8.'));
+  const seven = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'configure-plugins.md'), 'utf8');
   says(seven, ['Also on "accept all" or "your recommendation"', 'list the plugins by name', 'none marked recommended or preselected']);
+});
+
+test('configure-flow.md hands each rare part to its own file, naming the case; the common parts stay', () => {
+  const text = flow();
+  const sevenPointer = text.slice(text.indexOf('## 7. Stack plugins'), text.indexOf('## 8.'));
+  says(sevenPointer, ['**Stack plugins**', 'the user picks plugins', '`<keel>/skills/_shared/configure-plugins.md`', 'read', 'follow it']);
+  says(text.slice(text.indexOf('## 9.'), text.indexOf('## 10.')), ['No other system → skip this section without a question', '`<keel>/skills/_shared/configure-migration.md`', 'read', 'follow it']);
+  says(text.slice(text.indexOf('6. **Price update**'), text.indexOf('7. **Write**')), ['**Price update**', '`<keel>/skills/_shared/configure-prices.md`', 'read', 'follow it']);
+  says(text.slice(text.indexOf('**Instruction check, only when it is worth it**')), ['Advise', '`<keel>/skills/_shared/configure-instruction-check.md`', 'read', 'follow it']);
+  assert.ok(text.includes('**ADR style** (`docs.adr_style`)'), 'the ADR style question stays');
+  assert.ok(text.includes('4. **Write the manual setup down for the next developer.**'), 'the README step stays');
+  for (const f of ['configure-plugins.md', 'configure-migration.md', 'configure-prices.md', 'configure-instruction-check.md']) assert.ok(fs.existsSync(path.join(PLUGIN, 'skills', '_shared', f)), f);
+});
+
+test('configure-flow.md: the scripts every setup needs run once, in one message, and the sections use their output', () => {
+  const text = flow();
+  const batch = text.slice(text.indexOf('**The setup\'s scripts run once, together.**'), text.indexOf('Existing AI instruction files'));
+  assert.ok(batch.length > 200, 'the batch paragraph exists');
+  says(batch, ['ONE message', 'separate tool calls', 'each its own plain `node` command']);
+  says(batch, ['project mode, all five', 'scan.js', 'comments.js', 'migrate.js', 'claude-settings.js', 'usage-setup.js']);
+  says(batch, ['machine mode, the last two only']);
+  says(batch, ['`migrate.js find` is always in the batch', 'the scan does not see what it sees']);
+  says(batch, ['Each section below uses the output already in the conversation']);
+  says(text.slice(text.indexOf('## 3. Gates'), text.indexOf('## 4.')), ['several commands: all in one message as separate tool calls', 'it writes nothing']);
+  says(text.slice(text.indexOf('## 10.'), text.indexOf('## 11.')), ['output of `node "<keel>/scripts/claude-settings.js" "<project>" show` from section 0\'s batch']);
+  says(text.slice(text.indexOf('## 11.'), text.indexOf('## 12.')), ['output of `node "<keel>/scripts/usage-setup.js" "<project>" show` from section 0\'s batch']);
+  says(text.slice(text.indexOf('## 9.'), text.indexOf('## 10.')), ['output of `node "<keel>/scripts/migrate.js" "<project>" find` from the batch of section 0']);
+  says(text.slice(text.indexOf('## 6.'), text.indexOf('## 7.')), ['use the output of `node "<keel>/scripts/comments.js" "<project>" --project` from section 0\'s batch']);
+  says(text.slice(text.indexOf('## 2.'), text.indexOf('## 3.')), ['ran in section 0\'s batch', 'use its output']);
+  // Without AskUserQuestion the scripts still run first.
+  says(text, ['first run the scripts of every section', 'the batch of section 0', 'then ask all questions in one message']);
 });
 
 test('configure flow section 11: keel\'s status line on macOS or Linux checks for jq', () => {

@@ -64,7 +64,7 @@ test('end-task: a planned ticket is marked done right after the folder deletion,
   order(text, done, '8. Git: read', 'the ticket file goes into the same commit as the code');
   says(text, ['Right after `task delete` printed `deleted:`', 'only when the verification passed', 'gates green, no must item left', 'no verification is not a pass']);
   assert.match(read('scripts', 'lib', 'tasks.js'), /`deleted: \$\{/, 'task delete prints that line');
-  says(text, ['`done: feature <f> complete (<n> tickets)`', 'git.md "End of feature"', 'after the push']);
+  says(text, ['`done: feature <f> complete (<n> tickets)`', 'git-end-of-feature.md', 'after the push']);
   says(text, ['`done: none (no ticket <KEY> here)`', '`plans.js tickets <id>`', 'not a ticket, go on', 'put the task back', 'task restore <id> --session <sid>`) and stop before git']);
   says(text, ['Red verification or a hand off', 'no `plans.js done` call']);
   // A slug id is no key: plans.js refuses it, and that only means the task is not a ticket.
@@ -84,7 +84,7 @@ test('end-task: a task put back puts its ticket back to todo; a hand-made commit
   says(eight, ['`done: feature <f> complete`', 'is complete; /keel:tasks offers its end', 'once you have committed and pushed']);
   const git = shared('git.md');
   says(git, ['`restored:` lines; say so', 'A ticket the finish marked done goes back with it', '`node "<keel>/scripts/plans.js" "<project>" done <id> --undo`']);
-  says(part(git, '4. `sync', '5. `push`'), ['task restore <id> --session <sid>', 'and its ticket: `plans.js done <id> --undo`']);
+  says(part(git, '2. Write', '3. **Merge**'), ['task restore <id> --session <sid>', 'and its ticket: `plans.js done <id> --undo`']);
 });
 
 test('end-task: a ticket on its feature branch is verified from the commit it started at', () => {
@@ -102,16 +102,16 @@ test('end-session: a passed full verification marks the finished planned tickets
   says(six, ['so their ticket files go into the commit'], 'git-flow.js commit leaves planning files out unless named');
   says(six, ['Gates only or red → no `plans.js done` call']);
   // A session commits without --finish: after its commit HEAD holds done, so only a stop before it undoes.
-  says(six, ['git stops before the commit holds them', '`commit` stopped or never ran', '`plans.js done <KEY> --undo` for each']);
-  says(six, ['a stop after the commit (sync, push)', 'no undo', 'the commit holds them', 'say the push is left']);
+  says(six, ['git stops before the commit holds them', '`save` stopped with `commit` not in its `done:` line', '`plans.js done <KEY> --undo` for each']);
+  says(six, ['a stop after the commit', '`commit` in `done:`', 'no undo', 'the commit holds them', 'say the push is left']);
   says(six, ['Manual git → one line', 'The ticket files <paths> are marked done', 'commit them with the code', 'not for tickets under `.keel/local/`']);
   says(six, ['with `done: feature <f> complete`', 'is complete; /keel:tasks offers its end', 'once you have committed and pushed']);
-  says(six, ['`done: feature <f> complete (<n> tickets)`', 'git.md "End of feature"', 'after the push']);
+  says(six, ['`done: feature <f> complete (<n> tickets)`', 'git-end-of-feature.md', 'after the push']);
   order(text, 'verify.md', 'done <KEY>`', 'done only after the verification');
 });
 
 test('start-session: a feature\'s planned tickets become the Plan, their keys the note\'s keys, its branch the line\'s', () => {
-  const row = shared('handoff.md').split('\n').find((l) => l.startsWith('| no note (or `status: done`) + a feature'));
+  const row = shared('handoff-resume.md').split('\n').find((l) => l.startsWith('| no note (or `status: done`) + a feature'));
   assert.ok(row, 'the Resume table has a row for a feature');
   says(row, ['run `node "<keel>/scripts/plans.js" "<project>" tickets <feature>`']);
   says(row, ['`tickets: none (no ticket or feature <x>)`', 'not a feature', 'the rows below']);
@@ -123,7 +123,7 @@ test('start-session: a feature\'s planned tickets become the Plan, their keys th
   // The note is tracked: a switch needs a clean tree, so the branch comes before the note.
   says(row, ['on yes the branch first', 'then write the note', 'a switch needs a clean tree']);
   says(row, ['`start --name <b> --from <the ref that has the tickets>`', 'refs without the remote prefix', '`origin/x` → `x`', 'manual: give `git switch <b>` and wait']);
-  const h = shared('handoff.md');
+  const h = shared('handoff-resume.md');
   order(h, '+ a feature\'s name or folder', '| no note (or `status: done`) + a description |', 'a feature name is tried before it is read as a description');
   assert.match(skill('start-session'), /a feature's planned tickets/);
 });
@@ -135,7 +135,7 @@ test('/keel:tasks: a Planned block after the tasks, the data date, the next key 
   says(t, ['the data-date line', '`server data from <date>`', '`no remote` or `never fetched`']);
   says(t, ['"Start the next one with `/keel:start-task <KEY>`"', 'the key of its `next:` line', '`next: none` → no such line']);
   says(t, ['the branch, only when', "the task's `branch` differs from its `base`", "a planned ticket's shared feature branch is never offered", '`node "<keel>/scripts/git-flow.js" "<project>" delete-branch'], 'drop never deletes a shared feature branch');
-  says(t, ['A feature whose every ticket is `done`', '`waiting for the feature merge`', 'offer its end', '"End of feature"']);
+  says(t, ['A feature whose every ticket is `done`', '`waiting for the feature merge`', 'offer its end', '`<keel>/skills/_shared/git-end-of-feature.md`']);
 });
 
 test('git.md: a ticket on its feature branch: no start, the shared branch pulled, never merged before the feature is complete', () => {
@@ -148,11 +148,11 @@ test('git.md: a ticket on its feature branch: no start, the shared branch pulled
   says(part(git, '1. `status`', '2. Write'), ['not for a planned ticket on its feature branch', 'no `start`, see above']);
   // A handoff of a ticket of a feature with 2 or more tickets still makes its ticket branch.
   says(part(git, '1. `status`', '2. Write'), ['except its task handoff when the feature has 2 or more tickets', 'a new ticket branch, above']);
-  says(part(git, '4. `sync', '5. `push`'), ['On the base itself', 'a planned ticket on its feature branch', 'it merges `<remote>/<base>`', "the teammates' commits of that shared branch"]);
+  says(part(git, '2. Write', '3. **Merge**'), ['On the base itself', 'a planned ticket on its feature branch', 'merges `<remote>/<base>`', "the teammates' commits of that shared branch"]);
   says(git, ['A planned ticket works on its feature branch', 'not from the main branch']);
   // With ask_before_merge true the report would otherwise say "merge it when ready".
   says(git, ['"the feature merges at End of feature, after its last ticket"', 'not "merge it when ready"', 'manual mode: commit and push, no merge advice']);
-  says(part(git, '## Manual mode', '## Autonomous mode'), ['then merge as they usually do', 'a planned ticket on its feature branch: commit and push only, see above']);
+  says(shared('git-manual.md'), ['then merge as they usually do', 'a planned ticket on its feature branch: commit and push only, see git.md above']);
 });
 
 test('git.md: the hand off of a ticket on a shared feature branch goes to a new ticket branch, no question', () => {
@@ -167,13 +167,14 @@ test('git.md: the hand off of a ticket on a shared feature branch goes to a new 
 
 test('git.md: the end of a feature says so, then asks one step at a time; the feature branch is the one other branch keel deletes', () => {
   const git = shared('git.md');
-  const end = part(git, '## End of feature', '## Never');
+  const end = shared('git-end-of-feature.md');
+  says(part(git, '## End of feature', '## Never'), ['**End of feature**', '`<keel>/skills/_shared/git-end-of-feature.md`', 'read', 'follow it']);
   says(end, ['After `done: feature <f> complete (<n> tickets)` and the push', 'offered by `/keel:tasks`', 'both git modes', 'each step runs only on its own yes']);
   assert.match(end, /say "Feature <f> is complete:\s+all <n> tickets done\."[\s\S]*Then one question\s+at a time/);
   // The branches come from the tickets, not from a ticket branch's task file (base = the feature branch).
   says(end, ['`<branch>` and `<merge_into>` come from the `branch: <b> -> <m>` line', '`node "<keel>/scripts/plans.js" "<project>" tickets <f>`', 'never from the task file']);
   const zero = part(end, '0. Onto `<branch>`.', '1. The tickets');
-  says(zero, ['On the ticket branch the last ticket finished on', 'first its usual merge into `<branch>`', '(step 6; it leaves you on `<branch>`)', 'declined or refused', 'the feature waits for that merge and stop here']);
+  says(zero, ['On the ticket branch the last ticket finished on', 'first its usual merge into `<branch>`', '(step 3; it leaves you on `<branch>`)', 'declined or refused', 'the feature waits for that merge and stop here']);
   says(zero, ['Anywhere else (e.g. the main branch)', '"Switch to `<branch>`?"', '`switch --name <branch>`'], 'from /keel:tasks keel is usually on the main branch, where drop refuses');
   order(end, '0. Onto `<branch>`.', 'drop <f>`', 'on the feature branch before anything is dropped or committed');
   // Only a merge that really happened lets the branch go; git-flow.js merge prints that line.
@@ -188,8 +189,8 @@ test('git.md: the end of a feature says so, then asks one step at a time; the fe
   order(end, '"Merge `<branch>` into `<merge_into>`?"', 'delete-branch --name <branch>', 'the branch goes last');
   // The merge leaves keel on merge_into (`now on:`), so the feature branch is not the current one.
   says(end, ['it leaves you on `<merge_into>`', '"Delete the branch `<branch>`?"', '`node "<keel>/scripts/git-flow.js" "<project>" delete-branch --name <branch>`']);
-  says(part(git, '## Never'), ['which Claude Code confirms', 'except the feature branch in "End of feature" above', 'the task\'s own branch in intake.md "Task to planning"', 'each on its yes']);
-  for (const name of ['end-task', 'end-session']) assert.match(skill(name), /git\.md "End of\s+feature"/, `${name} leads to the end of a feature`);
+  says(part(git, '## Never'), ['which Claude Code confirms', 'except the feature branch in "End of feature" above', 'the task\'s own branch in task-to-planning.md', 'each on its yes']);
+  for (const name of ['end-task', 'end-session']) assert.match(skill(name), /git-end-of-feature\.md/, `${name} leads to the end of a feature`);
 });
 
 test('git advice: keys are allowed inside ticket files; a planned ticket works on its feature branch', () => {
@@ -203,7 +204,7 @@ test('git advice: keys are allowed inside ticket files; a planned ticket works o
 test('every plans.js output line the task and session instructions quote is printed by the scripts', () => {
   const file = (...p) => path.join(PLUGIN, 'scripts', ...p);
   const source = [['plans.js'], ['lib', 'plans-state.js'], ['lib', 'plans-state-read.js'], ['lib', 'plans-state-rules.js']].map((p) => (fs.existsSync(file(...p)) ? fs.readFileSync(file(...p), 'utf8') : '')).join('\n');
-  const text = [shared('intake.md'), shared('handoff.md'), shared('git.md'), skill('end-task'), skill('end-session'), skill('tasks')].join('\n');
+  const text = [shared('intake.md'), shared('handoff.md'), shared('handoff-resume.md'), shared('git.md'), shared('git-end-of-feature.md'), skill('end-task'), skill('end-session'), skill('tasks')].join('\n');
   // Quoted as `<line start>...` in the instructions; printed from a template literal in the scripts.
   const lines = [['`next:', 'next: '], ['`next: none`', "'next: none'"], ['`tickets: none`', "'tickets: none'"], ['`tickets: none (no ticket or feature <x>)`', '`tickets: none (no ticket or feature '],
     ['`done: <KEY> (<path>)`', '`done: ${'], ['`done: <KEY> (already)`', ' (already)`'], ['`done: none (no ticket <KEY> here)`', '`done: none (no ticket '], ['`done: feature <f> complete (<n> tickets)`', '`done: feature '],

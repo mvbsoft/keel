@@ -31,8 +31,8 @@ Section 0 says what each answer runs.
   the recommended one first and marked; a recommendation never removes the other options.
 - Every recommendation comes from the section's script output (scan, `comments.js --project`,
   `stack-skills.js`, `claude-settings.js show`), never from a guess. When you cannot ask
-  interactively (no AskUserQuestion), first run the scripts of every section, then ask all questions
-  in one message, numbered by section.
+  interactively (no AskUserQuestion), first run the scripts of every section (the batch of section 0,
+  then the others), then ask all questions in one message, numbered by section.
 - Talk in the conversation language from section 1; write files in `repo_language`.
 - Never open secret files (the scan lists them under `secret_paths`); mention them by path only.
 - Never run deploy, publish, migration or data-changing commands. Only tests, linters and type checks,
@@ -108,6 +108,19 @@ Then by the first line:
   the "Planning tickets" block of section 6 (all three of its questions). A name that is no
   section → list the sections and ask; run nothing before the answer.
 
+**The setup's scripts run once, together.** When the setup goes on (none of the stops above) and the
+first answer is known, run these in ONE message as separate tool calls, each its own plain `node`
+command (none depends on another's output; they write only their own files):
+- project mode, all five: `node "<keel>/scripts/scan.js" "<project>" --out "<project>/.keel/local/tmp/scan.json"`
+  (section 2), `node "<keel>/scripts/comments.js" "<project>" --project` (section 6),
+  `node "<keel>/scripts/migrate.js" "<project>" find` (section 9),
+  `node "<keel>/scripts/claude-settings.js" "<project>" show` (section 10) and
+  `node "<keel>/scripts/usage-setup.js" "<project>" show` (section 11);
+- machine mode, the last two only: it scans, reads comments and moves nothing.
+`migrate.js find` is always in the batch: the scan does not see what it sees. A run of chosen sections
+or a repair runs only the commands of the sections that run. Each section below uses the output
+already in the conversation and does not run its script again.
+
 Existing AI instruction files (`profile.ai_rules` from the scan: AGENTS.md, CLAUDE.md, Cursor or
 Copilot rules...) are read first: they state the project's own conventions and win over keel's guesses.
 
@@ -123,9 +136,10 @@ Copilot rules...) are read first: they state the project's own conventions and w
    language (texts for the app's users) comes from the project and the task, not from here.
 
 ## 2. Project scan (3 layers)
-1. **Layer 1, script:** run
-   `node "<keel>/scripts/scan.js" "<project>" --out "<project>/.keel/local/tmp/scan.json"`.
-   It prints a short summary (languages, parts with their best commands, secret files by path, gaps)
+1. **Layer 1, script:**
+   `node "<keel>/scripts/scan.js" "<project>" --out "<project>/.keel/local/tmp/scan.json"` ran in
+   section 0's batch: use its output (run it here only when the batch did not, in a run of chosen
+   sections). It prints a short summary (languages, parts with their best commands, secret files by path, gaps)
    and writes the full result to that file; read the file only for the details a question needs.
 2. **Layer 2, `keel:context` agent (Haiku), whenever `findings.gaps` is not empty**, also when you
    will ask the user about a gap anyway: the agent reads the files behind it (is a lock file empty,
@@ -149,7 +163,8 @@ For every part, propose test, lint and type-check commands from `findings.comman
 conventions) and say where each came from. The user can accept, change or drop each.
 
 Then offer **one dry run** of the confirmed commands, so a wrong command is caught now:
-1. For each command run `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- <command>`.
+1. For each command run `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- <command>`
+   (several commands: all in one message as separate tool calls; it writes nothing).
    `refused:` → do not run it; tell the user why and that they can run it themselves.
 2. Show the safe commands together and ask before running them. Run them one at a time from the
    part's folder; bring back only pass or fail and the first error lines.
@@ -212,8 +227,9 @@ agents, 350 for implementers, fixed in each agent's own file, not in the config)
 **File sizes:** warning at 700 lines and limit at 1,000 lines. These are signals to look, not rules
 to split; keel splits by responsibility, never by line count.
 
-**Code comments** (`comments.level`). First run `node "<keel>/scripts/comments.js" "<project>" --project`:
-it gives the share of comment lines in the code now and the closest level; recommend that level
+**Code comments** (`comments.level`). First use the output of
+`node "<keel>/scripts/comments.js" "<project>" --project` from section 0's batch (run it here only
+when the batch did not, in a run of chosen sections): it gives the share of comment lines in the code now and the closest level; recommend that level
 (`short` when the project has no code yet). Explain:
 - Tricky code always gets a comment, as long as needed (formulas, hidden behaviour of called code, an
   order that matters, legacy or compatibility rules, code that looks wrong but is right), and unclear
@@ -232,7 +248,8 @@ it gives the share of comment lines in the code now and the closest level; recom
 **Planning tickets** (`planning`; alone: `/keel:configure planning`). `/keel:start-planning` turns a
 feature into tickets that `/keel:start-task` then builds; these settings say how the tickets are named
 and where they live, the same for the whole team (they go into git). Without them planning does not
-start. Ask in one call (only this block runs → run `comments.js --project` first):
+start. Ask in one call (only this block runs → run `comments.js --project` first: the batch of
+section 0 holds it in that case too):
 - **Ticket prefix** (`planning.ticket_prefix`): the start of every ticket key (`API` in `API-12`), one
   per repository. Propose the first prefix the `--project` run lists from git history (the tracker's),
   else 3-4 capital letters from the repository's name (`api-gateway` → `API`): 2-10 capital letters and
@@ -261,33 +278,10 @@ question:
   folders, changelogs, `.keel/`): a debt register, generated run records.
 
 ## 7. Stack plugins
-1. Run `node "<keel>/scripts/stack-skills.js" "<project>"`. It matches the project against keel's
-   checked list and searches the marketplaces the user has added (never the Anthropic Directory: most
-   of its 3,000+ entries are not about code, and it exists only with a claude.ai account).
-2. Show, per plugin: what it is, why it helps here, the author, and what it runs or needs (an MCP
-   server, a program, an account). Keep the groups apart: **checked by keel**; **marketplace not
-   added** (a reputable marketplace keel knows; the user adds it with the printed command);
-   **found in your marketplaces, not checked by keel** (drop any that clearly does not fit this
-   project, saying why in a few words); **nothing reliable found** for a framework.
-3. The user picks (multi-select; nothing is preselected). Also on "accept all" or "your
-   recommendation": list the plugins by name, none marked recommended or preselected, and wait for
-   the user's picks; this step is the exception to "recommended option first".
-4. **A language server plugin (LSP):** explain it plainly: after every edit Claude sees type and
-   compile errors at once, and finds definitions and callers exactly instead of by text search; the
-   cost is a program to install (the command comes from the script). The program is installed
-   together with the plugins, after the files are written; section 12 waits for it.
-5. **Installing:** Claude Code refuses plugin installs that Claude runs, so give the user the commands
-   to run in their own terminal, in order: `claude plugin marketplace add ...` first when needed, then
-   `claude plugin install <plugin>@<marketplace> --scope project` per plugin. Project scope records the
-   plugin in `.claude/settings.json`, but another machine does not fetch or offer it from there (Claude
-   Code only reports it as enabled in project settings and not installed), so each developer runs the
-   same commands; section 12 writes them into the project's docs. A plugin from a custom marketplace
-   also needs `extraKnownMarketplaces` committed in `.claude/settings.json`. New plugins load in the
-   next session.
-6. **Nothing reliable for a framework** (for example Yii2): install nothing, say so, and offer to
-   write a project skill from the project's own conventions later, as a separate task
-   (`/keel:start-task`).
-7. Store the picked plugin ids in `stack_skills`.
+**Stack plugins** (the user picks plugins for the project's stack: keel's checked list and the user's
+marketplaces, a language server, the install commands for the user's own terminal, a framework with
+nothing reliable; stored in `stack_skills`; the section a quick setup skips, and `/keel:configure
+plugins`) → read `<keel>/skills/_shared/configure-plugins.md` and follow it.
 
 ## 8. Documentation
 From the scan (`findings.docs`): the doc files, ADR and spec folders, a Diátaxis-like `docs/`, arc42
@@ -367,19 +361,16 @@ or C4 files, and the files Claude Code loads into every session with their line 
    into every session, costs context each time and is followed less reliably; propose moving detail into files loaded on demand, as a separate task.
 
 ## 9. Moving from another system
-Run `node "<keel>/scripts/migrate.js" "<project>" find` (with `--from "<folder or plugin>"` when the
-user named one). No other system → skip this section without a question. Otherwise explain in plain
-words: two systems would give conflicting instructions (two notes, two memories), so keel offers to
-move the old notes, memory and logs into `.keel/`; project data and secrets stay. Ask: move now
-(recommended) / later (`/keel:configure migration`) / never (the old system stays); the user who ran
-`/keel:configure migration` has already chosen "now", so do not ask. On "move now"
-read `<keel>/skills/_shared/migrate.md` and follow it; its config proposals are compared with the
-answers already given (an answer changes only on a yes), and its git step waits for section 12.
+Use the output of `node "<keel>/scripts/migrate.js" "<project>" find` from the batch of section 0 (run
+it again with `--from "<folder or plugin>"` only when the user named one). No other system → skip this
+section without a question. Otherwise (explain, ask move now / later / never, and the move itself) →
+read `<keel>/skills/_shared/configure-migration.md` and follow it.
 
 `/keel:configure migration` (or `9`) in a configured project runs only this section.
 
 ## 10. Claude Code settings
-Run `node "<keel>/scripts/claude-settings.js" "<project>" show`. It lists every key twice: the `user`
+Use the output of `node "<keel>/scripts/claude-settings.js" "<project>" show` from section 0's batch
+(run it here only when the batch did not). It lists every key twice: the `user`
 row is the machine value, the `project` row this project's own value and which one applies. A machine
 value that already matches keel's recommendation is not asked again. Then, in one question group:
 
@@ -433,8 +424,9 @@ regressions and handled more edge cases.
 
 ## 11. Usage and costs (this machine)
 Asked once per machine: when `show` says `not configured on this machine yet`, or when the user asks
-for `usage` or `prices` (`/keel:configure prices` runs only step 6). Run
-`node "<keel>/scripts/usage-setup.js" "<project>" show`.
+for `usage` or `prices` (`/keel:configure prices` runs only step 6). Use the output of
+`node "<keel>/scripts/usage-setup.js" "<project>" show` from section 0's batch (run it here only when
+the batch did not).
 Explain first: at the end of every `/keel:end-task`, `/keel:end-session` and `/keel:end-planning` keel
 shows what the session cost: each participant (the main session, each agent run), its model, tokens
 and dollars at list price; on a subscription also about how many percent of the weekly and 5-hour
@@ -484,18 +476,8 @@ Then, in one question group:
    A project config with `usage.artifact_url` (a shared project page of an older keel) → say in one
    line that it is no longer used: each machine syncs to its owner's page, and Share on that page
    shows it to others.
-6. **Price update** (offer; about $0.1–0.3): start a `general-purpose` agent with `model: "sonnet"`:
-   "Find the current Claude API pricing page in the official docs (it was
-   platform.claude.com/docs/en/about-claude/pricing) and read it. Write
-   `<project>/.keel/local/tmp/prices-new.json` in the shape of `<keel>/data/prices.json`: `about`,
-   `source` (URL and date), `models` [{ `match` (model id prefix), `input`, `cache_write_5m`,
-   `cache_write_1h`, `cache_read`, `output` (USD per million tokens), `note` (other remarks) and, only
-   for a model the page charges more above a prompt size, `long_context`: { `over` (prompt tokens,
-   input plus cache), `mult` (price multiplier) } }] for every current and legacy model on the page.
-   Reply with the file path and any price you were unsure of." Then run
-   `node "<keel>/scripts/usage-setup.js" "<project>" prices-diff "<project>/.keel/local/tmp/prices-new.json"`,
-   show the changes and the `check:` lines, and after a yes run
-   `node "<keel>/scripts/usage-setup.js" "<project>" prices-apply "<project>/.keel/local/tmp/prices-new.json"`.
+6. **Price update** (offer; about $0.1–0.3: a Sonnet agent reads the official pricing page, a diff is
+   shown, a yes applies it) → read `<keel>/skills/_shared/configure-prices.md` and follow it.
 
 7. **Write**, after showing it and the user's yes, in this order:
    - Machine settings first (`apply` accepts `statusline.original` only while it is still the status
@@ -575,22 +557,6 @@ Then, in one question group:
    `other instructions:` line of the scan (section 2): it ends with `audit: advise` (50 or
    more lines in those files, or 3 or more rules, skills, commands, agents or output styles) or
    `audit: not needed`. Not needed → say nothing about it, not even that it is not needed. Advise →
-   it is the last part of the summary, after the commit step: a heading such as
-   "Recommended: check your instructions" and these four points as a list, each starting with its
-   label (translated), never folded into one paragraph:
-   - **Why:** before keel this project (or this machine) already had its own instructions for Claude;
-     name what the line lists ("CLAUDE.md, 120 lines; 4 rules; 6 skills in ~/.claude"). The more of
-     them, the likelier two say opposite things (one rule "a doc comment on every function", another
-     "small functions, no comments"): Claude then picks one arbitrarily and behaves differently from
-     day to day. Outdated lines (a removed folder, an old command) also cost context in every
-     conversation;
-   - **What it does:** Claude Code's own check `/doctor prompt-audit` reads the CLAUDE.md, AGENTS.md,
-     rules, skills, commands and agents of this project and of `~/.claude` (not keel's rules: their
-     conflicts with yours are the ones this setup raised), and lists contradictions, outdated
-     instructions and references to missing files, each with a proposed edit. It changes nothing until
-     you agree;
-   - **The effect:** one consistent set of instructions that Claude follows the same way every time,
-     and fewer lines loaded into every conversation;
-   - **How:** type `/doctor prompt-audit` in a new conversation (`/clear` first); keel cannot start a
-     Claude Code command for you. It runs on the current model. A report that is hard to read → ask
-     Claude to retell it as a short list: what was, what it will become, why it was a problem.
+   it is the last part of the summary, after the commit step: read
+   `<keel>/skills/_shared/configure-instruction-check.md` and follow it (the heading and its four
+   points: why, what it does, the effect, how).

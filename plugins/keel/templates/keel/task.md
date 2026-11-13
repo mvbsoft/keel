@@ -17,7 +17,7 @@ started: <HEAD when the task was created (notes.js task new); git diff from it s
 <!-- One task = one folder .keel/tasks/<id>/: this file (ticket, state and handoff) and plan.md when
 the plan is big (notes.js task new/delete/drop). A fresh session knows nothing but this file, the git
 history and the code. Update it, do not rewrite it; keep a sentence only if without it the next
-session would act differently; at most 150 lines (notes.js check). Headings and front matter keys stay
+session would act differently; at most 150 lines and 12000 characters (notes.js check). Headings and front matter keys stay
 in English; the text is in the language the calling flow names. Comments are removed when the file is
 created. -->
 

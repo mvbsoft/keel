@@ -73,15 +73,15 @@ Write `.keel/next-session.md` with the Write tool from `<keel>/templates/keel/ne
 header (`status: active`, `branch` and `base` from git or `-`, `after_commit` = the commit the old
 note mentions, else `-`, `date` today), then the old note's text under the template's sections
 where they fit: its facts unchanged, its words translated into `repo_language` when it is written in
-another language. Over 150 lines → keep the goal, where we are and the next steps; the plan
+another language. Over 150 lines or 12000 characters → keep the goal, where we are and the next steps; the plan
 moves the whole old note to `.keel/sessions/<today>-000-old-note.md` and the new note says so.
 Otherwise the old note goes to the trash or the archive (step 4).
 
 ## 6. Memory
-- One old memory file within 150 lines → `.keel/memory/project-memory.md` from
+- One old memory file within 150 lines and 12000 characters → `.keel/memory/project-memory.md` from
   `<keel>/templates/keel/project-memory.md`, its facts kept (in `repo_language`, translated when the
   old file is in another language); the original goes to the trash or archive.
-- Over 150 lines, or several files → the plan appends each to the archive (`append`), then write a new
+- Over 150 lines or 12000 characters, or several files → the plan appends each to the archive (`append`), then write a new
   short `project-memory.md` with the active part: read only the start and the end of the old file
   (Read with `offset` and `limit`); the archive keeps everything.
 
@@ -131,7 +131,7 @@ Already handled by the plan (trash or archive). Say where they are and how to br
 trash: `node "<keel>/scripts/cleanup.js" "<project>" restore <batch>`.
 
 ## 13. Check and report
-Run `node "<keel>/scripts/notes.js" "<project>" check` (the note and memory read, within 150 lines),
+Run `node "<keel>/scripts/notes.js" "<project>" check` (the note and memory read, within 150 lines and 12000 characters),
 `node "<keel>/scripts/migrate.js" "<project>" state` (finished) and `git status --short` in the
 project folder (only the new `.keel/` files, the edited references and removed tracked old files).
 When a question (a secret line, a config value) stopped you before this step, finish steps 10-13

@@ -57,7 +57,7 @@ test('configure is user-only and every file the flow names exists in the plugin'
   assert.match(text, /^disable-model-invocation: true$/m);
   assert.match(text, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/config-check\.js" "\$\{CLAUDE_PROJECT_DIR\}"`$/m);
   const root = path.join(SKILLS, '..');
-  for (const file of ['skills/configure/SKILL.md', 'skills/_shared/configure-flow.md', 'skills/_shared/preflight.md']) {
+  for (const file of ['skills/configure/SKILL.md', 'skills/_shared/configure-flow.md', 'skills/_shared/preflight.md', 'skills/_shared/intake.md', 'skills/_shared/git.md', 'skills/_shared/handoff.md', 'skills/_shared/planning.md']) {
     const body = fs.readFileSync(path.join(root, file), 'utf8');
     for (const [, ref] of body.matchAll(/<keel>\/([A-Za-z0-9_./-]+)/g)) {
       assert.ok(fs.existsSync(path.join(root, ref)), `${file} names <keel>/${ref}, which does not exist`);
@@ -177,7 +177,7 @@ test('delegation is wired: planning asks here or delegate, start-session delegat
   says(intake, ['model: sonnet']);
   says(intake, ['confirm or change']);
   assert.match(intake, /delegate.md/);
-  const handoff = read('handoff.md');
+  const handoff = read('handoff-resume.md');
   says(handoff, ['do it through subagents']);
   assert.match(handoff, /plan-steps.js" "<project>" "<file with the steps>" --remaining/);
   const loop = read('delegate.md');
@@ -230,10 +230,12 @@ test('migration and cleanup are wired: configure section 9, the end commands rem
   const read = (f) => fs.readFileSync(path.join(SKILLS, '..', f), 'utf8');
   const flow = read('skills/_shared/configure-flow.md');
   const nine = flow.slice(flow.indexOf('## 9.'), flow.indexOf('## 10.'));
+  const nineFile = read('skills/_shared/configure-migration.md');
   says(nine, ['migrate.js" "<project>" find']);
-  says(nine, ['skills/_shared/migrate.md']);
-  says(nine, ['/keel:configure migration']);
-  says(nine, ['already chosen "now", so do not ask'], 'a direct /keel:configure migration skips "now or later"');
+  says(nine, ['`<keel>/skills/_shared/configure-migration.md`', 'read', 'follow it']);
+  says(nineFile, ['skills/_shared/migrate.md']);
+  says(nine + nineFile, ['/keel:configure migration']);
+  says(nineFile, ['already chosen "now", so do not ask'], 'a direct /keel:configure migration skips "now or later"');
   const migrate = read('skills/_shared/migrate.md');
   for (let n = 1; n <= 13; n++) assert.match(migrate, new RegExp(`^## ${n}\\. `, 'm'), `migration step ${n}`);
   says(migrate, ['keel:context'], 'the overview uses the context agent');
@@ -301,7 +303,7 @@ test('end-task, end-session and end-planning hand the costs step to usage-sync.m
 });
 
 test('configure-flow.md has the usage and write sections, and names only usage-setup.js subcommands that exist', () => {
-  const text = read('skills', '_shared', 'configure-flow.md');
+  const text = read('skills', '_shared', 'configure-flow.md') + read('skills', '_shared', 'configure-prices.md');
   assert.match(text, /^## 11\. Usage and costs/m);
   assert.match(text, /^## 12\. Write and summary/m);
   assert.ok(text.indexOf('## 11. Usage and costs') < text.indexOf('## 12. Write and summary'));

@@ -1,6 +1,6 @@
 ---
 name: ticket-reviewer
-description: Read-only agent that reviews up to 4 tickets of a planned feature (draft or exported) against a yes/no checklist, checks in the code what each ticket relies on, and reports findings with evidence.
+description: Read-only agent: reviews up to 4 planned tickets against a checklist and checks them in the code.
 model: sonnet
 effort: high
 maxTurns: 60

@@ -31,7 +31,7 @@ or a stash exist on one machine only. The user's own instruction (e.g. "do not c
 **A task handoff without its own branch** (the task's `branch:` is the base, the main branch or `-`:
 the work sits in a branch other work shares) and no instruction about git: no question: a new branch `<id>-<short-name>` from here, `start --name <it>` (it carries the
 changes), commit and push there, then back on `<current>`. Say it in one line, naming the new branch
-(manual mode: the same steps as commands, below).
+(manual mode: the same steps as commands, git-manual.md).
 A planned ticket on its feature branch, when the feature has 2 or more tickets
 (`plans.js tickets <feature>`; one ticket → the usual commit and push to its branch), also no
 question: a new ticket branch `<KEY>-<short-name>` from the feature branch (later merged
@@ -56,28 +56,16 @@ is a tracker key ("Work in progress: CAN-123 <title>"), the title shortened to k
 within 72 characters; so the log shows the work is unfinished.
 
 ## Manual mode
-Run no git step the user did not ask for. When the instruction or the user's answer to a keel question
-asks for one ("push", "commit", "merge into main", a branch choice), run it with the `git-flow.js` steps
-of the autonomous mode below (Claude Code asks before each, since autonomous git is not confirmed);
-everything else stays with the user. Give the user:
-- the changed files (from `node "<keel>/scripts/git-flow.js" "<project>" status`);
-- the commit message, ready to copy;
-- **finish**: the task folder's removal (it is in keel's trash) is part of that commit; then merge as
-  they usually do (a planned ticket on its feature branch: commit and push only, see above);
-- **handoff of a task**: commit the work and the task folder on the task branch, push it,
-  then `git switch <base>`. A task without its own branch: first `git switch -c <id>-<short-name>`
-  (it carries the changes; a planned ticket: `<KEY>-<short-name>`, as above); keel runs no `start`
-  here, so set the task file's `branch:` to that new branch before the task file is
-  written (a planned ticket: `base` and `merge_into` to the feature branch);
-- **handoff of a session**: "Commit and push when convenient; the note is part of the commit" (when
-  `git.state_in_git`).
+**Manual mode** (`git.mode` is manual: what keel runs itself and what it hands the user as commands,
+for a finish and for a handoff) → read `<keel>/skills/_shared/git-manual.md` and follow it instead of
+"Autonomous mode".
 
 ## Autonomous mode
 Each step is one command `node "<keel>/scripts/git-flow.js" "<project>" <step> ...`. Read the first
 line: `ok` → next step; `stopped` or `unavailable` → tell the user the `reason:` and the detail lines
 in plain words, say which steps are done and which are left, and stop git here. Never work around a
 stop with raw git on your own. A **finish** whose task folder went to keel's trash adds
-`--finish <id> --session <sid>` (from the calling command) to every `start`, `commit`, `sync` and
+`--finish <id> --session <sid>` (from the calling command) to every `start`, `save` and
 `push`: a step that stops then puts the task back by itself (`restored:` lines; say so). A ticket
 the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<project>" done <id> --undo`.
 1. `status`. Its line `autonomous on this machine: not confirmed` (or `settings changed`) → offer to run
@@ -89,62 +77,47 @@ the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<proj
    names; only when none is named, make one as in `<keel>/skills/_shared/intake.md` step 6. An
    instruction naming another branch (e.g. `bug/FIX-123`) → `start --name <it>` (it carries the
    changes).
-2. Write the message to `<project>/.keel/local/tmp/commit-message.txt`, then
-   `commit --message-file "<project>/.keel/local/tmp/commit-message.txt"`. The script leaves out
-   secret files and lists them: tell the user. `nothing to commit` is fine. In a **finish** the task
-   folder went to keel's trash before this step, so its removal is in this commit.
-3. **Handoff**: `push` (refused → say so and that the work is on this machine only; it does not stop the
-   handoff). The instruction asks to
-   merge → step 6 now, still on this branch (a refused push: no merge, say so). A task: then
-   `switch --name <base>`. Done, skip the rest.
-4. `sync --from <base>`. On the base itself (a planned ticket on its feature branch) it merges
-   `<remote>/<base>`: the teammates' commits of that shared branch.
-   - `conflict` → show the files. In a finish the commit of step 2 already holds the task's removal,
-     so nothing is put back (`restore: not needed ... committed`); the offer below is the same, and
-     after the resolve commit the finish goes on with the push. Offer: resolve together now (on yes: `git merge origin/<base>`, or `<base>` without a
-     remote; fix each file with the user, run the gates, commit, then continue at step 5) or leave it
-     to the user.
-   - `merged N new commits` → run the gates of verification step 2 again; red → show them; no push
-     while they are red. Offer: fix them now (on yes: fix, run the gates, then step 2 with a new
-     message, then step 5) or stop. With `--finish` the task's removal is committed but not pushed:
+2. Write the message to `<project>/.keel/local/tmp/commit-message.txt`, then one call that commits,
+   syncs, pushes and switches back: `save --message-file "<project>/.keel/local/tmp/commit-message.txt"`
+   plus
+   - **finish**: `--sync <base>`; end-session also passes `--tickets "<keys>"`. On the base itself
+     (a planned ticket on its feature branch) the sync merges `<remote>/<base>`: the teammates'
+     commits of that shared branch;
+   - **handoff**: a task adds `--back-to <base>`, except when the instruction asks to merge: no
+     `--back-to` then, merge in step 3 first, then `switch --name <base>`. A refused push shows as
+     `push: refused (...)` and does not stop the handoff: say the work is on this machine only (a
+     refused push: no merge, say so).
+
+   First line `ok` → step 3. The script leaves out secret files and lists them: tell the user.
+   `nothing to commit` is fine. In a **finish** the task folder went to keel's trash before this
+   step, so its removal is in the commit. `stopped` → read `reason:`, `done:` and `left:`:
+   - `conflict` → show the files. In a finish the commit already holds the task's removal, so nothing
+     is put back (`restore: not needed ... committed`); after the resolve commit the finish goes on
+     with `push`. Offer: resolve together now (on yes: `git merge origin/<base>`, or `<base>` without a
+     remote; fix each file with the user, run the gates, commit, then `push`) or leave it to the user.
+   - `sync merged N new commits ...; run the gates again before the push` → run the gates of
+     verification step 2 again; green → `push`; red → show them; no push while they are red. Offer:
+     fix them now (on yes: fix, run the gates, then `save` with a new message and the same options)
+     or stop. With `--finish` the task's removal is committed but not pushed:
      "stop" puts the task back, `node "<keel>/scripts/notes.js" "<project>" task restore <id> --session <sid>`
      (and its ticket: `plans.js done <id> --undo`); say so: fix it, then /keel:end-task again.
-5. `push`. Refused → stop and show why.
-6. **Merge** (a handoff comes here from step 3), only as "Merging" above allows: say in one line
+   - a stopped commit or push → show why; `push` refused in a finish → stop.
+3. **Merge** (a handoff that asks for it comes here), only as "Merging" above allows: say in one line
    "Merging <branch> into <target>. Claude Code will ask you to confirm." (the second sentence only
    when it will, as "Merging" says), then `merge --into <target>`. Declined → the branch stays
    pushed; say so.
    - `<target> is protected` → the merge was undone locally. Show the `pull request:` line and ask
      "Create the pull request now?"; only on yes run it, with a title and body from the task in
      `repo_language` and no mention of AI.
-7. Report: commit, branch, pushed or not, merged or not, PR link.
+4. Report: commit, branch, pushed or not, merged or not, PR link.
 
 ## End of feature
-After `done: feature <f> complete (<n> tickets)` and the push, or offered by `/keel:tasks` (both git
-modes: each step runs only on its own yes, as the user's instruction): say "Feature <f> is complete:
-all <n> tickets done." `<branch>` and `<merge_into>` come from the `branch: <b> -> <m>` line of
-`node "<keel>/scripts/plans.js" "<project>" tickets <f>`, never from the task file. Then one question
-at a time:
-0. Onto `<branch>`. Already on it → nothing. On the ticket branch the last ticket finished on → first
-   its usual merge into `<branch>` (step 6; it leaves you on `<branch>`); declined or refused → say the
-   feature waits for that merge and stop here. Anywhere else (e.g. the main branch) → "Switch to
-   `<branch>`?" → `switch --name <branch>` (a clean tree); no → stop here.
-1. The tickets: keep them (default) or delete them. Delete →
-   `node "<keel>/scripts/plans.js" "<project>" drop <f>` (`plans: drop refused (<f> still has stubs:
-   ...)` → say it; the tickets stay) → `drop: <folder> -> trash <batch>`; a
-   folder in the repository then leaves in its own commit on the feature branch, before the merge
-   (keel never commits on the main branch): "Claude Code will now ask you to allow it.", then
-   `node "<keel>/scripts/plans.js" "<project>" commit <f>`, then step 5 (`push`).
-2. "Merge `<branch>` into `<merge_into>`?" → step 6 (Merge) with that target.
-3. Only after step 2 printed `merge: <branch> -> <merge_into> (<sha>)` (it leaves you on
-   `<merge_into>`): "Delete the branch `<branch>`?" →
-   `node "<keel>/scripts/git-flow.js" "<project>" delete-branch --name <branch>`, with `--remote` when
-   it was pushed (Claude Code confirms). A declined or refused merge, or a pull request instead →
-   no step 3: say the branch stays.
-A no to step 1: the tickets stay; go on with the next question.
+**End of feature** (`done: feature <f> complete (<n> tickets)` after the push, or `/keel:tasks` offers
+it: the last ticket of a planned feature is done and the feature branch may be merged) → read
+`<keel>/skills/_shared/git-end-of-feature.md` and follow it.
 
 ## Never
 Force-push, rebase pushed work, delete branches (only `/keel:tasks drop` does, with
 `git-flow.js delete-branch`, which Claude Code confirms), except the feature branch in "End of
-feature" above and the task's own branch in intake.md "Task to planning", each on its yes; commit
+feature" above and the task's own branch in task-to-planning.md, each on its yes; commit
 secret files, or commit to the main branch directly in autonomous mode.

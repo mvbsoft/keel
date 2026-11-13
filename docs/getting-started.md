@@ -279,7 +279,7 @@ description:
 keel writes the note `.keel/next-session.md` (goal, the plan, a "Later" list for things found along the
 way, one first action), shows it and asks "Start?". On yes it creates the branch for this line of work
 (manual git: it gives you `git switch -c <name>` and waits until you say it ran). The note is kept to
-about 150 lines and never contains passwords, keys or tokens. Next time, in a new conversation:
+about 150 lines (12000 characters) and never contains passwords, keys or tokens. Next time, in a new conversation:
 
 ```
 /keel:start-session

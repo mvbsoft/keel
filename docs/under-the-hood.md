@@ -35,7 +35,7 @@ project with `.keel/config.json`.
 | Before a write, an edit or a shell command | `planning-guard` | Only in a conversation that plans a feature. **Planning guard**: refuses a change to a project file outside planning's own files; a safeguard against slips, not a wall ([how keel behaves](behavior.md#planning)). |
 | Before a read, search, write or shell command | `own-files` | Every project. **keel's own files**: reading keel's plugin folder and running keel's own scripts need no permission prompt, within strict rules ([safety](#safety)). The steps that remove something (a finished or dropped task's folder to keel's trash, a task branch, emptying the trash), confirming autonomous git, a commit or push of planning files, and a merge (unless autonomous mode is confirmed on this machine and `git.ask_before_merge` is off) get **Claude Code's own confirmation** with keel's reason, even when your allow rules would let them run ([how keel behaves](behavior.md)). Such a step named with any project but the current one's exact absolute path, a keel script command that holds such a step's words as words without quotes but does not read as that step ([safety](#safety) has `plans.js`'s rule), a keel script whose arguments the hook cannot read safely, and a keel script run in any form but the plain one (node options, `env`, `bash -c`, a wrapper) are refused with the plain form to use. keel's QA agents may write only in the project's `.keel/local/tmp/qa/` (there without a prompt). |
 | Before a `git commit` or `gh pr create/edit` | `no-ai-attribution` | Set-up projects only. **No AI attribution**: a commit or pull request whose text (the command, or a message file it names with `-F`, `--file` or `--body-file`) carries an AI co-author trailer or "Generated with ..." is refused with the reason, and Claude sends it again without. A co-author counts as AI when its address is a tool's or its name is a tool's name, alone or with model or version words (`Claude`, `Claude Opus 5.5`, `Claude Code`); a person such as `Claude Martin` is not refused. |
-| Before a file edit, write or command | `skill-hints` | Set-up projects only; the main conversation and keel's implementer. **Skill hints**: when the conversation touches something one of 6 advisory skills covers (editing a database migration, editing Python code or docs, writing a new source file, editing a dependency manifest or a decision record in an ADR folder, a git command such as commit, merge, rebase, push, tag or `gh pr create`), one line reminds Claude to load that skill; each skill at most once per conversation. |
+| Before a file edit, write or command | `skill-hints` | Set-up projects only; the main conversation and keel's implementer. **Skill hints**: when the conversation touches something one of 6 advisory skills covers (editing a database migration, editing Python code or docs, writing a new source file, editing a dependency manifest or a decision record in an ADR folder, a git command such as commit, merge, rebase, push, tag or `gh pr create`), the skill's rules are added to the conversation right there, so Claude needs no extra step to load the skill; each skill at most once per conversation. |
 | An agent hands back its report | `handback` | Projects with a `.keel/` folder. In auto mode an agent delivers its report through Claude Code's `SubagentHandback` tool instead of its last reply; keel saves that report to `.keel/local/tmp/agents/<name>-<id>.md`, where the verification scripts read it. |
 | keel's implementer agent starts | `subagent-start` | It gets the working standards, without the parts on talking to the user and on rules the user states, and the comment rules. |
 | An agent finishes | `ledger` | Projects with a `.keel/` folder. **Token ledger**: one line per agent in `.keel/local/ledger.jsonl` (the implementer's cost after delegated steps comes from it). Each keel agent's final reply is saved to `.keel/local/tmp/agents/` for the verification scripts, unless `handback` already saved its report there; then that report is kept. In a conversation that plans a feature the replies go to `.keel/local/tmp/planning/<conversation id>/`, and each ticket review's task and reply are also kept in `.keel/local/plans/keel/samples/`. |
@@ -126,8 +126,8 @@ On each machine keel also keeps `~/.claude/keel/`:
 Skill hints keep one empty marker file per skill per conversation in the OS temp folder, so each hint
 comes only once; nothing is written into the project for them.
 
-The note, memory and each task file have a limit of 150 lines; a script measures them and reports a
-file over it. keel never writes passwords, keys, tokens or connection strings into them. How task
+The note, memory and each task file have a limit of 150 lines and 12000 characters; a script measures
+them and reports a file over either. keel never writes passwords, keys, tokens or connection strings into them. How task
 folders and the note move with git: [ways of working](workflows.md#where-the-files-live).
 
 ## Safety
@@ -230,8 +230,8 @@ Reporting a vulnerability: [SECURITY.md](../SECURITY.md).
 
 ## Overhead
 
-In a set-up project keel adds about 3.6k tokens to every conversation: its working standards and the
-project's comment rules (about 2.3k) and the skill and agent descriptions (about 1.3k). The standards
+In a set-up project keel adds about 3.8k tokens to every conversation: its working standards and the
+project's comment rules (about 2.3k) and the skill and agent descriptions (about 1.5k). The standards
 are added again after `/clear` and after compaction. In a project keel is not set up in, only the
 skill and agent descriptions remain, because Claude Code lists them wherever keel is installed.
 Each end of work syncs the cost data through a small Haiku sync agent for about $0.07-0.20, more after a longer session, when the dashboard is set up (`/keel:usage off` stops it; [syncing](usage-dashboard.md#syncing-between-machines)).

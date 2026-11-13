@@ -47,7 +47,7 @@ test('the verification team is complete and every agent file belongs to it', () 
 test('agent implementer: Sonnet on high, 350 turns, edits files, never spawns agents, reports per criterion', () => {
   const { meta, body } = agent('implementer');
   assert.equal(meta.name, 'implementer');
-  assert.ok(meta.description && meta.description.length < 250, 'one-sentence description');
+  assert.ok(meta.description && meta.description.length <= 110, 'short description: it loads into every session of every project');
   assert.equal(meta.model, 'sonnet', 'plan 8: Sonnet; Opus only per step, on the user\'s yes');
   assert.equal(meta.effort, 'high');
   assert.equal(meta.maxTurns, '350', 'plan 10.4: 350 for the implementer');
@@ -67,7 +67,7 @@ for (const [name, spec] of Object.entries(TEAM)) {
   test(`agent ${name}: frontmatter, tools, protocols and principles`, () => {
     const { meta, body } = agent(name);
     assert.equal(meta.name, name);
-    assert.ok(meta.description && meta.description.length < 250, 'one-sentence description');
+    assert.ok(meta.description && meta.description.length <= 110, 'short description: it loads into every session of every project');
     assert.equal(meta.model, spec.model);
     assert.equal(meta.effort, 'high', 'plan 10.4: every agent on high');
     assert.equal(meta.maxTurns, '60', 'review agents: 60 turns (measured p90 about 52)');

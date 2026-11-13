@@ -462,7 +462,7 @@ Rules:
 
 - **Update, do not rewrite**: change what changed, keep what still holds.
 - **Keep a sentence only if** without it the next conversation would act differently.
-- **At most 150 lines per file** (each task file, the note, project memory), checked by
+- **At most 150 lines and 12000 characters per file** (each task file, the note, project memory), checked by
   `notes.js check`. Over it → compress: done steps one line each, resolved questions out, from "Tried
   and did not work" only what could tempt a retry; a big task plan goes to `plan.md` in the task
   folder.

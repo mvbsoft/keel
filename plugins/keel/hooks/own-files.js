@@ -27,8 +27,8 @@
 // - git-flow.js: `status` always; the other steps only when the project's git mode is autonomous
 //   and the user confirmed these git settings on this machine (`trust`, which itself always prompts;
 //   a changed `git` section needs it again). `merge` asks in every mode, unless the mode is autonomous,
-//   confirmed here, and ask_before_merge is off; `push` on the main line (or where git cannot tell the
-//   branch) is left to Claude Code's prompt; `delete-branch` always asks;
+//   confirmed here, and ask_before_merge is off; `push` and `save` (commit, sync and push in one call) on
+//   the main line (or where git cannot tell the branch) are left to Claude Code's prompt; `delete-branch` always asks;
 // - claude-settings.js: `show` only. `apply` writes the user's Claude Code settings and `move-plans`
 //   moves the user's plan files, so both are left to Claude Code's own permission prompt;
 // - migrate.js: `find`, `refs`, `state` (they only read; `find` writes its result to .keel/local/tmp/).
@@ -52,7 +52,7 @@ const SCRIPTS = new Set(['scan.js', 'check-config.js', 'safe-command.js', 'chang
 // Script steps that change the user's files for good or move them outside keel's own folders: left
 // to Claude Code's permission prompt.
 const ASK = { 'claude-settings.js': ['apply'], 'migrate.js': ['apply'], 'usage-setup.js': ['apply', 'prices-apply', 'install-statusline', 'sync'] };
-const GIT_STEPS = new Set(['start', 'switch', 'commit', 'sync', 'push']);
+const GIT_STEPS = new Set(['start', 'switch', 'commit', 'sync', 'push', 'save']);
 // plans.js steps Claude Code confirms each time, even when an allow rule would let node run.
 const PLANS_ASK = new Set(['commit', 'push']);
 
@@ -220,7 +220,7 @@ function gitFlow(pos, opts) {
     return trusted && git.ask_before_merge === false ? allow(`keel git, autonomous mode: merge into ${target}`) : decide('ask', say(project, 'confirm.merge', { target }));
   }
   if (!trusted) return null;
-  if (command === 'push' && onMainLine(project, git)) return null;
+  if ((command === 'push' || command === 'save') && onMainLine(project, git)) return null;
   if (GIT_STEPS.has(command)) return allow(`keel git, autonomous mode: ${command}`);
   return null;
 }

@@ -185,7 +185,8 @@ denied there like the other confirmed steps.
 - **What the review agents find**: see [Verification](verification.md).
 - **Steps keel does not confirm itself**: keel's hook pre-approves its own scripts that only read,
   write keel's own files or can be undone and, after you confirm autonomous git on this machine, its git steps (start, switch,
-  commit, update from the base branch, and push except from the main branch). Everything else follows
+  commit, update from the base branch, push, and `save`, which does commit, update, push and the switch
+  back in one call; push and `save` except from the main branch). Everything else follows
   your Claude Code permission rules, and your deny and ask rules still apply to keel's steps too.
 - **Planning's write guard** is a safeguard against slips, not a wall: it sees edits, writes, shell
   redirections, `sed -i`, `cp`, `mv` and PowerShell's write commands, but not `rm`, `git checkout`,

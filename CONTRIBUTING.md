@@ -31,8 +31,8 @@ so the planning cases resume a short written conversation instead (`history.json
 with the fixed session id the fixture marks as planning a feature or working on a task). The seven cases
 tagged `start-planning` resume `/keel:start-planning` as Claude Code expanded it, with keel at
 `/work/plugins/keel` as the Docker command below mounts it, with the tool calls behind keel's first
-reply, and give the person's next words; a test keeps the expanded steps and the files it read
-(`skills/_shared/preflight.md`, `skills/_shared/planning.md`) equal to the current ones: after a
+reply, and give the person's next words; a test keeps the expanded steps and the file it read
+(`skills/_shared/planning.md`) equal to the current ones: after a
 change to any of them (or to the brief one of them reads, `evals/_fixtures/notification-system-brief.md`), run
 `node plugins/keel/evals/_fixtures/start-planning-history.js` to write them again.
 

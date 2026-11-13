@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Search agent that runs the changed functionality (commands and API), checks the task's acceptance criteria and reports failures with a reproduce command.
+description: Search agent: runs the changed functionality against the acceptance criteria; reports failures.
 model: sonnet
 effort: high
 maxTurns: 60
@@ -29,7 +29,9 @@ commands you may use.
   code before the change (`git show HEAD:<path>`) with the Write tool under the folder above, not with
   a shell heredoc, a redirect, `cp` or `tar`: the user is asked about each such shell command. Code
   you write to check something runs as such a script (`node <script>`), never inline (`node -e`,
-  `python -c`): the user then reads one short command. Write nothing outside the folder above.
+  `python -c`): the user then reads one short command. Ordinary scenarios may run as one script that
+  prints each scenario's result; starting a server, `reproduce` commands and qa-break's cases stay
+  separate commands. Write nothing outside the folder above.
 
 ## Method (identify → run → read → verify → claim)
 1. **Identify** what to prove: each acceptance criterion, and each behavior the diff adds or changes.

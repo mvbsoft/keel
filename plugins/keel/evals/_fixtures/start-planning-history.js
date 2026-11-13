@@ -1,9 +1,10 @@
 'use strict';
 // Writes history.jsonl of the cases tagged start-planning: the conversation in which the person typed
 // /keel:start-planning, as Claude Code records it (the command, then its expanded text), the tool calls
-// of its first reply (preflight and planning rules read, the scripts, the premise search), and keel's
-// reply so far. keel refuses /keel:start-planning in every eval run, so these cases resume it instead.
-// Run after a change to start-planning/SKILL.md, _shared/preflight.md, _shared/planning.md or
+// of its first reply (planning rules read, the scripts, the premise search; the state is ok, so no
+// preflight read), and keel's reply so far. keel refuses /keel:start-planning in every eval run, so
+// these cases resume it instead.
+// Run after a change to start-planning/SKILL.md, _shared/planning.md or
 // notification-system-brief.md:
 // node plugins/keel/evals/_fixtures/start-planning-history.js
 const fs = require('node:fs');
@@ -68,7 +69,6 @@ const script = (id, say, name, args, result) =>
 // the planning rules it plans without them, without these calls it takes the reply as unchecked and
 // runs the steps, the code search included, again.
 const STEPS = ({ brief = false } = {}) => [
-  ...read('read_preflight', 'Reading the preflight steps.', 'skills/_shared/preflight.md'),
   ...script('notes_check', 'Checking this conversation\'s lane.', 'notes.js', `check --session ${SID}`,
     'note: missing\nmemory: missing\ntasks: 0 unfinished\nactive task: none\nsession start: not recorded\nnext session log: .keel/sessions/2026-11-02-001.md\n'),
   ...script('mark_get', 'Checking whether this conversation already plans a feature.', 'plans.js', `mark get --session ${SID}`, 'planning: none\n'),

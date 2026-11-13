@@ -397,7 +397,7 @@ test('skill-hints: a matching file or command names its skill once per session; 
   const mig = call('Write', { file_path: path.join(dir, 'db', 'migrations', '002_x.sql') });
   assert.equal(mig.out.hookSpecificOutput.hookEventName, 'PreToolUse');
   assert.equal(mig.out.hookSpecificOutput.permissionDecision, undefined, 'never decides permissions');
-  assert.match(mig.out.hookSpecificOutput.additionalContext, /database migration\. Load the keel:migration-safety skill/);
+  assert.match(mig.out.hookSpecificOutput.additionalContext, /database migration\. The rules of the keel:migration-safety skill apply/);
   assert.equal(call('Edit', { file_path: path.join(dir, 'db', 'migrations', '003_y.sql') }).raw, '', 'once per session');
   assert.match(call('Edit', { file_path: 'db/migrations/002_x.sql' }, `${sid}-2`).raw, /migration-safety/, 'a new session hears it again');
   assert.equal(call('Read', { file_path: 'db/migrations/002_x.sql' }, `${sid}-10`).raw, '', 'reading a migration does not load the skill');

@@ -107,7 +107,7 @@ More: [the final report](workflows.md#the-final-report) and [usage dashboard](us
 ## 8. The handoff note
 
 One format for tasks and sessions: goal, next action, state (✅ / ◐ / ⚠ / ⬜), files, decisions and why,
-what did not work, open questions, how to check. At most 150 lines; updated, not rewritten. Planning has
+what did not work, open questions, how to check. At most 150 lines and 12000 characters; updated, not rewritten. Planning has
 no handoff: the plan's Next action says where the next conversation starts.
 More: [what is in a handoff](workflows.md#what-is-in-a-handoff).
 
