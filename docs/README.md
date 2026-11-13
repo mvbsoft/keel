@@ -11,6 +11,7 @@ Where to start: read [How keel works](overview.md) for the whole picture, follow
 | Page | What you find there |
 |---|---|
 | [How keel works](overview.md) | The whole system on one page: the three lanes (tasks, sessions, planning), starting and ending work, the report, the handoff, verification, delegation, git, what runs in the background. |
+| [What keel 2.0 does](features.md) ([українською](features.uk.md)) | A short, complete list: what each command does, what runs by itself, and which questions keel asks in which cases. |
 | [Install](install.md) | Requirements, installing and install scopes, where keel acts and what it changes, updating and removing keel, troubleshooting. |
 | [Getting started](getting-started.md) | A walkthrough: set up a project, run a first task, hand a task off, continue long work, plan a feature first, clean up. |
 

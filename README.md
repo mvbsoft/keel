@@ -27,6 +27,9 @@ choose, with its price shown before and after ([measurements](docs/verification.
 
 keel runs in **Claude Code** today; support for other coding agents is planned.
 
+**Everything keel does, on one page.** What each command does, what runs by itself without a
+command, and which questions keel asks in which cases: [What keel 2.0 does](docs/features.md).
+
 ## The idea: spend where it pays
 
 keel exists to make building with an AI agent cheaper without making the result worse. Every choice in
