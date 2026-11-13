@@ -242,28 +242,29 @@ function exportedData(root, feature, f, now) {
 }
 
 // The feature of the current branch: a draft whose branch (or name) it is, or exported tickets whose
-// branch it is; `all` every draft and exported feature here, for the question.
+// branch it is, or whose ticket is in progress on it; `all` every draft and exported feature, `here`
+// those the page can be built from in this working tree, for the question.
 function currentFeature(root, now) {
   const branch = git(root, ['symbolic-ref', '-q', '--short', 'HEAD']);
   const drafts = plans.listDrafts(root).filter((d) => ['draft', 'ready'].includes(plans.stateOf(d)));
   const keys = [...states(collect(root, now)).values()].filter((e) => plans.validFeature(e.feature));
   const all = [...new Set([...drafts.map((d) => d.feature), ...keys.map((e) => e.feature)])].sort();
-  const on = branch ? [...new Set([...drafts.filter((d) => d.fm.branch === branch || d.feature === branch).map((d) => d.feature), ...keys.filter((e) => e.branch === branch).map((e) => e.feature)])] : [];
-  return { branch, all, on };
+  const ticketBranch = (e) => e.via && e.via.kind === 'branch' && e.via.branch === branch;
+  const on = branch ? [...new Set([...drafts.filter((d) => d.fm.branch === branch || d.feature === branch).map((d) => d.feature), ...keys.filter((e) => e.branch === branch || ticketBranch(e)).map((e) => e.feature)])] : [];
+  const here = all.filter((x) => drafts.some((d) => d.feature === x) || featureFolder(root, x));
+  return { branch, all, here, on };
 }
 
 // `lang`: the page's language, else the earlier page's (`previous`, its file), else the conversation's.
 // `fetch`: the remote first, so the states are fresh; a failed fetch still builds the page.
 function build(root, arg, { now = new Date(), lang = null, previous = null, fetch = false } = {}) {
-  const fetchResult = fetch ? fetched(root) : { failed: false, notes: [] };
-  // fetched() words its notes for the export ("; keys ..."); the page speaks of ticket states.
-  const fetchNotes = fetchResult.notes.map((n) => n.replace(/; keys .*$/, fetchResult.failed ? '; ticket states as of the last fetch' : ''));
   let feature = arg;
   if (feature === undefined) {
     const c = currentFeature(root, now);
     if (c.on.length !== 1) {
       const why = !c.branch ? 'HEAD is detached' : c.on.length ? `the branch ${c.branch} has several: ${c.on.join(', ')}` : `the branch ${c.branch} is no feature's branch`;
-      return [`feature: none (${why})`, `features: ${c.all.join(', ') || 'none'}`];
+      const elsewhere = c.all.filter((x) => !c.here.includes(x));
+      return [`feature: none (${why})`, `features: ${c.here.join(', ') || 'none'}`, ...(elsewhere.length ? [`other branches: ${elsewhere.join(', ')}`] : [])];
     }
     feature = c.on[0];
   }
@@ -271,10 +272,13 @@ function build(root, arg, { now = new Date(), lang = null, previous = null, fetc
   const draft = plans.listDrafts(root).find((d) => d.feature === feature && ['draft', 'ready'].includes(plans.stateOf(d)));
   const f = draft ? null : featureFolder(root, feature);
   if (!draft && !f) return refuse(`no draft and no exported tickets of ${feature} in this working tree; on another branch: switch to it first`);
+  // A draft's tickets have no state from git, so a fetch would freshen nothing on its page.
+  const fetchResult = fetch && !draft ? fetched(root) : { failed: false, notes: [] };
+  // fetched() words its notes for the export ("; keys ..."); the page speaks of ticket states.
+  const fetchNotes = fetchResult.notes.map((n) => n.replace(/; keys .*$/, fetchResult.failed ? '; ticket states as of the last fetch' : ''));
   let data;
   try { data = draft ? draftData(root, draft) : exportedData(root, feature, f, now); } catch (e) { return refuse(e.message); }
-  // A draft's tickets have no state from git, so a failed fetch leaves nothing stale on its page.
-  const stale = !draft && fetchResult.failed;
+  const stale = fetchResult.failed;
   // The page leaves this machine: a feature file that names one of its folders is fixed first.
   const folders = plans.machineFolders(root);
   const local = [
@@ -325,7 +329,7 @@ function build(root, arg, { now = new Date(), lang = null, previous = null, fetc
     ...(data.written.length ? [`code written: ${data.written.join(', ')} (commit and push them, so every machine finds this page)`] : []),
     `feature: ${feature}, ${data.stage}, ${data.tickets.length} tickets${data.stage === 'exported' ? ` (${done} done)` : ''}`,
     `as of: ${data.repos.map((r) => `${r.name} ${r.commit || 'not on this machine'}`).join(', ')}`,
-    ...(draft ? [] : fetchNotes),
+    ...fetchNotes,
     `language: ${pageLang}${own ? '' : ' (labels in English: no page labels in this language)'}; texts in ${source}`,
   ];
   let dir;
@@ -354,9 +358,9 @@ function render(dir, page, known) {
   // "<" as the escape <: a "</script>" in a ticket's text cannot close a data block. Replacement functions,
   // not strings: a text with $& or $' must not be read as a replacement pattern.
   const json = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
-  const html = fs.readFileSync(TEMPLATE, 'utf8')
-    .replace('{{TITLE}}', () => escapeHtml(page.title)).replace('{{LANG}}', () => page.language)
-    .replace('{{DATA}}', () => json(page)).replace('{{TRANSLATIONS}}', () => json({ lang: page.language, items: used }));
+  // One pass over the template: a placeholder that a title or a ticket's text holds is never filled.
+  const values = { TITLE: escapeHtml(page.title), LANG: page.language, DATA: json(page), TRANSLATIONS: json({ lang: page.language, items: used }) };
+  const html = fs.readFileSync(TEMPLATE, 'utf8').replace(/\{\{(TITLE|LANG|DATA|TRANSLATIONS)\}\}/g, (m, key) => values[key]);
   const file = path.join(dir, 'index.html');
   fs.writeFileSync(file, html);
   for (const name of PAGE_ASSETS) fs.copyFileSync(path.join(TEMPLATE_DIR, name), path.join(dir, name));

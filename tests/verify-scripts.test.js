@@ -296,6 +296,17 @@ test('one faulty item does not drop a report: unknown fields are dropped, a bad 
   assert.deepEqual(named.repaired, [{ file: 'reviewer.md', ids: ['reviewer-2', 'reviewer-3'] }]);
 });
 
+test('a null optional field is dropped like a missing one, a null required field still invalidates the finding', () => {
+  const nullField = { ...finding('reviewer-1', 'important'), reproduce: null };
+  const kept = makePlan([reportOf('reviewer', [nullField])], 'quick', 2, { default: 'sonnet' });
+  assert.deepEqual(Object.keys(kept.findings), ['reviewer-1']);
+  assert.deepEqual(kept.repaired, [{ file: 'reviewer.md', dropped: ['$.findings[0].reproduce'] }]);
+  const nullRequired = { ...finding('reviewer-2', 'important'), evidence: null };
+  const bad = makePlan([reportOf('reviewer', [nullRequired])], 'quick', 2, { default: 'sonnet' });
+  assert.deepEqual(Object.keys(bad.findings), []);
+  assert.equal(bad.invalid[0].item, 'reviewer-2');
+});
+
 test('verifier plan on Maximum: three lenses while the cap allows, then one vote, then not verified', () => {
   const crit = (n) => reportOf('security', Array.from({ length: n }, (_, i) => finding(`security-${i + 1}`, 'critical')));
   const full = makePlan([crit(2)], 'maximum', 8, { default: 'opus' });

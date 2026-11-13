@@ -198,7 +198,7 @@ gitTest('tickets: a squash merge is done; a merged branch whose folder was remov
   assert.deepEqual(run(work, 'tickets', 'pdf-report').slice(1), ['pdf-report (1 of 1 done)', '  branch: pdf-report -> main', '  PROJ-30 Ticket PROJ-30 — done', 'next: none']);
   const removed = run(work, 'tickets', 'PROJ-31');
   assert.equal(line(removed, 'PROJ-31'), '  PROJ-31 Ticket PROJ-31 — done');
-  assert.ok(removed.includes(`  file: doc-export:${file(31, 'tickets/doc-export')}`), removed.join('\n'));
+  assert.ok(removed.includes(`  file: doc-export:./${file(31, 'tickets/doc-export')}`), removed.join('\n'));
 });
 
 gitTest('tickets: a branch merged and reverted on merge_into is marked reverted', () => {
@@ -453,7 +453,7 @@ gitTest('tickets: a project in a sub-folder of its repository reads the branches
   git(repo, 'checkout', '-q', 'main');
   const out = run(work, 'tickets', 'PROJ-56');
   assert.equal(line(out, 'PROJ-56'), '  PROJ-56 Ticket PROJ-56 — waiting for the feature merge · branch csv-export, Test, today');
-  assert.ok(out.includes(`  file: csv-export:${file(56, 'tickets/csv-export')}`), out.join('\n'));
+  assert.ok(out.includes(`  file: csv-export:./${file(56, 'tickets/csv-export')}`), out.join('\n'));
 });
 
 gitTest('tickets: hundreds of branches do not hide work in progress', () => {

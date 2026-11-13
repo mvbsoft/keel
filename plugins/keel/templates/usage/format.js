@@ -60,7 +60,8 @@ window.KeelFormat = function (P, t, lang) {
       default: return String(key);
     }
   }
-  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  // The days in the data are UTC days, so the period ends on the current UTC day, not the local one.
+  const today = () => new Date().toISOString().slice(0, 10);
   const addDays = (ds, n) => { const p = ds.split('-').map(Number); const d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)); return d.toISOString().slice(0, 10); };
 
   return {

@@ -10,7 +10,7 @@
 //   report    [--session <id>] [--in <dir>] [--lang uk|en] [--project <dir>] [--last-turn]   the end report for a session
 //             (--last-turn: one line, the latest user turn only); keeps page_template in step with the page's
 //             meta/settings read into <in>; says once what the last prepare skipped
-//   snapshot  --src desktop --five-hour <n> --seven-day <n> [--five-hour-resets <iso>] [--seven-day-resets <iso>] [--session <id>]
+//   snapshot  --five-hour <n> --seven-day <n> [--five-hour-resets <iso>] [--seven-day-resets <iso>] [--session <id>]
 //   calibrate [--in <dir>]   the calibration table (points, rates, machines still to sync)
 //   audit     --page <dir> [--project <dir>]   this machine's dollars and tokens per session on the page (day documents
 //             saved into <dir>, summed as the dashboard sums them) against the local transcripts

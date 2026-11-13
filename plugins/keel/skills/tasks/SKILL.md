@@ -44,7 +44,7 @@ Current state of this project:
    ask which version is right, its `default:` first; on the answer `plans.js align <feature> --take
    <PREFIX>`; the commit and push of each `commit:` line only on the user's yes.
 4. `<task id>`: show its block, then read its `task.md` (and `plan.md`): in this working tree from the
-   path in Files; on another branch: `git show <branch>:<path>/task.md`. Tell its goal, state,
+   path in Files; on another branch: `git show <branch>:./<path>/task.md`. Tell its goal, state,
    open questions and next action in 3-6 lines. An id that is not listed → say so and show the list.
 5. `drop <task id>`: run `node "<keel>/scripts/notes.js" "<project>" task inventory <id>` and explain in
    plain words what the task left: its folder, the branch (local, pushed), the commits not in the base,

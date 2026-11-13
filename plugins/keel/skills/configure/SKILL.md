@@ -24,7 +24,9 @@ configure flow, run nothing, write nothing. No output above (a policy can turn o
 skills) → run `node "<keel>/scripts/config-check.js" "<project>"` once. Then, in the conversation
 language and plain words, at most about 15 lines:
 - `keel-config:` is not `ok`, or a `git:` line → what it says, and that `/keel:configure` sets keel up
-  or repairs it; stop.
+  or repairs it; stop. With a `settings on branch: <name>` line, say instead that keel is already set
+  up on that branch and its settings reach this branch when that branch is merged; a fresh setup here
+  only when the user insists.
 - `result: nothing to reconfigure` → say so in one line and why: nothing keel's settings depend on
   changed since that date (package versions alone do not count).
 - otherwise: first the answer (which sections need it, which are only worth a look); then one line per

@@ -37,7 +37,8 @@ so an update translates only what changed.
      commit and push them, so every machine finds this page.
    - `feature: none (<why>)` → say why in plain words. `features: none` → there is no planned feature
      here (`/keel:start-planning` plans one); stop. Else ask which feature (AskUserQuestion, from the
-     `features:` list) and run again with it.
+     `features:` list) and run again with it. An `other branches:` list names features whose files are
+     on another branch: they are not offered; say that the user switches to that branch first.
    - `feature-page: refused (<why>)` or `unavailable` → say why in plain words and stop. Refused for
      paths of this machine: show the `- ` lines below it (file, path, line); they are fixed in those
      files, never on the page.

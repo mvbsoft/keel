@@ -42,7 +42,9 @@ is `/keel:usage clear`. Ask "Turn the sync off?" (Yes / No). Yes → run
 
 **`on`**: run `node "<keel>/scripts/usage-setup.js" "<project>" sync on`. No `artifact_url` above →
 read `<keel>/skills/_shared/usage-page.md` and follow it (find the account's page or offer to create
-it). Then say the next `/keel:end-*` sends what Claude Code's logs on this machine still hold (they keep
-30 days by default).
+it). Before the first send say what goes to the page: your git email, the task and step names and, with
+`prompt_preview` on, the first 100 characters of your requests (keel masks what looks like a secret);
+never your code or replies. Then say the next `/keel:end-*` sends what Claude Code's logs on this
+machine still hold (they keep 30 days by default).
 
 **`clear`**: read `<keel>/skills/_shared/usage-clear.md` and follow it (`<show>` is the settings above).

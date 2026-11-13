@@ -11,12 +11,29 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { isUkrainian } = require('../scripts/lib/i18n.js');
 
-// Letters Ukrainian never uses, and common Russian words whose Ukrainian form differs.
+// Letters Ukrainian never uses, and common Russian words whose Ukrainian form differs. A Russian word
+// that is also a correct Ukrainian form stays out of the list ("запустить": he will start).
 const RUSSIAN_LETTERS = /[ыэёъ]/gi;
+const RUSSIAN_WORD_LIST = [
+  'и', 'что', 'это', 'если', 'или', 'нужно', 'также', 'которые', 'чтобы', 'потому', 'сейчас', 'только',
+  'будет', 'можно', 'ни', 'нет', 'ещё', 'еще', 'как', 'был', 'была', 'было', 'были', 'очень', 'когда',
+  'где', 'они', 'его', 'меня', 'тебя', 'после', 'проверил', 'проверила', 'проверили', 'проверить',
+  'проверка', 'проверки', 'проверено', 'сделал', 'сделала', 'сделали', 'сделать', 'сделано', 'получил',
+  'получила', 'получили', 'получить', 'получается', 'работает', 'работают', 'работать', 'делает',
+  'делают', 'делать', 'использует', 'используется', 'использовать', 'изменил', 'изменить', 'изменение',
+  'изменения', 'добавил','исправил', 'исправить', 'исправлено', 'удалить', 'удалил',
+  'нашел', 'нашла', 'нашли', 'хочет', 'могу', 'может', 'могут', 'должен', 'должна', 'должно', 'нужен',
+  'нужна', 'будут', 'есть', 'стоит', 'значит', 'кажется', 'находится', 'остается', 'запустил', 'тоже',
+  'здесь', 'сегодня', 'теперь', 'сначала', 'потом', 'затем', 'почему', 'зачем', 'сколько', 'несколько',
+  'много', 'больше', 'меньше', 'лучше', 'хорошо', 'конечно', 'вместе', 'вместо', 'между', 'либо', 'хотя',
+  'пока', 'даже', 'именно', 'вот', 'надо', 'время', 'вчера', 'всего', 'всех', 'она', 'оно', 'их', 'мне',
+  'себя', 'такой', 'какой', 'какая', 'какие', 'другой', 'другие', 'нельзя', 'ошибка', 'ошибки', 'ошибку',
+  'вопрос', 'ответ', 'пример', 'из', 'но',
+];
 // No \b: in JavaScript it knows only ASCII letters, so the lookarounds mark a Cyrillic word's edges
 // (an apostrophe belongs to the word, and so does a hyphen before it: Ukrainian writes "eval-и",
 // "PR-и"; Russian "что-то" still counts).
-const RUSSIAN_WORDS = /(?<![а-яіїєґʼ'-])(и|что|это|если|или|нужно|также|которые|чтобы|потому|сейчас|только|будет|можно|ни|нет|ещё|еще|как|был|была|было|были|очень|когда|где|они|его|меня|тебя|после)(?![а-яіїєґʼ'])/gi;
+const RUSSIAN_WORDS = new RegExp(`(?<![а-яіїєґʼ'-])(${RUSSIAN_WORD_LIST.join('|')})(?![а-яіїєґʼ'])`, 'gi');
 
 // What is left of a reply for the check: fenced and inline code go (logs, data). A fence closes with
 // the same run of ``` or ~~~ it opened with (a longer one holds a shorter one); an inline span with
@@ -74,4 +91,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { russianIn, decide };
+module.exports = { russianIn, decide, RUSSIAN_WORD_LIST };

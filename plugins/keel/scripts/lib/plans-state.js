@@ -85,7 +85,7 @@ function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
       if (!asKey) continue;
       for (const p of e.paths) {
         const where = e.found.find((x) => x.path === p && x.view.work) || e.pc.find((x) => x.path === p) ? null : e.found.find((x) => x.path === p).view.ref;
-        out.push(`  file: ${where ? `${short(where)}:` : ''}${p}`);
+        out.push(`  file: ${where ? `${short(where)}:./` : ''}${p}`);
       }
       const dep = (k) => (others.has(k) ? neighbours().stateText(k, others.get(k)) : `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : gone.get(`${e.target} ${k}`) || 'not found'}`);
       // A stub no ticket replaces yet: its state is never read.

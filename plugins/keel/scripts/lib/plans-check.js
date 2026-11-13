@@ -154,6 +154,10 @@ function problems(root, d) {
   const planned = repos().planRepos(d.fm);
   const list = tickets(d);
   const ids = new Set(list.map((t) => t.id));
+  for (const id of ids) {
+    const same = list.filter((t) => t.id === id);
+    if (same.length > 1) out.push(`${id}: two files have this number: ${same.map((t) => t.name).sort().join(', ')}`);
+  }
   const other = otherRepos(root, list.flatMap((t) => ticketIds(t.fm.depends_on)).filter((x) => !ids.has(x)));
   const notes = [];
   for (const t of list) {

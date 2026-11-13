@@ -216,7 +216,7 @@ again what is settled.
 | `/keel:end-task finish, level standard` | Finishes with the Standard verification level, without the level question. A level word (gates, basic, standard, maximum, none; quick means basic) counts only on its own or after "level". |
 | `/keel:end-task push` | Not clear whether to finish or hand off, so keel asks. |
 | `/keel:end-task finish: create branch bug/FIX-12, push, merge into main` | Finishes; the actions from your instruction run after verification: the work moves to `bug/FIX-12`, is pushed and merged into `main`. |
-| `/keel:end-task finish and push` and verification stays red | Claude Code has already asked about the folder (that comes before git). keel stops before any git step and asks what to do; stopping puts the task back. |
+| `/keel:end-task finish and push` and verification stays red | Claude Code has already asked about the folder (that comes before git). keel stops before any git step and asks what to do. The task is put back when you choose to stop (manual git: when you say you did not commit). |
 | `/keel:end-task` when the task is only on another branch | Switches to the task's branch first (uncommitted changes: it asks what to do with them), then goes on. |
 | `/keel:end-task` with no task at all | Offers to create a task from what this conversation did, or to verify without a task file (then there is no folder to remove, and a handoff is not possible). |
 | `/keel:end-task` in a conversation that runs a long-work session | "This conversation leads a long-work line: end it with /keel:end-session." It stops. |
@@ -253,7 +253,7 @@ again what is settled.
 | Autonomous git: a step before the removal is committed stops (a failing commit hook) | The git script itself puts the folder back and makes the task active again. The report says what stopped; fix it, then run `/keel:end-task` again. |
 | Autonomous git: the update from the base branch or the push stops after the commit (a conflict, a refused push) | The removal is already committed, so the task is not put back; the script says so. Fix the cause, then keel runs that step again. |
 | Autonomous git: new commits from the base branch turn the gates red | The removal is committed but not pushed. keel stops git and offers: fix them now (then commit and push), or put the task back. |
-| Verification is red and your instruction says push or merge | Claude Code has already asked about the folder. keel stops before any git step and asks; stopping puts the task back. |
+| Verification is red and your instruction says push or merge | Claude Code has already asked about the folder. keel stops before any git step and asks what to do. The task is put back when you choose to stop (manual git: when you say you did not commit). |
 | Autonomous git: keel would end its answer with the folder in the trash and nothing committed | Claude Code's Stop hook keeps it working once: go on with git, or put the task back. It does not interrupt a question to you. |
 | Manual git and you do not commit | Say so: keel puts the task back. If you never say it, the folder stays in keel's trash; `/keel:cleanup restore <batch>` brings it back. |
 

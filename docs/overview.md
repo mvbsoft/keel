@@ -118,7 +118,7 @@ More: [what is in a handoff](workflows.md#what-is-in-a-handoff).
 | Gates only | the project's tests, linters, types, scanners | ≈$0.2 |
 | Basic | one reviewer (Haiku) + up to 2 verifiers | ≈$0.25-0.5 |
 | Standard | context map (Haiku), reviewer, bug hunter, architect, QA, test reviewer, up to 4 specialist groups + up to 5 verifiers, a judge | ≈$1.4-4.3 |
-| Maximum | two bug hunters, QA and "try to break it", security always, three verifiers per critical finding, judge; mostly Opus | ≈$2.7-7.6 |
+| Maximum | context map (Haiku), two bug hunters, architect, QA and "try to break it", test reviewer, security always, other triggered groups up to 4 in total, up to 8 verifiers (three per critical finding), judge; mostly Opus | ≈$2.7-7.6 |
 
 Agents run on Sonnet unless named otherwise above. These run on Opus: the security group (Standard and Maximum),
 Standard's architect when the change has architecture signals (new files, files over the size

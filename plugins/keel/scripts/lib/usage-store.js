@@ -22,7 +22,10 @@ const { usageDir: defaultUsageDir, loadMachineConfig, WALLETS } = require('./usa
 const { projectOptions } = require('./options.js');
 
 const SCHEMA = 1;
-const CACHE_VERSION = 2;           // 2: request rows carry the message id (index 8), summaries carry `first`
+const CACHE_VERSION = 3;           // 3: turns carry what was done after them; 2: request rows carry the message id (index 8), summaries carry `first`
+const GHOST_MIN_VERSION = 2;       // an older cache of a session without a transcript still holds its message ids
+// What a turn says about the work after its message; the first thing a too big session gives up.
+const TURN_DETAIL = ['tools', 'agent_types', 'usd_agents', 'tok', 'ctx_max'];
 const MAX_DOC_BYTES = 240000;      // a bit under ArtifactData's 262 144 byte limit
 const DAY_MS = 86400000;
 const HOUR_MS = 3600000;
@@ -251,7 +254,7 @@ function entryOf(ref, ctx) {
 // A session whose transcript is gone, from its cache file alone (null when there is none or it predates message ids).
 function ghostOf(id, ctx) {
   const c = readJson(cacheFile(ctx, id));
-  if (!c || c.v !== CACHE_VERSION || !c.summary || !Array.isArray(c.summary.reqs)) return null;
+  if (!c || !(c.v >= GHOST_MIN_VERSION) || !c.summary || !Array.isArray(c.summary.reqs)) return null;
   ctx.cache.set(id, c);
   return { id, ref: null, raw: viewOf(c.summary, c.withText, ctx), birth: c.birthMs || 0, c };
 }
@@ -340,6 +343,10 @@ function prune(ctx, refs, nowMs) {
 function shrinkSession(sess, budget) {
   if (bytes(sess) <= budget) return sess;
   const s = { ...sess, truncated: true };
+  if (s.turns.some((t) => TURN_DETAIL.some((k) => k in t))) {
+    s.turns = s.turns.map((t) => Object.fromEntries(Object.entries(t).filter(([k]) => !TURN_DETAIL.includes(k))));
+    if (bytes(s) <= budget) return s;
+  }
   if (s.turns.some((t) => 'text' in t)) {
     s.turns = s.turns.map(({ text, ...t }) => t);
     if (bytes(s) <= budget) return s;
@@ -404,7 +411,10 @@ function sessionDoc(sum, wallet, keel, ccCost, withText = true) {
     turns: sum.turns.map((t) => {
       const out = { t: t.t == null ? null : new Date(t.t).toISOString() };
       if (withText && typeof t.text === 'string') out.text = t.text;
-      return Object.assign(out, { usd: r6(t.usd), requests: t.requests, agents: t.agents });
+      Object.assign(out, { usd: r6(t.usd), requests: t.requests, agents: t.agents });
+      for (const k of TURN_DETAIL) if (t[k] !== undefined) out[k] = t[k];
+      if (out.usd_agents !== undefined) out.usd_agents = r6(out.usd_agents);
+      return out;
     }),
   };
 }

@@ -460,7 +460,7 @@ gitTest('no feature named: the current branch\'s, else none with the list; clean
   const api = exported(tmp);
   assert.equal(line(run(api), 'feature'), `${FEATURE}, exported, 2 tickets (0 done)`);
   git(api, 'checkout', '-q', 'main');
-  assert.deepEqual(run(api), ['feature: none (the branch main is no feature\'s branch)', `features: ${FEATURE}`]);
+  assert.deepEqual(run(api), ['feature: none (the branch main is no feature\'s branch)', 'features: none', `other branches: ${FEATURE}`]);
   assert.deepEqual(run(api, 'no-such-feature'), ['feature-page: refused (no draft and no exported tickets of no-such-feature in this working tree; on another branch: switch to it first)']);
   assert.match(run(api, 'Bad Name')[0], /^feature-page: refused \(invalid feature name/);
   assert.deepEqual(run(api, 'clean'), ['clean: removed .keel/local/tmp/feature-page']);
@@ -602,4 +602,44 @@ test('the page template: its script parses, every label it names exists, and it 
     assert.ok(state in stateKeys, `the page knows "${state}"`);
     for (const [code, cat] of catalogs) assert.ok(`page.state.${stateKeys[state]}` in cat, `${code}: page.state.${stateKeys[state]}`);
   }
+});
+
+gitTest('a title that holds the text of a placeholder leaves the page\'s data intact', () => {
+  const tmp = tempDir('keel-page-');
+  const api = exported(tmp, { overview: OVERVIEW().replace('# Сповіщення про нове повідомлення', '# {{DATA}} {{TRANSLATIONS}} шаблони') });
+  const { html, data } = pageData(line(run(api, FEATURE), 'page'));
+  assert.equal(data.heading, '{{DATA}} {{TRANSLATIONS}} шаблони');
+  assert.ok(html.includes('<title>[API] - {{DATA}} {{TRANSLATIONS}} шаблони'), 'the title keeps its text');
+  assert.equal(JSON.parse(/id="feature-translations">([\s\S]*?)<\/script>/.exec(html)[1]).lang, 'uk');
+});
+
+gitTest('no feature named, on a ticket\'s own branch: the ticket\'s feature', () => {
+  const tmp = tempDir('keel-page-');
+  const api = exported(tmp);
+  git(api, 'checkout', '-q', '-b', 'api-2-badge');
+  assert.equal(line(run(api), 'feature'), `${FEATURE}, exported, 2 tickets (0 done)`);
+});
+
+gitTest('no feature named: the list holds the features of this working tree, the others by their branches', () => {
+  const tmp = tempDir('keel-page-');
+  const api = exported(tmp);
+  plans(api, 'new', 'csv-export');
+  git(api, 'checkout', '-q', 'main');
+  assert.deepEqual(run(api), ['feature: none (the branch main is no feature\'s branch)', 'features: csv-export', `other branches: ${FEATURE}`]);
+});
+
+gitTest('--fetch does not run for a draft', () => {
+  const tmp = tempDir('keel-page-');
+  const bare = path.join(tmp, 'api.git');
+  execFileSync('git', ['init', '-q', '--bare', bare]);
+  const api = exported(tmp, { remote: bare });
+  git(api, 'push', '-q', 'origin', 'main', FEATURE);
+  plans(api, 'new', 'csv-export');
+  const other = path.join(tmp, 'other');
+  execFileSync('git', ['clone', '-q', '-b', FEATURE, bare, other]);
+  git(other, 'push', '-q', 'origin', `${FEATURE}:api-9-late`);
+  run(api, 'csv-export', '--fetch');
+  assert.equal(git(api, 'for-each-ref', 'refs/remotes/origin/api-9-late'), '', 'a draft has no git states to freshen');
+  run(api, FEATURE, '--fetch');
+  assert.ok(git(api, 'for-each-ref', 'refs/remotes/origin/api-9-late'), 'an exported feature does');
 });

@@ -1,5 +1,5 @@
 {
-  "about": "When the session is about to touch something an advisory skill covers, hooks/skill-hints.js reminds it once per session to load that skill. Shell commands count too: reading and writing commands are read as Read, Write or Edit of their files, a leading cd is followed. In test runs, on 12 matching prompts the model loaded the skill on its own once. Globs match paths relative to the project; commands match the start of a part of a shell command.",
+  "about": "When the session is about to touch something an advisory skill covers, hooks/skill-hints.js reminds it once per session to load that skill. Shell commands count too: reading and writing commands are read as Read, Write or Edit of their files, a leading cd is followed. A model rarely loads such a skill on its own, so the reminder is sent. Globs match paths relative to the project; commands match the start of a part of a shell command.",
   "rules": [
     { "skill": "migration-safety", "tools": ["Edit", "Write"], "migrations": true, "why": "this is a database migration" },
     { "skill": "python-conventions", "tools": ["Edit", "Write"], "paths": ["**/*.py"], "why": "this is Python code" },

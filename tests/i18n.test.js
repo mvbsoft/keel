@@ -11,6 +11,7 @@ test('i18n: the language comes from the setting; unknown or empty falls back to 
   assert.equal(pickLanguage('uk'), 'uk');
   assert.equal(pickLanguage('uk-UA'), 'uk');
   assert.equal(pickLanguage('Ukrainian'), 'uk');
+  for (const s of ['uk_UA', 'ua', 'UA', 'ukr', ' ukrainian ', 'українська', 'Українська', ' українська ']) assert.equal(pickLanguage(s), 'uk', s);
   assert.equal(pickLanguage('de'), 'en');
   assert.equal(pickLanguage(''), 'en');
   assert.equal(pickLanguage('../en'), 'en', 'a setting is never a path');

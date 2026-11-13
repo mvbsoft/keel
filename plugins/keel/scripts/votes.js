@@ -23,7 +23,7 @@ const SCHEMAS = path.join(__dirname, '..', 'schemas');
 const LENSES = ['reachability', 'impact', 'defenses'];
 const PROVEN_BY_RUNNING = new Set(['qa', 'qa-break']);
 // "Same place": same file, lines at most NEAR_LINES apart. A group shares one launch, at most MAX_GROUP
-// findings (in test runs one issue was reported by up to four agents at lines a few apart).
+// findings (one issue can be reported by up to four agents at lines a few apart).
 const NEAR_LINES = 3;
 const MAX_GROUP = 4;
 
@@ -43,7 +43,7 @@ function extractJson(text) {
   for (const c of candidates) {
     try { return JSON.parse(c); } catch { /* next */ }
     // Agents quote code and Windows paths in their text: a backslash JSON does not know (`ESCAPE '\'`)
-    // lost a whole reviewer report in the levels re-run. Keep such a backslash as a literal one.
+    // would lose the whole reviewer report. Keep such a backslash as a literal one.
     try { return JSON.parse(c.replace(BAD_ESCAPE, (m) => (m === '\\\\' ? m : '\\\\'))); } catch { /* next */ }
   }
   return null;

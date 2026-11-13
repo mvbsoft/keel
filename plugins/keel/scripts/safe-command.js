@@ -11,10 +11,40 @@ const path = require('node:path');
 const { withoutEnv } = require('./lib/commands.js');
 const { readJsonFile } = require('./lib/json.js');
 
+// Options between a tool and its action: `-x` flags, each with at most one value that does not start
+// with a dash. A value cannot be read as the next option, so a long run of them has one parse and the
+// match stays linear instead of backtracking exponentially.
+const OPTIONS = String.raw`(?:\s+-\S+(?:\s+[^-\s]\S*)?)*`;
+
 const DENY = [
   [/\b(deploy|publish|release|rollout|promote|ship)\b/i, 'deploys or publishes'],
   [/\bmigrat(e|es|ion|ions)\b|\bdb:(migrate|seed|reset|drop|create)\b|\bmigrate:(fresh|refresh|reset|rollback)\b|\bseed(ers?)?\b/i, 'changes a database'],
-  [/\bdrop\s+(database|table|schema)\b|\btruncate\s+table\b/i, 'deletes data'],
+  [new RegExp([
+    String.raw`\bprisma(?:@\S+)?\s+db\s+(?:push|execute|seed)\b`,
+    String.raw`\balembic${OPTIONS}\s+(?:upgrade|downgrade|stamp)\b`,
+    String.raw`\bflask${OPTIONS}\s+db${OPTIONS}\s+(?:upgrade|downgrade|stamp)\b`,
+    String.raw`\b(?:manage\.py|django-admin)\s+(?:flush|loaddata|reset_db)\b`,
+    String.raw`\bdb:(?:setup|prepare|rollback|redo|purge|wipe|schema:load|structure:load)\b`,
+    String.raw`\btypeorm\S*\s+schema:(?:drop|sync)\b`,
+    String.raw`\bdrizzle-kit(?:@\S+)?\s+(?:push|drop)\b`,
+    String.raw`\bsupabase\s+db\s+reset\b`,
+    String.raw`\b(?:diesel|sqlx)\s+database\s+(?:reset|drop)\b`,
+    String.raw`\bflyway${OPTIONS}\s+clean\b`,
+  ].join('|'), 'i'), 'changes a database'],
+  // Flush and drop are matched next to the tool that runs them, so `grep -r flushall src` stays a search.
+  // `dropdb` is a command of its own, refused wherever it stands (after an env prefix, inside `bash -c`);
+  // the SQL words index, view and column need an SQL client.
+  [new RegExp([
+    String.raw`\b(?:redis|valkey|keydb)-cli\b.*\bflush(?:all|db)\b`,
+    String.raw`\bflush(?:all|db)\b.*\b(?:redis|valkey|keydb)-cli\b`,
+    String.raw`\bmongosh?\b.*(?:\.drop(?:Database)?\(|\bdropDatabase\b)`,
+    String.raw`\bmongorestore\b.*\s--drop\b`,
+    String.raw`\bdrop\s+(?:database|table|schema)\b`,
+    String.raw`\btruncate\s+table\b`,
+    String.raw`\bdropdb\b`,
+    String.raw`\bmysqladmin${OPTIONS}\s+drop\b`,
+    String.raw`\b(?:psql|mysql|mariadb|sqlite3|sqlcmd|usql)\b.*\b(?:truncate\s+[^-\s]|drop\s+(?:index|view|column)\b)`,
+  ].join('|'), 'i'), 'deletes data'],
   // Global options may stand between git and the action (`git -C . push`, `git --no-pager push`).
   // An option that takes a separate value is matched only by the first branch, so `git -c -c -c ...`
   // has one parse and the match stays linear instead of backtracking exponentially.
@@ -47,6 +77,10 @@ const FILTER_VALUE = /(--filter|-F)(=|\s+)("[^"]*"|'[^']*'|\S+)/g;
 const NPM_WORKSPACE_VALUE = /(\bnpm\b[^;&|\n]*?\s(?:--workspace|-w))(=|\s+)("[^"]*"|'[^']*'|\S+)/g;
 const SCOPED_PACKAGE = /@[\w.-]+\/[\w.-]+/g;
 // A name that also points at a shared environment (check-deploy-to-prod.js) stays visible.
+// A test file is a name whatever words it holds (migrate.test.js, db_migrate_test.go), but only in the
+// shapes test runners use: `.test`/`.spec` before a JS or TS extension, `_test`/`_spec` before the
+// extension of a language that names its tests that way. `deploy-test.sh` is a script, not a test.
+const TEST_FILE = /(?<![\w@.-])(?![\w.-]*\b(?:prod|production|staging)\b)[\w.-]+(?:\.(?:test|spec)\.(?:[cm]?[jt]sx?)|_(?:test|spec)\.(?:go|py|rb|dart|exs|rs|php))(?!\w)/gi;
 const READ_ONLY_FILE = new RegExp(`(?<![\\w@.-])(?:${READ_ONLY_VERBS})[-_](?![\\w.-]*\\b(?:prod|production|staging)\\b)[\\w.-]*`, 'gi');
 
 function withoutNames(text) {
@@ -54,6 +88,7 @@ function withoutNames(text) {
     .replace(FILTER_VALUE, '$1$2<name>')
     .replace(NPM_WORKSPACE_VALUE, '$1$2<name>')
     .replace(SCOPED_PACKAGE, '<name>')
+    .replace(TEST_FILE, '<name>')
     .replace(READ_ONLY_FILE, '<name>');
 }
 

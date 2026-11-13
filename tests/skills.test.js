@@ -204,7 +204,7 @@ test('templates: the note and the task carry the fields notes.js reads', () => {
   const headings = [...tpl('task.md').matchAll(/^## (.+)$/gm)].map((m) => m[1]);
   assert.deepEqual(headings, ['Goal', 'Next action', 'Acceptance criteria', 'Out of scope', 'State', 'Files', 'Decisions and why', 'Tried and did not work', 'Open questions', 'How to check', "User's changes"]);
   assert.match(tpl('task.md'), /^status: <active \| handed-off>$/m);
-  // Owner decision: the template states its rules without naming where they came from.
+  // The template states its rules without naming where they came from.
   assert.doesNotMatch(tpl('task.md'), /Sources:|http/, 'the template cites no outside source');
   assert.match(tpl('next-session.md'), /^## Later$/m);
   assert.ok(!fs.existsSync(path.join(SKILLS, '..', 'templates', 'keel', 'current-task.md')), 'current-task.md is gone');
@@ -235,15 +235,15 @@ test('migration and cleanup are wired: configure section 9, the end commands rem
   says(nine, ['/keel:configure migration']);
   says(nine, ['already chosen "now", so do not ask'], 'a direct /keel:configure migration skips "now or later"');
   const migrate = read('skills/_shared/migrate.md');
-  for (let n = 1; n <= 13; n++) assert.match(migrate, new RegExp(`^## ${n}\\. `, 'm'), `step ${n} of KEEL-PLAN §14`);
-  says(migrate, ['keel:context'], 'the overview uses the context agent (owner decision 5B)');
+  for (let n = 1; n <= 13; n++) assert.match(migrate, new RegExp(`^## ${n}\\. `, 'm'), `migration step ${n}`);
+  says(migrate, ['keel:context'], 'the overview uses the context agent');
   says(migrate, ['Product, variable and service names stay']);
   says(migrate, ['never opened, moved, deleted or quoted']);
-  says(migrate, ['to keel\'s trash (recommended'], 'old notes go to the trash by default (owner decision 3A)');
+  says(migrate, ['to keel\'s trash (recommended'], 'old notes go to the trash by default');
   says(migrate, ['claude plugin disable <id>']);
   says(migrate, ['refs --folder "<old folder>" --prefix "<name>:"']);
-  says(migrate, ['its yes is the yes to write them', 'no second question'], 'live run: config was asked twice');
-  says(migrate, ['ready commit message'], 'live run: the final report lost the commit message');
+  says(migrate, ['its yes is the yes to write them', 'no second question'], 'the config is not asked twice');
+  says(migrate, ['ready commit message'], 'the final report keeps the commit message');
   says(migrate, ['`/keel:cleanup` can go through', 'what the old system left']);
   says(migrate, ['never start over']);
   const cleanup = parse('cleanup').body;
@@ -312,10 +312,9 @@ test('configure-flow.md has the usage and write sections, and names only usage-s
   for (const sub of used) assert.ok(line.includes(sub), `usage-setup.js has no ${sub}`);
 });
 
-// Changed on purpose: finding, creating and updating the page moved from configure-flow.md to usage-page.md (configure
-// and /keel:usage on read it); a page of another account or a team page is no longer offered.
-// Changed on purpose: several pages titled "keel usage" are asked about; the owner's read says "owned by you", not
-// "writer".
+// usage-page.md holds finding, creating and updating the page (configure and /keel:usage on read it); a page of
+// another account or a team page is not offered. Several pages titled "keel usage" are asked about; the read says
+// "owned by you", not "writer".
 test('usage-page.md finds, creates and updates the page with the built-in tools; the page data stays', () => {
   const text = read('skills', '_shared', 'usage-page.md');
   const flow = read('skills', '_shared', 'configure-flow.md');
@@ -384,7 +383,7 @@ test('the sync cost is given in measured dollars only: no old estimate, no share
   says(step5, ['about $0.07-0.20', 'The longer the session, the more it costs', 'dollars only']);
 });
 
-// Changed on purpose: /keel:usage-clear became /keel:usage clear, so the skill may run usage-clear.js too.
+// /keel:usage includes `clear`, so the skill may run usage-clear.js too.
 test('/keel:usage: user-only, reads only the usage settings and gives or opens the page link; on, off and clear', () => {
   const { fields, body } = parse('usage');
   assert.equal(fields.name, 'usage');
@@ -392,13 +391,13 @@ test('/keel:usage: user-only, reads only the usage settings and gives or opens t
   assert.match(fields['allowed-tools'], /^Bash\(node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/usage-setup\.js" \*\), PowerShell\(/);
   assert.match(body, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/usage-setup\.js" "\$\{CLAUDE_PROJECT_DIR\}" show`$/m);
   says(body, ['`artifact_url`']);
-  // Changed on purpose: the page may run a newer keel's page; the line says to update keel everywhere first.
+  // The page may run a newer keel's page; the line says to update keel everywhere first.
   says(body, ["`page template` says `offer: update` → one line: the page runs another keel's page, usually an older one", 'update keel on every machine first']);
   says(body, ['`sync: off since <date>` → one line']);
   says(body, ['`Artifact` tool (`action: open`']);
   says(body, ['`/keel:usage on` sets it up']);
   const off = body.slice(body.indexOf('**`off`**'), body.indexOf('**`on`**'));
-  // Changed on purpose: `on` sends only what Claude Code's logs still hold, so that is explained before the question.
+  // `on` sends only what Claude Code's logs still hold, so that is explained before the question.
   assert.ok(off.indexOf('Ask "Turn the sync off?"') > off.indexOf('they keep 30 days by default'), 'explained before the question');
   says(off, ['usage-setup.js" "<project>" sync off`']);
   assert.match(body.slice(body.indexOf('**`on`**'), body.indexOf('**`clear`**')), /usage-setup\.js" "<project>" sync on`[\s\S]*usage-page\.md/);
@@ -420,6 +419,8 @@ test('/keel:help: user-only, static, short, and its table names every keel comma
   assert.deepEqual([...rows].sort(), [...userOnly].sort(), 'every user command, once');
   assert.deepEqual([...COMMANDS, 'configure', 'help', 'usage'].sort(), [...userOnly].sort());
   assert.ok(body.split('\n').length < 30, 'short');
+  says(body, ['/keel:configure', 'machine'], 'the configure row names the machine section');
+  says(body, ['/keel:cleanup', 'restore', 'empty-trash'], 'the cleanup row names restore and empty-trash');
 });
 
 test('every command the user runs has its section in docs/commands.md', () => {

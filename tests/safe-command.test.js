@@ -158,3 +158,73 @@ test('the CLI prints one line and always exits 0', () => {
   const usage = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8' });
   assert.match(usage.stdout, /^refused: usage/);
 });
+
+test('database wipes and schema changes are refused in the common tools', () => {
+  for (const c of [
+    'prisma db push --force-reset', 'npx prisma db push', 'prisma db execute --file x.sql', 'prisma migrate reset',
+    'alembic upgrade head', 'alembic downgrade -1', 'alembic stamp head', 'flask db upgrade',
+    'python manage.py flush --noinput', 'django-admin flush', 'python manage.py loaddata users.json',
+    'rails db:drop', 'rake db:reset', 'bin/rails db:setup', 'rails db:schema:load',
+    'knex migrate:latest', 'sequelize db:migrate:undo', 'typeorm schema:drop', 'typeorm schema:sync', 'drizzle-kit push', 'drizzle-kit drop',
+    'redis-cli flushall', 'redis-cli -h cache FLUSHDB', 'valkey-cli flushall',
+    'mongosh --eval "db.dropDatabase()"', 'mongosh --eval "db.users.drop()"', 'mongorestore --drop dump/',
+    'psql -c "DROP TABLE users"', 'psql -c "TRUNCATE users"', 'mysql -e "truncate orders"', 'sqlite3 x.db "drop index i"',
+  ]) assert.equal(judge(js, '.', c).safe, false, c);
+  assert.match(judge(js, '.', 'redis-cli flushall').reasons.join(' '), /deletes data/);
+});
+
+test('a database word in a test file name, a search or a message is not a database command', () => {
+  for (const c of [
+    'node --test migrate.test.js', 'vitest run src/db/migrate.test.ts', 'jest drop-table.spec.js', 'go test ./db_migrate_test.go',
+    'pytest tests/test_migrations.py', 'truncate -s 0 out.log', 'grep -r flushall src', 'cat drop-table-notes.txt', 'echo dropDatabase',
+    'prisma db pull', 'prisma generate', 'alembic history', 'alembic current', 'rails db:test:prepare', 'drizzle-kit generate', 'redis-cli ping',
+  ]) assert.equal(judge(js, '.', c).safe, true, c);
+  assert.equal(judge(js, '.', 'node deploy-to-prod.test.js').safe, false);
+});
+
+test('only a real test file name is blanked: a hyphen name or a call is still judged', () => {
+  for (const c of ['node --test migrate.test.js', 'go test ./db_migrate_test.go', 'npm test -- migrate.test.js', 'pytest tests/seed_test.py', 'vitest run seed.spec.ts']) {
+    assert.equal(judge(js, '.', c).safe, true, c);
+  }
+  for (const c of [
+    'bash scripts/deploy-test.sh', './release-test.sh', 'psql -f db/seed-test.sql', 'node scripts/deploy-test.js',
+    'mongosh --eval "db.users_test.drop()"', 'mongosh --eval "db.test.drop()"',
+  ]) assert.equal(judge(js, '.', c).safe, false, c);
+});
+
+test('options may stand between a database tool and its action', () => {
+  for (const c of [
+    'alembic -c alembic.ini upgrade head', 'alembic --config alembic.ini downgrade base', 'alembic -x env=test upgrade head',
+    'flask --app app db upgrade', 'flask --app app db -d migrations upgrade',
+    'npx prisma@latest db push --force-reset', 'npx drizzle-kit@latest push',
+    'echo flushall | redis-cli', 'redis-cli -h cache -n 2 flushdb',
+    'python manage.py reset_db --noinput', 'dropdb mydb', 'cd x && dropdb mydb', 'mysqladmin drop mydb', 'mysqladmin -u root -p drop mydb',
+    'PGPASSWORD=x dropdb mydb', 'env PGHOST=db dropdb mydb', 'time dropdb mydb', 'bash -c "dropdb mydb"', 'docker compose exec db dropdb mydb',
+    'php artisan db:wipe', 'supabase db reset', 'diesel database reset', 'sqlx database drop', 'flyway clean',
+    'flyway -url=jdbc:postgresql://localhost/app -user=x clean', 'flyway -configFiles=conf/flyway.conf clean',
+  ]) assert.equal(judge(js, '.', c).safe, false, c);
+  for (const c of ['grep -r flushall src', 'select truncate(1.5)', 'pytest tests/test_migrate.py', 'flask --app app routes', 'mysqladmin status', 'flyway info']) {
+    assert.equal(judge(js, '.', c).safe, true, c);
+  }
+});
+
+test('drop index, view and column are database commands only next to an SQL client', () => {
+  for (const c of ['psql -c "drop index i"', 'mysql -e "DROP VIEW v"', 'sqlite3 x.db "drop column c"', 'psql -c "drop table t"']) {
+    assert.equal(judge(js, '.', c).safe, false, c);
+  }
+  for (const c of ['grep -r "drop column" db/', 'echo drop view', 'rg "drop index" db']) assert.equal(judge(js, '.', c).safe, true, c);
+  // A bare "drop table" has always been refused, even inside a search.
+  assert.equal(judge(js, '.', 'git log --grep="drop table"').safe, false);
+});
+
+test('a truncate word inside a quoted value next to an SQL client is still refused', () => {
+  assert.equal(judge(js, '.', `psql -c "select 'truncate foo'"`).safe, false);
+});
+
+test('a long line of repeated options is judged in linear time', () => {
+  const started = Date.now();
+  for (const unit of ['-c a ', '-c ', '-x y -z ', '--app app db ']) {
+    for (const head of ['alembic', 'flask', 'mysqladmin', 'redis-cli']) judge(js, '.', `${head} ${unit.repeat(Math.ceil(5000 / unit.length))}!`);
+  }
+  assert.ok(Date.now() - started < 2000, `took ${Date.now() - started} ms`);
+});

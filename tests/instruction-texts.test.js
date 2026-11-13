@@ -151,7 +151,7 @@ test('start-task: retell, always "new or continuation", the system proposes id, 
   says(retell, ['**Check the premise**']);
   const name = intake.slice(intake.indexOf('## 4. Name'), intake.indexOf('## 5.'));
   says(name, ['`fix-reset-500`']);
-  // The name is asked inside the one "new?" question (a live eval run stated it without asking).
+  // The name is asked inside the one "new?" question, not stated without asking.
   says(name, ['**title**', '**one-line description**', 'step 3 question']);
   const resume = intake.slice(intake.indexOf('## Resume'));
   says(resume, ['7 days ago or more']);
@@ -239,7 +239,7 @@ test('/keel:tasks: the approved list, and drop explains what the task left and c
   assert.match(text, /delete-branch --name <branch>`, with\s+`--remote` when it was pushed/);
 });
 
-// --- review fixes: lane guards, endings, git defaults, one wording per rule ---
+// --- lane guards, endings, git defaults, one wording per rule ---
 
 test('lane guards: end-task sends a session conversation to end-session and back', () => {
   says(skill('end-task'), ['ran `/keel:start-session`', 'the note is not `done`', 'This conversation leads a long-work line', 'end it with /keel:end-session']);
@@ -420,8 +420,12 @@ test('configure ADR style: a project rule that already says how records are kept
   says(shared('configure-flow.md'), ["The project's own rules already say how its records are kept", 'recommend that style', 'the rule is theirs']);
 });
 
-test('cleanup shows the found list in its own message before it asks for numbers', () => {
-  says(skill('cleanup'), ['Show the list in your message', 'does not see the script', 'before the question']);
+test('cleanup replies with the found list itself and asks for numbers on its last line, in plain text', () => {
+  const text = skill('cleanup');
+  says(text, ['does not see the script', 'Your reply to this step is the list itself', 'every item with its number']);
+  says(text, ['The last line of that same message is the question', 'plain text']);
+  says(text, ['Do not use', 'AskUserQuestion here', 'typed answer']);
+  says(text, ['From the typed answer', 'move --items <numbers>']);
 });
 
 test('cleanup never offers to empty old trash; the reminder line appears only when it names /keel:cleanup', () => {
@@ -492,8 +496,8 @@ test('git.md: red gates after a sync offer a fix or putting the task back, never
 
 test('the cost report runs last and is pasted whole: the only cost numbers in the final report', () => {
   const sync = shared('usage-sync.md');
-  // Changed on purpose: reading the other machines' data is part of the sync step now, so the sync is steps 1-3 and the report step 4.
-  // Changed on purpose: the sync runs in a small Haiku agent the end command starts, which costs a fraction of doing it in the session.
+  // Reading the other machines' data is part of the sync, so the sync is steps 1-3 and the report step 4.
+  // The sync runs in a small Haiku agent the end command starts, which costs a fraction of doing it in the session.
   says(sync, ['4. **Not now: last, right before you write the final report**']);
   for (const name of ['end-task', 'end-session']) {
     const text = skill(name);

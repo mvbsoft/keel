@@ -486,7 +486,7 @@ test('settings: this machine keeps only the draft place and the repos map; the o
   for (const k of ['--language', '--export', '--export-dir', '--prefix']) assert.match(run(dir, 'settings', 'set', k, 'x')[0], /^plans: settings set refused \(nothing to set: --draft, --draft-dir, --repo\)$/, k);
   assert.match(run(dir, 'settings', 'set', '--draft', 'cloud')[0], /^plans: settings set refused \(--draft: pc or repo\)/);
   for (const d of ['.hidden/t', 'work/handoff', 'handoffs', 'docs/plans/x', '../elsewhere', 'C:/abs']) {
-    assert.match(run(dir, 'settings', 'set', '--draft-dir', d)[0], /^plans: settings set refused \(--draft_dir: /, d);
+    assert.match(run(dir, 'settings', 'set', '--draft-dir', d)[0], /^plans: settings set refused \(--draft-dir: /, d);
   }
   assert.match(run(dir, 'settings', 'set')[0], /refused \(nothing to set/);
   assert.match(run(dir, 'settings', 'set', '--draft')[0], /refused \(--draft: pc or repo\)/);

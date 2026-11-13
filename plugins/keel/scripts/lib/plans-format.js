@@ -47,6 +47,24 @@ function fences(text) {
   return { lines, openAt: open ? openAt : 0 };
 }
 
+// The text whose "## " lines are headings: outside the code blocks. A block that is never closed (check
+// reports it) hides nothing, so the sections after it are still found.
+const headingText = (text) => (unclosedFence(text) ? String(text || '') : outsideFences(text));
+
+// plan.md's "## Name" sections as tasks.js sections() reads them, except that a line inside a code block
+// is text: name -> the section's own text, code blocks included.
+function sectionsOutsideFences(text) {
+  const body = String(text || '').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+  const plain = headingText(body).split(/\r?\n/);
+  const out = {};
+  let name = null;
+  body.split(/\r?\n/).forEach((line, i) => {
+    const m = /^##\s+(.*\S)\s*$/.exec(plain[i]);
+    if (m) { name = m[1]; out[name] = []; } else if (name) out[name].push(line);
+  });
+  return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, v.join('\n').trim()]));
+}
+
 // A ticket's "# [<id>] <title>" heading as [id, title], both empty when there is none.
 function heading(text) {
   const m = /^# \[([^\]\n]*)\][ \t]*(.*\S)?/m.exec(outsideFences(text));
@@ -87,8 +105,10 @@ function ticketStructure(label, text) {
 
 // A plan written before stubs were tickets has "## Stubs": export would drop it, so check stops on it.
 const planStructure = (text) => {
-  const secs = sections(text);
-  return [...missing('plan.md', secs, PLAN_SECTIONS), ...('Stubs' in secs ? ['plan.md: "## Stubs" is no section any more: make each stub a ticket (plans.js ticket <feature> --title <t> --stub <PREFIX>), then remove the section'] : [])];
+  const secs = sectionsOutsideFences(text);
+  const all = [...headingText(text).matchAll(/^##\s+(.*\S)\s*$/gm)].map((m) => m[1]).filter((n) => PLAN_SECTIONS.includes(n));
+  const twice = [...new Set(all.filter((n, i) => all.indexOf(n) !== i))].map((n) => `plan.md: "## ${n}" appears twice`);
+  return [...missing('plan.md', secs, PLAN_SECTIONS), ...twice, ...('Stubs' in secs ? ['plan.md: "## Stubs" is no section any more: make each stub a ticket (plans.js ticket <feature> --title <t> --stub <PREFIX>), then remove the section'] : [])];
 };
 
 // One ticket's line in the overview's Tickets.
@@ -113,7 +133,7 @@ function partsText(sketch, repos) {
 // per exported ticket ({ key, text, repo }) with its key, title and repository, no states (each ticket
 // carries its own); Parts only for a feature on several repositories (`repos`).
 function overviewSections(planText, tickets, swap, repos = null) {
-  const secs = sections(planText);
+  const secs = sectionsOutsideFences(planText);
   const text = (n) => {
     if (n === 'Tickets') return tickets.map((t) => ticketLine(t.key, heading(t.text)[1], t.repo)).join('\n');
     if (n === 'Parts') return repos ? swap(partsText(secs['Design sketch'] || '', repos)) : '';
@@ -135,4 +155,4 @@ function repoName(root) {
 const frontText = (front) => `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n`;
 const bodyOf = (text) => String(text).replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n?/, '').trimStart();
 
-module.exports = { frontText, bodyOf, TICKET_SECTIONS, CODE_SECTIONS, STUB_SECTIONS, STUB_KEY, isStub, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName, outsideFences, unclosedFence, heading };
+module.exports = { frontText, bodyOf, TICKET_SECTIONS, CODE_SECTIONS, STUB_SECTIONS, STUB_KEY, isStub, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName, outsideFences, headingText, sectionsOutsideFences, unclosedFence, heading };

@@ -176,8 +176,11 @@ conversation without keel shows up only in the hourly totals.
   the entry point (for example cli), start and end time, active minutes, dollars and Claude Code's own
   cost; per participant (the main conversation or an agent, with the agent's type) its models,
   requests, tokens, dollars, active minutes, and tool names and counts; per turn of yours its time,
-  dollars, requests and agents; keel's task data (level, findings, gates, lines and files changed, the
-  model of each plan step);
+  dollars, requests and agents, and what was done after it (never its text): the tool names with counts
+  (the six most used, the rest summed under `other`), the types of the agents it started with counts (the
+  four most used, the rest under `other`), the part of its dollars the agents spent, its tokens by kind
+  (as for a participant) and the largest context one request read; keel's task data (level, findings,
+  gates, lines and files changed, the model of each plan step);
 - the first 100 characters of each of your requests, and the task and step titles. In the requests keel
   masks what looks like a secret: JSON web tokens, API keys and tokens in well-known formats (`sk-...`,
   GitHub, GitLab, npm, Stripe, Google, AWS access key ids, Slack), `Bearer` tokens, the user and password
@@ -222,11 +225,11 @@ for two requests: starting the sync agent and reading its one-line answer.
 
 | | cost |
 |---|---|
-| the sync agent (Haiku, about 8 requests) | $0.015-0.017 (2 runs measured) |
+| the sync agent (Haiku, about 8 requests) | $0.015-0.017 (measured on 2 runs) |
 | the session's 2 requests | $0.04-0.06 each at 140-185k tokens of conversation (measured); they grow with the length of the conversation |
 | **in all** | **$0.10-0.14 at 140-185k tokens (measured)**; computed from the same prices: about $0.07 after a short session (100k tokens), about $0.20 after a very long one (450k) |
 
-Done in the session itself it cost $0.15-0.55, typically $0.35 (58 syncs measured). On a subscription the
+Done in the session itself it cost $0.15-0.55, typically $0.35 (measured on 58 syncs). On a subscription the
 same tokens count against your plan limits instead of money. With a Sonnet session the session's
 requests cost about half (computed from the price table, not measured).
 
@@ -301,12 +304,15 @@ Claude to delete it and run `/keel:configure usage` for a new one.
 `node <keel>/scripts/usage.js audit --page <folder>` (`<keel>` is the plugin folder; in this repository
 `plugins/keel`) compares this machine's dollars and tokens per session on the page with the local
 transcripts. `<folder>` is a folder under the project's `.keel/local/` with the database documents saved from
-the page; any other folder is refused. The expected number of differences is zero.
+the page; any other folder is refused. The expected number of differences is zero. The audit also names the difference between keel's dollars
+and Claude Code's own cost.
 One exception: a session too big for one page document is shortened on the page (its cheapest agents
 are left out), so its line shows the page's lower dollars against all of the session's and says
-"shortened on the page". A session that lost only its turn texts keeps all its agents and dollars, so
-a difference there has another cause and gets no such mark.
-It also names the difference between keel's dollars and Claude Code's own cost.
+"shortened on the page". Such a session gives up the per-turn details first, then the texts, then the
+turns, then agents. A session that lost only its turn details or texts keeps all its agents and
+dollars, so a difference there has another cause and gets no such mark. The audit compares only dollars
+and tokens, so a day sent before the per-turn details existed is not reported for lacking them; it gets
+them when one of its sessions changes and the day is sent again.
 
 ## Prices
 

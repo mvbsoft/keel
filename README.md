@@ -176,7 +176,7 @@ projects you set up with `/keel:configure`. Terminal install, scopes, updates an
 
 ## Quick start
 
-1. **Set up the project:** `/keel:configure`, quick (about six questions) or detailed. keel scans the
+1. **Set up the project:** `/keel:configure`, quick (11 to 18 questions, depending on the project) or detailed. keel scans the
    project, proposes the test and lint commands, git mode and code rules; it can also set up
    machine-wide Claude Code settings, a status line and a private usage page, each only after your
    yes. Commit the setup on main with the commands keel gives, or let the first task take it into its

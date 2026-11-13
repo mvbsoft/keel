@@ -9,7 +9,7 @@
 //                                     clean; from HEAD, carrying the changes, when it is not
 //   switch --name <b>                 switch to an existing branch (clean tree only)
 //   commit --message-file <f> [--tickets "<K1,K2>"]   stage every changed file except secret and planning
-//                                     ones, drop AI trailers from the message, commit (never on the main
+//                                     ones and new files named like a secret, drop AI trailers from the message, commit (never on the main
 //                                     branch); the ticket files of the keys --tickets names go in (tickets
 //                                     a session marked done), as the finished task's own does with --finish
 //   sync [--from <base>]              merge the updated base into the current branch; on the base itself
@@ -38,6 +38,7 @@ const { readFinish, clearFinish, markCommitted, validSid } = require('./lib/fini
 const { stripAttribution } = require('./lib/attribution.js');
 const { untrackedRecord, fileStamp } = require('./lib/diff.js');
 const { planningFiles } = require('./lib/planning.js');
+const { isSecretName } = require('./lib/secret-names.js');
 
 const ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', LC_ALL: 'C', LANG: 'C', GIT_EDITOR: 'true', GIT_MERGE_AUTOEDIT: 'no' };
 
@@ -106,6 +107,12 @@ function notTaskWork(ctx, f) {
   return Boolean(b) && Object.prototype.hasOwnProperty.call(b, f.path) && b[f.path] !== null && b[f.path] === fileStamp(ctx.root, f.path);
 }
 
+// A file git has not committed yet (not in HEAD: untracked, or added to the index) whose name is a secret
+// even for a source file (credentials.js may hold keys). A file already in HEAD is code and is committed.
+function newSecretName(ctx, p) {
+  return isSecretName(p, { strict: true }) && !gitOk(ctx.root, ['cat-file', '-e', `HEAD:${p}`]);
+}
+
 // Planning's files (lib/planning.js) are not a task's work: its commit leaves them out and they do not
 // block a step. Only the tickets a commit names go in (the finished task's own, a session's --tickets),
 // so their `done` lands with the code. Keys compare without case.
@@ -120,10 +127,10 @@ function requireReady(ctx, { clean = false } = {}) {
   if (ctx.busy) throw new Stop(`a git operation is in progress (${ctx.busy}); finish or abort it first`);
   if (!ctx.branch) throw new Stop('HEAD is detached; switch to a branch first');
   if (clean) {
-    // What commit leaves out on purpose (secret files, keel's own .keel/local, planning) does not block a step:
+    // What commit leaves out on purpose (secret files, new files named like a secret, keel's own .keel/local, planning) does not block a step:
     // otherwise a finish whose commit kept a modified .env out could never update or merge. git itself
     // still refuses a merge that would overwrite such a file.
-    const dirty = changedFiles(ctx.root).filter((f) => !(f.path === '.keel/local' || f.path.startsWith('.keel/local/') || ctx.isSecret(f.path) || notTaskWork(ctx, f) || planningOf(ctx)(f.path)));
+    const dirty = changedFiles(ctx.root).filter((f) => !(f.path === '.keel/local' || f.path.startsWith('.keel/local/') || ctx.isSecret(f.path) || newSecretName(ctx, f.path) || notTaskWork(ctx, f) || planningOf(ctx)(f.path)));
     if (dirty.length) throw new Stop('the working tree has uncommitted changes', [`changed: ${dirty.slice(0, 10).map((f) => f.path).join(', ')}${dirty.length > 10 ? ` (+${dirty.length - 10})` : ''}`]);
   }
 }
@@ -235,6 +242,7 @@ const commands = {
     const files = changedFiles(ctx.root);
     const paths = new Set();
     const secret = [];
+    const newNamed = [];
     const notTask = [];
     const planning = [];
     const planned = (p) => {
@@ -248,6 +256,7 @@ const commands = {
         // even in a clone whose .keel/.gitignore is missing.
         if (p === '.keel/local' || p.startsWith('.keel/local/')) continue;
         if (ctx.isSecret(p)) secret.push(p);
+        else if (newSecretName(ctx, p)) newNamed.push(p);
         else if (planned(p)) { if (!planning.includes(p)) planning.push(p); }
         // Only a path with unstaged changes is added: a change already in the index (`git rm`, the
         // source of `git mv`) may be on neither side any more, and git add stops on such a pathspec.
@@ -263,12 +272,15 @@ const commands = {
     const staged = git(ctx.root, ['diff', '--cached', '--name-only', '--no-renames', '-z']).out.split('\0').filter(Boolean);
     const stagedSecret = staged.filter((p) => ctx.isSecret(p));
     const stagedLocal = staged.filter((p) => p.startsWith('.keel/local/') && !ctx.isSecret(p));
-    const stagedPlanning = staged.filter((p) => !ctx.isSecret(p) && !p.startsWith('.keel/local/') && planned(p));
-    const kept = [...stagedSecret, ...stagedLocal, ...stagedPlanning];
+    const stagedNamed = staged.filter((p) => !ctx.isSecret(p) && !p.startsWith('.keel/local/') && newSecretName(ctx, p));
+    const stagedPlanning = staged.filter((p) => !ctx.isSecret(p) && !p.startsWith('.keel/local/') && !stagedNamed.includes(p) && planned(p));
+    const kept = [...stagedSecret, ...stagedLocal, ...stagedNamed, ...stagedPlanning];
     if (kept.length) git(ctx.root, ['reset', '-q', '--', ...kept]);
     for (const p of stagedPlanning) if (!planning.includes(p)) planning.push(p);
     for (const p of stagedSecret) if (!secret.includes(p)) secret.push(p);
+    for (const p of stagedNamed) if (!newNamed.includes(p)) newNamed.push(p);
     const out = secret.length ? [`not committed (secret files, by path only): ${secret.join(', ')}`] : [];
+    if (newNamed.length) out.push(`not committed (new files named like a secret; if one is code, commit it by hand once): ${newNamed.join(', ')}`);
     if (notTask.length) out.push(`not committed (untracked before the task, unchanged): ${notTask.slice(0, 10).join(', ')}${notTask.length > 10 ? ` (+${notTask.length - 10})` : ''}`);
     if (planning.length) out.push(`not committed (planning files): ${planning.slice(0, 10).join(', ')}${planning.length > 10 ? ` (+${planning.length - 10})` : ''}`);
     if (staged.length === kept.length) return ['commit: nothing to commit', ...out];
@@ -339,7 +351,12 @@ const commands = {
     const back = () => git(ctx.root, ['checkout', '-q', source]);
 
     let r = localTarget ? git(ctx.root, ['checkout', '-q', target]) : git(ctx.root, ['checkout', '-q', '--track', '-b', target, remoteTarget]);
-    if (!r.ok) throw new Stop(`could not switch to ${target}: ${firstLines(r.err)}`);
+    if (!r.ok) {
+      // git's wording changed between versions: "already checked out at" and "already used by worktree at".
+      const folder = /already (?:checked out|used by worktree) at '([^']+)'/.exec(r.err);
+      if (folder) throw new Stop(`${target} is checked out in another folder (${folder[1]})`, [`run the merge there, or finish from that folder; ${source} is still checked out here`]);
+      throw new Stop(`could not switch to ${target}: ${firstLines(r.err)}`);
+    }
     // Local target commits the remote lacks would be published by the push below.
     if (remoteTarget && (!gitOk(ctx.root, ['merge', '--ff-only', remoteTarget]) || Number(git(ctx.root, ['rev-list', '--count', `${remoteTarget}..HEAD`]).out) > 0)) {
       back();

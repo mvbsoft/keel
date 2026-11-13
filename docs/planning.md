@@ -6,7 +6,9 @@ feature that needs several tasks is talked through before any code and ends as s
 A *feature* is one finished capability of the product that one sentence explains (a connection to
 S3). Planning turns it into short tickets in a conversation with you, before any code: the
 conversation writes only the draft, and keel's hook refuses changes to other project files
-([what is guaranteed and what is not](behavior.md#planning)). One conversation plans one feature.
+([what is guaranteed and what is not](behavior.md#planning)). One conversation plans one feature. A
+task marker left by a conversation that died blocks planning only in a conversation with that same
+session id; a new conversation plans normally.
 
 ## Start: `/keel:start-planning`
 
@@ -115,7 +117,8 @@ a new event in `api` and a badge in `web`; each ticket is for one repository onl
   it looks like it touches `web`, `admin`. Right?" [yes, all] [only some] [other: I give a path] [no].
   The candidates come from `plans.js repos`: the repos map ([settings](settings.md#planning-settings))
   and the git repositories next to this project (never this project or another worktree of it), each
-  with its planning prefix. A new folder goes into the map with its prefix; a repository whose prefix
+  with its planning prefix. A new folder goes into the map with its prefix (the map only grows: to
+  drop a repository, edit `.keel/local/plans/keel/settings.json` by hand); a repository whose prefix
   is not set yet gets one you confirm now (keel proposes 3-4 letters from its name), and that
   repository must set the same one before the tickets go there. The plan records its repositories in
   `repos: [API, WEB]` (`plans.js set <f> --repos "WEB"`).
@@ -190,15 +193,15 @@ shows what blocks and offers to hand over. 2) Ticket reviews of the tickets not 
 (`keel:plan-reviewer`, which also checks that each behaviour the plan promises is an acceptance
 criterion of exactly one ticket, a stub's behaviour counted as covered), both on Sonnet; a ticket of
 another repository is reviewed in that repository's folder. You decide each finding: fix, defer to a Q, or reject with a
-reason; decisions go into `reviews/` and are not raised again. Fixed tickets are reviewed again, at
+reason. Each finding is written into `reviews/` as `undecided` before you are asked, so a conversation that stops loses none (the next `/keel:start-planning` shows them); your decision replaces the word and is not raised again. Fixed tickets are reviewed again, at
 most 2 rounds per `/keel:end-planning`; a failed review is named as failed, never as "no findings".
 3) The plan becomes `ready` (any later change makes it a draft again), then "Export the <n> tickets
 now?"; no → it stays `ready`, to export later with `/keel:start-planning <f>`, then
 `/keel:end-planning`.
 
 Every end, also after a no, frees the conversation from planning. The report: **Done**, **Reviews**,
-**Git**, **What next** (the Next action, or "a ticket starts with `/keel:start-task <KEY>`"),
-**Costs**.
+**Git**, **What next** (the Next action, or "a ticket starts with `/keel:start-task <KEY>`"; after an
+export also that `/keel:feature-page <feature>` makes the feature's page), **Costs**.
 
 ## Export
 

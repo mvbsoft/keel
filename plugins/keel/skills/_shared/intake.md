@@ -189,7 +189,8 @@ lands on the main branch:
    the language "Languages" gives them (`repo_language` in git):
    translate the retell and the plan when writing the files, also when the chat ran in another language.
 3. Work through the plan: `execution: here` → step by step yourself, marking each step done (✅);
-   `execution: delegate` → follow `<keel>/skills/_shared/delegate.md` with the plan file;
+   `execution: delegate` → follow `<keel>/skills/_shared/delegate.md` with the plan file (the task
+   folder's `plan.md`; a simple task without one: its `task.md`);
    `execution: fresh` → "Fresh conversation" below.
 4. When it is done: "Run /keel:end-task to verify and finish, or to hand the task off for another
    session (/keel:tasks lists the tasks)."
@@ -238,7 +239,10 @@ its own branch, pushed), or commit them. Never carry changes into another task u
 When every changed file is keel's setup (`.keel/` outside `tasks/`, and README, CLAUDE.md, `.gitignore`
 or `.claude/settings.json` changed by `/keel:configure`) and there is no task yet, offer first (recommended):
 take the setup into this task's branch, so it reaches the main branch with the task's merge; a yes
-counts as "they belong to it".
+counts as "they belong to it". A new branch carries them (`start`). An existing branch (a planned
+ticket whose branch exists, a resumed task): `git-flow.js switch` stops on them, so run plain
+`git switch <branch>` (Claude Code may ask): git carries the files over, or refuses when that branch
+has its own version of one; then show git's message and ask.
 
 ## Planned ticket
 Tickets exported by `/keel:end-planning` live in a feature folder; `plans.js tickets` reads their state
@@ -248,11 +252,15 @@ from git (0 tokens). Each call is `node "<keel>/scripts/plans.js" "<project>" ti
    `tickets --fetch`, take the key of its `next:` line (`next: none` → say so and show its list), then
    `tickets <KEY>`. A key → `tickets <KEY> --fetch`; `tickets: none (no ticket or feature <x>)` → not a
    planned ticket: step 2's internal search goes on.
+   A key `<PREFIX>-S<n>` is a stub: the place of work in a repository that was not on the planner's
+   machine, not a ticket to build. Say so and stop; when that repository is this one, add that
+   `/keel:start-planning <feature>` turns it into a ticket (planning.md "Exported feature").
 2. **Its state** (the `<KEY>` view: the ticket line, `branch: <b> -> <merge_into>`, `file:`, `depends:`):
    - `duplicate key (<n> files)` → warn first: "two tickets with the key <KEY>", naming the files;
-   - `to do` or `next` → read the ticket (`file:` a path, or `<ref>:<path>`: `git show <ref>:<path>`),
-     check its Goal, Acceptance criteria and Where to look against the code (step 3's premise check),
-     then steps 3-6 as for any task, with its acceptance criteria;
+   - `to do` or `next` → read the ticket (`file:` a path, or `<ref>:./<path>`: `git show <ref>:./<path>`,
+     the `./` reads the path from the project folder), check its Goal, Acceptance criteria and Where
+     to look against the code (step 3's premise check), then steps 3-6 as for any task, with its
+     acceptance criteria;
    - `in progress` or `waiting for ...` → say the branch, author and date of its hint and ask: continue
      it (on that branch) / start over / take another ticket. A waiting ticket is never offered as free;
      with `stale` ask "Nobody touched it for 30 days: treat it as free?". `reverted` → say "The branch

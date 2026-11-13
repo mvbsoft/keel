@@ -129,7 +129,11 @@
       "id": "dart", "name": "Dart / Flutter",
       "manifests": ["pubspec.yaml"],
       "locks": { "pubspec.lock": "pub" },
-      "commands": { "test": ["dart test"], "lint": ["dart analyze"] }
+      "tools": {
+        "flutter": { "kind": "test", "command": "flutter test", "markers": ["pubspec.yaml#sdk: flutter"] },
+        "dart-test": { "kind": "test", "command": "dart test", "markers": ["pubspec.yaml# test:"] }
+      },
+      "commands": { "lint": ["dart analyze"] }
     },
     {
       "id": "elixir", "name": "Elixir",
@@ -279,7 +283,9 @@
   },
   "secrets": {
     "patterns": [".env", ".env.*", "*.env", "*.pem", "*.key", "*.p12", "*.pfx", "*.jks", "*.keystore", "id_rsa*", "id_dsa*", "id_ecdsa*", "id_ed25519*", "credentials*", "*credentials.json", "service-account*.json", "*.tfstate", "*.tfstate.*", "*.tfvars", ".npmrc", ".pypirc", ".netrc", ".htpasswd", "secrets.*", "*.secret", "*.secrets", ".envrc", "*.tfvars.json", ".git-credentials", ".dockercfg", "*.ppk", "*.p8", "*.gpg", "client_secret*.json", "kubeconfig", "*.kdbx"],
-    "allowed": [".env.example", ".env.sample", ".env.dist", ".env.template", "*.env.example", "*.pub"]
+    "allowed": [".env.example", ".env.sample", ".env.dist", ".env.template", "*.env.example", "*.pub"],
+    "code_extensions": ["py", "js", "mjs", "cjs", "ts", "tsx", "jsx", "go", "rb", "php", "java", "kt", "kts", "cs", "rs", "swift", "scala", "dart", "ex", "exs", "c", "h", "cpp", "hpp", "m", "vue", "svelte"],
+    "hidden_as_code": [".env.*"]
   },
   "other_systems": {
     "names": ["handoff", "handoffs", "next-session", "next_session", "nextsession", "memory", "sessions", "session-log", "session_log", "journal", "state", "notes", "decisions", "scratchpad"],

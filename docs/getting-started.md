@@ -30,7 +30,7 @@ Open your project in Claude Code and run:
 ```
 
 It first asks whether you set up this project or only this machine and, for a new project, whether you
-want the **quick** setup (recommended, about six questions) or the **detailed** one. keel needs a git
+want the **quick** setup (recommended, 11 to 18 questions depending on the project) or the **detailed** one. keel needs a git
 repository: in a folder without one it offers `git init` and a first commit of the current state, and
 stops if you say no. Then it works in these steps.
 
@@ -221,7 +221,9 @@ git:
 - **Manual git** (`git.mode`: `manual`, recommended for a first project): keel runs no git step you
   did not ask for. It gives you the changed files and a ready commit command, which includes the
   removal of the task folder.
-- **Autonomous git**: keel commits (secret files are left out), updates the branch from main and re-runs
+- **Autonomous git**: keel commits (secret files are left out; a source file only named like one,
+  such as `secrets.py`, is committed when git already tracks it, and a new one is left out and
+  listed, for you to commit by hand once if it is code), updates the branch from main and re-runs
   the tests if new commits came in, and pushes the branch. It merges only when you asked for it, for
   example `/keel:end-task finish and merge into main`; Claude Code then shows its permission
   prompt for the merge. With `git.ask_before_merge: false` in autonomous mode confirmed on this machine, a finish

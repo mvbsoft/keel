@@ -226,6 +226,12 @@ Its tickets live in the feature folder; work there continues while others may al
    `reviewed`, no `reviews/` record: the user decides each finding in the chat).
 4. A ticket `in progress`, `waiting for ...` or `done` is never changed: offer a new ticket, or leave it
    as it is; name whom it concerns (the branch and author of its hint).
+   No command removes a ticket or cancels the feature (`plans.js drop` takes only a feature whose every
+   ticket is `done`). A `to do` ticket the user no longer wants: after a yes, its file and its line in
+   the overview's Tickets go, then `plans.js check <f>` (a key still in some `depends_on` shows there).
+   First `plans.js tickets <f> --fetch` again: a ticket someone started on another machine no longer
+   reads `to do`, and stays. Cancelling the feature is that for each `to do` ticket; the others stay
+   as this step says.
 5. A new ticket: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "K1,K2"]` →
    `created: <path>` and `ticket: <KEY>` (the next key shared across the repository); fill it as
    "Work" says, then step 3's check and review. A feature on several repositories: `--repo <PREFIX>`
@@ -301,20 +307,25 @@ the end name each one with its `retry:` command (a network or access failure), o
    up to 4 tickets per call, all calls in one message. The prompt is short: `<keel>` and `<project>`
    (absolute paths), the draft folder, the tickets (id and file path; another repository's ticket
    with its folder as `plans.js review` names it, `(WEB: <folder>)`, or that it is not on this
-   machine), and the paths of their `reviews/<ticket>.md` that exist, as decisions already made.
-   Never paste the files.
+   machine), and the paths of the `reviews/*.md` files that exist (list the folder yourself), as
+   decisions already made; the reviewer is never sent to search for them (a draft folder outside git
+   may show nothing to a search). Never paste the files.
 4. **Plan review** (final only): one `keel:plan-reviewer` after the ticket reviews, same prompt with
-   the draft folder, its `reviews/` folder and, for a feature on several repositories, the `repos:`
+   the draft folder, the paths of the `reviews/*.md` files that exist (`plan.md`'s and the tickets')
+   and, for a feature on several repositories, the `repos:`
    line of `plans.js review` (each repository's folder).
 5. **Each reply**: keel's hook saves it as `<project>/.keel/local/tmp/planning/<sid>/<agent>-<agent id>.md`
    (the agent id is in the Agent result). Run `plans.js report "<that file>"`.
    - `report: ok · <agent> · <status> · findings N`: its `- <id> <place> <severity> <check>: <what>`
      lines are the findings. `incomplete` → the tickets its note names are reviewed in one more call.
-     A ticket review → `plans.js reviewed <f> <the tickets it reviewed>` at once: a ticket fixed afterwards shows
-     `changed since review` and is reviewed again.
+     A ticket review: first write its findings (step 6, before the question), then `plans.js reviewed <f>
+     <the tickets it reviewed>`: a ticket fixed afterwards shows `changed since review` and is reviewed
+     again.
    - `report: failed`, or no file → say "The review of <tickets> failed: <reason>", never "no
-     findings"; offer one more run; those tickets stay unreviewed.
-6. **Findings**: short, most severe first: number, place, severity, what, the suggested fix. The user
-   decides each: fix (edit the ticket or `plan.md`), defer (a new Q), or reject with a reason. Record
-   every decision in `reviews/<ticket>.md` (plan findings: `reviews/plan.md`) under a date heading:
-   `- <finding id> <check>: <what> → fixed | Q<n> | rejected: <reason>`.
+     findings"; offer one more run, a new reviewer run, never the same reviewer again (the hook saves
+     only a reviewer's first reply); those tickets stay unreviewed.
+6. **Findings**: short, most severe first: number, place, severity, what, the suggested fix. Before the
+   question, write each one into `reviews/<ticket>.md` (plan findings: `reviews/plan.md`) under a date
+   heading: `- <finding id> <check>: <what> → undecided`, so a chat that stops keeps them. The user
+   decides each: fix (edit the ticket or `plan.md`), defer (a new Q), or reject with a reason; the
+   decision replaces `undecided`: `→ fixed | Q<n> | rejected: <reason>`.

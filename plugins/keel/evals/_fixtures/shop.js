@@ -1,13 +1,14 @@
 'use strict';
 // Builds the eval project in the current folder: a small configured shop with git and a bare remote
 // in .git/eval-remote.git (inside the workspace, so the sandboxed run can push to it).
-// Usage: node shop.js <base | tasks | finish | session | session-level | messy | overbuilt | planning |
+// Usage: node shop.js <base | leftovers | tasks | finish | session | session-level | messy | overbuilt | planning |
 //                      planning-openq | planning-ready | planning-repo | planning-new | planning-brief | planned |
 //                      task-active | task-fresh | task-on-main | ticket-on-feature | worktree | db | db-rule |
 //                      db-big | db-renamed | db-renamed-open | planning-db | adr-journal | adr-mixed |
 //                      adr-living | adr-journal-breach | adr-living-breach>
 //   base            no tasks, no note
 //   worktree        base, and a linked worktree of it at .claude/worktrees/wt on branch wt (not entered)
+//   leftovers       base, and untracked leftovers for /keel:cleanup: Thumbs.db, src/cart.js.bak, notes copy.txt
 //   tasks           handed-off tasks CAN-123 (discount, Jira link) and fix-reset-500 on their branches; on main
 //   finish          task CAN-200 done and committed on its branch, checked out there
 //   session         a long-work note (keys PAY-1) on branch payments-rework, checked out there, with this
@@ -60,7 +61,7 @@
 //   ticket-on-feature  csv-export exported and pushed; ticket INV-1 a task working directly on the shared
 //                   feature branch (branch = base = csv-export), active for the chat SID; not committed:
 //                   half of it, toCsv() in src/invoices.js with no tests and no route; on csv-export
-const { base, worktree, messy } = require('./shop-base.js');
+const { base, worktree, leftovers, messy } = require('./shop-base.js');
 const { tasks, finish, session, overbuilt, taskActive, taskFresh, taskOnMain } = require('./shop-tasks.js');
 const { planning, planningReady, planningNew, planningBrief, planned, ticketOnFeature } = require('./shop-planning.js');
 const { db, dbRule, dbBig, dbRenamed } = require('./shop-db.js');
@@ -87,6 +88,7 @@ else if (variant === 'task-fresh') taskFresh();
 else if (variant === 'task-on-main') taskOnMain();
 else if (variant === 'ticket-on-feature') ticketOnFeature();
 else if (variant === 'worktree') worktree();
+else if (variant === 'leftovers') leftovers();
 else if (variant === 'db') db();
 else if (variant === 'db-rule') dbRule();
 else if (variant === 'db-big') dbBig();

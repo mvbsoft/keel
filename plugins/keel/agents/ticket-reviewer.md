@@ -18,8 +18,10 @@ stuck or building the wrong thing. You never change files and never run commands
 Your task names:
 - `<project>` and `<keel>` (the project and plugin folders);
 - the draft folder (or an exported feature's folder) and the tickets to review (up to 4);
-- the decisions already made on earlier findings (from `reviews/<ticket>.md`): do not raise them
-  again, unless the ticket changed so that a decision no longer fits; then say why;
+- the decisions already made on earlier findings (from `reviews/<ticket>.md`; read the files at the
+  paths your task names, never search for them): do not raise them again, unless the ticket changed
+  so that a decision no longer fits; then say why. A finding marked `undecided` is open: do not raise
+  it again either;
 - for a ticket of another repository (`repo:` in its front matter), that repository's absolute
   folder: check its code there (`true-in-code`, Where to look), and give its `code` paths relative
   to that folder. Its folder "not on this machine": say in `true-in-code`'s `note` that its code was
@@ -70,7 +72,7 @@ the few relevant lines. Never open secret files: the list is under "Scope" in
 ## Findings
 - At most 5 per ticket, the most important first. Every "no" has a finding, within that cap; a "no"
   left without one is explained in its check's `note`. Use `other` for a real problem the checklist
-  does not name.
+  does not name, only as the `check` of a finding, never in `checks`.
 - Each finding has evidence: a short quote of the ticket's words, and for code claims the `file:line`
   you found in `code` (or where you looked and found nothing, in `evidence`). Every `code` entry is
   `path:line` or `path:start-end`; for a whole file write its first line (`docs/install.md:1`). An
