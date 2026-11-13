@@ -207,7 +207,8 @@ test('a step that must be confirmed is refused when keel\'s script is named by a
 test('keel\'s library run directly (its functions drop or delete without the step scripts) is refused', () => {
   const proj = project({ mode: 'manual' });
   const env = { CLAUDE_PROJECT_DIR: proj };
-  for (const lib of [`${SCRIPTS}/lib/tasks.js`, `${SCRIPTS}/./lib/tasks.js`, `${SCRIPTS}//lib/tasks.js`, '$CLAUDE_PLUGIN_ROOT/scripts/lib/tasks.js', '${CLAUDE_PLUGIN_ROOT}/scripts/lib/trash.js', '~/.claude/plugins/cache/keel/keel/1.0.0/scripts/lib/tasks.js']) {
+  for (const lib of [`${SCRIPTS}/lib/tasks.js`, `${SCRIPTS}/./lib/tasks.js`, `${SCRIPTS}//lib/tasks.js`, '$CLAUDE_PLUGIN_ROOT/scripts/lib/tasks.js', '${CLAUDE_PLUGIN_ROOT}/scripts/lib/trash.js', '~/.claude/plugins/cache/keel/keel/1.0.0/scripts/lib/tasks.js',
+    '~/.claude/plugins/cache/keel/keel/1.0.0/scripts/lib/tasks-store.js', '~/.claude/plugins/cache/keel/keel/1.0.0/scripts/lib/tasks-markers.js']) {
     assert.equal(shell(`node -e "require('${lib}').taskDrop('${proj}', 'X-1')"`, 'Bash', env), 'deny', lib);
     assert.equal(shell(`node --eval "require(\\"${lib}\\")"`, 'Bash', env), 'deny', lib);
   }

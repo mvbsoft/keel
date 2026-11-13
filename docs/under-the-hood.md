@@ -188,9 +188,9 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
     from your project's own;
   - a `node`, `nodejs`, `bun` or `deno` command that names keel's library (`scripts/lib/`) by keel's
     folder or `$CLAUDE_PLUGIN_ROOT`, or, in another copy of keel, its modules that hold the steps
-    (`tasks.js`, `trash.js`, `trust.js`, `finish.js`): their functions drop or delete without the step
-    scripts' checks, and no keel step runs them directly. A project's own `scripts/lib/` is not
-    affected.
+    (`tasks.js` and its `tasks-*.js` parts, `trash.js`, `trust.js`, `finish.js`): their functions drop
+    or delete without the step scripts' checks, and no keel step runs them directly. A project's own
+    `scripts/lib/` is not affected.
 
   The steps that change your Claude Code settings, move your files in a migration or set up usage
   (`apply`, `prices-apply`, `install-statusline`, `sync`, and `move-plans` for the old Plan Mode files) are left to your normal permissions too.

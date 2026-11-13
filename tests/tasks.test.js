@@ -18,6 +18,13 @@ test('ids: tracker keys, slugs and dates are valid; paths, dots and long names a
   assert.equal(tasks.validId('x'.repeat(80)), true);
 });
 
+test('lib/tasks.js is the one module callers require: it exports every task function, also those its tasks-*.js parts hold', () => {
+  const names = ['validId', 'readBlobs', 'listTasks', 'treeTasks', 'findTask', 'activeTask', 'sessionMarker', 'busyTasks', 'summaryLine', 'taskList', 'taskNew', 'taskActivate',
+    'taskDeactivate', 'taskDelete', 'taskRestore', 'taskDrop', 'taskInventory', 'sections', 'setFront', 'stepCounts', 'planText', 'readClosed', 'dateOf'];
+  assert.deepEqual(Object.keys(tasks).sort(), [...names].sort());
+  for (const n of names) assert.equal(typeof tasks[n], 'function', n);
+});
+
 test('task new: a folder with task.md from the template, status active; bad input is refused', () => {
   const dir = project();
   const out = notes(dir, 'task', 'new', 'PROJ-1', '--title', 'Fix the export', '--source', 'jira', '--link', 'https://tracker.example/PROJ-1', '--session', 's1');

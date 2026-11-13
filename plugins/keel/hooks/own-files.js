@@ -362,7 +362,7 @@ function stepElsewhere(cmd) {
 // file that loads it. Reading it (grep, cat) runs nothing and is not refused.
 // A runtime in command position: at the start, after a shell operator, or after env, exec, npx...
 const RUNTIME = /(^|[;&|(]\s*|\b(?:env|exec|npx|nohup|time|command)\s+(?:-\S+\s+|\w+=\S*\s+)*)(node|nodejs|bun|deno|tsx|ts-node)(\.exe)?(?![\w.-])/i;
-const KEEL_LIB = /CLAUDE_PLUGIN_ROOT[^\s"']*\/scripts\/lib\/|\/keel\/(?:[^\s"'\/]+\/)?scripts\/lib\/(tasks|trash|trust|finish)\.js(?![\w.-])/i;
+const KEEL_LIB = /CLAUDE_PLUGIN_ROOT[^\s"']*\/scripts\/lib\/|\/keel\/(?:[^\s"'\/]+\/)?scripts\/lib\/(tasks(?:-[\w-]+)?|trash|trust|finish)\.js(?![\w.-])/i;
 const JOINED_LIB = /['"]scripts['"]\s*,\s*['"]lib['"]|['"]lib['"]\s*,\s*['"][\w.-]+\.js['"]/;
 const LIB = 'keel: keel\'s library is not run directly. Run keel\'s scripts in the plain form `node "<keel>/scripts/<name>.js" "<project>" ...` and read its files with the Read tool. Nothing ran.';
 function runsLib(cmd, root) {
