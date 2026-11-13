@@ -1,6 +1,6 @@
 ---
 name: researcher
-description: Read-only helper for planning that reads documentation, package registries and the web - how others solve a problem, which package fits - and returns one report with dated data and its sources.
+description: Read-only helper for planning: docs, package registries and the web; one report with sources.
 model: sonnet
 effort: high
 maxTurns: 60

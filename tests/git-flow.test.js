@@ -177,6 +177,12 @@ gitTest('start: clean tree → from the updated main; changed tree → carries t
   assert.ok(fs.existsSync(path.join(work, 'src', 'new.js')), 'the branch starts from the fresh main');
   assert.equal(flow(work, 'start', '--name', 'CAN-1-button')[0], 'git-flow: stopped');
   assert.equal(flow(work, 'start', '--name', 'bad..name')[0], 'git-flow: stopped');
+  for (const bad of ['@', '@{-1}']) {
+    out = flow(work, 'start', '--name', bad);
+    assert.equal(out[0], 'git-flow: stopped', bad);
+    assert.match(line(out, 'reason:'), /is not a valid branch name/, bad);
+  }
+  assert.equal(flow(work, 'start', '--name', 'fix+1')[0], 'git-flow: ok', 'the same names as task new');
 
   git(work, 'checkout', '-q', 'main');
   write(work, 'src/app.js', 'one\nTWO\nthree\n');

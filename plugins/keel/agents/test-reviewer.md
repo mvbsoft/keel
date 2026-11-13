@@ -1,6 +1,6 @@
 ---
 name: test-reviewer
-description: Search agent that judges whether the tests of a code change would catch it breaking, names missing cases, and proves key tests by reverting the change and watching them fail.
+description: Search agent: judges whether a change's tests would catch it breaking; proves key tests by revert.
 model: sonnet
 effort: high
 maxTurns: 60
@@ -39,7 +39,10 @@ copying is needed; every command is one plain git command.
    (the base is in the change summary). Never include test files. A file the change added is not in
    the patch: its behavior cannot be reverted, so choose tests of modified files and say so.
 2. Revert: `git apply -R "<project>/.keel/local/tmp/revert-change.patch"`.
-3. Run only the chosen test. It **must fail**. If it passes, the test does not protect the behavior:
+3. Run only the chosen tests, all in one command (one revert and one restore for all of them). Read
+   each test's result separately: a compile or import error after the revert can fail
+   every test for the wrong reason, and such a run proves nothing for those tests. A chosen test
+   **must fail** for the right reason. If it passes, the test does not protect the behavior:
    that is a finding with the command as `reproduce`.
 4. **Restore immediately**, whatever happened: `git apply "<project>/.keel/local/tmp/revert-change.patch"`,
    then prove it with `git apply -R --check "<project>/.keel/local/tmp/revert-change.patch"` (it

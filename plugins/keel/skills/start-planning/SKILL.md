@@ -18,17 +18,25 @@ Current state of this project:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" "${CLAUDE_PROJECT_DIR}" --profile`
 
-1. Read `<keel>/skills/_shared/preflight.md` and act on the state above.
+1. The state above is exactly the two lines `keel-config: ok` and `profile: ok`, with no other line
+   → go on without reading preflight.md. Any other line (such as `git: refused`), or no state above → read `<keel>/skills/_shared/preflight.md` and
+   act on it. These rules hold for this whole command. Run every keel script (`node` with a file in
+   keel's `scripts` folder) as its own plain command with full paths, never joined with `;`, `&&`,
+   pipes or redirections. In Bash write a path that starts with `\\` as `//server/share/...`. Read
+   keel's own files with Read, Grep and Glob, not the shell. Before each action say in one short
+   line what it will do. An instruction you cannot read one way only: ask, never guess. Steps that
+   need nothing from each other's output may go in one message as separate calls, where the command
+   says so. A keel script refused by a project hook: follow preflight.md's rule for it.
 2. **Lane.** This conversation ran `/keel:start-session` and no `/keel:end-session` since → say "This
    conversation leads a long-work line: end it with /keel:end-session, or plan in a new
    conversation." and stop. (keel's hooks already refuse planning in a task conversation and without
    a person.) Run `node "<keel>/scripts/notes.js" "<project>" check --session <sid>` (no `--begin`:
    that record is for tasks), then `node "<keel>/scripts/plans.js" "<project>" mark get --session <sid>`:
    `planning: <f>` → this conversation already plans `<f>`: one conversation, one feature; continue
-   `<f>` (step 6; an exported feature, told apart as in step 4: planning.md "Exported feature" steps
+   `<f>` (step 6; an exported feature, told apart as in step 4: planning-exported.md steps
    3-6), or end it with /keel:end-planning first.
 3. Read `<keel>/skills/_shared/planning.md`, sections "Rules", "Work" and "Several repositories"; they
-   hold for the whole command (an exported feature: also "Exported feature"). Run `plans.js settings`.
+   hold for the whole command (an exported feature: also `<keel>/skills/_shared/planning-exported.md`). Run `plans.js settings`.
    `planning: planning is not set up ...` → before any question say: "Planning is not set up in this
    project yet: the ticket prefix and where the tickets live are shared with the team in
    `.keel/config.json`. Run `/keel:configure planning`, then `/keel:start-planning` again." and stop.
@@ -50,7 +58,7 @@ Current state of this project:
      them and ask which; `find: no match` → show the drafts it lists (if any) and ask: one of these, or a
      new feature from these words? No drafts → "No draft matches, so this is a new feature. Right?"
    A chosen plan that is `exported`, or a name `plans.js tickets <f>` lists tickets for (an exported
-   feature without a draft) → its tickets live in the feature folder: planning.md "Exported feature"
+   feature without a draft) → its tickets live in the feature folder: planning-exported.md
    steps 1-2, then step 7, then its steps 3-6 as the work (not steps 5, 6 and 8). `abandoned` → say
    so; another draft or a new feature.
 5. **New feature.**

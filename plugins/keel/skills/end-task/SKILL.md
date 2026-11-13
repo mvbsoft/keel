@@ -18,7 +18,15 @@ Current state of this project:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" "${CLAUDE_PROJECT_DIR}" --profile`
 
-1. Read `<keel>/skills/_shared/preflight.md` and act on the state above.
+1. The state above is exactly the two lines `keel-config: ok` and `profile: ok`, with no other line
+   → go on without reading preflight.md. Any other line (such as `git: refused`), or no state above → read `<keel>/skills/_shared/preflight.md` and
+   act on it. These rules hold for this whole command. Run every keel script (`node` with a file in
+   keel's `scripts` folder) as its own plain command with full paths, never joined with `;`, `&&`,
+   pipes or redirections. In Bash write a path that starts with `\\` as `//server/share/...`. Read
+   keel's own files with Read, Grep and Glob, not the shell. Before each action say in one short
+   line what it will do. An instruction you cannot read one way only: ask, never guess. Steps that
+   need nothing from each other's output may go in one message as separate calls, where the command
+   says so. A keel script refused by a project hook: follow preflight.md's rule for it.
 2. **Lane.** This conversation ran `/keel:start-session` and the note is not `done` → say "This
    conversation leads a long-work line: end it with /keel:end-session." and stop.
    Run `node "<keel>/scripts/notes.js" "<project>" check --session <sid>`. The task is the
@@ -64,12 +72,13 @@ Current state of this project:
    `task delete` (keel's hook makes it confirm, also when allow rules would let it run).
 6. **Hand off**: update the task file as the section "The handoff format" of
    `<keel>/skills/_shared/handoff.md` says (read only that section; its language rule too): front matter
-   `status: handed-off`, `updated` (today), `after_commit` (`git rev-parse --short HEAD` now; the file's
-   own commit follows), `branch`. Then `notes.js check`; the task `over the limit` → compress as that
+   `status: handed-off`, `updated` and `after_commit` from the `today:` and `head:` lines of the
+   step 2 `notes.js check` (HEAD now; the file's own commit follows; after a branch switch in step 2
+   run it again), `branch`. Then `notes.js check`; the task `over the limit` → compress as that
    section says. Before the git step, so the file is in the commit.
 7. Costs: read `<keel>/skills/_shared/usage-sync.md` and start its sync agent (steps 1-3) with session id
    `${CLAUDE_SESSION_ID}` and the level and findings from step 4 (it reads the task title, so it runs
-   before the deletion); its step 4 runs in step 11, right before the report.
+   before the deletion); its step 4 runs in step 10, right before the report.
    **Finish**: say in one line "Claude Code will now ask you to confirm: the task is done and its
    folder `<folder>` goes to keel's trash." Then run
    `node "<keel>/scripts/notes.js" "<project>" task delete <id> --session <sid>` (before git, so the
@@ -83,8 +92,8 @@ Current state of this project:
    - Right after `task delete` printed `deleted:`, only when the verification passed (gates green, no must item left;
      no verification is not a pass): `node "<keel>/scripts/plans.js" "<project>" done <id>` marks a
      planned ticket done in the same commit as its code. `done: <KEY> (<path>)` or
-     `done: <KEY> (already)` → go on; then `done: feature <f> complete (<n> tickets)` → git.md "End of
-     feature" after the push; `done: feature <f> has stubs left: ...` → say it in the report (the
+     `done: <KEY> (already)` → go on; then `done: feature <f> complete (<n> tickets)` → git-end-of-feature.md
+     after the push; `done: feature <f> has stubs left: ...` → say it in the report (the
      feature is not complete). `done: none (no ticket <KEY> here)` → `plans.js tickets <id>`:
      `tickets: none ...` → not a ticket, go on; else warn that the ticket's file is not in this working
      tree, so its status is not written, put the task back
@@ -95,10 +104,10 @@ Current state of this project:
      `plans.js done` call.
 8. Git: read `<keel>/skills/_shared/git.md` and follow it: **finish** or **handoff**, with the actions
    from the instruction. On a hand off, after any `start` of git.md (a branch the instruction names
-   or one git.md makes; manual git: the new branch git.md's Manual mode names) → set the task file's
+   or one git.md makes; manual git: the new branch git-manual.md names) → set the task file's
    `branch:` to the `branch:` that `start` printed (manual git: to that new branch), before the commit.
-   **Finish after the deletion**: add `--finish <id> --session <sid>` to every `start`, `commit`,
-   `sync` and `push`. A step that stops puts the task back by itself (`restored:` lines): the report
+   **Finish after the deletion**: add `--finish <id> --session <sid>` to every `start`, `save` and
+   `push`. A step that stops puts the task back by itself (`restored:` lines): the report
    says what stopped and that the task is back and active (fix it, then /keel:end-task again). A
    declined or protected merge does not count: the work is committed and pushed. The folder never
    stays in the trash without a commit: keel's Stop hook keeps the turn going and names the step.
@@ -112,7 +121,7 @@ Current state of this project:
    ticket under `.keel/local/`: it is outside git); with `done: feature <f> complete` also "Feature
    <f> is complete; /keel:tasks offers its end once you have committed and pushed."
 9. Hand off: `node "<keel>/scripts/notes.js" "<project>" task deactivate --session <sid>`.
-10. Run `node "<keel>/scripts/cleanup.js" "<project>" reminder`; its line goes into the report only
-    when it names `/keel:cleanup`.
-11. Report: run usage-sync.md step 4 (the cost report), then read
-    `<keel>/skills/_shared/final-report.md` and follow it.
+10. Run usage-sync.md step 4 (the cost report). Then, in one message as two calls: run
+    `node "<keel>/scripts/cleanup.js" "<project>" reminder` (its line goes into the report only when
+    it names `/keel:cleanup`) and read `<keel>/skills/_shared/final-report.md`.
+11. Report: follow final-report.md.

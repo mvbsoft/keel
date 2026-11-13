@@ -18,6 +18,14 @@ Current state of this project:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" "${CLAUDE_PROJECT_DIR}" --profile`
 
-1. Read `<keel>/skills/_shared/preflight.md` and act on the state above.
+1. The state above is exactly the two lines `keel-config: ok` and `profile: ok`, with no other line
+   → go on without reading preflight.md. Any other line (such as `git: refused`), or no state above → read `<keel>/skills/_shared/preflight.md` and
+   act on it. These rules hold for this whole command. Run every keel script (`node` with a file in
+   keel's `scripts` folder) as its own plain command with full paths, never joined with `;`, `&&`,
+   pipes or redirections. In Bash write a path that starts with `\\` as `//server/share/...`. Read
+   keel's own files with Read, Grep and Glob, not the shell. Before each action say in one short
+   line what it will do. An instruction you cannot read one way only: ask, never guess. Steps that
+   need nothing from each other's output may go in one message as separate calls, where the command
+   says so. A keel script refused by a project hook: follow preflight.md's rule for it.
 2. Read `<keel>/skills/_shared/intake.md` and follow it from step 1 with the instruction (empty: an
    unfinished task or a new one, the user chooses).

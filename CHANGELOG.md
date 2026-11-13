@@ -165,6 +165,31 @@ All notable changes to keel are listed here. The format follows
   when they are sent again; the page does not show them yet.
 
 ### Changed
+- keel's commands need fewer requests and read less text:
+  - a command reads `preflight.md` only when the settings check is not plainly `ok`; its rules for the
+    whole command stand in each command;
+  - steps that need nothing from each other run in one message: configure's five scripts, its
+    `safe-command.js` checks, the lint and type gates, the cleanup reminder with the final report;
+  - `git-flow.js save` commits, updates from the base, pushes and (in a task handoff) switches back in
+    one call; it stops on a conflict, and before the push when the update brought new commits (the
+    gates run again first); a finish in it needs `--sync`;
+  - `changes.js --start` prints the comment check's notes first and then starts the verification, so
+    no separate `comments.js` run is needed; after a fix for a note it runs again;
+  - `notes.js task new` takes `--branch`, `--base`, `--merge-into`, `--execution` and `--plan-file`
+    (a text file in the project or Claude Code's plans folder, never a secret file), and
+    `notes.js check` prints `head:` and `today:` for the note's fields;
+  - rarely needed parts of the shared instructions (a task becoming planning, resuming a task or a
+    session, manual git, the end of a feature, an exported feature, configure's plugins, migration,
+    price update and instruction check) are files of their own, read only in their case;
+  - a skill hint carries the skill's rules, so no extra step loads the skill;
+  - review agents read and search in batches; the test reviewer reverts once and runs the chosen tests
+    in one command;
+  - the agents' descriptions, loaded into every session of every project, are about 100 characters.
+- The note, memory and each task file also have a limit of 12000 characters (with 150 lines); a note
+  of short lines and very long ones no longer passes unnoticed.
+- Task branches, git steps and planned features check a branch name by one rule (git's own, without
+  names such as `@` or `@{-1}`); a planned feature's branch also keeps to letters, digits, `.`, `_`,
+  `/` and `-`.
 - keel no longer teaches one deploy style for schema changes (expand → migrate → contract over several
   releases, both app versions against every intermediate schema). On a risky change to a table with
   data or to an API others can call, it offers the ways to do it for that change, from several releases

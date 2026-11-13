@@ -15,8 +15,10 @@ test('end-session is the long-work lane only: the note, never the task files', (
   const handoff = read('skills', '_shared', 'handoff.md');
   assert.doesNotMatch(handoff, /current-task|\.keel\/tasks\/|task finish/);
   says(handoff, ['never the task files']);
-  says(handoff, ['Tasks use /keel:start-task'], 'a task id or ticket as the argument points to the other lane');
-  assert.match(handoff, /\*\*Later\*\*[\s\S]*propose the next 1-3/, 'a finished Plan proposes the next items from Later');
+  const resumeText = read('skills', '_shared', 'handoff-resume.md');
+  assert.doesNotMatch(resumeText, /current-task|\.keel\/tasks\/|task finish/);
+  says(resumeText, ['Tasks use /keel:start-task'], 'a task id or ticket as the argument points to the other lane');
+  assert.match(resumeText, /\*\*Later\*\*[\s\S]*propose the next 1-3/, 'a finished Plan proposes the next items from Later');
 });
 
 test('the note carries merge_into and execution, handoff and git read them from the note or the task file', () => {
@@ -39,7 +41,7 @@ test('there is one word for parking a task: handoff (no pause, status handed-off
 test('start-task: one lane per conversation, uncommitted changes stop a task switch, resume re-reads the source', () => {
   const intake = read('skills', '_shared', 'intake.md');
   says(intake, ['A long-work line is open here'], 'start-task while a session line is open');
-  assert.match(read('skills', '_shared', 'handoff.md'), /A task is active in this session/, 'start-session while a task is active');
+  assert.match(read('skills', '_shared', 'handoff-resume.md'), /A task is active in this session/, 'start-session while a task is active');
   const before = intake.slice(intake.indexOf('## Before any branch change'));
   says(before, ['git-flow.js" "<project>" status']);
   says(before, ['`changed files:` not 0 → stop and offer']);
@@ -47,7 +49,8 @@ test('start-task: one lane per conversation, uncommitted changes stop a task swi
   says(before, ['hand off the current task first', '`/keel:end-task hand off`', 'a work-in-progress commit on its own branch, pushed']);
   assert.doesNotMatch(before, /stash/);
   says(before, ['Never carry changes into another task']);
-  const resume = intake.slice(intake.indexOf('## Resume'), intake.indexOf('## Before any branch change'));
+  const resume = shared('task-resume.md');
+  says(part(intake, '## Resume', '## Before any branch change'), ['**Resume**', 'the task is a continuation', '`<keel>/skills/_shared/task-resume.md`', 'read', 'follow it']);
   assert.ok(resume.indexOf('Uncommitted changes') < resume.indexOf('switch --name'), 'changes are dealt with before the switch');
   says(resume, ['`Base moved:`']);
   says(resume, ['git-flow.js sync --from <base>']);
@@ -69,10 +72,11 @@ test('end-task: a handoff never stops on red gates and records them in the task 
   says(text, ['A handoff never stops on red gates', '`gates failing: <which>`', 'Open questions']);
 });
 
-test('verify.md: comments are settled before the overview, one base, level list and step numbers are right', () => {
+test('verify.md: changes.js --start settles the comments before the overview, one base, level list and step numbers are right', () => {
   const text = read('skills', '_shared', 'verify.md');
-  assert.ok(text.indexOf('comments.js') < text.indexOf('changes.js" "<project>" --start'), 'the diff is written after the comment edits');
-  assert.equal((text.match(/comments\.js/g) || []).length, 1);
+  // changes.js --start prints the comment notes first and always goes on.
+  says(text, ['changes.js" "<project>" --start', 'first lines are the comment check', 'on each note now','run `changes.js --start` again']);
+  assert.equal((text.match(/comments\.js/g) || []).length, 0, 'no separate comments.js run');
   assert.doesNotMatch(text, /--base <main branch>/);
   says(text, ['Maximum / No verification']);
   assert.doesNotMatch(text, /step 13/);
@@ -153,7 +157,7 @@ test('start-task: retell, always "new or continuation", the system proposes id, 
   says(name, ['`fix-reset-500`']);
   // The name is asked inside the one "new?" question, not stated without asking.
   says(name, ['**title**', '**one-line description**', 'step 3 question']);
-  const resume = intake.slice(intake.indexOf('## Resume'));
+  const resume = shared('task-resume.md');
   says(resume, ['7 days ago or more']);
   says(resume, ['Run the "How to check" command once']);
   says(resume, ['Summary in 3-6 lines']);
@@ -164,7 +168,7 @@ test('brainstorm only with a yes: why and how, options, 2-3 approaches, plan in 
   const intake = shared('intake.md');
   const b = intake.slice(intake.indexOf('**Brainstorm, only with a yes.**'), intake.indexOf('**Questions**'));
   for (const key of ['AskUserQuestion', '1-3 per message', '2-3 approaches with your recommendation', 'the plan in parts, each approved', 'no code before the plan is approved', 'contradictions', 'split first', '"Turn it on?". No → the ordinary path']) says(b, [key], key);
-  says(shared('handoff.md'), ['intake.md` steps 3, 5 and 6', 'retell', 'brainstorm offer'], 'start-session offers it for a description too');
+  says(shared('handoff-resume.md'), ['intake.md` steps 3, 5 and 6', 'retell', 'brainstorm offer'], 'start-session offers it for a description too');
 });
 
 test('end-task: a menu without an instruction; finish asks before the script deletes the folder; hand off runs gates only', () => {
@@ -190,7 +194,7 @@ test('end-task: a menu without an instruction; finish asks before the script del
 });
 
 test('start-session: without an instruction it finds work or points to tasks, never starts one; lanes never mix', () => {
-  const h = shared('handoff.md');
+  const h = shared('handoff-resume.md');
   says(h, ['"There is no work for a session; tell me what to do."']);
   says(h, ['There are unfinished tasks', '/keel:tasks shows them', '/keel:start-task continues one', 'Never start a task yourself']);
   says(h, ['`lane: task`', 'Tasks use /keel:start-task', 'better continue it there', 'and stop']);
@@ -253,7 +257,7 @@ test('end-task: a task on another branch is switched to first; no task at all of
   assert.match(text, /without a\s+remote prefix: `origin\/x` → `x`/);
   says(text, ['No task at all → offer', 'create one from what this conversation did', 'task new <id>', 'or verify without a task file']);
   says(text, ['after any `start` of git.md', 'or one git.md makes', "set the task file's `branch:`", 'the `branch:` that `start` printed', 'manual git: to that new branch', 'before the commit'], 'a branch git.md made also reaches the task file');
-  says(text, ['add `--finish <id> --session <sid>` to every `start`, `commit`, `sync` and `push`', 'A step that stops puts the task back by itself'], 'git stopped after the deletion: git-flow itself puts the task back');
+  says(text, ['add `--finish <id> --session <sid>` to every `start`, `save` and `push`', 'A step that stops puts the task back by itself'], 'git stopped after the deletion: git-flow itself puts the task back');
 });
 
 test('end-task reads only the sections it needs and leaves the What next wording to final-report.md', () => {
@@ -300,8 +304,10 @@ test('git.md: default steps per ending in one table; branches are deleted only b
   assert.doesNotMatch(git, /no commit: the changes stay uncommitted|commit and push to the current branch|git stash/);
   const message = part(git, '## Commit message', '## Manual mode');
   says(message, ["**task handoff** commit's subject", '"Work in progress: <title>"', 'task id first', 'tracker key', 'within 72 characters']);
-  says(part(git, '3. **Handoff**', '4. `sync'), ['refused → say so', 'on this machine only', 'does not stop the handoff']);
-  const manual = part(git, '## Manual mode', '## Autonomous mode');
+  // One `save` call does the commit, sync, push and switch back; a refused push of a handoff shows as a line.
+  says(part(git, '2. Write', '3. **Merge**'), ['**handoff**', '`push: refused (...)`', 'does not stop the handoff', 'the work is on this machine only']);
+  says(part(git, '## Manual mode', '## Autonomous mode'), ['**Manual mode**', '`<keel>/skills/_shared/git-manual.md`', 'read', 'follow it']);
+  const manual = shared('git-manual.md');
   says(manual, ['**handoff of a task**', 'commit the work and the task folder', 'on the task branch', 'push it', '`git switch <base>`']);
   // Manual git runs no `start`, so the task file learns the new branch here, before its commit.
   says(manual, ['A task without its own branch', '`git switch -c <id>-<short-name>`']);
@@ -316,13 +322,16 @@ test('git.md: default steps per ending in one table; branches are deleted only b
   says(git, ['| finish (task or session) | commit, sync, push;']);
   says(git, ['| task handoff | commit, push, switch to the base branch |']);
   says(git, ['| session handoff or prepare | commit, push; no sync |']);
-  says(git, ['3. **Handoff**', '`push`', 'A task: then `switch --name <base>`', 'Done, skip the rest'], 'a session handoff does not sync either');
+  const saveStep = part(git, '2. Write', '3. **Merge**');
+  says(saveStep, ['- **finish**', '`--sync <base>`'], 'only a finish syncs');
+  assert.doesNotMatch(part(saveStep, '- **handoff**', 'First line'), /--sync/, 'a session handoff does not sync either');
+  says(saveStep, ['**handoff**', 'a task adds `--back-to <base>`']);
   says(git, ['delete branches', 'only `/keel:tasks drop` does', '`git-flow.js delete-branch`', 'Claude Code confirms']);
   assert.match(skill('tasks'), /the user also\s+removes that branch → no commit/);
 });
 
 test('start-session never uses task wording; plan.md has task and session Execution steps', () => {
-  const h = shared('handoff.md');
+  const h = shared('handoff-resume.md');
   says(h, ['from step 3 only the retell and the premise check', 'no "new or continuation"', 'never a task']);
   says(h, ['| no note (or `status: done`), no instruction |']);
   says(h, ['a note (not `done`)', 'is about a different line of work', 'Continue the written line or start a new one?']);
@@ -336,18 +345,18 @@ test('start-session never uses task wording; plan.md has task and session Execut
 test('the lane choice rule is said in both start paths; start-task asks one question per decision', () => {
   const rule = ['in 1-3 sittings → a task', '"later" items → a session'];
   says(shared('intake.md'), rule);
-  says(shared('handoff.md'), rule);
+  says(shared('handoff-resume.md'), rule);
   const intake = shared('intake.md');
   says(intake, ['`lane: task` for the given key', 'one question', 'This is the unfinished task <id>: continue it?']);
   says(intake, ['not when `lane: task` names it: step 3 asks once']);
   says(intake, ['proposes its name (step 4) inside that one question', 'always ends with a question mark', 'Right, or change the name?', 'A statement without the question does not settle it']);
   says(intake, ['`lane: conflict`', 'show its lines', 'ask which lane leads it and stop']);
-  const resume = intake.slice(intake.indexOf('## Resume'));
+  const resume = shared('task-resume.md');
   says(resume, ["The branch: the task's `branch`", '`State: ... branch <name>`', 'else the one in `Files: (on branch ...)`', 'without a remote prefix']);
 });
 
 test('one wording each: the here-or-delegate question comes from plan-steps.js, the plain-command rule from preflight.md', () => {
-  for (const f of ['intake.md', 'handoff.md']) {
+  for (const f of ['intake.md', 'handoff-resume.md']) {
     says(shared(f), ['its `ask:` line'], f);
     assert.doesNotMatch(shared(f), /Here or delegate to implementers\?|Do it here or delegate to implementers/, f);
   }
@@ -382,7 +391,7 @@ test('configure: explains each question group first, one decision per question, 
 
 test('configure: the instruction audit is advised only when other instructions exist, with why and the effect', () => {
   const flow = shared('configure-flow.md');
-  const step = flow.slice(flow.indexOf('**Instruction check, only when it is worth it**'));
+  const step = flow.slice(flow.indexOf('**Instruction check, only when it is worth it**')) + shared('configure-instruction-check.md');
   assert.ok(step.length > 100, 'the step exists');
   says(step, ['`other instructions:` line of the scan (section 2)']);
   says(step, ['`audit: advise`', '`audit: not needed`', 'say nothing about it', 'not even that it is not needed']);
@@ -451,7 +460,7 @@ test('handoff notes: where the work is says only what is certain before git; fil
   says(h, ['Never a push or merge result']);
   says(h, ['Tests counted as "N new, M total"']);
   says(h, ['what the user rejected', 'what turned out wrong during the work']);
-  says(h, ['`lane: none (task <id> was finished or dropped earlier)`', 'ask whether to start it as a new line']);
+  says(shared('handoff-resume.md'), ['`lane: none (task <id> was finished or dropped earlier)`', 'ask whether to start it as a new line']);
   says(shared('intake.md'), ['`lane: none (task <id> was finished or dropped earlier)`', 'ask whether to start it as a new task']);
 });
 
@@ -459,7 +468,7 @@ test('planning: the step table is checked inside Plan Mode and approved once; pl
   const intake = shared('intake.md');
   says(intake, ['Still in Plan Mode', 'check its steps', 'ExitPlanMode once']);
   says(intake, ['No separate question after ExitPlanMode']);
-  assert.match(intake, /come first, only when step 2 needs\s+a branch switch/);
+  assert.match(shared('task-resume.md'), /come first, only when step 2 needs\s+a branch switch/);
   says(read('templates', 'keel', 'plan.md'), ['intake.md` "7. Execution" item 2', 'lists (every front-matter field and section)']);
   assert.match(shared('usage-sync.md'), /final-report\.md` block Costs says/);
   assert.doesNotMatch(shared('verify.md'), /\| gates red before the change \|/, 'the trouble table repeats no step');
@@ -476,21 +485,21 @@ test('shipped files point to no unshipped plan or decision documents', () => {
 
 test('git.md: a handoff that asks to merge merges before switching to the base branch', () => {
   const git = shared('git.md');
-  const step3 = git.slice(git.indexOf('3. **Handoff**'), git.indexOf('4. `sync'));
-  says(step3, ['The instruction asks to merge', 'step 6 now', 'still on this branch']);
-  assert.ok(step3.indexOf('step 6 now') < step3.indexOf('switch --name <base>'), 'merge first: on the base branch merge would stop');
-  says(git, ['6. **Merge** (a handoff comes here from step 3)']);
+  const save = part(git, '2. Write', '3. **Merge**');
+  says(save, ['a task adds `--back-to <base>`', 'except when the instruction asks to merge', 'no `--back-to` then', 'merge in step 3 first', 'then `switch --name <base>`']);
+  assert.ok(save.indexOf('merge in step 3 first') < save.indexOf('then `switch --name <base>`'), 'merge first: on the base branch merge would stop');
+  says(git, ['3. **Merge** (a handoff that asks for it comes here)']);
 });
 
 test('git.md: in a finish a sync conflict comes after the commit that holds the removal, so nothing is put back', () => {
-  const sync = shared('git.md').slice(shared('git.md').indexOf('4. `sync'), shared('git.md').indexOf('5. `push`'));
-  says(sync, ['`conflict` → show the files', 'In a finish the commit of step 2 already holds', "the task's removal", 'nothing is put back']);
-  says(sync, ['after the resolve commit the finish goes on with the push', 'Offer: resolve together now']);
+  const sync = part(shared('git.md'), '2. Write', '3. **Merge**');
+  says(sync, ['`conflict` → show the files', 'In a finish the commit already holds', "the task's removal", 'nothing is put back']);
+  says(sync, ['after the resolve commit the finish goes on with `push`', 'Offer: resolve together now']);
 });
 
 test('git.md: red gates after a sync offer a fix or putting the task back, never a silent stop', () => {
-  const sync = shared('git.md').slice(shared('git.md').indexOf('4. `sync'), shared('git.md').indexOf('5. `push`'));
-  says(sync, ['`merged N new commits`', 'red → show them', 'no push while they are red', 'Offer: fix them now', 'or stop']);
+  const sync = part(shared('git.md'), '2. Write', '3. **Merge**');
+  says(sync, ['`sync merged N new commits ...; run the gates again before the push`', 'green → `push`', 'red → show them', 'no push while they are red', 'Offer: fix them now', 'or stop']);
   says(sync, ["With `--finish` the task's removal is committed but not pushed", '"stop" puts the task back', 'node "<keel>/scripts/notes.js" "<project>" task restore <id> --session <sid>']);
 });
 
@@ -502,8 +511,10 @@ test('the cost report runs last and is pasted whole: the only cost numbers in th
   for (const name of ['end-task', 'end-session']) {
     const text = skill(name);
     says(text, ['start its sync agent (steps 1-3)'], name);
-    says(text, ['Report: run usage-sync.md step 4 (the cost report), then read'], name);
-    assert.ok(text.indexOf('run usage-sync.md step 4') > text.indexOf('git.md'), `${name}: the report runs after git`);
+    // The cost report comes first; then the reminder and the final-report.md read go in one message.
+    says(text, ['Run usage-sync.md step 4 (the cost report)', 'in one message as two calls', 'cleanup.js" "<project>" reminder', 'read `<keel>/skills/_shared/final-report.md`'], name);
+    assert.ok(text.indexOf('Run usage-sync.md step 4') > text.indexOf('git.md'), `${name}: the report runs after git`);
+    assert.ok(text.indexOf('Run usage-sync.md step 4') < text.indexOf('in one message as two calls'), `${name}: the cost report comes before the pair`);
   }
   const costs = shared('final-report.md').slice(shared('final-report.md').indexOf('**Costs**'));
   says(costs, ['The user does not see tool output', 'paste its text into this message']);
@@ -528,7 +539,7 @@ test('preflight: a missing or invalid project scan is said in one line with the 
 });
 
 test('start-session: a new line while a note is open asks what happens to the old Plan and Later first', () => {
-  const row = shared('handoff.md').split('\n').find((l) => l.includes('Continue the written line or start a new one?'));
+  const row = shared('handoff-resume.md').split('\n').find((l) => l.includes('Continue the written line or start a new one?'));
   says(row, ['New → there is one note, so ask next', 'finish the old line', 'keep its open Plan steps and Later items', "the new note's **Later**"]);
   says(row, ['Write the new note only after this answer']);
 });

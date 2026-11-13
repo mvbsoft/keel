@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const { read, shared, order, part, says } = require('./fixtures/texts.js');
 
 const intake = shared('intake.md');
-const handoff = shared('handoff.md');
+const handoff = shared('handoff-resume.md');
 const REMAINING = 'node "<keel>/scripts/plan-steps.js" "<project>"';
 
 test('start-task plan: a very big plan goes to planning; a big one names the choice, a fresh conversation first', () => {
@@ -26,7 +26,7 @@ test('start-task plan: a very big plan goes to planning; a big one names the cho
 test('start-task: a fresh conversation keeps the decisions in task.md, the user types the commands, it asks once how', () => {
   says(intake, ['`execution: fresh` → "Fresh conversation" below.']);
   const fresh = part(intake, '**Fresh conversation** (`execution: fresh`)', '## Resume');
-  says(fresh, ['began with the plan alone', 'approved with Claude Code\'s "Yes, clear context"', 'nothing before the plan', 'it is the fresh one', 'ask how to run the rest as Resume step 7 says']);
+  says(fresh, ['began with the plan alone', 'approved with Claude Code\'s "Yes, clear context"', 'nothing before the plan', 'it is the fresh one', 'ask how to run the rest as task-resume.md step 7 says']);
   // The plan discussion is lost after /clear, so what it settled is in the task file first.
   order(fresh, 'check that task.md holds what it settled', 'Type `/clear`', 'decisions are written before the handover');
   says(fresh, ['add what is still missing', 'Decisions and why, with why, and Open questions']);
@@ -34,7 +34,7 @@ test('start-task: a fresh conversation keeps the decisions in task.md, the user 
 });
 
 test('start-task resume: execution fresh asks delegate or here once; a made choice is not asked again', () => {
-  const resume = part(intake, '## Resume', '## Before any branch change');
+  const resume = shared('task-resume.md');
   // The count of the one-line statement comes from the script too, so it runs for every choice.
   order(resume, `${REMAINING} "<plan.md or task.md>" --remaining\``, '`execution: fresh` → this is the fresh conversation');
   says(resume, ['ask its `ask:` line', '(delegate or here; no `ask:` → here)', 'write the answer into `execution:`']);

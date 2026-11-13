@@ -171,7 +171,7 @@ test('start-task, start-session and planning texts: another repository\'s depend
   assert.match(intake, /a `depends:` ticket `not checked` \(its folder is not in the repos map, not on this machine, or not a\s+git repository\) →\s+say which and why, and that `plans\.js settings set --repo <PREFIX>=<folder>` makes it checked;\s+ask: start anyway \/ take another ticket/);
   // No "start from that ticket's branch" for another repository: its branch is not in this one.
   assert.doesNotMatch(intake.slice(intake.indexOf('of another repository (its state')).split('\n   - ')[0], /that ticket's branch/);
-  assert.match(shared('handoff.md'), /A dependency in another repository \(its state followed by `\(<folder>, \.\.\.\)`, or `not checked`\) is no step of its own: the ticket's step names it with that state/);
+  assert.match(shared('handoff-resume.md'), /A dependency in another repository \(its state followed by `\(<folder>, \.\.\.\)`, or `not checked`\) is no step of its own: the ticket's step names it with that state/);
   assert.match(shared('planning.md'), /`--depends` may also name another repository's ticket by its key, `API-121`, checked in that\s+repository's folder from the repos map: a `note: \.\.\. not checked` line → say it and how to add the\s+folder/);
 });
 

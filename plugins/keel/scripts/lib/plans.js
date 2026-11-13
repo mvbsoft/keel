@@ -25,7 +25,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { checkConfig } = require('./config.js');
 const { moveToTrash } = require('./trash.js');
-const { git, clean } = require('./repo-read.js');
+const { git, clean, validBranchName } = require('./repo-read.js');
 const { unsafeRel, localLink, safeLocalPath, safeLocalWrite } = require('./safe-path.js');
 const { validSid } = require('./ids.js');
 const { setFront, dateOf } = require('./tasks.js');
@@ -157,7 +157,7 @@ const otherRepos = (root, deps) => neighbours().lookUp(root, deps);
 
 // A branch name git takes as it is (check-ref-format would turn @{-1} into another name) and never
 // reads as an option.
-const validBranch = (root, name) => typeof name === 'string' && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name) && git(root, ['check-ref-format', '--branch', name]) === name;
+const validBranch = (root, name) => validBranchName(root, name) && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name);
 
 // The feature branch and where it merges, as the exported tickets get them: plan.md's values, else the
 // feature name and the main branch.

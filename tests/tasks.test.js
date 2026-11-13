@@ -104,11 +104,11 @@ test('check: tasks line, sizes of the task files and the session\'s active task'
   for (let i = 1; i <= 10; i++) putTask(dir, `T-${String(i).padStart(2, '0')}`);
   let out = notes(dir, 'check', '--session', 's1');
   assert.match(line(out, 'tasks:'), /^tasks: 10 unfinished \((T-[\w-]+, ){7}T-[\w-]+, \.\.\.\)$/, 'long lists are cut');
-  assert.equal(line(out, 'task files:'), 'task files: 10 in this working tree; over the limit of 150 lines: none');
+  assert.equal(line(out, 'task files:'), 'task files: 10 in this working tree; over the limit of 150 lines or 12000 characters: none');
   assert.equal(line(out, 'active task:'), 'active task: none');
   putTask(dir, 'T-03', {}, '- ⬜ x\n'.repeat(160));
   out = notes(dir, 'check');
-  assert.match(line(out, 'task files:'), /over the limit of 150 lines: T-03 \(\d{3} lines\)$/);
+  assert.match(line(out, 'task files:'), /over the limit of 150 lines or 12000 characters: T-03 \(\d{3} lines\)$/);
 });
 
 test('check: the next session log is one past the highest number of the local day, never a log that exists', () => {

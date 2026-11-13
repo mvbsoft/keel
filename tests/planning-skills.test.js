@@ -12,7 +12,8 @@ const read = (...p) => fs.readFileSync(path.join(PLUGIN, ...p), 'utf8');
 const start = () => read('skills', 'start-planning', 'SKILL.md');
 const end = () => read('skills', 'end-planning', 'SKILL.md');
 const flow = () => read('skills', '_shared', 'planning.md');
-const all = () => [start(), end(), flow()];
+const exportedText = () => read('skills', '_shared', 'planning-exported.md');
+const all = () => [start(), end(), flow(), exportedText()];
 // One section of planning.md, by its heading.
 const section = (name) => {
   const text = flow();
@@ -46,7 +47,8 @@ test('plans.js runs one step at a time, its first line is read and a refusal is 
   assert.match(rules, /one step at a time and\s+read its first output line/);
   says(rules, ['`plans: <command> refused (<why>)` is a refusal']);
   assert.match(rules, /never work around it or write its files\s+by hand/);
-  for (const text of all()) assert.doesNotMatch(text, /&&/, 'no chained commands');
+  // The command's rules name `&&` as the thing a keel script is never joined with.
+  for (const text of all()) assert.doesNotMatch(text.replace('never joined with `;`, `&&`,', ''), /&&/, 'no chained commands');
 });
 
 test('planning rules: the chat in the conversation language, the draft in the plan\'s, no keel traces, git only with a yes, no code', () => {
@@ -205,12 +207,13 @@ test('start-planning: no argument lists the drafts, words find one, a link or fi
   // An exported feature is reopened to edit its tickets in the feature folder, not refused.
   assert.doesNotMatch(text, /editing them is not part\s+of this command/);
   says(text, ['A chosen plan that is `exported`', 'an exported feature without a draft', 'its tickets live in the feature folder', 'steps 1-2, then step 7, then its steps 3-6 as the work', 'not steps 5, 6 and 8']);
-  says(text, ['`<keel>/skills/_shared/planning.md`, sections "Rules", "Work" and "Several repositories"', 'hold for the whole command', 'also "Exported feature"']);
+  says(text, ['`<keel>/skills/_shared/planning.md`, sections "Rules", "Work" and "Several repositories"', 'hold for the whole command', 'also `<keel>/skills/_shared/planning-exported.md`']);
   assert.match(text, /`planning: <f>` \(an exported feature:\s+`planning: <f> \(exported: <folder>\)`\)/);
 });
 
 test('exported feature: its tickets\' state first, a switch to the branch that has them, only to-do tickets edited on a yes, then check and review', () => {
-  const ex = section('Exported feature');
+  const ex = exportedText();
+  says(section('Exported feature'), ['**Exported feature**', '`<keel>/skills/_shared/planning-exported.md`', 'read', 'follow it']);
   says(ex, ['`node "<keel>/scripts/plans.js" "<project>" tickets <f>`: show its lines as printed']);
   before(ex, 'tickets <f>`', 'switch --name <branch>', 'the state is read first');
   says(ex, ['The feature folder is not in this working tree', '`plans.js mark set` refuses and names it', 'ask "Switch to `<branch>`?"; yes →', '`node "<keel>/scripts/git-flow.js" "<project>" switch --name <branch>`']);
@@ -224,7 +227,7 @@ test('exported feature: its tickets\' state first, a switch to the branch that h
   says(which, ['a single name with no draft → `plans.js tickets <it>` first', 'it lists tickets → an exported feature', '`tickets: none ...` → the next case']);
   before(which, 'plans.js tickets <it>', 'plans.js find "<words>"');
   // A chat already marked for an exported feature goes on with its tickets, not with the draft steps.
-  says(start(), ['continue `<f>` (step 6', 'an exported feature, told apart as in step 4', 'planning.md "Exported feature" steps 3-6']);
+  says(start(), ['continue `<f>` (step 6', 'an exported feature, told apart as in step 4', 'planning-exported.md steps 3-6']);
   says(ex, ['Only `to do` (or `next`) tickets are edited', 'show each change', 'write it only on a yes']);
   before(ex, 'write it only on a yes', '`plans.js check <f>`');
   before(ex, '`plans.js check <f>`', 'a ticket review of the changed tickets', 'no reviewer runs on a broken structure');
@@ -473,7 +476,7 @@ test('several repositories: export into each repository; a repository not ready 
   says(git, ['one question for all', '"Commit the planning files in <API, WEB>?"', 'Claude Code asks once per repository']);
   before(git, '`plans.js commit <f>` here first', '`plans.js commit <f> --repo');
   says(git, ['a failed push does not stop the others', 'name each one with its `retry:` command', 'a network or access failure', 'with its refusal', 'a protected branch']);
-  const exported = section('Exported feature');
+  const exported = exportedText();
   assert.match(exported, /`--repo <PREFIX>`\s+for another repository of its overview/);
   says(exported, ['whose repository is on this machine now', '`plans.js ticket <f> --from-stub <PREFIX>-S<n>`', '`replaces: <stub>`', 'none is edited']);
   says(exported, ['`plans: ticket refused (--from-stub: <PREFIX> is not ready)`', '(no `--as-is`)']);

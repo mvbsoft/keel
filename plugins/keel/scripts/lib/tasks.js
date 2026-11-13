@@ -17,7 +17,9 @@ const { execFileSync } = require('node:child_process');
 const { checkConfig } = require('./config.js');
 const { parseSteps, planAllowed } = require('../plan-steps.js');
 const { moveToTrash, listBatches, restore, fromHere } = require('./trash.js');
-const { git, read, noBom, frontmatter, count, freshRef, clean } = require('./repo-read.js');
+const { git, read, noBom, frontmatter, count, freshRef, clean, validBranchName } = require('./repo-read.js');
+const { isSecretName } = require('./secret-names.js');
+const { secretCheck } = require('./project.js');
 const { realPath, samePath, linkOnWay, localLink, safeLocalPath, safeLocalWrite, safeLocalReplace, withLocalLock } = require('./safe-path.js');
 const { readFinish, writeFinish, clearFinish, ownItem } = require('./finish.js');
 const { validId, validSid } = require('./ids.js');
@@ -32,6 +34,8 @@ const SOURCE_NAMES = { jira: 'Jira', linear: 'Linear', asana: 'Asana', github: '
 const FRESH_MS = 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_LISTED = { commits: 20, files: 40 };
+const EXECUTIONS = ['here', 'delegate', 'fresh'];
+const MAX_PLAN = 200 * 1024;
 
 // Ids compare without case: on Windows and macOS Foo and foo are one folder.
 const key = (id) => String(id).toLowerCase();
@@ -414,12 +418,51 @@ function taskList(root, session, now = new Date()) {
 
 // --- commands that change things ---
 
+// A plan file to copy into a task folder: a plain text file (not a link, no link on the way inside the
+// project) of up to MAX_PLAN bytes. { text, from } or { refusal }.
+function readPlanFile(root, file) {
+  if (typeof file !== 'string' || !file) return { refusal: '--plan-file needs a path' };
+  const full = path.resolve(root, file);
+  const shown = clean(file);
+  let st;
+  try { st = fs.lstatSync(full); } catch { return { refusal: `--plan-file ${shown} does not exist` }; }
+  if (st.isSymbolicLink()) return { refusal: `--plan-file ${shown} is a link` };
+  const inside = path.relative(root, full);
+  const linked = inside.startsWith('..') || path.isAbsolute(inside) ? null : linkOnWay(root, full);
+  if (linked) return { refusal: `--plan-file: ${linked}` };
+  if (!planAllowed(root, full)) return { refusal: `--plan-file ${shown} must be inside the project or in Claude Code's plans folder` };
+  const named = (inside.startsWith('..') || path.isAbsolute(inside) ? path.basename(full) : inside).split(path.sep).join('/');
+  if (isSecretName(named, { strict: true }) || secretCheck(root).isSecret(named)) return { refusal: `--plan-file ${shown} is a secret file` };
+  if (!st.isFile()) return { refusal: `--plan-file ${shown} is not a file` };
+  if (st.size > MAX_PLAN) return { refusal: `--plan-file ${shown} is over ${MAX_PLAN / 1024} KB` };
+  let text;
+  try { text = fs.readFileSync(full, 'utf8'); } catch (e) { return { refusal: `--plan-file ${shown} cannot be read: ${e.message}` }; }
+  if (text.includes('\0')) return { refusal: `--plan-file ${shown} is not a text file` };
+  if (text.includes('�')) return { refusal: `--plan-file ${shown} is not UTF-8 text` };
+  return { text, from: shown };
+}
+
 // The skeleton: the template without its comments, the front matter filled from the arguments.
 function taskNew(root, id, o, now = new Date()) {
   if (!validId(id)) return refuse('task new', `invalid id "${clean(String(id))}": letters, digits, . _ -, at most 80 characters, starting with a letter or digit, no "..", not ending with ".", not a Windows device name (CON, NUL, COM1...)`);
   if (typeof o.title !== 'string' || !oneLine(o.title)) return refuse('task new', 'needs --title');
   if (!SOURCES.includes(o.source)) return refuse('task new', `--source must be one of ${SOURCES.join(', ')}`);
   if (o.session !== undefined && !validSession(o.session)) return refuse('task new', 'invalid --session');
+  const picked = {};
+  for (const [flag, field] of [['branch', 'branch'], ['base', 'base'], ['merge-into', 'mergeInto']]) {
+    const v = o[field];
+    if (v === undefined) continue;
+    if (typeof v !== 'string') return refuse('task new', `--${flag} needs a value`);
+    // "-" is the template's "none".
+    if (v !== '-' && !validBranchName(root, v)) return refuse('task new', `--${flag} "${clean(v)}" is not a valid branch name`);
+    picked[field] = v;
+  }
+  if (o.execution !== undefined && !EXECUTIONS.includes(o.execution)) return refuse('task new', `--execution must be one of ${EXECUTIONS.join(', ')}`);
+  let plan = null;
+  if (o.planFile !== undefined) {
+    plan = readPlanFile(root, o.planFile);
+    if (plan.refusal) return refuse('task new', plan.refusal);
+  }
   const local = localRefusal(root, 'task new');
   if (local) return local;
   const old = findTask(root, id);
@@ -442,7 +485,8 @@ function taskNew(root, id, o, now = new Date()) {
   const started = git(root, ['rev-parse', '-q', '--verify', 'HEAD^{commit}']) || '-';
   const front = {
     id, title, source: o.source, link: typeof o.link === 'string' && oneLine(o.link) ? oneLine(o.link) : '-', status: 'active',
-    branch: '-', base: main || '-', merge_into: main || '-', execution: 'here', plan: 'inline', created: today, updated: today, after_commit: '-', started,
+    branch: picked.branch || '-', base: picked.base || main || '-', merge_into: picked.mergeInto || main || '-', execution: o.execution || 'here', plan: plan ? PLAN_FILE : 'inline',
+    created: today, updated: today, after_commit: '-', started,
   };
   const template = fs.readFileSync(TEMPLATE, 'utf8').replace(/\r\n/g, '\n').replace(/<!--[\s\S]*?-->\s*/g, '');
   const body = template.replace(/^---\n[\s\S]*?\n---\n/, '').trimStart().replace(/^# .*$/m, () => `# ${id}: ${title}`);
@@ -452,8 +496,15 @@ function taskNew(root, id, o, now = new Date()) {
     if (closedEntry(readClosed(root), id)) writeClosed(root, (c) => forget(c, id));
   } catch (e) { return refuse('task new', e.message); }
   fs.mkdirSync(folder, { recursive: true });
-  fs.writeFileSync(path.join(folder, TASK_FILE), `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n${body}`);
+  try {
+    if (plan) fs.writeFileSync(path.join(folder, PLAN_FILE), plan.text);
+    fs.writeFileSync(path.join(folder, TASK_FILE), `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n${body}`);
+  } catch (e) {
+    fs.rmSync(folder, { recursive: true, force: true });
+    return refuse('task new', `could not write the task folder: ${e.message}`);
+  }
   const out = [`created: ${rel(root, path.join(folder, TASK_FILE))}`, `folder: ${rel(root, folder)}/ (a big plan goes into ${PLAN_FILE} here)`, 'status: active'];
+  if (plan) out.push(`plan: ${PLAN_FILE} (copied from ${plan.from})`);
   if (o.session) { setMarker(root, o.session, id); out.push(`active task: ${id}`); }
   return out;
 }

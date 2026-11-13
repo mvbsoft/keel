@@ -317,7 +317,7 @@ gitTest('started: task new records HEAD; check, activate and a handoff edit keep
   write(dir, 'src/app.js', 'two\n');
   commitAll(dir, 'work');
   const out = notes(dir, 'check', '--session', 's1');
-  assert.equal(line(out, 'task files:'), 'task files: 1 in this working tree; over the limit of 150 lines: none', out.join('\n'));
+  assert.equal(line(out, 'task files:'), 'task files: 1 in this working tree; over the limit of 150 lines or 12000 characters: none', out.join('\n'));
   assert.equal(line(out, 'active task:'), 'active task: S-1');
   // A handoff edits its own fields; resuming activates the task again.
   fs.writeFileSync(file, tasks.setFront(fs.readFileSync(file, 'utf8'), { status: 'handed-off', after_commit: git(dir, 'rev-parse', '--short', 'HEAD') }));

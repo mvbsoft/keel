@@ -1,6 +1,6 @@
 ---
 name: context
-description: Read-only helper that maps the files related to a code change for keel's reviewers, and answers narrow questions about a project's layout such as gaps left by the project scan.
+description: Read-only helper: maps the files related to a change for keel's reviewers; answers layout questions.
 model: haiku
 effort: high
 maxTurns: 60

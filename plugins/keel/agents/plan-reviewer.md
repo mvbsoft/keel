@@ -1,6 +1,6 @@
 ---
 name: plan-reviewer
-description: Read-only agent that reviews a planned feature as a whole once, in a fresh context - coverage, contradictions, order, what is often forgotten - and reports findings with evidence.
+description: Read-only agent: reviews a planned feature as a whole once and reports findings with evidence.
 model: sonnet
 effort: high
 maxTurns: 60

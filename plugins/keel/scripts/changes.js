@@ -6,7 +6,9 @@
 //   changes.diff   the unified diff agents read (secret files reduced to a note)
 // Usage: node changes.js <projectDir> [--base <ref>] [--start] [--skip <path>]...
 //   --base   verify a branch's whole work: diff against the merge base with <ref> (default: HEAD)
-//   --start  begin a new verification run: clears the previous run's agent replies
+//   --start  begin a new verification run: clears the previous run's agent replies. First checks the
+//            comments like comments.js (same --base and --skip) and prints its report first; the run
+//            starts either way, the notes are for the author to act on
 //   --skip   an untracked file the user said is not part of the task (repeatable)
 // Untracked files recorded at the task start (.keel/local/session-start.json, notes.js --begin) and
 // unchanged since are left out and listed; without a record every untracked file counts.
@@ -21,6 +23,7 @@ const { treeState, lastVerify } = require('./fingerprint.js');
 const { onPath } = require('./lib/files.js');
 const { programOf } = require('./lib/commands.js');
 const { planningFiles } = require('./lib/planning.js');
+const comments = require('./comments.js');
 
 const MAX_READ = 1024 * 1024;
 
@@ -52,7 +55,17 @@ function missingScanners(config, root) {
   }).map((s) => s.name || s.command);
 }
 
+// The comments report (comments.js) of the same change, as lines for the top of the output.
+function commentReport(root, opts) {
+  try { return comments.report(comments.run(root, opts)); } catch (e) { return `comments: not measured (${e.message})`; }
+}
+
 function run(root, opts) {
+  const head = opts.start ? `${commentReport(root, opts)}\n` : '';
+  return head + verify(root, opts);
+}
+
+function verify(root, opts) {
   const { config, profile, isSecret } = loadProject(root);
   const base = typeof opts.base === 'string' ? opts.base : null;
   const planning = planningFiles(root);

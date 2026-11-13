@@ -18,7 +18,15 @@ Current state of this project:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" "${CLAUDE_PROJECT_DIR}" --profile`
 
-1. Read `<keel>/skills/_shared/preflight.md` and act on the state above.
+1. The state above is exactly the two lines `keel-config: ok` and `profile: ok`, with no other line
+   → go on without reading preflight.md. Any other line (such as `git: refused`), or no state above → read `<keel>/skills/_shared/preflight.md` and
+   act on it. These rules hold for this whole command. Run every keel script (`node` with a file in
+   keel's `scripts` folder) as its own plain command with full paths, never joined with `;`, `&&`,
+   pipes or redirections. In Bash write a path that starts with `\\` as `//server/share/...`. Read
+   keel's own files with Read, Grep and Glob, not the shell. Before each action say in one short
+   line what it will do. An instruction you cannot read one way only: ask, never guess. Steps that
+   need nothing from each other's output may go in one message as separate calls, where the command
+   says so. A keel script refused by a project hook: follow preflight.md's rule for it.
 2. Run `node "<keel>/scripts/notes.js" "<project>" tasks --session <sid>`. Each block is one task (this
    working tree and every branch).
 3. No argument: show each block as printed (`<id> · <title>`, then Source, State, Next, Files, and
@@ -34,7 +42,7 @@ Current state of this project:
    `/keel:start-task <KEY>`" with the key of its `next:` line (`next: none` → no such line). A
    feature whose every ticket is `done` or `waiting for the feature merge` (all done in its feature
    branch) and that has no `— stub (` line in `plans.js tickets <f>` → offer its end as
-   `<keel>/skills/_shared/git.md` "End of feature" says; with a stub left, say it is not complete yet.
+   `<keel>/skills/_shared/git-end-of-feature.md` says; with a stub left, say it is not complete yet.
    `linked:` lines after `next:` → a block "Other repositories" (tickets of the same features there,
    never the next one here): each `linked: <feature> in <name> (<PREFIX>; <folder>, <data date>)`
    with its ticket lines as printed; `... has more tickets, state unknown (<why>):` → "<name> is not

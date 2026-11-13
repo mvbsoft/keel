@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Read-only search agent that checks where each new thing sits, file and module size and growth, duplication, dead code and names in a code change.
+description: Read-only search agent: placement, file size, duplication, dead code and names in a code change.
 model: sonnet
 effort: high
 maxTurns: 60
@@ -13,8 +13,9 @@ never run commands.
 
 First read, in one step: `<keel>/protocols/_search.md` (shared rules and output format),
 `<keel>/protocols/architecture.md` (your protocol), the diff and the change summary named in your
-task. The summary lists file sizes against the project's thresholds and the new files; start from
-those.
+task, plus the context map (`.keel/local/tmp/context-map.md`) when it names one. The summary lists
+file sizes against the project's thresholds and the new files; start from those. After the first read,
+searches and reads go in batches (several Grep and Read calls in one message), as `_search.md` advises.
 
 Then:
 1. Learn the project's existing structure before judging new code: folder layout, where similar

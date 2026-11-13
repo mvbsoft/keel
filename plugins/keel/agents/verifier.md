@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: Read-only agent that tries to prove or refute one critical issue, or up to 3 important findings from the same file or folder (up to 4 when several agents reported one issue), with a separate verdict and file:line evidence for each.
+description: Read-only agent: proves or refutes one critical issue or up to 3 findings, with file:line evidence.
 model: sonnet
 effort: high
 maxTurns: 60
