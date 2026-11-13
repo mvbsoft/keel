@@ -29,18 +29,19 @@ Current state of this project:
 4. With `restore`: run `node "<keel>/scripts/cleanup.js" "<project>" restore` (add the batch when named)
    and report what came back. Stop.
 5. Otherwise run `node "<keel>/scripts/cleanup.js" "<project>" find`. The user does not see the script's
-   output, so a question about numbers alone means nothing to them. Show the list in your message
-   first, as text before the question: every item with its number, path, why and size, as it came,
-   grouped:
+   output, so a question about numbers alone means nothing to them. Your reply to this step is the list
+   itself: every item with its number, path, why and size, as it came, grouped:
    - 🟢 **safe**: preselected;
    - 🟡 **check**: added only by number;
    - 🔴 **do not touch**: only by number, and then a second question per item saying what may break
      (project data, a file something references, a large folder that takes long to rebuild).
-   Explain each group in one plain sentence. Only after that text, ask once (AskUserQuestion when
-   available; the dialog covers the chat, so the list cannot be in it): "Move the safe ones? Add
-   numbers from the other groups, or remove numbers." `nothing to clean up` → say so and
+   Explain each group in one plain sentence. The last line of that same message is the question, as
+   plain text: "Move the safe ones? Add numbers from the other groups, or remove numbers." Do not use
+   AskUserQuestion here: its dialog covers the chat, and a reply without the list leaves the user
+   choosing numbers they cannot see. Wait for the typed answer. `nothing to clean up` → say so and
    stop. The trash is emptied only when the user asks (`/keel:cleanup empty-trash`): never offer it.
-6. Run `node "<keel>/scripts/cleanup.js" "<project>" move --items <numbers>` (add `--red <numbers>` for
+6. From the typed answer (a plain yes is the 🟢 numbers), run
+   `node "<keel>/scripts/cleanup.js" "<project>" move --items <numbers>` (add `--red <numbers>` for
    🔴 items confirmed by the second question).
 7. `gates: needed` → run the gates as in verification step 2 (`.keel/config.json` `gates.checks`,
    every part; long output to `<project>/.keel/local/tmp/gates/`). `gates: not needed` → skip.

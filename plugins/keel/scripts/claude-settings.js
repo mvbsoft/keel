@@ -27,7 +27,7 @@ const { readJsonFile } = require('./lib/json.js');
 const { safeLocalPath } = require('./lib/safe-path.js');
 
 // Keys a project may set for itself over the machine value (sources: settings-reference.md in the
-// Claude Code docs, where each of these has the scope "any file"; numbers: the owner's choices).
+// Claude Code docs, where each of these has the scope "any file"; the numbers are the values keel recommends).
 // `was`: what older keel versions recommended, so configure check can name a recommendation that changed.
 const BOTH = {
   showClearContextOnPlanAccept: { recommended: true, why: 'approving a plan can clear the planning context and start from the plan alone' },

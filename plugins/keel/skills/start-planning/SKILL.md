@@ -87,7 +87,8 @@ Current state of this project:
      In plain words, Files → What was gathered, Decisions and why → Decisions, Open questions → Open
      questions) and the brief to keel's trash; say its lines.
 6. **Continue a draft.** `plans.js check <f>` and `plans.js review <f>`; read `plan.md` only (not the
-   tickets): the ticket list, open Q, What was gathered, Next action; and in `reviews/` the findings without a decision.
+   tickets): the ticket list, open Q, What was gathered, Next action; and in `reviews/` the findings
+   marked `undecided`: show them and ask for each decision (planning.md "Reviews", step 6).
    Stale? `plans.js stale <f>`: show its `stale:` lines as they are (one more per other repository).
    A stub whose repository is now here (check's `note: <T>: <PREFIX> is on this machine now`) →
    "Several repositories" item 7. A repository draft → planning.md

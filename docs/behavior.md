@@ -7,7 +7,8 @@ This page lists what keel does in each situation and what makes sure it happens.
 - **Enforced by code** while keel's hooks are on: Claude Code's confirmation before eight steps that
   are hard to undo, keel's script guards (for example: a task is finished only with a verification
   recorded for the code as it is now; the main branch and the current branch are never deleted), one
-  narrow Stop hook for an autonomous finish, the lane hooks (a conversation that plans a feature
+  narrow Stop hook for an autonomous finish, a Stop hook that keeps a Ukrainian conversation free of
+  Russian, the lane hooks (a conversation that plans a feature
   changes no code and runs no task, session, setup or cleanup commands), and keel staying out of
   projects that are not set up.
 - **Instructions** the model follows: everything else, such as how keel reads and retells the task,
@@ -22,10 +23,10 @@ This page lists what keel does in each situation and what makes sure it happens.
 |---|---|
 | **Claude Code's confirmation** | Eight steps: moving a finished task's folder to keel's trash, dropping a task, emptying keel's trash, deleting a branch, merging, turning on autonomous git, and committing and pushing planning files. keel's hook makes Claude Code ask before each, even when your allow rules would let it run. It asks only for the plain form `node "<keel>/scripts/<name>.js" "<project>" ...` on the current project. A keel script run with keel's folder written out but in any other shape (shell variables, node options, `env`, `bash -c`, a wrapper, joined commands, in PowerShell `--%` or an empty argument) is refused, and so is one of these eight steps named with another project's path, and any keel script command that holds such a step's words (`delete`, `drop`, `empty-trash`, `merge`, `delete-branch`, `trust`) as a word without quotes but does not read as that step (`plans.js` confirms only `commit` and `push`: its other words, such as `drop` in a search, are not refused, and `commit` or `push` elsewhere in its command is asked about), and one of these steps with keel's script named through another path (`$CLAUDE_PLUGIN_ROOT`, `~`, another copy of keel), and any `node`, `bun` or `deno` command that names keel's library (`scripts/lib/`), which no keel step runs directly; the model then sends the plain form. So an allow rule such as `Bash(node *)` does not skip the question for keel's steps; the library guard is best effort (it catches the library named on the command line, not code in a file that loads it), and an allow rule for arbitrary code lets the model run any code, which no hook can judge. The one exception you can choose: a merge in autonomous git confirmed on this machine with `git.ask_before_merge: false`. The question is in your `conversation_language` setting of the project (else of this machine) when keel has a catalog for it (English and Ukrainian); other languages get English. With hooks switched off there is no confirmation ([below](#non-interactive-runs-and-bypass-mode)). |
 | **Script guard** | keel's script refuses a step that comes in the wrong order or would do harm, and says what to do instead. The same change done another way (raw git, moving files by hand) is outside the guard: keel's instructions forbid it, and your Claude Code permission rules decide it. |
-| **Stop hook** | One case only: in autonomous git, when this conversation moved a finished task's folder to keel's trash and no commit holds it, Claude Code does not let keel end its answer and tells it to go on with git or put the task back. It pushes once: when keel stops again right after, the answer ends. It does not block when keel's last message ends with a question, and it ignores a finish older than a day or a task no longer in keel's trash. |
+| **Stop hooks** | Two cases only. In autonomous git, when this conversation moved a finished task's folder to keel's trash and no commit holds it, Claude Code does not let keel end its answer and tells it to go on with git or put the task back. It pushes once: when keel stops again right after, the answer ends. It does not block when keel's last message ends with a question, and it ignores a finish older than a day or a task no longer in keel's trash. In a Ukrainian conversation, a reply with a Russian letter or word is not ended: Claude Code asks for it to be written again without Russian, once. |
 | **Hook** | Another of keel's hooks, such as the one that keeps keel out of projects that are not set up. |
 | **Instruction** | The model follows keel's instructions; nothing checks it in code. |
-| **Instruction + eval** | The same, and a behaviour test suite (`npm run eval`, 65 cases) checks it. The suite is run by hand before each release, not on every change; it is not a guarantee for every run. |
+| **Instruction + eval** | The same, and a behaviour test suite (`npm run eval`, 66 cases) checks it. The suite is run by hand before each release, not on every change; it is not a guarantee for every run. |
 
 ## Before any command
 
@@ -33,6 +34,7 @@ This page lists what keel does in each situation and what makes sure it happens.
 |---|---|---|
 | A project without `.keel/config.json` | keel stays out of the way: its hooks add nothing to the conversation, its agents are refused until `/keel:configure` has started there, and keel's skills that Claude would call by itself are refused (configure, help and usage run only when you type them). Usage recording and the status line keep working. | Hook |
 | You type a keel command in such a project | Says the project has no keel settings and offers `/keel:configure`; no → the command does not run. | Instruction |
+| The settings are committed on another branch (the first task took them into its branch and is not merged yet) | The check finds `.keel/config.json` on a local branch and names it. keel says the project is set up, the settings reach this branch with that branch's merge, and offers to switch there (or, when that branch is checked out in another folder, tells you to work in that folder); it does not offer to configure again and never commits the settings to the branch you are on. | Script check + instruction |
 | No git repository | The check reports `git: none`; keel offers `git init` and a first commit of the current state, with secret files (`.env`, keys) put in `.gitignore` first. No → the command stops. | Script check + instruction |
 | git does not trust the folder's owner ("dubious ownership") | The check reports `git: refused` with git's own fix, `git config --global --add safe.directory "<folder>"`, which you run yourself; the command stops. | Script check + instruction |
 | The project folder is a sub-folder of its git repository | keel's git steps (all but the status and the confirmation of autonomous git) stop with the reason; they run only in the repository's top folder. | Script guard |
@@ -80,7 +82,7 @@ keel adds its coding standards to every conversation in a set-up project (the fi
 | Autonomous git: a git step stops after the folder moved and before the commit (a failing commit hook) | The git script itself puts the task folder back and makes the task active again, because keel runs each git step of a finish with `--finish`; the report says what stopped. | Instruction + script (`git-flow.js --finish`) |
 | Autonomous git: the update from the base branch or the push stops after the commit (a conflict, a refused push) | The task is not put back: its removal is committed, and the script says so. Fix the cause, then keel runs that step again. | Script (`git-flow.js --finish`) + instruction |
 | New commits from the base branch turn the gates red after the folder moved (the removal is committed, nothing pushed) | keel stops git and offers: fix them now (then commit and push) or put the task back; then run `/keel:end-task` again. | Instruction |
-| Verification is red and your instruction says push or merge | The folder question has already come (it is before git). keel stops before any git step and asks; stopping puts the task back. | Instruction |
+| Verification is red and your instruction says push or merge | The folder question has already come (it is before git). keel stops before any git step and asks what to do. The task is put back when you choose to stop (manual git: when you say you did not commit). | Instruction |
 | Autonomous git: keel would end its answer with the folder in the trash and nothing committed | Claude Code keeps it working: go on with git, or put the task back. | Stop hook |
 | Merging into the main branch | Only when your instruction asks for it, or in a finish with `git.ask_before_merge: false`. Claude Code asks before each merge, except in autonomous git confirmed on this machine with that setting. Details: [merging](workflows.md#merging-into-the-main-branch). | Instruction (when) + Claude Code's confirmation (each merge) |
 | Merging while your local main branch has commits that are not on the remote | Stops before the merge and says so: those commits would be published with it. | Script guard |
@@ -164,7 +166,7 @@ Tested with Claude Code 2.1.296:
 - **`claude -p --permission-mode bypassPermissions`**: the same. keel's confirmation is not skipped;
   the step is denied with the reason, and the task folder stays.
 - **All hooks switched off** (`disableAllHooks`): keel's own confirmations, its pre-approvals and the
-  Stop hook are gone, so every keel step follows your normal permission rules. The script guards
+  Stop hooks are gone, so every keel step follows your normal permission rules. The script guards
   still hold.
 - Interactive bypass mode was not tested.
 

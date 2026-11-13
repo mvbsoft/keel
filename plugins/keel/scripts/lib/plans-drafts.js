@@ -6,8 +6,9 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { read, frontmatter, clean } = require('./repo-read.js');
 const { linkOnWay, safeLocalPath } = require('./safe-path.js');
-const { sections, setFront, dateOf } = require('./tasks.js');
+const { setFront, dateOf } = require('./tasks.js');
 const { base, badFolder, settings } = require('./plans-settings.js');
+const { sectionsOutsideFences } = require('./plans-format.js');
 const { mainOf } = require('./project-dir.js');
 
 const PLAN_FILE = 'plan.md';
@@ -40,6 +41,8 @@ function draftAt(folder, local) {
   const text = read(path.join(folder, PLAN_FILE));
   if (text === null) return null;
   const fm = frontmatter(text);
+  // A hand-made plan.md may quote its values ("draft").
+  for (const k of ['type', 'status']) if (typeof fm[k] === 'string') fm[k] = fm[k].replace(/^(["'])(.*)\1$/, '$2');
   if (fm.type !== 'plan' || !STATES.includes(fm.status)) return null;
   return { feature: path.basename(folder), folder, local, text, fm };
 }
@@ -88,7 +91,7 @@ const ticketIds = (value) => String(value || '').replace(/[[\]]/g, '').split(/[\
 
 // Open questions: the Q<n> items of "Open questions" (an answered one moves to Decisions).
 function openQuestions(text) {
-  const sec = sections(text)['Open questions'] || '';
+  const sec = sectionsOutsideFences(text)['Open questions'] || '';
   return sec.split('\n').filter((l) => /^\s*(?:[-*]\s+)?(?:\*\*)?Q\d+\b/.test(l)).length;
 }
 
@@ -185,7 +188,7 @@ function draftFind(root, query) {
   if (!asked.length) return refuse('find', 'needs words');
   const drafts = listDrafts(root);
   const scored = drafts.map((d) => {
-    const have = new Set([...words(d.feature.replace(/-/g, ' ')), ...words(sections(d.text)['In plain words'] || '')].map(stem));
+    const have = new Set([...words(d.feature.replace(/-/g, ' ')), ...words(sectionsOutsideFences(d.text)['In plain words'] || '')].map(stem));
     return { d, score: asked.filter((w) => have.has(w)).length };
   });
   const top = Math.max(0, ...scored.map((s) => s.score));

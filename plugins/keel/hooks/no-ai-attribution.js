@@ -2,8 +2,8 @@
 // PreToolUse hook on Bash and PowerShell: refuses a `git commit` or `gh pr create/edit` whose text
 // carries AI attribution (a Co-Authored-By trailer naming an AI, "Generated with Claude Code"), with
 // the reason, so the session sends it again without. The text is the command itself and any message
-// file it names (`-F file`, `--file file`, `--body-file file`). keel's standards forbid it, but in test
-// runs the session added the trailer on 2 of 2 commits anyway. Only in a project keel is set up in.
+// file it names (`-F file`, `--file file`, `--body-file file`). keel's standards forbid it, but a session
+// can still add the trailer, so the hook enforces it. Only in a project keel is set up in.
 // Everything else is left to the user's normal permissions (no output). Fails soft.
 const fs = require('node:fs');
 const path = require('node:path');

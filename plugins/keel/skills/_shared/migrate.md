@@ -90,7 +90,8 @@ Write the confirmed actions to `<project>/.keel/local/tmp/migrate-plan.json`:
 `{"source": "<old folder>", "actions": [{"op": "move", "from": "<old>/sessions", "to": ".keel/sessions"},
 {"op": "append", "from": "<old>/memory/x.md", "to": ".keel/memory/project-memory-archive.md"},
 {"op": "trash", "from": "<old>/next-session.md"}]}`; an archive uses `move` to
-`.keel/local/archive/<old folder>/...`. Run
+`.keel/local/archive/<old folder>/...`. For `system (loose files)` the `source` is `.` and the actions
+list the files one by one, each by its own path, never `.` or a folder that holds other things. Run
 `node "<keel>/scripts/migrate.js" "<project>" apply "<project>/.keel/local/tmp/migrate-plan.json"`.
 Claude Code asks the user before it runs; that is expected. Logs are moved by the script, never read
 or rewritten by you. `refused:` lines → say why; `already done:` lines are a resumed run, not errors.

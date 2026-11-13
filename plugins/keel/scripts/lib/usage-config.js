@@ -37,7 +37,7 @@ function loadMachineConfig(env = process.env) {
     cloud_wallet: WALLETS.includes(c.cloud_wallet) ? c.cloud_wallet : 'credit',
     also_api: c.also_api === true,
     prompt_preview: c.prompt_preview !== false,
-    history_days: Number.isInteger(c.history_days) && c.history_days >= 0 ? c.history_days : 30,
+    history_days: Number.isInteger(c.history_days) && c.history_days >= 1 ? c.history_days : 30,
     artifact_url: typeof c.artifact_url === 'string' && c.artifact_url ? c.artifact_url : null,
     // the page's template fingerprint (its meta/settings `template`), as this machine last saw it
     page_template: typeof c.page_template === 'string' && c.page_template ? c.page_template : null,

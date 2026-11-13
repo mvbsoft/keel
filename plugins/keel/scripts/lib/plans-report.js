@@ -17,8 +17,8 @@ const SCHEMA = path.join(__dirname, '..', '..', 'schemas', 'plan-findings.schema
 const PLAN_MAX = 10;
 const TICKET_MAX = 5;
 const MAX_REASONS = 10;
-// A draft ticket (T3) or an exported one, reviewed by its key when its feature is reopened.
-const TICKET = /^(T[1-9][0-9]*|[A-Z][A-Z0-9]+-[0-9]+)$/;
+// A draft ticket (T3), an exported one or a stub (PROJ-S1), reviewed by its key when its feature is reopened.
+const TICKET = /^(T[1-9][0-9]*|[A-Z][A-Z0-9]+-S?[0-9]+)$/;
 
 const refuse = (why) => [`plans: report refused (${why})`];
 const failed = (reasons) => ['report: failed', ...reasons.slice(0, MAX_REASONS).map((r) => `- ${clean(r, 200)}`), ...(reasons.length > MAX_REASONS ? [`- (+${reasons.length - MAX_REASONS} more)`] : [])];
@@ -65,4 +65,4 @@ function reportCheck(root, file) {
   ];
 }
 
-module.exports = { reportCheck };
+module.exports = { reportCheck, TICKET };

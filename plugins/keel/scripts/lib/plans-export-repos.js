@@ -117,7 +117,10 @@ function neighbour(d, prefix, p) {
 function exportFeature(root, feature, { stop = () => {}, asIs = [] } = {}) {
   const what = 'export';
   const { d: found, why } = plans.needDraft(root, feature, what);
-  if (!found) return why;
+  if (!found) {
+    const done = plans.validFeature(feature) && featureFolder(root, feature);
+    return done ? refuse(what, `${feature} is exported already: its tickets are in ${rel(root, done.folder)}/`) : why;
+  }
   let d;
   try { d = plans.settle(root, found); } catch (e) { return refuse(what, e.message); }
   if (d.fm.status !== 'ready') return refuse(what, `the plan is ${d.fm.status}; only a ready plan is exported (/keel:end-planning)`);

@@ -59,7 +59,7 @@ test('agent implementer: Sonnet on high, 350 turns, edits files, never spawns ag
   says(body, ['git diff --stat']);
   assert.ok(body.includes('.keel/local/tmp/implementer/'), 'temporary files only under .keel/local/tmp');
   says(body, ['main session handles git'], 'no git state changes');
-  // Owner decision: the section keeps keel's rules without naming where they came from.
+  // The section keeps keel's rules without naming where they came from.
   assert.match(body, /^## Principles$/m);
 });
 
@@ -105,7 +105,7 @@ test('every protocol has a checklist or method, evidence, exclusions, severity a
 });
 
 test('agent and protocol files name no outside sources', () => {
-  // Owner decision: keel's rules stand as its own; no links, paper ids or borrowed project names.
+  // keel's rules stand as its own: no links, paper ids or borrowed project names.
   const files = [
     ...fs.readdirSync(AGENTS).filter((f) => f.endsWith('.md')).map((f) => path.join(AGENTS, f)),
     ...fs.readdirSync(PROTOCOLS).filter((f) => f.endsWith('.md')).map((f) => path.join(PROTOCOLS, f)),
@@ -126,12 +126,19 @@ test('the shared search rules describe the findings schema the scripts validate'
   assert.doesNotMatch(text, /unverified findings are dropped|^## Principles/m);
 });
 
+test('the shared search rules and the QA agents agree: code to run is a script file, never inline', () => {
+  const rules = fs.readFileSync(path.join(PROTOCOLS, '_search.md'), 'utf8');
+  says(rules, ['never inline', '`node -e`', '`node <script>`']);
+  assert.doesNotMatch(rules, /runs as one `node -e/);
+  says(fs.readFileSync(path.join(PLUGIN, 'agents', 'qa.md'), 'utf8'), ['never inline', '`node -e`']);
+});
+
 test('the planning reviewers check what the plan-findings schema names, with evidence, and skip secret files', () => {
   const schema = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'schemas', 'plan-findings.schema.json'), 'utf8'));
   const named = (body) => [.../^## Checklist[^\n]*\n([\s\S]*?)\n## /m.exec(body)[1].matchAll(/^- `([a-z-]+)`:/gm)].map((m) => m[1]);
   const ticket = agent('ticket-reviewer').body;
   const plan = agent('plan-reviewer').body;
-  // Spec 7: the ticket checklist and one free "what is missing?"; the plan checklist.
+  // The ticket checklist ends with one free "what is missing?"; the plan has its own checklist.
   assert.deepEqual(named(ticket), ['one-goal', 'testable-criteria', 'scope', 'dependencies', 'size', 'one-task', 'true-in-code', 'how-to-check', 'no-steps', 'plain-words', 'clear-to-newcomer', 'markdown', 'complete']);
   assert.deepEqual(named(plan), ['coverage', 'consistency', 'order', 'forgotten', 'premortem']);
   assert.deepEqual([...named(ticket), ...named(plan)], schema.$defs.check.properties.check.enum);

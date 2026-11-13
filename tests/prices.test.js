@@ -132,7 +132,8 @@ const PINNED = [
   ['claude-opus-5-5', 4, 20], ['claude-opus-5', 5, 25], ['claude-opus-4', 5, 25],
   ['claude-opus-4-0', 15, 75], ['claude-opus-4-1', 15, 75], ['claude-opus-4-2025', 15, 75],
   ['claude-sonnet-5-5', 2, 10], ['claude-sonnet-5', 2, 10], ['claude-sonnet-4', 3, 15],
-  ['claude-haiku-5-5', 0.1, 0.5], ['claude-haiku-4', 1, 5],
+  ['claude-haiku-5-5', 0.1, 0.5], ['claude-haiku-4', 1, 5], ['claude-fable-5-2', 8, 40], ['claude-fable-5-1', 10, 50],
+  ['claude-fable-5', 10, 50],
 ];
 
 test('shipped prices: every model row costs exactly the pinned input and output price per million tokens', () => {
@@ -154,4 +155,29 @@ test('shipped prices: Opus 4 and 4.1 keep their old price, Opus 4.5 and later th
   for (const id of ['claude-opus-4-0', 'claude-opus-4-20250514', 'claude-opus-4-1', 'claude-opus-4-1-20250805']) assert.equal(priceFor(id, t).input, 15, id);
   for (const id of ['claude-opus-4-5', 'claude-opus-4-5-20251101', 'claude-opus-4-6', 'claude-opus-4-7', 'claude-opus-4-8']) assert.equal(priceFor(id, t).input, 5, id);
   assert.ok(!validate(t).some((w) => w.startsWith('claude-opus-4')), 'the old rows keep the usual cache ratios');
+});
+
+test('bundled table: Fable 5.2 and 5.1 are priced from their own rows, also over a machine table with only an older Fable row', () => {
+  const dir = tmp();
+  const override = path.join(dir, 'prices.json');
+  fs.writeFileSync(override, JSON.stringify({ models: [entry('claude-fable-5', 10)] }));
+  const table = loadPrices({ overridePath: override });
+  const tok = { in: 1e6, cw5: 1e6, cw1h: 1e6, cr: 1e6, out: 1e6 };
+  assert.equal(priceFor('claude-fable-5-2', table).match, 'claude-fable-5-2');
+  assert.equal(priceFor('claude-fable-5-1-20261001', table).match, 'claude-fable-5-1');
+  assert.equal(costOf('claude-fable-5-2', tok, table), 8 + 10 + 16 + 0.2 + 40);
+  assert.equal(costOf('claude-fable-5-1', tok, table), 10 + 12.5 + 20 + 0.25 + 50);
+});
+
+test('shipped prices: Fable 5 has its own row, with its own cache-read price', () => {
+  const t = loadPrices({ overridePath: path.join(tmp(), 'none.json') });
+  assert.equal(priceFor('claude-fable-5', t).match, 'claude-fable-5');
+  assert.equal(costOf('claude-fable-5', { cr: 1e6 }, t), 1);
+  assert.equal(priceFor('claude-fable-5-2', t).match, 'claude-fable-5-2');
+  assert.equal(priceFor('claude-fable-5-1', t).match, 'claude-fable-5-1');
+});
+
+test('bundled table: its source line stands on its own', () => {
+  const bundled = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'plugins', 'keel', 'data', 'prices.json'), 'utf8'));
+  assert.doesNotMatch(bundled.source, /\.md/);
 });

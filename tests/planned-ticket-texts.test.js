@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const { PLUGIN, read, shared, skill, order, part, says } = require('./fixtures/texts.js');
 
-// --- planned tickets in the task and session lanes (spec: .design/planning-spec.uk.md §2, §11) ---
+// --- planned tickets in the task and session lanes ---
 
 const planned = () => part(shared('intake.md'), '## Planned ticket', '## Task to planning');
 
@@ -29,7 +29,7 @@ test('start-task: no instruction adds the next planned ticket; "next ticket" and
 test('start-task: each ticket state has its answer; waiting is never free, done starts only on a yes', () => {
   const p = planned();
   says(p, ['`duplicate key (<n> files)`', 'warn first', '"two tickets with the key <KEY>"']);
-  says(p, ['`to do` or `next`', 'read the ticket', '`git show <ref>:<path>`', 'Goal, Acceptance criteria and Where to look']);
+  says(p, ['`to do` or `next`', 'read the ticket', '`git show <ref>:./<path>`', 'Goal, Acceptance criteria and Where to look']);
   says(p, ['`in progress` or `waiting for ...`', 'branch, author and date', 'continue it (on that branch) / start over / take another ticket']);
   says(p, ['A waiting ticket is never offered as free', 'with `stale` ask', '"Nobody touched it for 30 days: treat it as free?"']);
   says(p, ['`reverted`', 'merged once and that merge was reverted', 'merging it again brings nothing back', 'revert of that revert, or new commits']);

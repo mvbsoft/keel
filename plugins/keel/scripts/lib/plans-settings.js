@@ -110,7 +110,7 @@ function settingsSet(root, opts) {
     if (opts[k] === undefined) continue;
     const v = typeof opts[k] === 'string' ? slashes(opts[k]) : '';
     const why = LOCAL_CHECKS[k](v, root);
-    if (why) return refuse('settings set', `--${k}: ${why}`);
+    if (why) return refuse('settings set', `--${k.replace('_', '-')}: ${why}`);
     updates[k] = v;
   }
   const { saved } = readSettings(root);

@@ -52,7 +52,7 @@ const KEYS = {
   cloud_wallet: (v) => WALLETS.includes(v),
   also_api: (v) => typeof v === 'boolean',
   prompt_preview: (v) => typeof v === 'boolean',
-  history_days: (v) => Number.isInteger(v) && v >= 0 && v <= 3650,
+  history_days: (v) => Number.isInteger(v) && v >= 1 && v <= 3650, // 3650: ten years of days, a cap against a mistyped value
   artifact_url: (v) => v === null || (typeof v === 'string' && /^https:\/\/claude\.ai\//.test(v)),
   page_template: (v) => typeof v === 'string' && /^[0-9a-f]{12}$/.test(v),
   statusline: (v) => v && typeof v === 'object' && ['keel', 'wrap', 'none'].includes(v.mode),

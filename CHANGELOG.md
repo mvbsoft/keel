@@ -157,6 +157,12 @@ All notable changes to keel are listed here. The format follows
   reminds Claude to load it.
   Not set reads as `journal`, which now also asks a new record to restate everything still valid, and
   forbids partial supersedes and links left on a superseded record.
+- Price rows for Claude Fable 5.2, 5.1 and 5, so their sessions are priced from their own rows.
+- Usage page data: each of your messages now carries what was done after it: the most used tools, the
+  agent types, the agents' part of the cost, the tokens and the largest context of one request. keel
+  computes it from the logs at sync time; it holds no message text and is sent with or without
+  previews. A day too big for one document drops these details first. Days synced earlier get them
+  when they are sent again; the page does not show them yet.
 
 ### Changed
 - keel no longer teaches one deploy style for schema changes (expand → migrate → contract over several
@@ -291,6 +297,64 @@ All notable changes to keel are listed here. The format follows
 - A finish with `/keel:end-task`, and `/keel:end-session` with verification, ask for the level when
   the command names none, also when a brief, the session note or memory names one: that level is
   shown as advice next to the recommended proposal.
+- After the first task took keel's setup into its branch and was handed off, the main branch looked
+  not configured and every command offered `/keel:configure` again. The check now finds the settings
+  on a local branch, keel says which one and offers to switch there (or names the folder, when that
+  branch is checked out in another worktree); it never commits them to the branch you are on, and
+  `/keel:configure` does not start a fresh setup there unless you insist. Taking the setup into a task
+  whose branch already exists no longer stops without a way forward.
+- `/keel:cleanup` after a migration of loose notes no longer lists the whole project as "left in an old
+  notes system"; it does not enter another checkout, such as another conversation's worktree under
+  `.claude/worktrees/`; and its reply is the list itself with the question as its last line, in plain
+  text.
+- A source file that is only named like a secret (`secrets.py`, `credentials.ts`) is code: reviewers
+  see its changes, and keel's commits include it when git already tracks it (they left it out
+  before). A new file with such a name is still left out of keel's commit and listed, because it may
+  hold keys: commit it by hand once if it is code. `.env*`, keys, certificates, `credentials.json`,
+  `secrets.yml` and the like stay hidden.
+- The supply-chain audit plugin is proposed for a project that has a lock file (the ecosystem names
+  did not match before). The scan gives a Flutter project `flutter test`, finds uv workspace members,
+  and matches a workspace member named by one folder (Cargo `core`, Gradle `:app`) only at its own path.
+- keel no longer runs `git worktree prune` in your repository.
+- A reviewer's finding with an optional field written as `null` is no longer thrown away as invalid.
+- The filter for project check commands refuses database wipes and schema changes (Prisma, Alembic,
+  Flask, Django, Rails, TypeORM, Drizzle, Supabase, Diesel, sqlx, Flyway, Redis flush, Mongo drop,
+  `dropdb`, `mysqladmin drop`, raw `DROP` and `TRUNCATE`), also when options stand between the tool
+  and its action or the package has a version (`prisma@latest`). It no longer refuses a test file
+  named after a migration (`migrate.test.js`, `db_migrate_test.go`).
+- The attribution filter keeps an ordinary sentence that names a person, such as "Written by Claude
+  Shannon.", and catches product names (`Claude Desktop`, `Gemini Advanced`) and `gpt-` names.
+- A merge from a worktree whose target branch is checked out in another folder says where and what to
+  do, instead of git's raw message.
+- The language guard also catches common Russian words that have no Russian-only letter (such as
+  «проверил»), and works when the conversation language is written `ua`, `ukr` or `українська`.
+- Ukrainian texts: «ви» in every message, «за днями», «за проєктами» on the usage page, one word each
+  for hours (год), calibration readings (замір) and gates (перевірки).
+- The status line on Windows shows Cyrillic folder and branch names correctly.
+- The usage page's default period ends on the current UTC day, so evening spend in time zones behind
+  UTC is no longer cut off. `history_days: 0` is refused (1 or more), and `/keel:usage on` says what
+  goes to the page before the first send.
+- Planning: review findings are written as `undecided` before you are asked, so a conversation that
+  stops loses none and the next one shows them; a later review round gets the exact paths of the
+  earlier decisions; a failed review report gets a new reviewer run; `other` is a finding's check only.
+- Planning: a `## ` line inside a code block of `plan.md`, or a section written twice, no longer cuts
+  the exported overview, a brief or the draft search; the check reports the repeated section.
+- `/keel:feature-page` takes a ticket's own branch as its feature, offers only the features this
+  working tree holds, skips the fetch for a draft, and a title that contains `{{DATA}}` no longer
+  breaks the page.
+- Planning, smaller: a stub key in a review report, the `--draft-dir` name in a refusal, "exported
+  already" on a repeated export, `status: "draft"` in quotes, two ticket files with one number reported
+  by the check, and `file:` lines usable with `git show` when the project is a subfolder of its
+  repository.
+- Planning texts: a stub key given to `/keel:start-task` is explained, removing a ticket that nobody
+  started has its steps (after a fetch, so a ticket started on another machine stays), and a finished
+  export offers `/keel:feature-page`.
+- Review agents that run code write it to a script file; they no longer pass it inline (`node -e`),
+  which the command filter refuses.
+- `/keel:help` lists `configure machine`, `cleanup restore` and `cleanup empty-trash`. Resuming a
+  session in manual git gives `git switch <branch>` when the note's branch differs.
+- Docs: the Maximum level's agents, the number of quick-setup questions (11 to 18), the two Stop hooks
+  and what happens to a finished task when verification stays red now match the behaviour.
 
 ### Removed
 - `approved_artifact_urls` and `page_shared` in `~/.claude/keel/usage.json`.

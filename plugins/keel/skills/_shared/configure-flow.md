@@ -66,9 +66,10 @@ machine has none yet) / only this machine's settings, for every project.
 - **Project mode** is everything below.
 
 **Quick or detailed** (project mode, fresh setup only; a second question in the same call as the first
-one): quick (recommended: about six questions, every other value is the recommendation and can be
-changed later with `/keel:configure <section>`) / detailed (every section asked). Both explain each
-question group first. Quick runs:
+one): quick (recommended: 11 to 18 questions, depending on the project and on whether this machine
+already has usage settings; every other value is the recommendation and can be changed later with
+`/keel:configure <section>`) / detailed (every section asked). Both explain each question group first.
+Quick runs:
 
 | Section | Quick |
 |---|---|
@@ -89,7 +90,10 @@ Read the check output the command showed. A `git: none` line → before anything
 needs a git repository and offer `git init` and a first commit of the current state (as
 `<keel>/skills/_shared/preflight.md` says); no → stop the setup. `git: not installed` → say so and stop.
 Then by the first line:
-- `keel-config: missing` → a fresh setup: every section from 1.
+- `keel-config: missing` with a `settings on branch: <name>` line → keel is already set up on that
+  branch; its settings reach this branch when that branch is merged. Say so and stop, unless the user
+  insists on a fresh setup here.
+- `keel-config: missing` (without that line) → a fresh setup: every section from 1.
 - `outdated` → **repair path**: load the existing config, ask only about fields the current schema
   added, keep everything else, then go to section 12.
 - `broken` or `invalid` → **repair path**: list each problem in plain words, propose a fix per
@@ -167,8 +171,8 @@ in the list.
 - **gitleaks is two scanners** (`<keel>/data/catalog.json`, `security.scanners`), because keel verifies
   before the user commits: `gitleaks detect --no-banner --redact --log-opts=<main>..HEAD` (the commits
   of this branch) and `gitleaks protect --no-banner --redact` (uncommitted changes). A plain
-  full-history `detect` took 2.5 minutes on every task in a project with 9,701 commits (the branch
-  scan took 17 s) and misses what is not committed yet. `<main>` is the main branch confirmed in
+  full-history `detect` rescans every commit on every task, which takes minutes in a project with
+  thousands of commits, and misses what is not committed yet. `<main>` is the main branch confirmed in
   section 4: you substitute it (a name taken from the repository, never from user text) before the
   commands go to the config in section 12.
 - **gitleaks not on PATH but Docker is:** the same two scanners can run in the official image, for
@@ -485,9 +489,10 @@ Then, in one question group:
    platform.claude.com/docs/en/about-claude/pricing) and read it. Write
    `<project>/.keel/local/tmp/prices-new.json` in the shape of `<keel>/data/prices.json`: `about`,
    `source` (URL and date), `models` [{ `match` (model id prefix), `input`, `cache_write_5m`,
-   `cache_write_1h`, `cache_read`, `output` (USD per million tokens), `note` (long-context or other
-   surcharges) }] for every current and legacy model on the page. Reply with the file path and any
-   price you were unsure of." Then run
+   `cache_write_1h`, `cache_read`, `output` (USD per million tokens), `note` (other remarks) and, only
+   for a model the page charges more above a prompt size, `long_context`: { `over` (prompt tokens,
+   input plus cache), `mult` (price multiplier) } }] for every current and legacy model on the page.
+   Reply with the file path and any price you were unsure of." Then run
    `node "<keel>/scripts/usage-setup.js" "<project>" prices-diff "<project>/.keel/local/tmp/prices-new.json"`,
    show the changes and the `check:` lines, and after a yes run
    `node "<keel>/scripts/usage-setup.js" "<project>" prices-apply "<project>/.keel/local/tmp/prices-new.json"`.

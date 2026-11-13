@@ -26,7 +26,7 @@ itself. Sessions in that project compact at 500,000; every other project still c
 | When | What it sets |
 |---|---|
 | Installing keel | the two plugin options below, as **machine** values |
-| `/keel:configure` in a project | asks first: this project, or only this machine. Project mode sets the project's settings and, for "machine or project" settings, shows both values and lets you keep the machine value or set one for the project. A first setup also asks: **quick** (recommended, about six questions; every other value is keel's recommendation) or **detailed** (every section; both explain each question group first) |
+| `/keel:configure` in a project | asks first: this project, or only this machine. Project mode sets the project's settings and, for "machine or project" settings, shows both values and lets you keep the machine value or set one for the project. A first setup also asks: **quick** (recommended, 11 to 18 questions, depending on the project and the machine; every other value is keel's recommendation) or **detailed** (every section; both explain each question group first) |
 | `/keel:configure machine` | only the machine values, for every project |
 | `/keel:configure check` | which sections to run again since the last configure, and why; changes no setting |
 | `/keel:configure <section>[,<section>...]` | those sections again, written once at the end (`gates,git`); sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage` or `prices`; `planning` asks only the [planning settings](#planning-settings) |
@@ -97,7 +97,7 @@ In `~/.claude/keel/usage.json` unless noted. Set in `/keel:configure` (section "
 | `also_api` | this machine uses both a subscription and an API key. On: a session keel's hook did not mark is shown as `unknown` instead of `wallet_default`, and is left out of the limit calibration | on / off | off |
 | `pc` | this machine's name on the usage page | 1 to 40 letters, digits, `-`, `_` | the computer name |
 | `user` | your name on the usage page, to tell people apart when the page is shared | text | your git email |
-| `history_days` | how far back the first sync to a usage page reaches (also the first sync after the page address changes); later syncs send what changed since the last one | days | 30 |
+| `history_days` | how far back the first sync to a usage page reaches (also the first sync after the page address changes); later syncs send what changed since the last one | days, 1 to 3650 | 30 |
 | `artifact_url` | the address of your private "keel usage" page | a claude.ai link | none |
 | `sync` | whether this machine sends its usage to the page; set by `/keel:usage on` / `off` or `usage-setup.js <project> sync on\|off`. Off: the end reports still show the costs; `on` sends what Claude Code's logs still hold (30 days by default) | on / off | on |
 | `sync_off_since` | the date the sync was turned off, shown by `usage-setup.js <project> show` | written by keel | none |

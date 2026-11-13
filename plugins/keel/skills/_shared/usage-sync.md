@@ -28,7 +28,7 @@ no `Agent` tool, or the agent cannot start → do steps 1-3 yourself.
 
 1. **Limits snapshot, desktop app only.** When a tool named `mcp__ccd_session_mgmt__get_usage`
    exists (load it with ToolSearch if it is deferred), call it once and run
-   `node "<keel>/scripts/usage.js" snapshot --src desktop --session <session> --five-hour <5-hour percentUsed> --seven-day <weekly all-models percentUsed> --five-hour-resets <its resetsAt> --seven-day-resets <its resetsAt>`
+   `node "<keel>/scripts/usage.js" snapshot --session <session> --five-hour <5-hour percentUsed> --seven-day <weekly all-models percentUsed> --five-hour-resets <its resetsAt> --seven-day-resets <its resetsAt>`
    (leave out a pair whose window it did not return).
    Its status `not_applicable` or `unavailable`, or no such tool → skip the snapshot.
    In the same step find the page tool: `ArtifactData` among the tools (deferred counts) → `<tools>`

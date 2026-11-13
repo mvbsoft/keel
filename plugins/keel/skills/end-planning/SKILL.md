@@ -42,7 +42,8 @@ Current state of this project:
    4. A repository draft → planning.md "Commit and push".
 6. **B. Final.** A plan already `ready` in `plans.js list` (not "changed after ready") was reviewed
    as it is: go straight to Export (B.5).
-   1. **Gates**: `open Q 0`, `check: clean`, and every finding in `reviews/` has a decision. Else
+   1. **Gates**: `open Q 0`, `check: clean`, and every finding in `reviews/` has a decision (none is
+      `undecided`). Else
       show what blocks and offer mode A (yes → A; no → go to step 7).
    2. Reviews: planning.md "Reviews", all steps: the ticket reviews, then one plan review.
    3. Fixed tickets: `plans.js check <f>`, then their ticket review again; at most 2 rounds per
@@ -74,6 +75,7 @@ Current state of this project:
    what changed); **Reviews** (found, fixed, deferred to Q, rejected; failed reviews named; or "no
    review: nothing changed"); **Git** (commit, branch, pushed or not; or nothing); **What next** (A:
    "Continue with `/keel:start-planning <f>`: <Next action>"; B or an exported feature: the feature
-   folder and "a ticket starts with `/keel:start-task <KEY>`"; all: "/clear before other work keeps
+   folder, "a ticket starts with `/keel:start-task <KEY>`" and "`/keel:feature-page <f>` makes a page of
+   the feature in your claude.ai account" (the user types it); all: "/clear before other work keeps
    it apart and costs less"); **Costs**: run usage-sync.md step 4 last and give its text as
    `<keel>/skills/_shared/final-report.md` block 5 says (read only that block).

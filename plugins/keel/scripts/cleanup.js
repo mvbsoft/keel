@@ -58,13 +58,21 @@ function stats(root, rel) {
 }
 
 // Old systems that a migration moved from (.keel/local/migrate-state.json): what is left there.
+// A migration of loose files records the project root (".") as its source; the root and anything
+// outside the project are never an old system folder.
 function oldSystems(root) {
   const state = readJson(path.join(root, MIGRATE_STATE));
-  return state && Array.isArray(state.sources) ? state.sources.map((s) => s.path).filter((p) => p && fs.existsSync(path.join(root, p))) : [];
+  if (!state || !Array.isArray(state.sources)) return [];
+  return state.sources
+    .map((s) => (s && typeof s.path === 'string' ? path.relative(root, path.resolve(root, s.path)).split(path.sep).join('/') : ''))
+    .filter((rel) => rel && !unsafeRel(root, rel) && fs.existsSync(path.join(root, rel)));
 }
 
 function candidates(root) {
   const { isSecret } = secretCheck(root);
+  // A folder with its own .git (file or folder) is another checkout, such as a worktree of another
+  // conversation: its files are not this project's leftovers.
+  const ownCheckout = (rel) => fs.existsSync(path.join(root, rel, '.git'));
   const lists = gitLists(root);
   const items = [];
   const secrets = new Set();
@@ -116,6 +124,7 @@ function candidates(root) {
   }
 
   const toolDir = (rel, git) => {
+    if (ownCheckout(strip(rel))) return;
     const stack = [strip(rel)];
     let n = 0;
     while (stack.length && n < 2000) {
@@ -125,7 +134,7 @@ function candidates(root) {
       for (const e of entries) {
         const r = `${dir}/${e.name}`;
         n += 1;
-        if (e.isDirectory()) { if (!isDependency(r) && !isCache(r)) stack.push(r); } else if (isJunk(r)) add(r, { what: 'operating system file', source: 'Finder or Explorer', group: 'safe', git });
+        if (e.isDirectory()) { if (!isDependency(r) && !isCache(r) && !ownCheckout(r)) stack.push(r); } else if (isJunk(r)) add(r, { what: 'operating system file', source: 'Finder or Explorer', group: 'safe', git });
         else if (isBackup(r)) add(r, { what: 'backup or copy', source: isKeelBackup(r) ? 'keel settings backup' : 'an editor, a merge or a manual copy', group: 'safe', git });
       }
     }
@@ -180,6 +189,7 @@ function candidates(root) {
         count += 1;
         if (rel === '.keel' || rel === '.git' || isDependency(rel)) continue;
         if (e.isDirectory()) {
+          if (ownCheckout(rel)) continue;
           if (isCache(rel)) add(`${rel}/`, { what: 'cache of a tool; it rebuilds itself', source: 'a test, lint or build tool', group: 'check', git: 'no git' });
           else stack.push(rel);
         } else if (isJunk(rel)) add(rel, { what: 'operating system file', source: 'Finder or Explorer', group: 'safe', git: 'no git' });
@@ -264,7 +274,7 @@ function find(root) {
   if (partial) out.push('references: checked only part of the repository (size budget); an unreferenced item may still be used');
   // Old batches are not offered: the trash is emptied only when the user asks (empty-trash).
   if (batches.length) out.push(`trash: ${batches.length} batches, ${human(batches.reduce((n, b) => n + b.bytes, 0))}`);
-  if (items.length) out.push('next: show this list in your reply, every item with its number (the user does not see this output), before you ask which to move');
+  if (items.length) out.push('next: your reply is this list, every item with its number, path, why and size, grouped (the user does not see this output); its last line asks which to move, as plain text, not AskUserQuestion');
   return out;
 }
 

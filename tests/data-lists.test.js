@@ -16,7 +16,7 @@ const { matches, matchesAny } = require(path.join(SCRIPTS, 'lib', 'patterns.js')
 const { analyze, changesBehavior, isBulk } = require(path.join(SCRIPTS, 'lib', 'tier.js'));
 const { fanIn, pointsAt } = require(path.join(SCRIPTS, 'lib', 'fanin.js'));
 const { secretCheck } = require(path.join(SCRIPTS, 'lib', 'project.js'));
-const { isSecret: scanIsSecret } = require(path.join(SCRIPTS, 'scan.js'));
+const { isSecretName } = require(path.join(SCRIPTS, 'lib', 'secret-names.js'));
 const changes = require(path.join(SCRIPTS, 'changes.js'));
 
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
@@ -65,7 +65,7 @@ test('secret files are found whatever their case', () => {
   const { isSecret } = secretCheck(dir);
   for (const name of ['.ENV', '.Env.Local', 'Credentials.json', 'server.PEM', 'id_RSA', 'Secrets.yml', 'config/Prod.TFVARS']) {
     assert.equal(isSecret(name), true, name);
-    assert.equal(scanIsSecret(name), true, `scan: ${name}`);
+    assert.equal(isSecretName(name), true, `name rule: ${name}`);
   }
   for (const name of ['.ENV.EXAMPLE', 'Key.PUB', 'src/Environment.ts']) assert.equal(isSecret(name), false, name);
 });
@@ -101,6 +101,12 @@ test('secret patterns: every pattern has a name that matches it; public and exam
   for (const name of ['.env.example', '.env.sample', 'prod.env.example', 'key.pub', 'id_rsa.pub', 'README.md', 'package.json', 'src/kubeconfig.go', 'src/env.js', 'config.json', 'secret-santa.js']) {
     assert.equal(isSecret(name), false, name);
   }
+});
+
+test('secret patterns: a source file named like a secret is code; an env file with a code extension is still a secret', () => {
+  const { isSecret } = secretCheck(tempDir('keel-secret-'));
+  for (const name of ['secrets.py', 'src/credentials.ts', 'app/credentials_service.rb', 'lib/secrets.test.js']) assert.equal(isSecret(name), false, name);
+  for (const name of ['.env.js', '.env.production.ts', 'credentials.json', 'secrets.yml', 'credentials', 'deploy/secrets.sh']) assert.equal(isSecret(name), true, name);
 });
 
 // A positive and a negative line for each pattern of change-signals.json, in file order.

@@ -31,7 +31,17 @@ the check, then on a `git:` line:
   after the command; do not block.
 - `keel-config: unavailable` → tell the user the `reason:` line in plain words and stop. Nothing else
   runs.
-- `keel-config: missing | broken | invalid | outdated` → the command cannot run yet:
+- `keel-config: missing` with a `settings on branch: <name>` line → keel is set up here, not lost: the
+  settings were committed with the work on branch `<name>` and reach this branch when that branch is
+  merged. Say so in plain words. A `settings in folder: <path>` line after it → that branch is checked
+  out in that folder and cannot be switched to here: tell the user to work in `<path>` and stop;
+  never offer to switch the branch here. Otherwise offer (AskUserQuestion): switch to `<name>` and go
+  on there, or stop. Switch → autonomous git: `node "<keel>/scripts/git-flow.js" "<project>" switch --name <name>`;
+  manual git: give `git switch <name>` and wait until the user says it ran. Then run
+  `node "<keel>/scripts/check-config.js" "<project>"` again; if it says `ok`, continue **this same
+  command with its original arguments**. Stop → say "Not on the settings' branch, so the command did
+  not run." and stop. Never offer to configure again and never commit the settings here.
+- `keel-config: missing | broken | invalid | outdated` (without that line) → the command cannot run yet:
   1. Say in one or two plain sentences why (from the `reason:` line), e.g. "This project has no keel
      settings yet, so /keel:start-task cannot run."
   2. Ask: "Configure now? It takes a few questions." (AskUserQuestion: Yes / No.)

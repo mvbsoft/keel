@@ -19,10 +19,12 @@ function catalog(code) {
   return cache.get(code);
 }
 
-// The catalog for a setting such as "uk", "uk-UA" or "Ukrainian" (its first two letters); English otherwise.
+// The catalog for a setting such as "uk", "uk-UA", "Ukrainian", "ua" or "українська" (its first two
+// letters; "ua" is the country code people write for the language); English otherwise.
 // The default is the language that applies in the current project (its own value, else the machine's).
 function pickLanguage(setting = require('./options.js').effectiveOptions().conversation_language) {
-  const code = String(setting || '').trim().toLowerCase().split(/[-_\s]/)[0];
+  let code = String(setting || '').trim().toLowerCase().split(/[-_\s]/)[0];
+  if (code === 'ua' || code.startsWith('укр')) code = 'uk';
   for (const c of [code, code.slice(0, 2)]) if (/^[a-z]{2,3}$/.test(c) && catalog(c)) return c;
   return 'en';
 }

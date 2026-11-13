@@ -61,6 +61,13 @@ function worktree() {
   git('worktree', 'add', '-q', '-b', 'wt', path.join('.claude', 'worktrees', 'wt'));
 }
 
+// Untracked leftovers that /keel:cleanup lists as safe: an Explorer file, an editor backup, a manual copy.
+function leftovers() {
+  write('Thumbs.db', 'thumbs\n');
+  write('src/cart.js.bak', "'use strict';\nfunction total(items) {\n  return items.reduce((s, i) => s + i.price, 0);\n}\nmodule.exports = { total };\n");
+  write('notes copy.txt', 'pricing ideas, copied before the rewrite\n');
+}
+
 function messy() {
   write('src/auth.js', [
     "'use strict';",
@@ -101,4 +108,4 @@ function messy() {
   commitAll('messy base');
 }
 
-module.exports = { KEEL, root, git, write, commitAll, SID, base, worktree, messy };
+module.exports = { KEEL, root, git, write, commitAll, SID, base, worktree, leftovers, messy };

@@ -34,4 +34,12 @@ function matcher(pattern) {
 const matches = (path, pattern) => matcher(pattern)(path);
 const matchesAny = (path, patterns) => patterns.some((p) => matcher(p)(path));
 
-module.exports = { matches, matchesAny };
+const wholePathCache = new Map();
+// Like matches(), but a pattern without '/' matches the path from the project root, not a file name anywhere.
+function matchesPath(path, pattern) {
+  let re = wholePathCache.get(pattern);
+  if (!re) { re = toRegExp(pattern); wholePathCache.set(pattern, re); }
+  return re.test(path);
+}
+
+module.exports = { matches, matchesAny, matchesPath };

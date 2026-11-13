@@ -9,6 +9,7 @@ const { moveToTrash } = require('./trash.js');
 const { read, clean } = require('./repo-read.js');
 const { linkOnWay, unsafeRel } = require('./safe-path.js');
 const { sections } = require('./tasks.js');
+const { headingText, sectionsOutsideFences } = require('./plans-format.js');
 const { mainOf } = require('./project-dir.js');
 const plans = require('./plans.js');
 
@@ -67,9 +68,10 @@ const PLACEHOLDER = /^<[^<>]*>$/;
 // placeholder lines give way).
 function withSection(text, name, content) {
   const lines = text.split('\n');
-  const at = lines.findIndex((l) => l.trim() === `## ${name}`);
+  const plain = headingText(text).split('\n');
+  const at = plain.findIndex((l) => l.trim() === `## ${name}`);
   if (at < 0) return null;
-  let end = lines.findIndex((l, i) => i > at && /^##\s/.test(l));
+  let end = plain.findIndex((l, i) => i > at && /^##\s/.test(l));
   if (end < 0) end = lines.length;
   const had = lines.slice(at + 1, end).filter((l) => !PLACEHOLDER.test(l.trim())).join('\n').trim();
   const body = had ? `${had}\n${content}` : content;
@@ -105,7 +107,7 @@ function briefCommand(root, feature, file) {
   for (const m of MOVES) {
     const part = (brief[m.from] || '').replace(/\r\n/g, '\n');
     if (!part) continue;
-    const next = withSection(plan, m.to, m.number ? numbered(part, m.number, sections(plan)[m.to] || '') : part);
+    const next = withSection(plan, m.to, m.number ? numbered(part, m.number, sectionsOutsideFences(plan)[m.to] || '') : part);
     if (next === null) return refuse(`plan.md has no ${m.to} section`);
     plan = next;
     moved.push(m.to);

@@ -75,8 +75,8 @@ test('prepare: writes day documents and the machine document, prints the batch s
   assert.equal(fs.existsSync(path.join(w.dir, 'sync-state.json')), true);
 });
 
-// Changed on purpose: the committed project URL (an approved one included) no longer takes the data anywhere, as
-// every machine syncs to its own page; the project's old URL is only mentioned once (usage-page-sync.test.js).
+// The committed project URL (an approved one included) takes the data nowhere, as every machine syncs to its own
+// page; the project's old URL is only mentioned once (usage-page-sync.test.js).
 test('prepare: the artifact url comes from the flag, then the machine config; the project url and approvals count for nothing', () => {
   const w = world({ artifact_url: undefined });
   buildSession(w.root);

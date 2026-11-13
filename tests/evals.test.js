@@ -14,7 +14,7 @@ const SHOP = path.join(EVALS, '_fixtures', 'shop.js');
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 // The chat the planning cases resume: its id is SID in shop-base.js, each case's history.jsonl keeps it.
 const SID = /^const SID = '([^']+)';$/m.exec(fs.readFileSync(path.join(EVALS, '_fixtures', 'shop-base.js'), 'utf8'))[1];
-const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh', 'task-on-main', 'ticket-on-feature', 'worktree', 'db', 'db-rule', 'db-big', 'db-renamed', 'db-renamed-open', 'planning-db', 'adr-journal', 'adr-mixed', 'adr-living', 'adr-journal-breach', 'adr-living-breach'];
+const VARIANTS = ['base', 'tasks', 'finish', 'session', 'session-level', 'messy', 'overbuilt', 'planning', 'planning-openq', 'planning-ready', 'planning-repo', 'planning-new', 'planning-brief', 'planned', 'task-active', 'task-fresh', 'task-on-main', 'ticket-on-feature', 'worktree', 'db', 'db-rule', 'db-big', 'db-renamed', 'db-renamed-open', 'planning-db', 'adr-journal', 'adr-mixed', 'adr-living', 'adr-journal-breach', 'adr-living-breach', 'leftovers'];
 
 const tagList = (tags) => (tags || '').replace(/[[\]\s]/g, '').split(',');
 const cases = fs.readdirSync(EVALS).filter((n) => fs.existsSync(path.join(EVALS, n, 'prompt.md')));
@@ -342,6 +342,14 @@ const STATE = {
     assert.match(read(work, 'CLAUDE.md'), /0003-price-cache\.md/, 'the rules still link the deleted record');
     assert.match(read(work, '.keel/local/tmp/keel/skills/_shared/adr-living.md'), /## Reviewers check/);
   },
+  // The leftovers /keel:cleanup finds: three untracked files (the porcelain status above), all listed.
+  leftovers: (work) => {
+    const files = ['Thumbs.db', 'src/cart.js.bak', 'notes copy.txt'];
+    for (const f of files) assert.ok(fs.existsSync(path.join(work, f)), `${f} exists`);
+    const found = script('cleanup.js', work, 'find');
+    assert.match(found, /^cleanup: 3 items;/m);
+    for (const f of files) assert.match(found, new RegExp(`^ \\d+\\. ${f.replace('.', '\\.')} - .*git: untracked`, 'm'), `${f} is listed`);
+  },
 };
 
 test('the shop fixture builds each variant with git, a remote inside the workspace, trust only in the run\'s home and the state its cases read', { skip: !hasGit && 'git is not installed' }, () => {
@@ -355,7 +363,8 @@ test('the shop fixture builds each variant with git, a remote inside the workspa
     'db-renamed-open': ['main', 0, 'M src/users.js\n?? db/migrations/003_users_full_name.sql'], 'planning-db': ['main', 0, ''],
     'adr-journal': ['main', 0, ''], 'adr-mixed': ['main', 0, ''], 'adr-living': ['main', 0, ''],
     'adr-journal-breach': ['main', 0, 'M docs/adr/0002-job-queue.md\n?? docs/adr/0004-queue-retries.md\n?? docs/ops.md'],
-    'adr-living-breach': ['main', 0, 'M docs/adr/0001-database.md\n D docs/adr/0003-price-cache.md\n?? docs/adr/0004-queue-retries.md'] };
+    'adr-living-breach': ['main', 0, 'M docs/adr/0001-database.md\n D docs/adr/0003-price-cache.md\n?? docs/adr/0004-queue-retries.md'],
+    leftovers: ['main', 0, '?? Thumbs.db\n?? "notes copy.txt"\n?? src/cart.js.bak'] };
   assert.deepEqual(Object.keys(expect), VARIANTS);
   assert.deepEqual(Object.keys(STATE).sort(), [...VARIANTS].sort(), 'every variant checks the state its cases read');
   for (const [variant, [branch, tasks, changed]] of Object.entries(expect)) {

@@ -1,7 +1,6 @@
 'use strict';
 // /keel:start-planning and /keel:end-planning: the instructions name only what exists, run plans.js one
-// step at a time, keep the agreed order (spec: .design/planning-spec.uk.md §4, §5, §8, §9) and leave the
-// lane refusals to the hooks.
+// step at a time, keep their step order and leave the lane refusals to the hooks.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -201,9 +200,9 @@ test('start-planning: no argument lists the drafts, words find one, a link or fi
   const text = start();
   says(text, ['empty → `plans.js list`', 'show each draft', '(feature, state, open Q, tickets, last change, where)']);
   says(text, ['other words → `plans.js find "<words>"`', '`find: 1 match` → "Continue `<f>`?"', 'several → show them and ask which']);
-  // Spec §5.2: no match shows the list, the user picks one or a new feature.
+  // No match shows the list; the user picks one or a new feature.
   says(text, ['`find: no match`', 'show the drafts it lists (if any)', 'one of these, or a new feature from these words?']);
-  // An exported feature is reopened to edit its tickets in the feature folder (spec §5.6), not refused.
+  // An exported feature is reopened to edit its tickets in the feature folder, not refused.
   assert.doesNotMatch(text, /editing them is not part\s+of this command/);
   says(text, ['A chosen plan that is `exported`', 'an exported feature without a draft', 'its tickets live in the feature folder', 'steps 1-2, then step 7, then its steps 3-6 as the work', 'not steps 5, 6 and 8']);
   says(text, ['`<keel>/skills/_shared/planning.md`, sections "Rules", "Work" and "Several repositories"', 'hold for the whole command', 'also "Exported feature"']);
@@ -328,7 +327,7 @@ test('reviews: structure first, only changed tickets, batches of up to 4, one pl
   says(r, ['plans.js report "<that file>"']);
   says(r, ['`report: ok · <agent> · <status> · findings N`']);
   says(r, ['`report: failed`', 'or no file', 'The review of <tickets> failed: <reason>', 'never "no findings"']);
-  says(r, ['A ticket review → `plans.js reviewed <f> <the tickets it reviewed>`']);
+  says(r, ['A ticket review: first write its findings', '`plans.js reviewed <f> <the tickets it reviewed>`']);
   says(r, ['fix (edit the ticket or `plan.md`)', 'defer (a new Q)', 'reject with a reason']);
   says(r, ['`reviews/<ticket>.md` (plan findings: `reviews/plan.md`)']);
   // The ledger hook saves replies under the session's planning folder: the path above must stay true.
@@ -389,8 +388,8 @@ test('end-planning: the chat mark is cleared in every mode, then the costs, and 
   says(text, ["A question waiting for the user's answer", 'ends the turn, not the command', 'steps 7-9 run once the answer is handled']);
   before(text, '**B. Final.**', 'mark clear --session <sid>', 'the mark is cleared after both modes');
   before(text, 'mark clear --session <sid>', 'usage-sync.md');
-  // Changed on purpose: reading the other machines' data is part of the sync step now, so the sync is steps 1-3 and the report step 4.
-  // Changed on purpose: the sync runs in a small Haiku agent the end command starts, which costs a fraction of doing it in the session.
+  // Reading the other machines' data is part of the sync, so the sync is steps 1-3 and the report step 4.
+  // The sync runs in a small Haiku agent the end command starts, which costs a fraction of doing it in the session.
   says(text, ['`<keel>/skills/_shared/usage-sync.md`', 'start its sync agent (steps 1-3)', 'session id `${CLAUDE_SESSION_ID}`']);
   // The mark is gone by now: the feature name reaches the usage record through the flag.
   says(text, ['steps 1-3) with session id `${CLAUDE_SESSION_ID}`', 'and `--feature <f>`', '`<f>` of step 2']);

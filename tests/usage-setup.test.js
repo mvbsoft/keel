@@ -96,13 +96,13 @@ test('apply: writes the allowed keys, merges with the existing usage.json, keeps
   const w = world({ usage: { pc: 'old', user: 'a@b.c', custom_note: 'kept' } });
   const r = w.run('apply', w.file('c.json', {
     pc: 'new-pc', wallet_default: 'api', cloud_wallet: 'subscription', also_api: true, prompt_preview: false,
-    history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', page_template: '0123456789ab', statusline: { mode: 'keel' },
+    history_days: 1, artifact_url: 'https://claude.ai/artifact/abc', page_template: '0123456789ab', statusline: { mode: 'keel' },
   }));
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /^written .*usage\.json$/);
   assert.deepEqual(readJson(path.join(w.dir, 'usage.json')), {
     pc: 'new-pc', user: 'a@b.c', custom_note: 'kept', wallet_default: 'api', cloud_wallet: 'subscription', also_api: true,
-    prompt_preview: false, history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', page_template: '0123456789ab', statusline: { mode: 'keel' },
+    prompt_preview: false, history_days: 1, artifact_url: 'https://claude.ai/artifact/abc', page_template: '0123456789ab', statusline: { mode: 'keel' },
   });
   // A second apply changes only its own keys; artifact_url may be cleared with null.
   assert.equal(w.run('apply', w.file('d.json', { user: 'z@x.y', artifact_url: null })).code, 0);
@@ -163,6 +163,7 @@ test('apply: an unknown key or a bad value is refused and nothing is written', (
     [{ user: '' }, 'user'],
     [{ also_api: 'yes' }, 'also_api'],
     [{ prompt_preview: 1 }, 'prompt_preview'],
+    [{ history_days: 0 }, 'history_days'],
     [{ history_days: -1 }, 'history_days'],
     [{ history_days: 1.5 }, 'history_days'],
     [{ history_days: 4000 }, 'history_days'],

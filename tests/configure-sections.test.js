@@ -332,3 +332,9 @@ test('configure flow section 10: the personal settings file is offered to .gitig
   says(ten, ['`git check-ignore .claude/settings.local.json`', 'offer to add the line `.claude/settings.local.json`', "project's `.gitignore`"]);
   says(flow().slice(flow().indexOf('## 12.')), ['README, CLAUDE.md, `.gitignore` or `.claude/settings.json`', 'when this setup changed them']);
 });
+
+test('configure flow: the quick setup states its real number of questions', () => {
+  const zero = flow().slice(flow().indexOf('**Quick or detailed**'), flow().indexOf('| Section | Quick |'));
+  says(zero, ['quick (recommended: 11 to 18 questions', 'depending on the project']);
+  assert.doesNotMatch(zero, /about six/);
+});

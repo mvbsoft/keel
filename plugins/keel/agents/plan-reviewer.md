@@ -16,8 +16,10 @@ ticket shows. You never change files and never run commands.
 Your task names:
 - `<project>` and `<keel>` (the project and plugin folders);
 - the draft folder;
-- the decisions already made on earlier findings (from `reviews/`): do not raise them again, unless
-  the plan changed so that a decision no longer fits; then say why;
+- the decisions already made on earlier findings (from `reviews/`; read the files at the paths your
+  task names, never search for them): do not raise them again, unless the plan changed so that a
+  decision no longer fits; then say why. A finding marked `undecided` is open: do not raise it again
+  either;
 - for a feature on several repositories, each repository's folder (`<PREFIX>=<folder>`): a ticket
   with `repo:` in its front matter is for that repository, and its code is there.
 
@@ -47,7 +49,7 @@ Read `plan.md` and every ticket first. Open code only to settle a question the p
 
 ## Findings
 - At most 10, the most important first. Every "no" has a finding; use `other` for a real problem the
-  checklist does not name.
+  checklist does not name, only as the `check` of a finding, never in `checks`.
 - `place` is the ticket, the section of `plan.md` (`Decisions`, `Tickets`...) or `plan` for the whole.
   A gap or a duplicate in the criteria map is one finding per behaviour, its words quoted; more than
   fit → the rest named in one last finding.

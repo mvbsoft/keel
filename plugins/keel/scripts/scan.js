@@ -10,7 +10,8 @@ const crypto = require('node:crypto');
 const catalog = require('../data/catalog.json');
 const { listFiles, onPath } = require('./lib/files.js');
 const languages = require('./lib/languages.js');
-const { matches, matchesAny } = require('./lib/patterns.js');
+const { matchesAny, matchesPath } = require('./lib/patterns.js');
+const { isSecretName: isSecret } = require('./lib/secret-names.js');
 const { findCommands } = require('./lib/commands.js');
 const { safeLocalWrite } = require('./lib/safe-path.js');
 const instructions = require('./lib/instructions.js');
@@ -22,12 +23,6 @@ const MAX_READ = 1024 * 1024;
 const DOTNET_PROJECT = /\.(sln|slnx|csproj|fsproj|vbproj)$/i;
 const DOTNET_SETTINGS = /(^|\/)(global\.json|Directory\.Build\.props|Directory\.Packages\.props)$/i;
 
-const secretCache = new Map();
-const isSecret = (rel) => {
-  let hit = secretCache.get(rel);
-  if (hit === undefined) { hit = matchesAny(rel, catalog.secrets.patterns) && !matchesAny(rel, catalog.secrets.allowed); secretCache.set(rel, hit); }
-  return hit;
-};
 const dirOf = (rel) => (rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '.');
 const under = (rel, part) => part === '.' || rel === part || rel.startsWith(`${part}/`);
 
@@ -61,7 +56,7 @@ function resolveMembers(globs, manifestDirs) {
   for (const g of globs) {
     const clean = g.replace(/^\.\//, '').replace(/\/$/, '');
     if (clean.startsWith('!')) continue;
-    for (const d of manifestDirs) if (d !== '.' && matches(d, clean.includes('/') ? clean : `${clean}`)) dirs.add(d);
+    for (const d of manifestDirs) if (d !== '.' && matchesPath(d, clean)) dirs.add(d);
   }
   return [...dirs];
 }
@@ -98,6 +93,10 @@ function workspaceGlobs(root, files, readText) {
     const text = files.has(f) ? readText(f) : null;
     if (text) for (const m of text.matchAll(/^\s*include\s*\(?([^\n)]*)/gm)) for (const q of m[1].matchAll(/['"]:?([^'"]+)['"]/g)) globs.push(q[1].replace(/:/g, '/'));
   }
+  const pyproject = files.has('pyproject.toml') ? readText('pyproject.toml') : null;
+  // shortcut: the workspace's exclude list is not read, so an excluded member shows as a part; redo it when that matters.
+  const uv = pyproject && /\[tool\.uv\.workspace\][\s\S]*?^\s*members\s*=\s*\[([\s\S]*?)\]/m.exec(pyproject);
+  if (uv) globs.push(...[...uv[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]));
   const gowork = files.has('go.work') ? readText('go.work') : null;
   if (gowork) globs.push(...[...gowork.matchAll(/^\s*(?:use\s+)?(\.\/[^\s)]+)/gm)].map((m) => m[1]));
   return globs;
@@ -359,7 +358,7 @@ function docsShape(list, pick, readText) {
 // 38,000-file project).
 const fingerprint = (root) => scan(root).profile.manifest_fingerprint;
 
-module.exports = { scan, fingerprint, isSecret };
+module.exports = { scan, fingerprint };
 
 // Short plain-text summary for the conversation; the full result goes to the --out file.
 function summary(result, outFile) {

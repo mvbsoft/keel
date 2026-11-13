@@ -11,7 +11,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { scan, isSecret } = require('./scan.js');
+const { scan } = require('./scan.js');
+const { isSecretName: isSecret } = require('./lib/secret-names.js');
 const { onPath } = require('./lib/files.js');
 const { parseArgs, writeLocal } = require('./lib/project.js');
 const data = require('../data/stack-skills.json');
@@ -72,13 +73,18 @@ function matchesWhen(when, stack) {
     || (when.packages || []).some((p) => stack.packages.has(p) || stack.packages.has(p.toLowerCase()));
 }
 
-function run(root, opts) {
-  const { profile } = scan(root);
-  const stack = {
+// The profile lists an ecosystem with its package manager ("npm:pnpm"); the entries ask for the bare id.
+function stackOf(root, profile) {
+  return {
     languages: new Set(profile.languages.map((l) => l.name)),
-    ecosystems: new Set(profile.parts.flatMap((p) => p.ecosystems)),
+    ecosystems: new Set(profile.parts.flatMap((p) => p.ecosystems.map((e) => e.split(':')[0]))),
     packages: packagesOf(root, profile.parts.map((p) => p.path)),
   };
+}
+
+function run(root, opts) {
+  const { profile } = scan(root);
+  const stack = stackOf(root, profile);
   const frameworks = data.frameworks.filter((f) => f.packages.some((p) => stack.packages.has(p) || stack.packages.has(p.toLowerCase()))).map((f) => f.name);
   const list = listAvailable(opts);
   const excluded = new Set(data.excluded_marketplaces);
@@ -145,4 +151,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { run, report, packagesOf, matchesWhen };
+module.exports = { run, report, packagesOf, matchesWhen, stackOf };

@@ -52,7 +52,7 @@ test('start: a fresh query folder under .keel/local/usage/clear, emptied each ti
   assert.deepEqual(fs.readdirSync(dir), []);
 });
 
-// Changed on purpose: a clear takes only this machine's documents; other machines' documents stay.
+// A clear takes only this machine's documents; other machines' documents stay.
 test('plan: the summary names this machine\'s period, sessions and dollars; other machines and meta stay; versions come from the sync state or --version', () => {
   const w = world();
   const out = tmp('keel-clear-out-');
@@ -175,8 +175,7 @@ test('start: forgets the clear time of an earlier run that was not finished', ()
   assert.ok(Date.parse(w.state().cleared_at) >= before, 'the clear that ran, not the declined one');
 });
 
-// Changed on purpose: /keel:usage-clear became /keel:usage clear (its steps in _shared/usage-clear.md), and it clears
-// only this machine's data.
+// /keel:usage clear has its steps in _shared/usage-clear.md and clears only this machine's data.
 test('usage clear: warns with the period and the effects, deletes only after a yes, then resets', () => {
   const skill = fs.readFileSync(path.join(PLUGIN, 'skills', 'usage', 'SKILL.md'), 'utf8');
   assert.match(skill, /^disable-model-invocation: true$/m);

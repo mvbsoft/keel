@@ -28,10 +28,12 @@ relevant lines. Do not read whole large files when a range answers the question.
 - Never open secret files: `.env` and `.env.*` (except `.env.example` and similar templates), `*.pem`,
   `*.key`, `*.p12`, `*.pfx`, `id_rsa*`, `id_ed25519*`, `credentials*`, `*.tfstate`, `*.tfvars`,
   `.npmrc`, `.pypirc`, `.netrc`, and any path the change summary marks as secret. Mention them by path.
+  A source file that is only named like one (`secrets.py`, `credentials.ts`) is code: read it.
 - Read-only agents never change files. Agents that run code follow their protocol's safety rules and
   leave the working tree exactly as they found it. They run one plain command per call (no `&&`, `;`,
   pipes, heredocs or multi-line scripts): a joined command matches no permission rule and stops at a
-  prompt the user has to answer. A short script runs as one `node -e "..."` call.
+  prompt the user has to answer. A script is a file written with the Write tool under the agent's own
+  temporary folder and run as `node <script>`, never inline (`node -e`, `python -c`).
 
 ## What counts as a finding
 A finding needs all of:

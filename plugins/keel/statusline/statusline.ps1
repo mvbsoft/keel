@@ -1,5 +1,8 @@
-$raw = [Console]::In.ReadToEnd()
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+# [Console]::In decodes with the console code page (866 for Cyrillic); the input is always UTF-8.
+$stdin = New-Object System.IO.MemoryStream
+[Console]::OpenStandardInput().CopyTo($stdin)
+$raw = (New-Object System.Text.UTF8Encoding($false)).GetString($stdin.ToArray())
 
 $cwd = $null
 $modelName = $null
