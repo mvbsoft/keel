@@ -81,10 +81,14 @@ npm run eval
   that keeps the rule keeps the test green. Keys include the words the rule hinges on (never, only, a
   number). What a script prints or parses (a command line, an output line) stays exact.
 - **Docs change in the same pull request** as the behaviour they describe (README, skills, agents,
-  CHANGELOG under `[Unreleased]`). Only `README.md` has a Ukrainian copy, `README.uk.md`, kept in
-  step with the English one, which is the source: a change to `README.md` changes `README.uk.md` in
-  the same pull request.
-- **Code, comments, tests and all other docs are in English only**, `README.uk.md` apart.
+  CHANGELOG under `[Unreleased]`). Two documents exist in Ukrainian too. `README.md` has the copy
+  `README.uk.md`, kept in step with the English one, which is the source: a change to `README.md`
+  changes `README.uk.md` in the same pull request. The feature list is the pair
+  `docs/features.uk.md` and `docs/features.md`: here the Ukrainian text is the source, the English
+  one its translation, and a behaviour change that one of them describes updates both in the same
+  pull request (`tests/features-doc.test.js` checks that the two have the same shape).
+- **Code, comments, tests and all other docs are in English only**, `README.uk.md` and
+  `docs/features.uk.md` apart.
   User-facing fixed texts go through the translation files (below).
 - **No new npm dependencies** in the plugin; it runs on Node's standard library.
 - Instruction texts (skills, agents, protocols) are loaded into every run and cost tokens: keep them

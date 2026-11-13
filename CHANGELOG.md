@@ -7,6 +7,9 @@ All notable changes to keel are listed here. The format follows
 ## [Unreleased]
 
 ### Added
+- `docs/features.md` (and its Ukrainian source `docs/features.uk.md`): a short, complete list of what
+  keel 2.0 does and which questions it asks in which cases, linked from the top of both READMEs. A
+  test keeps the two pages in the same shape and checks that every command and advisory skill is on both.
 - `/keel:configure usage` asks which page to join when the account has several titled "keel usage", and
   updating the page no longer stops for the page's owner (the read says "owned
   by you", not "writer").
