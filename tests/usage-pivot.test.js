@@ -66,14 +66,14 @@ const S4 = {
 
 const SNAP = (t, sd, fh) => ({ t, five_hour: fh, five_hour_resets_at: '2026-10-09T15:00:00Z', seven_day: sd, seven_day_resets_at: '2026-10-15T00:00:00Z', session_id: 's1', cost_usd: 0, src: 'statusline' });
 const DOC_A = {
-  schema: 1, date: '2026-10-09', pc: 'office', user: 'me@x.com', part: 1, parts: 2, synced_until: '2026-10-09T22:00:00Z',
+  schema: 1, date: '2026-10-09', pc: 'office', user: 'me@example.com', part: 1, parts: 2, synced_until: '2026-10-09T22:00:00Z',
   hours: [{ h: 10, wallet: 'subscription', usd: 13, req: 28, tok: { in: 1150, cw5: 2350, cw1h: 100, cr: 8500, out: 800 }, by_model: { [OPUS]: 10, [SONNET]: 3 } }],
   snapshots: [SNAP('2026-10-09T10:00:00Z', 20, 10), SNAP('2026-10-09T11:00:00Z', 22, 14), SNAP('2026-10-09T10:00:00Z', 20, 10)],
   sessions: [S1, S2_STALE],
 };
-const DOC_A2 = { schema: 1, date: '2026-10-09', pc: 'office', user: 'me@x.com', part: 2, parts: 2, synced_until: '2026-10-09T23:30:00Z', hours: [], snapshots: [], sessions: [S2, S3] };
+const DOC_A2 = { schema: 1, date: '2026-10-09', pc: 'office', user: 'me@example.com', part: 2, parts: 2, synced_until: '2026-10-09T23:30:00Z', hours: [], snapshots: [], sessions: [S2, S3] };
 const DOC_C = {
-  schema: 1, date: '2026-10-10', pc: 'laptop', user: 'you@y.com', part: 1, parts: 1, synced_until: '2026-10-10T12:00:00Z',
+  schema: 1, date: '2026-10-10', pc: 'laptop', user: 'you@example.org', part: 1, parts: 1, synced_until: '2026-10-10T12:00:00Z',
   hours: [{ h: 8, wallet: 'subscription', usd: 5.5, tok: { in: 300, cw5: 800, cw1h: 0, cr: 4000, out: 450 }, by_model: { [SONNET]: 5, [HAIKU]: 0.5 } }],
   snapshots: [SNAP('2026-10-10T09:00:00Z', 23, 5)], sessions: [S4],
 };
@@ -141,7 +141,7 @@ test('filter: every dimension', () => {
   assert.deepEqual(ids(P.filter(R, { from: '2026-10-09', to: '2026-10-09', pc: ['office'] })), ['s1', 's2', 's3']);
   assert.deepEqual(ids(P.filter(R, { pc: ['laptop'] })), ['s4']);
   assert.deepEqual(ids(P.filter(R, { pc: ['laptop', 'office'] })), ['s1', 's2', 's3', 's4']);
-  assert.deepEqual(ids(P.filter(R, { user: ['you@y.com'] })), ['s4']);
+  assert.deepEqual(ids(P.filter(R, { user: ['you@example.org'] })), ['s4']);
   assert.deepEqual(ids(P.filter(R, { project: ['shop'] })), ['s1', 's3']);
   assert.deepEqual(ids(P.filter(R, { wallet: ['api'] })), ['s3']);
   assert.equal(P.filter(R, { participant: 'main' }).length, 4);
@@ -172,7 +172,7 @@ test('group: by day, week, project, pc, user, participant, model, hour', () => {
   assert.deepEqual(P.group(R, 'project').map((g) => g.key), ['shop', 'mobile-api', 'keel']);
   assert.deepEqual(usd(P.group(R, 'project')), { shop: 18, 'mobile-api': 5.5, keel: 3 });
   assert.deepEqual(usd(P.group(R, 'pc')), { office: 21, laptop: 5.5 });
-  assert.deepEqual(usd(P.group(R, 'user')), { 'me@x.com': 21, 'you@y.com': 5.5 });
+  assert.deepEqual(usd(P.group(R, 'user')), { 'me@example.com': 21, 'you@example.org': 5.5 });
   assert.deepEqual(P.group(R, 'participant').map((g) => g.key), ['main', 'implementer', 'qa', 'reviewer']);
   assert.deepEqual(usd(P.group(R, 'participant')), { main: 22, implementer: 3, qa: 1, reviewer: 0.5 });
   assert.deepEqual(usd(P.group(R, 'model')), { 'opus-5-5': 14, 'sonnet-5-5': 12, 'haiku-5-5': 0.5 });
@@ -423,7 +423,7 @@ test('a participant that used two models gives one row per model: spend by model
     [OPUS]: { requests: 10, tok: { in: 100, cw5: 0, cw1h: 0, cr: 900, out: 50 }, usd: 5 },
     [HAIKU]: { requests: 15, tok: { in: 10, cw5: 0, cw1h: 0, cr: 90, out: 5 }, usd: 0.1 },
   };
-  const doc = { schema: 1, date: '2026-10-12', pc: 'home', user: 'me@x.com', part: 1, parts: 1, synced_until: '2026-10-12T22:00:00Z', hours: [], snapshots: [],
+  const doc = { schema: 1, date: '2026-10-12', pc: 'home', user: 'me@example.com', part: 1, parts: 1, synced_until: '2026-10-12T22:00:00Z', hours: [], snapshots: [],
     sessions: [{ id: 'm1', project: 'shop', wallet: 'subscription', start: '2026-10-12T10:00:00Z', end: '2026-10-12T10:30:00Z', usd: 5.1, participants: [mixed], turns: [{ t: '2026-10-12T10:00:00Z', text: 'x', usd: 5.1, requests: 25 }] }] };
   const { rows } = P.flatten([doc]);
   assert.deepEqual(rows.map((r) => [r.model, r.usd, r.requests]), [[HAIKU, 0.1, 15], [OPUS, 5, 10]]);
@@ -445,7 +445,7 @@ test('usd_kind: rows carry the dollars by kind of their model; tokenKinds totals
     [OPUS]: { requests: 2, tok: kinds({ in: 10 }), usd: 5, usd_kind: kinds({ in: 2, cr: 3 }) },
     [HAIKU]: { requests: 1, tok: kinds({ in: 10 }), usd: 0.5 },
   };
-  const doc = (id, parts) => ({ schema: 1, date: '2026-10-12', pc: 'home', user: 'me@x.com', part: 1, parts: 1, synced_until: '2026-10-12T22:00:00Z', hours: [], snapshots: [],
+  const doc = (id, parts) => ({ schema: 1, date: '2026-10-12', pc: 'home', user: 'me@example.com', part: 1, parts: 1, synced_until: '2026-10-12T22:00:00Z', hours: [], snapshots: [],
     sessions: [{ id, project: 'shop', wallet: 'subscription', start: '2026-10-12T10:00:00Z', end: '2026-10-12T10:30:00Z', usd: 1, participants: parts, turns: [] }] });
   const { rows } = P.flatten([doc('k1', [single, without, mixed])]);
   assert.deepEqual(rows.map((r) => [r.model, r.usd_kind ? Object.values(r.usd_kind).reduce((a, b) => a + b, 0) : null]), [[SONNET, 3], [HAIKU, null], [OPUS, 5], [HAIKU, null]]);

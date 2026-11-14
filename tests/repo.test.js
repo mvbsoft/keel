@@ -3,25 +3,50 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const json = (p) => JSON.parse(read(p));
 
-// Directories that are never part of the published repository.
-const SKIP = new Set(['.git', '.design', 'node_modules', '.keel']);
-// An eval run's transcript beside a case's history.jsonl, and the folder of its agents' transcripts
-// (both git-ignored): they hold the run's context.
-const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
+const gitTest = (name, fn) => test(name, { skip: !hasGit && 'git is not installed' }, fn);
+const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
 
-function* walk(dir) {
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const transcript = e.isFile() ? SESSION_ID.test(e.name.replace(/\.jsonl$/, '')) && e.name.endsWith('.jsonl') : SESSION_ID.test(e.name);
-    if (SKIP.has(e.name) || transcript) continue;
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) yield* walk(p);
-    else yield p;
-  }
+// What is in git or what `git add -A` would take: tracked files plus untracked ones that are not ignored.
+const repoFiles = () => git('ls-files', '-z', '--cached', '--others', '--exclude-standard').split('\0').filter(Boolean);
+const repoTexts = () => repoFiles()
+  .filter((f) => fs.existsSync(path.join(ROOT, f)))
+  .map((f) => [f, fs.readFileSync(path.join(ROOT, f), 'utf8')]);
+
+// A home folder: C:\Users\<name> (any slashes, doubled in a JS string), /Users/<name> or /home/<name>,
+// not the tail of a longer path such as src/users/list.js or a URL.
+const HOME_PATH = /(?<![\w.\/\\-])(?:[a-z]:[\\/]+users|\/users|\/home)[\\/]+([\w.-]+)/gi;
+// Invented names in tests and docs; runner and runneradmin are the GitHub Actions accounts, dev the
+// user of the Docker image in tools/docker.
+const FIXTURE_USERS = new Set(['ann', 'dev', 'jane', 'jkeeling', 'me', 'runner', 'runneradmin', 'u', 'x']);
+
+// An address whose domain ends in a label of 2+ letters: a@b.c and t@x.y cannot be real, and
+// claude-code@2.1.319 is a package version. A local part right after ':' or '/' is a URL's user.
+const EMAIL = /(?<![\w.%+:\/-])[\w.%+-]+@((?:[a-z0-9-]+\.)+[a-z]{2,})(?![\w.-]*\w)/gi;
+// Domains reserved for examples and tests (RFC 2606, RFC 6761).
+const EXAMPLE_DOMAIN = /(^|\.)(example\.(com|net|org)|example|test|invalid|localhost)$/i;
+// Public service addresses: the attribution tests strip them from commits; git@ is GitHub's SSH user.
+const SERVICE_ADDRESSES = new Set(['noreply@anthropic.com', 'copilot@github.com', 'git@github.com']);
+
+// The owner's own words (names, other projects), one per line, '#' starts a comment. The file sits in
+// .git/info, so it never goes into git; without it the check has nothing to look for.
+function privateWords() {
+  const file = path.resolve(ROOT, git('rev-parse', '--git-common-dir').trim(), 'info', 'private-words.txt');
+  if (!fs.existsSync(file)) return [];
+  return fs.readFileSync(file, 'utf8').split(/\r?\n/).map((w) => w.trim().toLowerCase()).filter((w) => w && !w.startsWith('#'));
+}
+
+// The messages of the commits that main does not have yet.
+function branchMessages() {
+  const exists = (ref) => { try { git('rev-parse', '--verify', '-q', ref); return true; } catch { return false; } };
+  const base = ['origin/main', 'main'].find(exists);
+  return git('log', '--format=%h %B%x00', base ? `${base}..HEAD` : 'HEAD').split('\0').map((m) => m.trim()).filter(Boolean);
 }
 
 test('marketplace lists the keel plugin from ./plugins/keel', () => {
@@ -58,15 +83,44 @@ test('the dev package requires Node 22 or newer', () => {
   assert.ok(major >= 22, `tests run on Node ${process.versions.node}`);
 });
 
-test('no file mentions the predecessor or personal names', () => {
-  const banned = [['mava', 'talk'], ['mal', 'ina'], ['opus', 'plan']].map((p) => p.join(''));
+gitTest('no development folder goes into git', () => {
+  assert.deepEqual(repoFiles().filter((f) => /(^|\/)(\.keel|\.design)\/|^tickets\//.test(f)), []);
+});
+
+gitTest('no real home folder or this checkout\'s own path is written in a file', () => {
+  const checkout = [ROOT, ROOT.split(path.sep).join('/')].map((p) => p.toLowerCase());
   const hits = [];
-  for (const file of walk(ROOT)) {
-    const text = fs.readFileSync(file, 'utf8').toLowerCase();
-    const rel = path.relative(ROOT, file);
-    for (const word of banned) {
-      if (text.includes(word) || rel.toLowerCase().includes(word)) hits.push(`${rel}: ${word}`);
+  for (const [file, text] of repoTexts()) {
+    for (const [, name] of text.matchAll(HOME_PATH)) {
+      if (!FIXTURE_USERS.has(name.toLowerCase())) hits.push(`${file}: ${name}`);
     }
+    const lower = text.toLowerCase();
+    for (const p of checkout) if (lower.includes(p)) hits.push(`${file}: ${p}`);
+  }
+  assert.deepEqual(hits, []);
+});
+
+gitTest('email addresses are only on example domains', () => {
+  const hits = [];
+  for (const [file, text] of repoTexts()) {
+    for (const [address, domain] of text.matchAll(EMAIL)) {
+      if (!EXAMPLE_DOMAIN.test(domain) && !SERVICE_ADDRESSES.has(address.toLowerCase())) hits.push(`${file}: ${address}`);
+    }
+  }
+  assert.deepEqual(hits, []);
+});
+
+gitTest('no private word is in a file, a file name or a commit message of the branch', () => {
+  const words = privateWords();
+  if (!words.length) return;
+  const hits = [];
+  for (const [file, text] of repoTexts()) {
+    const lower = `${file}\n${text}`.toLowerCase();
+    for (const word of words) if (lower.includes(word)) hits.push(`${file}: ${word}`);
+  }
+  for (const message of branchMessages()) {
+    const lower = message.toLowerCase();
+    for (const word of words) if (lower.includes(word)) hits.push(`commit ${message.split(' ')[0]}: ${word}`);
   }
   assert.deepEqual(hits, []);
 });

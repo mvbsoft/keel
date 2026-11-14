@@ -13,6 +13,13 @@ Node 22 or newer, no dependencies. Tests that need git skip themselves when it i
 network. The image is never pulled by the script: run `docker pull node:22-alpine` once first, or set
 `KEEL_TEST_IMAGE` to use another local image. That image has no git, so the git tests skip there.
 
+`tests/repo.test.js` keeps development traces out of git: no file under `.keel/`, `.design/` or
+`tickets/`, no real home folder path (only the invented names the tests use), email addresses only on
+example domains. Words of your own that must never be published (names, other projects) go into
+`.git/info/private-words.txt`, one per line, `#` for comments. git never takes that file, so copy it to
+each machine; when it is there, the test also looks for the words in file names and in the commit
+messages that `main` does not have yet. Without it that check passes.
+
 Before a pull request, also run `claude plugin validate --strict plugins/keel` if you have the
 Claude Code CLI (`claude plugin validate --strict .` checks the marketplace file).
 

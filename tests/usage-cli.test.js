@@ -512,7 +512,7 @@ test('report: a machine of another user never holds calibration back or adds its
   const remote = (user) => ({ schema: 1, date: iso(hour).slice(0, 10), pc: 'otherpc', user, part: 1, parts: 1, synced_until: iso(now - 5 * HOUR), snapshots: [], sessions: [],
     hours: [{ h: iso(hour), wallet: 'subscription', usd: 10, req: 5, tok: { in: 0, cw5: 0, cw1h: 0, cr: 0, out: 0 }, by_model: { [OPUS]: 10 } }] });
   const file = path.join(inDir, 'days', 'otherpc.json');
-  fs.writeFileSync(file, JSON.stringify({ data: remote('someone@else.org') }));
+  fs.writeFileSync(file, JSON.stringify({ data: remote('someone@example.org') }));
   const text = w.report('--in', inDir);
   assert.doesNotMatch(text, /waits for the sync/);
   assert.match(text, /1 % = about \$10\.00/, 'only our own $20 for the 2 % gained');
