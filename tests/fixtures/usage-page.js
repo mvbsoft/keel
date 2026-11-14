@@ -102,7 +102,7 @@ const totalRow = /Total · Sessions: (\d+)<\/td><td class="r">\$([\d.,]+)<\/td>/
 
 function pageFixture() {
   const { d, sess } = fixtureDays();
-  const dbDoc = (n, sessions, synced, extra = {}) => ({ schema: 1, date: d(n), pc: 'office', user: 'me@x.com', part: 1, parts: 1, synced_until: synced, hours: [], snapshots: [], sessions, ...extra });
+  const dbDoc = (n, sessions, synced, extra = {}) => ({ schema: 1, date: d(n), pc: 'office', user: 'me@example.com', part: 1, parts: 1, synced_until: synced, hours: [], snapshots: [], sessions, ...extra });
   return { d, sess, dbDoc };
 }
 
