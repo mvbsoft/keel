@@ -279,7 +279,7 @@ function addFamily(ctx, refs, entries) {
       if (ix.first && firsts.has(ix.first)) entries.set(ref.id, entryOf(ref, ctx));
     } else if (ref.mtimeMs >= floor) {
       const e = entryOf(ref, ctx);
-      ctx.index[ref.id] = { days: daysOf(e.raw), mtimeMs: ref.mtimeMs, size: ref.size, first: e.raw.first || '' };
+      ctx.index[ref.id] = { days: daysOf(e.raw), mtimeMs: ref.mtimeMs, size: ref.size, first: e.raw.first || '', ...(ix && ix.no_text ? { no_text: true } : {}) };
       if (e.raw.first && firsts.has(e.raw.first)) entries.set(ref.id, e);
     }
   }
