@@ -421,6 +421,9 @@ All notable changes to keel are listed here. The format follows
 - A project's `prompt_preview: false` now holds for sessions started in a sub-folder of the project and
   for worktree sessions after their folder is removed: before, a day rebuilt later sent their request
   previews and task title. keel keeps the "off" with the session, so it stays off once the folder is gone.
+- A rules or ADR file named like a secret (`.claude/rules/credentials.md`, `docs/adr/secrets.md`) no longer
+  stops the project scan: every keel command in such a project said `keel-config: unavailable`. The file
+  is listed with the secret files and never opened.
 
 ### Removed
 - `approved_artifact_urls` and `page_shared` in `~/.claude/keel/usage.json`.

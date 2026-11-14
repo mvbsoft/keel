@@ -104,6 +104,18 @@ test('secret files are listed by path and never opened', () => {
   assert.ok(!output.includes(CANARY));
 });
 
+test('a rules or ADR file named like a secret is listed, never opened, and the scan goes on', () => {
+  const dir = makeProject('go');
+  for (const rel of ['.claude/rules/credentials.md', '.claude/rules/secrets.md', 'docs/adr/secrets.md']) {
+    fs.mkdirSync(path.join(dir, path.dirname(rel)), { recursive: true });
+    fs.writeFileSync(path.join(dir, rel), `${CANARY}
+`);
+  }
+  const result = scan(dir);
+  assert.ok(result.profile.secret_paths.includes('.claude/rules/credentials.md'));
+  assert.ok(!JSON.stringify(result).includes(CANARY));
+});
+
 test('in a git repository, ignored secrets are still found by name', (t) => {
   try { execFileSync('git', ['--version'], { stdio: 'ignore' }); } catch { t.skip('git is not installed'); return; }
   const dir = makeProject('js-monorepo');

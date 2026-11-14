@@ -29,7 +29,7 @@ const under = (rel, part) => part === '.' || rel === part || rel.startsWith(`${p
 function makeReader(root) {
   const reads = [];
   const readText = (rel) => {
-    if (isSecret(rel)) throw new Error(`refusing to read a secret file: ${rel}`);
+    if (isSecret(rel)) return null;
     try {
       const full = path.join(root, rel);
       if (fs.statSync(full).size > MAX_READ) return null;
