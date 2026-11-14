@@ -98,7 +98,7 @@ Standard's on every change.
   pushes, done the same way every time; merging into main only when you say so (or on every finish, if you set that up).
 - **You know what the work cost.** Every end of work shows a table of who ran, the tokens and the
   dollars (exact with an API key), and on a subscription the share of your plan limits (once keel has
-  measured it). A private dashboard in your claude.ai account collects every machine; with an API key
+  measured it). A private usage page in your claude.ai account collects every machine; with an API key
   only there is no page, just the report. Update keel on every machine that syncs to it
   ([details](docs/usage-dashboard.md#syncing-between-machines)).
 - **Your team works one way.** The project's keel settings live in git, so everyone plans, checks and
@@ -110,8 +110,8 @@ keel can keep two pages in your own claude.ai account. Only you see them until y
 both look the same: dark by default, a light theme one click away. They need Claude Code signed in to
 claude.ai; with an API key only there are no pages.
 
-**The usage page** shows what your work with Claude Code cost on all your machines: how much of the
-plan's weekly limit is used and what 1 % of it costs, spend by day, project and model, and every keel
+**The usage page** shows what your keel work cost on all your machines: how much of the
+plan's weekly limit your whole account used and what 1 % of it costs, spend by day, project and model, and every keel
 session down to the price of each of your messages. Use it to see where the money goes before the limit
 runs out. `/keel:usage` opens it. [What it shows and how to use it](docs/usage-dashboard.md).
 
@@ -244,7 +244,7 @@ Every variant: [Commands](docs/commands.md).
 | look up a command and its variants | [Commands](docs/commands.md) |
 | pick a verification level | [Verification](docs/verification.md) |
 | spend less | [Cost optimization](docs/cost-optimization.md) |
-| understand the cost report and the dashboard | [Usage dashboard](docs/usage-dashboard.md) |
+| understand the cost report and the usage page | [Usage page](docs/usage-dashboard.md) |
 | see a planned feature on one page | [Feature page](docs/feature-page.md) |
 | change a setting | [Settings](docs/settings.md) |
 | know what runs by itself, what keel stores and how it keeps things safe | [Under the hood](docs/under-the-hood.md) |
