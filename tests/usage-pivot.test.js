@@ -400,14 +400,16 @@ test('i18n: every en key exists in uk and vice versa, placeholders match', () =>
 });
 
 test('i18n: t falls back to en, then to the key; substitutes variables', () => {
-  assert.equal(I18N.t('uk', 'tab.dashboard'), 'Дашборд');
+  assert.equal(I18N.t('uk', 'tab.overview'), 'Огляд');
   assert.equal(I18N.t('uk', 'tab.analysis'), 'Аналіз');
-  assert.equal(I18N.t('uk', 'tab.calibration'), 'Калібрування');
+  assert.equal(I18N.t('uk', 'tab.limit'), 'Ліміт плану');
+  // One name for how the work was paid for, on every view: the filter chip and the session page's line.
+  for (const key of ['filter.wallet', 'sp.wallet']) assert.deepEqual([I18N.t('en', key), I18N.t('uk', key)], ['Payment', 'Оплата'], key);
   assert.equal(I18N.t('en', 'empty.state'), 'No data yet. Data arrives after the first /keel:end-task, /keel:end-session or /keel:end-planning on any machine.');
   assert.match(I18N.t('uk', 'empty.state'), /^Даних ще немає\..*\/keel:end-task.*\/keel:end-session.*\/keel:end-planning/);
   assert.equal(I18N.t('de', 'tab.sessions'), 'Sessions'); // unknown language -> en
   assert.equal(I18N.t('uk', 'no.such.key'), 'no.such.key');
-  assert.equal(I18N.t('en', 'tile.rate', { usd: '$18' }), '1 % ≈ $18');
+  assert.equal(I18N.t('en', 'tile.rate_n', { n: 4 }), 'median of 4 points');
   assert.equal(I18N.t('uk', 'cal.waiting_for', { pc: 'laptop' }), 'чекаємо на laptop');
   assert.equal(I18N.t('en', 'cal.waiting_for', { pc: 'laptop' }), 'waiting for laptop');
   assert.equal(I18N.t('en', 'cal.waiting_for'), 'waiting for {pc}');
@@ -431,4 +433,26 @@ test('a participant that used two models gives one row per model: spend by model
   assert.equal(rows.reduce((a, r) => a + r.sessions, 0), 1);
   assert.equal(rows.reduce((a, r) => a + r.tools, 0), 4);
   assert.equal(rows.reduce((a, r) => a + r.active_min, 0), 30);
+});
+
+test('usd_kind: rows carry the dollars by kind of their model; tokenKinds totals them and the dollars of the rows that have them', () => {
+  const kinds = (o) => ({ in: 0, cw5: 0, cw1h: 0, cr: 0, out: 0, ...o });
+  const single = part({ kind: 'main', model: SONNET, usd: 3, tok: { in: 100, out: 100 }, requests: 2, active: 5, start: '2026-10-12T10:00:00Z', end: '2026-10-12T10:30:00Z' });
+  single.by_model[SONNET].usd_kind = kinds({ in: 1, cw5: 0.5, cw1h: 0.5, out: 1 });
+  const without = part({ kind: 'agent', id: 'a1', type: 'qa', model: HAIKU, usd: 2, tok: { in: 100 }, requests: 1, active: 1, start: '2026-10-12T10:10:00Z', end: '2026-10-12T10:20:00Z' });
+  const mixed = part({ kind: 'agent', id: 'a2', type: 'qa', model: OPUS, usd: 5.5, requests: 3, active: 1, start: '2026-10-12T10:10:00Z', end: '2026-10-12T10:20:00Z' });
+  mixed.by_model = {
+    [OPUS]: { requests: 2, tok: kinds({ in: 10 }), usd: 5, usd_kind: kinds({ in: 2, cr: 3 }) },
+    [HAIKU]: { requests: 1, tok: kinds({ in: 10 }), usd: 0.5 },
+  };
+  const doc = (id, parts) => ({ schema: 1, date: '2026-10-12', pc: 'home', user: 'me@x.com', part: 1, parts: 1, synced_until: '2026-10-12T22:00:00Z', hours: [], snapshots: [],
+    sessions: [{ id, project: 'shop', wallet: 'subscription', start: '2026-10-12T10:00:00Z', end: '2026-10-12T10:30:00Z', usd: 1, participants: parts, turns: [] }] });
+  const { rows } = P.flatten([doc('k1', [single, without, mixed])]);
+  assert.deepEqual(rows.map((r) => [r.model, r.usd_kind ? Object.values(r.usd_kind).reduce((a, b) => a + b, 0) : null]), [[SONNET, 3], [HAIKU, null], [OPUS, 5], [HAIKU, null]]);
+  const tk = P.tokenKinds(rows);
+  assert.deepEqual(tk.usd_kind, { in: 3, cw5: 0.5, cw1h: 0.5, cr: 3, out: 1 });
+  near(tk.usd_known, 8);
+  assert.deepEqual(P.tokenKinds(rows.filter((r) => !r.usd_kind)).usd_kind, kinds({}));
+  assert.equal(P.tokenKinds(rows.filter((r) => !r.usd_kind)).usd_known, 0);
+  assert.equal(P.tokenKinds([]).usd_known, 0);
 });

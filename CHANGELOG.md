@@ -165,9 +165,39 @@ All notable changes to keel are listed here. The format follows
   agent types, the agents' part of the cost, the tokens and the largest context of one request. keel
   computes it from the logs at sync time; it holds no message text and is sent with or without
   previews. A day too big for one document drops these details first. Days synced earlier get them
-  when they are sent again; the page does not show them yet.
+  when they are sent again; the session page shows them.
+
+- The keel design system (`plugins/keel/templates/design/`, described in `docs/design-system.md`): one
+  look for every page keel makes. `keel.css` holds the colour tokens of both themes, the fonts and the
+  shared components, `keel-theme.js` the theme switch and `keel-mark.png` the brand mark. A page opens
+  dark, a switch in its header turns on the light theme, and the choice is remembered in that browser
+  for that page. The published page carries the three files. `tests/design-system.test.js` checks that
+  a page holds no colour literal, that every token is defined in both themes and that text and marks
+  reach their contrast.
+- Usage page, Sessions: each of your messages opens to show what was done after it (the tools with
+  counts, the agents it started and their part of its dollars, its tokens by kind and the largest
+  context one request read); a session without such data says so. A "verification level" filter, and
+  the list shows 10 rows with "Show more" adding 20.
+- Usage page, Analysis: the controls read as one sentence, filters are chips, the numbers are also a
+  table with two sets of columns, and "Save CSV" saves it.
+- Usage page, Overview: the card "Spend by token kind" shows the dollars of output, cache write, cache
+  read and input. Sessions sent before keel kept the dollars by kind are not in it, and the card says how
+  many of the period's dollars that leaves out; a period with none of them still shows the tokens by kind.
+- Usage page: the two dates of your own period open a calendar in keel's look, not the browser's date
+  picker: weeks start on Monday, today and the chosen day are marked, arrows, Page Up and Page Down move
+  the day or the month, and the page works with the keyboard alone.
 
 ### Changed
+- The usage page is rebuilt on the design system. The tabs are Overview (was Dashboard), Analysis,
+  Sessions and Plan limit (was Calibration); the old addresses `#dash` and `#calib` still open them.
+  One period control in the header serves Overview, Analysis and Sessions. Overview shows the plan
+  limit of the week, what was spent in the period, where the money went and the most expensive
+  sessions. Plan limit shows what 1 % costs, how it is counted and the latest 5 measurements with
+  "show all". The page draws its charts itself and no longer loads a chart library.
+- The feature page is rebuilt on the design system, with the same content and functions in a new
+  layout: the feature, the ticket in work and the ticket list on the left, the chosen ticket on the
+  right, windows for decisions, terms, research and the Markdown file in the centre, and on a phone a
+  ticket as its own screen with a way back. Its script is `page.js`, published beside the page.
 - keel's commands need fewer requests and read less text:
   - a command reads `preflight.md` only when the settings check is not plainly `ok`; its rules for the
     whole command stand in each command;

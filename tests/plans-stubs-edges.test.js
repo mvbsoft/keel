@@ -253,6 +253,7 @@ gitTest('a ready plan whose stub is converted is a draft again; check: a stub of
 });
 
 gitTest('the page template draws a stub\'s mark and note', () => {
-  const html = fs.readFileSync(path.join(SCRIPTS, '..', 'templates', 'feature-page', 'index.html'), 'utf8');
-  for (const key of ["'stub'", "'stub_title'", "'stub_note'"]) assert.ok(html.includes(key), key);
+  // The page's script lives in page.js beside index.html.
+  const script = fs.readFileSync(path.join(SCRIPTS, '..', 'templates', 'feature-page', 'page.js'), 'utf8');
+  for (const key of ["'stub'", "'stub_title'", "'stub_note'"]) assert.ok(script.includes(key), key);
 });

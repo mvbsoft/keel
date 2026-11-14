@@ -32,6 +32,7 @@ Where to start: read [How keel works](overview.md) for the whole picture, follow
 | [Commands](commands.md) | Every command, how to call it and what happens in each case. |
 | [Settings](settings.md) | Every setting, its values, defaults and where it is stored, with example configurations. |
 | [Usage dashboard](usage-dashboard.md) | The cost report, the "keel usage" page, plan-limit percentages, what leaves your machine. |
+| [Design system](design-system.md) | The one look of every keel page: the theme, every colour token, the type, the shared components, and how to change the style. |
 
 ## Under the hood
 

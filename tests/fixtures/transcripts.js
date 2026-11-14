@@ -17,7 +17,14 @@ function price(model, tok) {
   return PRICE[model] * (tok.in + tok.out * 5 + tok.cr * 0.1 + tok.cw5 * 1.25 + tok.cw1h * 2) / 1000;
 }
 
-const usageOf = ({ in: i, out, cr, cw5, cw1h }) => ({
+// The same prices split by token kind: the parts add up to price().
+function priceKinds(model, tok) {
+  if (!(model in PRICE)) return null;
+  const f = PRICE[model] / 1000;
+  return { in: f * tok.in, cw5: f * tok.cw5 * 1.25, cw1h: f * tok.cw1h * 2, cr: f * tok.cr * 0.1, out: f * tok.out * 5 };
+}
+
+const usageOf =({ in: i, out, cr, cw5, cw1h }) => ({
   input_tokens: i, output_tokens: out, cache_read_input_tokens: cr,
   cache_creation_input_tokens: cw5 + cw1h,
   cache_creation: { ephemeral_5m_input_tokens: cw5, ephemeral_1h_input_tokens: cw1h },
@@ -105,4 +112,4 @@ function buildSession(root, { projDir = 'proj-demo', malformed = false, keel = t
   return { dir, main, sub, sessionId: SESSION_ID, agentFiles: { aaa1: path.join(sub, 'agent-aaa1.jsonl'), bbb2: path.join(sub, 'agent-bbb2.jsonl') } };
 }
 
-module.exports = { buildSession, price, REQ, T0, at, SESSION_ID, LONG_TEXT, usageOf, writeJsonl, user, asst };
+module.exports = { buildSession, price, priceKinds,REQ, T0, at, SESSION_ID, LONG_TEXT, usageOf, writeJsonl, user, asst };

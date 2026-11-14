@@ -7,7 +7,7 @@ const { tempDir } = require('./fixtures/tmp.js');
 
 const T = require('../plugins/keel/scripts/lib/transcripts.js');
 const { summarize } = require('../plugins/keel/hooks/ledger.js');
-const { buildSession, price, REQ, T0, at, SESSION_ID, writeJsonl, user, asst } = require('./fixtures/transcripts.js');
+const { buildSession, price, priceKinds, REQ, T0, at, SESSION_ID, writeJsonl, user, asst } = require('./fixtures/transcripts.js');
 
 function tempRoot() {
   return tempDir('keel-transcripts-');
@@ -97,6 +97,20 @@ test('usd, unpriced models and by_model', () => {
   assert.equal(b.by_model['test-mystery-1'].requests, 2);
   assert.equal(b.by_model['test-mystery-1'].tok.in, 105);
   assert.equal(out.requests.filter((r) => r.usd === null).length, 2);
+});
+
+test('usd_kind: each priced by_model entry adds up its requests\' dollars per token kind; an entry with no priced request has none', () => {
+  const s = buildSession(tempRoot());
+  const out = T.summarizeSession(s.main, { cost: price, costKinds: priceKinds });
+  const [main, a, b] = out.participants;
+  const opus = Object.values(REQ).filter((r) => r.who === 'main');
+  for (const kind of ['in', 'cw5', 'cw1h', 'cr', 'out']) {
+    near(main.by_model['test-opus-1'].usd_kind[kind], sum(opus.map((r) => priceKinds(r.model, r.tok)[kind])));
+  }
+  const u = a.by_model['test-haiku-1'];
+  near(sum(Object.values(u.usd_kind)), u.usd);
+  assert.ok(!('usd_kind' in b.by_model['test-mystery-1']));
+  assert.ok(!('usd_kind' in T.summarizeSession(s.main, { cost: price }).participants[0].by_model['test-opus-1']), 'no kind prices given, no detail');
 });
 
 test('default cost function prices nothing: usd 0 and every model unpriced', () => {

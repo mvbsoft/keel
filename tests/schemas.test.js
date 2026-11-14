@@ -148,7 +148,7 @@ const EXAMPLES = {
       keel: { task: 'KEY-1: thing', level: 'standard', findings: { must: 0, should: 1, nice: 2 }, gates: 'pass', lines: { add: 10, del: 2 }, files: 3, steps: [{ title: 'one', model: 'sonnet' }] },
       participants: [{
         kind: 'main', type: 'main', model: 'claude-opus-5',
-        by_model: { 'claude-opus-5': { requests: 3, tok: { in: 10, cw5: 100, cw1h: 0, cr: 5000, out: 200 }, usd: 1.5 } },
+        by_model: { 'claude-opus-5': { requests: 3, tok: { in: 10, cw5: 100, cw1h: 0, cr: 5000, out: 200 }, usd: 1.5, usd_kind: { in: 0.1, cw5: 0.2, cw1h: 0, cr: 0.5, out: 0.7 } } },
         start: '2026-10-11T10:00:00.000Z', end: '2026-10-11T10:30:00.000Z', active_min: 20, requests: 3, tools: { Bash: 2 }, agents_launched: 0,
         tok: { in: 10, cw5: 100, cw1h: 0, cr: 5000, out: 200 }, usd: 1.5, output_estimated: false, resumed: 0,
       }],
@@ -281,4 +281,13 @@ test('ledger-entry.schema.json rejects bad timestamps and negative tokens', () =
   expectInvalid(s, ok, (d) => { d.usage.output_tokens = -1; }, /below 0/);
   expectInvalid(s, ok, (d) => { d.effort = 'ultra'; }, /effort: must be one of/);
   assert.deepEqual(validate({ ...clone(ok), effort: null, model: null }, s), []);
+});
+
+test('usage-day.schema.json: the dollars by token kind have all five kinds and no other', () => {
+  const s = load('usage-day.schema.json');
+  const ok = EXAMPLES['usage-day.schema.json'];
+  const kinds = (d) => d.sessions[0].participants[0].by_model['claude-opus-5'].usd_kind;
+  expectInvalid(s, ok, (d) => { delete kinds(d).cw1h; }, /usd_kind: missing "cw1h"/);
+  expectInvalid(s, ok, (d) => { kinds(d).cache = 0.1; }, /usd_kind\.cache: unexpected property/);
+  expectInvalid(s, ok, (d) => { kinds(d).out = -1; }, /usd_kind\.out: below 0/);
 });

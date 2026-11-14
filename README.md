@@ -105,7 +105,7 @@ Standard's on every change.
   commits by the same rules.
 
 <p align="center">
-  <img src="docs/images/usage-dash.png" alt="The keel usage dashboard (sample data)" width="720"><br>
+  <img src="docs/images/usage-overview.png" alt="The keel usage dashboard (sample data)" width="720"><br>
   <em>The private usage dashboard (sample data): <a href="docs/usage-dashboard.md">what it shows</a></em>
 </p>
 

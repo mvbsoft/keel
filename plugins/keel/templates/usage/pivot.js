@@ -1,8 +1,8 @@
 'use strict';
 // keel usage dashboard: pure data functions (no DOM, no dependencies). Works in the browser as
 // window.KeelPivot and in node via require. Input is the `days` collection of the artifact database
-// (written by scripts/lib/usage-store.js); output feeds the Dashboard, Analysis, Sessions, Session and
-// Calibration tabs.
+// (written by scripts/lib/usage-store.js); output feeds the Overview, Analysis, Sessions, Session and
+// Plan limit views.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.KeelPivot = factory();
@@ -95,6 +95,15 @@
     return s;
   }
 
+  // The dollars by token kind of a by_model entry; null when the entry has none (sent by an older keel, or unpriced).
+  function usdKinds(entry) {
+    const k = entry && entry.usd_kind;
+    if (!k || typeof k !== 'object') return null;
+    const out = {};
+    for (const key of TOK_KEYS) out[key] = num(k[key]);
+    return out;
+  }
+
   function strCmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
 
   // ---- flatten -------------------------------------------------------------------------------------
@@ -173,16 +182,22 @@
         // per model with that model's dollars, tokens and requests, so spend by model is not all put on
         // the model used most. Counts that are not per model stay on the first row only.
         const models = Object.entries(p.by_model || {}).filter(([, v]) => v && typeof v === 'object');
-        if (models.length < 2) { rows.push(base); continue; }
+        if (models.length < 2) {
+          const kinds = usdKinds(models.length && models[0][1]);
+          rows.push(kinds ? { ...base, usd_kind: kinds } : base);
+          continue;
+        }
         const first = base.model;
         models.sort(([a], [b]) => (a === first ? -1 : b === first ? 1 : strCmp(a, b)));
         models.forEach(([model, v], i) => {
           const t = {};
           for (const k of TOK_KEYS) t[k] = num(v.tok && v.tok[k]);
+          const kinds = usdKinds(v);
           rows.push({
             ...base,
             model,
             usd: num(v.usd),
+            ...(kinds ? { usd_kind: kinds } : {}),
             tok: t,
             tokens: TOK_KEYS.reduce((a, k) => a + t[k], 0),
             requests: num(v.requests),
@@ -334,7 +349,15 @@
 
   function tokenKinds(rows) {
     const t = sumRows(rows || []);
-    return { in: t.tok_in, cw5: t.tok_cw5, cw1h: t.tok_cw1h, cr: t.tok_cr, out: t.tok_out, total: t.tokens };
+    const usd_kind = {};
+    for (const k of TOK_KEYS) usd_kind[k] = 0;
+    let usd_known = 0;
+    for (const r of rows || []) {
+      if (!r.usd_kind) continue;
+      for (const k of TOK_KEYS) usd_kind[k] += r.usd_kind[k];
+      usd_known += r.usd;
+    }
+    return { in: t.tok_in, cw5: t.tok_cw5, cw1h: t.tok_cw1h, cr: t.tok_cr, out: t.tok_out, total: t.tokens, usd_kind, usd_known };
   }
 
   function topProjects(rows, n = 5) {

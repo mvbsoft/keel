@@ -7,7 +7,7 @@
 //        node usage-setup.js <projectDir> install-statusline        writes the stable shim, prints the statusLine command
 //        node usage-setup.js <projectDir> sync on|off               turns this machine's page sync on or off (after
 //          `on` the next sync sends what Claude Code's logs still hold of the time in between)
-//        node usage-setup.js <projectDir> page                      copies the dashboard page to .keel/local/tmp/usage-page
+//        node usage-setup.js <projectDir> page                      copies the dashboard page and the design system files to .keel/local/tmp/usage-page
 //          (the Artifact tool publishes only files under the project or the scratchpad) and prints the
 //          template fingerprint that configure writes to the page (meta/settings `template`) and to page_template
 // `show` also says what the status line is now: keel's runner, a command keel could wrap, or none,
@@ -21,6 +21,7 @@ const { parseArgs } = require('./lib/project.js');
 const { WALLETS, usageDir, loadMachineConfig, writeMachineConfig, detectWallet } = require('./lib/usage-config.js');
 const prices = require('./lib/prices.js');
 const { readJsonFile } = require('./lib/json.js');
+const { DESIGN_DIR: DESIGN, DESIGN_FILES } = require('./lib/design-files.js');
 
 const RUNNER = path.join(__dirname, '..', 'statusline', 'run.js');
 // The statusLine setting points at a shim in the usage folder, not into the plugin: the plugin folder
@@ -118,12 +119,19 @@ function installStatusline() {
   return { type: 'command', command: `node "${shim}"`, padding: 0 };
 }
 
-const PAGE_FILES = ['index.html', 'style.css', 'pivot.js', 'i18n.js', 'i18n.uk.js', 'format.js', 'colors.js', 'load.js', 'demo.js'];
+// The page's own files, and the design system's files that are published beside them.
+const PAGE_FILES = ['index.html', 'style.css', 'app.js', 'charts.js', 'menu.js', 'calendar.js', 'view-overview.js', 'view-analysis.js', 'view-sessions.js', 'view-session.js', 'view-limit.js',
+  'pivot.js', 'i18n.js', 'i18n.uk.js', 'format.js', 'load.js', 'demo.js'];
 const TEMPLATE = path.join(__dirname, '..', 'templates', 'usage');
-// Line endings do not count: a checkout with CRLF publishes the same page.
-function pageTemplate(dir = TEMPLATE) {
+// Line endings do not count: a checkout with CRLF publishes the same page. The mark is an image: its bytes count as they are.
+function pageTemplate(dir = TEMPLATE, designDir = DESIGN) {
   const h = crypto.createHash('sha256');
-  for (const name of PAGE_FILES) h.update(`${name}\n${fs.readFileSync(path.join(dir, name), 'utf8').replace(/\r\n/g, '\n')}\n`);
+  const files = [...PAGE_FILES.map((name) => [name, path.join(dir, name)]), ...DESIGN_FILES.map((name) => [name, path.join(designDir, name)])];
+  for (const [name, file] of files) {
+    h.update(`${name}\n`);
+    h.update(/\.png$/.test(name) ? fs.readFileSync(file) : fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
+    h.update('\n');
+  }
   return h.digest('hex').slice(0, 12);
 }
 
@@ -149,6 +157,7 @@ function page(root) {
   const to = require('./lib/safe-path.js').safeLocalPath(root, 'tmp', 'usage-page');
   fs.mkdirSync(to, { recursive: true });
   for (const name of PAGE_FILES) fs.copyFileSync(path.join(TEMPLATE, name), path.join(to, name));
+  for (const name of DESIGN_FILES) fs.copyFileSync(path.join(DESIGN, name), path.join(to, name));
   return to;
 }
 
@@ -185,7 +194,7 @@ if (require.main === module) {
     else if (pos[0] === 'apply' && pos[1]) process.stdout.write(`written ${apply(path.resolve(pos[1]))}\n`);
     else if (pos[0] === 'prices-diff' && pos[1]) process.stdout.write(`${pricesDiff(path.resolve(pos[1]))}\n`);
     else if (pos[0] === 'prices-apply' && pos[1]) process.stdout.write(`written ${pricesApply(path.resolve(pos[1]))} (previous kept as prices.json.bak)\n`);
-    else if (pos[0] === 'page') process.stdout.write(`page files in ${page(root)}: ${PAGE_FILES.join(', ')}\npage_template: ${pageTemplate()}\n`);
+    else if (pos[0] === 'page') process.stdout.write(`page files in ${page(root)}: ${[...PAGE_FILES, ...DESIGN_FILES].join(', ')}\npage_template: ${pageTemplate()}\n`);
     else if (pos[0] === 'install-statusline') process.stdout.write(`${JSON.stringify(installStatusline())}\n`);
     else if (pos[0] === 'sync' && ['on', 'off'].includes(pos[1])) process.stdout.write(`${setSync(pos[1])}\n`);
     else process.stdout.write('usage: usage-setup.js <projectDir> show | apply <changes.json> | prices-diff <prices.json> | prices-apply <prices.json> | install-statusline | page | sync on|off\n');
@@ -195,4 +204,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { show, apply, statusLineState, installStatusline, page, pageTemplate, pricesDiff, pricesApply, setSync, RUNNER, PAGE_FILES };
+module.exports = { show, apply, statusLineState, installStatusline, page, pageTemplate, pricesDiff, pricesApply, setSync, RUNNER, PAGE_FILES, DESIGN_FILES };
