@@ -497,15 +497,24 @@ gitTest('the usage scripts given the main checkout from a worktree work on the w
   assert.equal(node(show, [main], wt, env).stdout, expected);
 });
 
-gitTest('mainOf keeps the main checkout\'s path as git names it, not its real path', () => {
-  const { tmp, main, wt } = setup();
+// Git writes real paths into a worktree's .git file, while the session may name the project through a
+// link (macOS names its temp folder /var for /private/var, Windows may give an 8.3 short name).
+gitTest('mainOf names the main checkout the way the worktree inside it is named, so git trust holds through a link', () => {
+  const { tmp, main, wt } = setup({ git: { ...CONFIG.git, mode: 'autonomous' } });
   const link = path.join(tmp, 'link');
   fs.symlinkSync(main, link, 'junction');
+  const { mainOf, worktreeOf } = require(path.join(SCRIPTS, 'lib', 'project-dir.js'));
+  const wtByLink = path.join(link, '.claude', 'worktrees', 'wt');
+  assert.equal(mainOf(wtByLink).toLowerCase(), link.toLowerCase());
+  assert.equal(mainOf(wt).toLowerCase(), main.toLowerCase());
+  assert.ok(worktreeOf(link, wtByLink), 'the worktree maps from the linked path');
+  const { trust, trustState } = require(path.join(SCRIPTS, 'lib', 'trust.js'));
+  const env = { KEEL_USAGE_DIR: path.join(tmp, 'home') };
+  trust(link, env);
+  assert.equal(trustState(wtByLink, env), 'confirmed', 'one confirmation for the project named through the link');
   fs.rmSync(path.join(wt, '.git'), { force: true });
   write(wt, '.git', `gitdir: ${slash(path.join(link, '.git', 'worktrees', 'wt'))}\n`);
-  const { mainOf, worktreeOf } = require(path.join(SCRIPTS, 'lib', 'project-dir.js'));
-  assert.equal(mainOf(wt).toLowerCase(), link.toLowerCase());
-  assert.ok(worktreeOf(link, wt), 'the worktree still maps from the linked path');
+  assert.equal(mainOf(wt).toLowerCase(), main.toLowerCase(), 'a .git file through the link: still the worktree\'s spelling');
 });
 
 gitTest('restore refuses an item whose recorded root is not a folder of this project', () => {
