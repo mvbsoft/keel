@@ -501,6 +501,33 @@ test('a project can turn prompt previews off for itself while the machine sends 
   assert.ok(!raw.includes('hushed words'), 'the project setting wins');
 });
 
+test('a project with previews off sends no text from a sub-folder or a removed worktree folder of it', () => {
+  const e = env();
+  const quiet = tempDir('keel-quiet-');
+  fs.mkdirSync(path.join(quiet, '.keel', 'local'), { recursive: true });
+  fs.mkdirSync(path.join(quiet, 'src'));
+  fs.writeFileSync(path.join(quiet, '.keel', 'local', 'options.json'), JSON.stringify({ prompt_preview: false }));
+  writeIds(e.root, 'sub', [{ t: DAY, prompt: 'words from src' }, { t: DAY + MIN, id: 's1' }], { cwd: path.join(quiet, 'src') });
+  writeIds(e.root, 'gone', [{ t: DAY + 2 * MIN, prompt: 'words from a worktree' }, { t: DAY + 3 * MIN, id: 'g1' }], { cwd: path.join(quiet, '.claude', 'worktrees', 'x') });
+  const raw = JSON.stringify(e.build().docs);
+  assert.ok(!raw.includes('words from src'), 'a session started in a sub-folder');
+  assert.ok(!raw.includes('words from a worktree'), 'a worktree folder that no longer exists');
+});
+
+test('previews off stay off for a session once its project folder is gone', () => {
+  const e = env();
+  const quiet = tempDir('keel-quiet-');
+  fs.mkdirSync(path.join(quiet, '.keel', 'local'), { recursive: true });
+  fs.writeFileSync(path.join(quiet, '.keel', 'local', 'options.json'), JSON.stringify({ prompt_preview: false }));
+  writeIds(e.root, 'hush', [{ t: DAY, prompt: 'hushed words' }, { t: DAY + MIN, id: 'h1' }], { cwd: quiet });
+  assert.ok(!JSON.stringify(e.build().docs).includes('hushed words'));
+  fs.rmSync(quiet, { recursive: true, force: true });
+  writeIds(e.root, 'later', [{ t: DAY + 2 * MIN, prompt: 'later words' }, { t: DAY + 3 * MIN, id: 'l1' }]);
+  const raw = JSON.stringify(e.build().docs);
+  assert.ok(raw.includes('later words'), 'the day was built again');
+  assert.ok(!raw.includes('hushed words'), 'the earlier decision is kept');
+});
+
 test('only keel sessions are listed: a workflow command or an end-step record; every session still counts in the hours', () => {
   const e = env();
   const cmd = (name, args = '') => `<command-message>keel:${name}</command-message>\n<command-name>/keel:${name}</command-name>\n<command-args>${args}</command-args>`;

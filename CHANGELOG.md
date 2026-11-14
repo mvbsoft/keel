@@ -418,6 +418,9 @@ All notable changes to keel are listed here. The format follows
   session in manual git gives `git switch <branch>` when the note's branch differs.
 - Docs: the Maximum level's agents, the number of quick-setup questions (11 to 18), the two Stop hooks
   and what happens to a finished task when verification stays red now match the behaviour.
+- A project's `prompt_preview: false` now holds for sessions started in a sub-folder of the project and
+  for worktree sessions after their folder is removed: before, a day rebuilt later sent their request
+  previews and task title. keel keeps the "off" with the session, so it stays off once the folder is gone.
 
 ### Removed
 - `approved_artifact_urls` and `page_shared` in `~/.claude/keel/usage.json`.
