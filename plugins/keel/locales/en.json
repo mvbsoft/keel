@@ -76,6 +76,11 @@
   "confirm.plans_word": "keel: this plans.js command holds the word commit or push and may run that step. Run it?",
 
   "page.feature": "feature",
+  "page.brand": "Feature",
+  "page.snapshot": "snapshot {date}",
+  "page.theme": "Theme",
+  "page.theme_dark": "Dark",
+  "page.theme_light": "Light",
   "page.draft_note": "Draft: the tickets are not exported to the repository yet, so they have no state.",
   "page.projects": { "one": "{n} project", "other": "{n} projects" },
   "page.as_of": "as of {date}",

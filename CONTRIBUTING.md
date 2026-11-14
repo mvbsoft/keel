@@ -106,15 +106,21 @@ keel's fixed texts (usage report, context warning, dashboard) live in two places
    publish step in `plugins/keel/skills/_shared/usage-page.md` (`## Create`; the update reuses it), and
    a `<script>` tag in `plugins/keel/templates/usage/index.html`; `tests/usage-setup.test.js` reads
    `PAGE_FILES` from there and checks that all of these agree. The page itself chooses only between `en` and `uk` today
-   (where it sets `lang` in `index.html` and the date locale in `format.js`), so a new page language
+   (where it sets `lang` in `app.js` and the date locale in `format.js`), so a new page language
    also needs a change there.
 
 At run time a key missing from a catalog falls back to English.
 
 The usage code: the sync is `plugins/keel/scripts/usage.js` with `lib/usage-store.js`, the check against
 the logs `lib/usage-audit.js`; the page itself is `plugins/keel/templates/usage/`. Their tests are
-`tests/usage-cli.test.js`, `usage-page-sync.test.js`, `usage-clear.test.js`, `usage-pivot.test.js` and
-`usage-page-scripts.test.js`. How the sync works: [usage dashboard](docs/usage-dashboard.md#syncing-between-machines).
+`tests/usage-cli.test.js`, `usage-page-sync.test.js`, `usage-clear.test.js`, `usage-pivot.test.js` and,
+for the page's scripts and views, `usage-page-scripts.test.js`, `usage-page-app.test.js`,
+`usage-page-analysis.test.js`, `usage-page-sessions.test.js`, `usage-menu.test.js` and `usage-calendar.test.js`. How the sync works: [usage dashboard](docs/usage-dashboard.md#syncing-between-machines).
+
+Every page template (the usage page, the feature page) takes all its colours and fonts from
+`plugins/keel/templates/design/keel.css`; a page's own `style.css` only lays things out. A style change
+is made in `keel.css`, and `tests/design-system.test.js` checks it (no colour literal in a page, every
+token defined, contrast of both themes). See [the design system](docs/design-system.md).
 
 ## Commits
 

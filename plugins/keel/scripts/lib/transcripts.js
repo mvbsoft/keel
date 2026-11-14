@@ -195,7 +195,7 @@ function readMeta(file) {
 }
 
 // Builds a participant and its request rows from a scanned file.
-function participant(scan, base, cost, unpriced) {
+function participant(scan, base, cost, costKinds, unpriced) {
   const p = {
     kind: base.kind, ...(base.kind === 'agent' ? { agent_id: base.agent_id } : {}), type: base.type,
     model: null, by_model: {}, start: null, end: null, active_min: activeMinutes(scan.ts), requests: 0,
@@ -217,7 +217,16 @@ function participant(scan, base, cost, unpriced) {
     const bm = p.by_model[model] || (p.by_model[model] = { requests: 0, tok: zeroTok(), usd: 0 });
     bm.requests++;
     addTok(bm.tok, tok);
-    if (known) { bm.usd += usd; p.usd += usd; }
+    if (known) {
+      bm.usd += usd;
+      p.usd += usd;
+      const kinds = costKinds(model, tok);
+      if (kinds) {
+        // dollars by token kind have the same five keys as the tokens, so the token helpers hold and add them
+        bm.usd_kind = bm.usd_kind || zeroTok();
+        addTok(bm.usd_kind, kinds);
+      }
+    }
     addTok(p.tok, tok);
     p.requests++;
     if (estimated) p.output_estimated = true;
@@ -233,6 +242,7 @@ function participant(scan, base, cost, unpriced) {
 
 function summarizeSession(mainFile, opts = {}) {
   const cost = opts.cost || (() => null);
+  const costKinds = opts.costKinds || (() => null);
   const withText = opts.prompts !== false;
   const previewChars = opts.previewChars || 100;
   const id = path.basename(mainFile).replace(/\.jsonl$/, '');
@@ -241,7 +251,7 @@ function summarizeSession(mainFile, opts = {}) {
   const skip = opts.skip && opts.skip.size ? opts.skip : null;
   const main = scanFile(mainFile, true, skip);
   const parts = [];
-  const mainPart = participant(main, { kind: 'main', type: 'main' }, cost, unpriced);
+  const mainPart = participant(main, { kind: 'main', type: 'main' }, cost, costKinds, unpriced);
   parts.push(mainPart);
 
   const agentsDir = path.join(path.dirname(mainFile), id, 'subagents');
@@ -257,7 +267,7 @@ function summarizeSession(mainFile, opts = {}) {
       base: { kind: 'agent', agent_id: m[1], type: meta.agentType || 'unknown' } });
   }
   agents.sort((a, b) => a.startMs - b.startMs || (a.base.agent_id < b.base.agent_id ? -1 : 1));
-  for (const a of agents) a.built = participant(a.scan, a.base, cost, unpriced);
+  for (const a of agents) a.built = participant(a.scan, a.base, cost, costKinds, unpriced);
   for (const a of agents) parts.push(a.built);
 
   const allTs = main.ts.concat(...agents.map((a) => a.scan.ts));

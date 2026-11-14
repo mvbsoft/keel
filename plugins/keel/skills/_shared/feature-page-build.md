@@ -43,8 +43,11 @@ Wait for its reply.
      `failed: build: <its first line>` and stop.
    Keep for the reply: the `title:`, `feature:` (its ticket count), `as of:` and `language:` lines,
    and a `fetch: <remote> failed (...)` line (the page is still built, its states as of the last fetch).
-3. **Publish.** Read the whole page file and the `style.css` beside it, then publish both with the
-   Artifact tool: `file_path` that file and `files` `{ "style.css": "<the style.css beside it>" }`.
+3. **Publish.** Read the whole page file and every other file beside it: `style.css`, `page.js`,
+   `keel.css`, `keel-theme.js` and `keel-mark.png` (the image is read as an image). Then publish them
+   with the Artifact tool: `file_path` that file and `files` `{ "style.css": "<the style.css beside it>",
+   "page.js": "<the page.js beside it>", "keel.css": "<the keel.css beside it>",
+   "keel-theme.js": "<the keel-theme.js beside it>", "keel-mark.png": "<the keel-mark.png beside it>" }`.
    - An update: the page's `url`; its title is not the `title:` line any more (a new heading or
      repository) → it takes that title too (the tool's title, when it takes one). Refused for not
      reading the page first → publish the same files again.

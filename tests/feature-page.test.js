@@ -248,9 +248,9 @@ gitTest('an exported feature: its texts, states, sizes and terms go into the pag
   assert.equal(doing.via.branch, 'api-2-badge');
   assert.ok(doing.via.author && Number.isInteger(doing.via.date), 'the author and the date of its last commit, apart');
 
-  // A "</script>" in a ticket cannot end the data block (the page's own: two data blocks, three
-  // libraries, its script); the token in the remote URL is not on the page.
-  assert.equal((html.match(/<\/script>/g) || []).length, 6);
+  // A "</script>" in a ticket cannot end the data block (the page's own: two data blocks, the theme
+  // script, three libraries, its script); the token in the remote URL is not on the page.
+  assert.equal((html.match(/<\/script>/g) || []).length, 7);
   assert.ok(!html.includes('s3cret'));
   assert.ok(!html.includes(tmp) && !html.includes(tmp.split(path.sep).join('/')), 'no local path on the page');
 });
@@ -295,32 +295,81 @@ gitTest('--fetch: the states come from a fresh fetch; a failed fetch still build
   assert.ok(!pageData(line(none, 'page')).data.fetchFailed, 'no remote: nothing is stale');
 });
 
-gitTest('the page\'s other files lie beside it as they are, and the page loads no local file that is not there', () => {
+const TEMPLATES = path.join(__dirname, '..', 'plugins', 'keel', 'templates');
+const TEMPLATE_DIR = path.join(TEMPLATES, 'feature-page');
+const DESIGN_DIR = path.join(TEMPLATES, 'design');
+// The folder itself, not a list: a file added to the design system must reach the page.
+const DESIGN_FILES = fs.readdirSync(DESIGN_DIR);
+
+gitTest('the page\'s other files lie beside it as they are (the design system byte for byte), and the page loads no local file that is not there', () => {
   const tmp = tempDir('keel-page-');
   const file = line(run(exported(tmp), FEATURE), 'page');
   const dir = path.dirname(file);
-  const template = path.join(__dirname, '..', 'plugins', 'keel', 'templates', 'feature-page');
-  assert.deepEqual(fs.readdirSync(dir).sort(), fs.readdirSync(template).sort());
-  for (const name of fs.readdirSync(template).filter((n) => n !== 'index.html')) {
-    assert.equal(fs.readFileSync(path.join(dir, name), 'utf8'), fs.readFileSync(path.join(template, name), 'utf8'), name);
-  }
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['index.html', 'style.css', 'page.js', ...DESIGN_FILES].sort());
+  const same = (name, from) => assert.ok(fs.readFileSync(path.join(dir, name)).equals(fs.readFileSync(path.join(from, name))), `${name} is copied as it is`);
+  for (const name of ['style.css', 'page.js']) same(name, TEMPLATE_DIR);
+  for (const name of DESIGN_FILES) same(name, DESIGN_DIR);
   const html = fs.readFileSync(file, 'utf8');
   const local = [...html.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((u) => !/^https?:/.test(u));
-  assert.ok(local.includes('style.css'), local.join(', '));
+  for (const name of ['keel.css', 'style.css', 'keel-theme.js']) assert.ok(local.includes(name), `${name} is loaded: ${local.join(', ')}`);
   for (const name of local) assert.ok(fs.existsSync(path.join(dir, name)), `${name} is loaded by the page but is not beside it`);
+  assert.match(fs.readFileSync(path.join(dir, 'keel.css'), 'utf8'), /url\("keel-mark\.png"\)/, 'the design system draws the mark from the file beside it');
 });
 
-test('the page\'s other files: the list, the template and the publish step name the same files', () => {
-  const template = path.join(__dirname, '..', 'plugins', 'keel', 'templates', 'feature-page');
-  assert.deepEqual([...PAGE_ASSETS].sort(), fs.readdirSync(template).filter((n) => n !== 'index.html').sort());
+test('the page\'s other files: the list, the template folders and the publish step name the same files', () => {
+  assert.deepEqual([...PAGE_ASSETS].sort(), [...fs.readdirSync(TEMPLATE_DIR).filter((n) => n !== 'index.html'), ...DESIGN_FILES].sort());
+  for (const name of DESIGN_FILES) assert.ok(fs.existsSync(path.join(DESIGN_DIR, name)), `${name} is in templates/design`);
   const build = fs.readFileSync(path.join(__dirname, '..', 'plugins', 'keel', 'skills', '_shared', 'feature-page-build.md'), 'utf8');
   const step = build.slice(build.indexOf('3. **Publish.**'), build.indexOf('4. **Reply**'));
   assert.ok(step.length > 0, 'the build instructions have the publish step');
+  assert.match(step, /Read the whole page file and every other file beside it/, 'the publish step reads the page and its files');
+  assert.match(step, /keel-mark\.png` \(the image is read as an image\)/, 'the image is read as an image');
   for (const name of PAGE_ASSETS) {
     const n = name.replace(/\./g, '\\.');
-    assert.match(step, new RegExp(`Read the whole page file and the \`${n}\``), `the publish step reads ${name}`);
-    assert.match(step, new RegExp(`"${n}":`), `the publish step publishes ${name}`);
+    assert.match(step, new RegExp(`\`${n}\``), `the publish step reads ${name}`);
+    assert.match(step, new RegExp(`"${n}": "<the ${n} beside it>"`), `the publish step publishes ${name}`);
   }
+});
+
+test('the page template: a fragment (the publish tool adds the document) that loads the design system at the top in order, with no colour literal and no prefers-color-scheme', () => {
+  const html = fs.readFileSync(path.join(TEMPLATE_DIR, 'index.html'), 'utf8');
+  assert.doesNotMatch(html, /<!doctype|<\/?(?:html|head|body)\b|<meta charset|name="viewport"/i, 'the publish tool wraps the page in its own document');
+  assert.ok(html.startsWith('<title>{{TITLE}}</title>\n'), 'the title is the first line');
+  const head = html.slice(0, html.indexOf('<div'));
+  const at = (re) => head.search(re);
+  const fonts = at(/<link[^>]*fonts\.googleapis\.com\/css2\?family=IBM\+Plex\+Sans:wght@400;500;600&family=IBM\+Plex\+Mono:wght@400;500&/);
+  const keel = at(/<link rel="stylesheet" href="keel\.css">/);
+  const style = at(/<link rel="stylesheet" href="style\.css">/);
+  const theme = at(/<script src="keel-theme\.js"><\/script>/);
+  assert.ok(fonts >= 0 && fonts < keel && keel < style && style < theme, `fonts ${fonts}, keel.css ${keel}, style.css ${style}, keel-theme.js ${theme}`);
+  assert.match(head, /<script src="keel-theme\.js"><\/script>\s*$/, 'keel-theme.js is a plain script, the last thing before the page\'s first element');
+
+  // A hex colour is # and 3, 4, 6 or 8 hex digits that no name continues (`#dec-D3` is an id).
+  const hex = /(?<![\w&])#([0-9a-fA-F]+)(?![\w-])/g;
+  const named = /(?<![\w-])(?:white|black|red|green|blue|gray|grey|silver|orange|yellow|purple|pink|brown|teal|navy|cyan|magenta|lime|maroon|olive|aqua|fuchsia|gold|coral|crimson|indigo|violet)(?![\w-])/;
+  const lines = {};
+  for (const name of ['index.html', 'style.css', 'page.js']) {
+    const text = fs.readFileSync(path.join(TEMPLATE_DIR, name), 'utf8');
+    lines[name] = text.split('\n').length;
+    const literals = [...text.matchAll(hex)].filter((m) => [3, 4, 6, 8].includes(m[1].length)).map((m) => m[0]);
+    assert.deepEqual(literals, [], `${name}: hex colours`);
+    assert.doesNotMatch(text, /\b(?:rgba?|hsla?|oklch|oklab|hwb|lab|lch|color)\(/, `${name}: colour functions`);
+    assert.doesNotMatch(text, /prefers-color-scheme|data-theme/, `${name}: the theme is keel-theme.js's, dark first`);
+  }
+  const css = fs.readFileSync(path.join(TEMPLATE_DIR, 'style.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const m of css.matchAll(/([\w-]+)\s*:\s*([^;{}]+)[;}]/g)) {
+    if (/^(?:color|background|background-color|border(?:-[a-z]+)*|outline|outline-color|fill|stroke|box-shadow|accent-color)$/.test(m[1])) assert.doesNotMatch(m[2], named, `${m[1]}: ${m[2]}`);
+  }
+  // The diagrams follow the theme switch: they read KeelTheme and the tokens, and redraw on its event.
+  const script = fs.readFileSync(path.join(TEMPLATE_DIR, 'page.js'), 'utf8');
+  assert.match(script, /KeelTheme\.get\(\)/);
+  assert.match(script, /KeelTheme\.control\(\{ label: L\('theme'\), dark: L\('theme_dark'\), light: L\('theme_light'\) \}\)/);
+  const bare = script.split('\n').filter((l) => /KeelTheme\./.test(l) && !/window\.KeelTheme (?:\?|&&)|!window\.KeelTheme \|\|/.test(l));
+  assert.deepEqual(bare, [], 'a page published without keel-theme.js still draws: every use of KeelTheme is guarded');
+  assert.match(script, /document\.addEventListener\('keel-theme'/);
+  assert.match(script, /getComputedStyle\(document\.documentElement\)\.getPropertyValue\(name\)/);
+  assert.doesNotMatch(script, /matchMedia\('\(prefers-color-scheme/);
+  for (const [name, n] of Object.entries(lines)) assert.ok(n < 700, `${name} has ${n} lines`);
 });
 
 gitTest('the code: the tickets\' own, whatever the remote; a feature exported without one gets one written into its tickets here', () => {
@@ -572,10 +621,11 @@ test('langCode takes language codes only; termsOf keeps snake_case terms and dro
 });
 
 test('the page template: its script parses, every label it names exists, and it knows every state the scripts write', () => {
-  const html = fs.readFileSync(path.join(SCRIPTS, '..', 'templates', 'feature-page', 'index.html'), 'utf8');
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  assert.equal(scripts.length, 1, 'one script of its own');
-  assert.doesNotThrow(() => new vm.Script(scripts[0], { filename: 'index.html' }));
+  const html = fs.readFileSync(path.join(TEMPLATE_DIR, 'index.html'), 'utf8');
+  assert.ok(html.includes('<script src="page.js"></script>'), 'the page loads its script from page.js');
+  assert.doesNotMatch(html, /<script>/, 'no inline script');
+  const scripts = [fs.readFileSync(path.join(TEMPLATE_DIR, 'page.js'), 'utf8')];
+  assert.doesNotThrow(() => new vm.Script(scripts[0], { filename: 'page.js' }));
   const catalogs = ['en', 'uk'].map((code) => [code, JSON.parse(fs.readFileSync(path.join(SCRIPTS, '..', 'locales', `${code}.json`), 'utf8'))]);
   const labels = new Set([...scripts[0].matchAll(/\bL\('([^']+)'/g)].map((m) => m[1]));
   assert.ok(labels.size > 30);
@@ -585,7 +635,7 @@ test('the page template: its script parses, every label it names exists, and it 
   for (const k of ['refresh', 'copy', 'copied', 'copy_failed']) assert.ok(labels.has(k), k);
   // A failed fetch: a mark on the feature card, with its explanation.
   assert.match(scripts[0], /const stale = data\.fetchFailed \?[^\n]*L\('fetch_failed'\)[^\n]*L\('fetch_failed_title'\)/);
-  assert.match(scripts[0], /card\.append\(add\(el\('div', 'rowline chips'\)[^\n]*\bstale\)\)/, 'the mark is on the card');
+  assert.match(scripts[0], /card\.append\(add\(el\('div', 'row chips'\)[^\n]*\bstale\)\)/, 'the mark is on the card');
   // A mark's explanation is a bubble like ⓘ, not the browser's tooltip, which a phone never shows; so a
   // dependency row is a box with its button and its marks beside it, not one button.
   assert.doesNotMatch(scripts[0], /\b[mc]\.title = /, 'a mark or chip with a browser tooltip');

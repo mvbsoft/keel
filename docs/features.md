@@ -405,6 +405,10 @@ tickets with states, research) and on a repeat run updates the same page from an
 first fetches the fresh state from the remote repository. `--lang` sets the page language,
 translations are kept. It never overwrites someone else's page. With only an API key and no
 claude.ai there will be no page.
+The page opens dark, and a switch in the header turns on the light theme; the choice is remembered in
+this browser. On the left are the feature, the ticket in work and the list of tickets, on the right the
+chosen ticket; decisions, terms, research and the Markdown file open in a window in the centre. On a
+phone a ticket opens as its own screen with a back button.
 
 **What it asks:** which feature (if there are several; it does not offer a feature from another
 branch but says to switch); which of several pages to update or create a new one; if no page was
@@ -413,9 +417,12 @@ found among the recent ones: give a link or create a new one.
 ### `/keel:usage`: usage page
 
 **What it does:** gives the link to the private "keel usage" page and opens it. The page has tabs:
-overview (week and 5 hours as a percent of the limit, forecast, costs by day and by model),
-analysis (filters and grouping by project, computer, model, agent), sessions (search, CSV export,
-the cost of each of your requests) and calibration. `off` turns off sending from this computer. `on`
+"Overview" (week and 5 hours as a percent of the limit, forecast, costs by day and by model, where
+the money went), "Analysis" (filters and grouping by project, computer, model, agent; a table and
+"Save CSV"), "Sessions" (search, filters, CSV export; a session shows the cost of each of your
+messages and, once opened, what was done: tools, agents, tokens) and "Plan limit" (what 1 % of the
+plan costs and how it is counted). The page opens dark, and a switch in the header turns on the
+light theme. `off` turns off sending from this computer. `on`
 turns it on again, and the next end of work sends what is still in Claude Code's logs (30 days by
 default). `clear` deletes this computer's data on the page. When the page is set up, at the end of
 every task, session and planning a small agent on Haiku updates it.

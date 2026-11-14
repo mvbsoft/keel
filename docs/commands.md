@@ -192,14 +192,16 @@ Done, Reviews, Git, What next, Costs. Every case: [planning](planning.md#end-kee
 
 The page is private, in your claude.ai account. On a computer it has two columns. On the left: the
 feature (its projects and the commits it is a snapshot of open on a click), the overview in short
-with buttons for its sections, decisions, terms and research; what is in progress now (else what is
-next), with a bar and the tickets' count by state; and the list of tickets by repository. On the
+with buttons for its sections, decisions, terms and research, which open in a window in the centre;
+what is in progress now (else what is next), with a bar and the tickets' count by state; and the list
+of tickets by repository. On the
 right: the chosen ticket, the one in progress at first, its sections as blocks: In plain words with
 the goal, the trap, Done when, How to check, Boundaries with Out of scope, Where to look, Why with the
 decisions it names, and Dependencies with their states (a click opens that ticket). Each block has an
 ⓘ whose hint says what it holds; "MD file" shows the file as GitHub draws it, diagrams included. On
-a phone the list comes first and a ticket opens over it. A link ending in `#API-122` opens that
-ticket.
+a phone the list comes first and a ticket opens as its own screen, with a way back. A link ending in
+`#API-122` opens that ticket. The page opens dark; a switch in the header turns on the light theme,
+and the choice is remembered in that browser ([the design system](design-system.md)).
 
 The texts are those of the md files, which stay the source; keel puts them into a fixed template and
 the page draws the markdown and code itself (libraries from cdnjs), so every feature looks the same.

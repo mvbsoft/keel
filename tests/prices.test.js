@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { tempDir } = require('./fixtures/tmp.js');
 
-const { loadPrices, priceFor, costOf, validate, diff } = require(path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'lib', 'prices.js'));
+const { loadPrices, priceFor, costOf, costKinds, validate, diff } = require(path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'lib', 'prices.js'));
 
 const entry = (match, input, extra = {}) => ({ match, input, cache_write_5m: input * 1.25, cache_write_1h: input * 2, cache_read: input * 0.1, output: input * 5, ...extra });
 const TABLE = { models: [entry('claude-opus-5', 5), entry('claude-opus-5-5', 4), entry('claude-haiku-4', 1)] };
@@ -117,6 +117,21 @@ test('long_context: a prompt (input + cache tokens) above `over` costs mult time
   assert.equal(costOf('b', { in: 1e6 }, bad), 1);
   assert.ok(validate(bad).some((w) => w.startsWith('b: long_context')));
   assert.deepEqual(validate(TABLE), []);
+});
+
+test('costKinds: dollars per token kind, summing to costOf, also above the long-context threshold; unknown model is null', () => {
+  const t = { models: [
+    { match: 'm', input: 1, cache_write_5m: 2, cache_write_1h: 3, cache_read: 4, output: 5 },
+    { match: 'lc', input: 1, cache_write_5m: 2, cache_write_1h: 3, cache_read: 4, output: 5, long_context: { over: 100, mult: 5 } },
+  ] };
+  assert.deepEqual(costKinds('m-1', { in: 1e6, cw5: 2e6, cw1h: 3e6, cr: 4e6, out: 5e6 }, t), { in: 1, cw5: 4, cw1h: 9, cr: 16, out: 25 });
+  assert.deepEqual(costKinds('m-1', { out: 1e6 }, t), { in: 0, cw5: 0, cw1h: 0, cr: 0, out: 5 }, 'missing keys count as 0');
+  assert.equal(costKinds('other', { in: 1e6 }, t), null);
+  const total = (parts) => parts.in + parts.cw5 + parts.cw1h + parts.cr + parts.out;
+  for (const [model, tok] of [['m-1', { in: 7, cw5: 11, cw1h: 13, cr: 17, out: 19 }], ['lc-1', { in: 100, out: 1000 }], ['lc-1', { in: 10, cw5: 30, cw1h: 30, cr: 31, out: 7 }]]) {
+    assert.ok(Math.abs(total(costKinds(model, tok, t)) - costOf(model, tok, t)) < 1e-12, `${model} ${JSON.stringify(tok)}`);
+  }
+  assert.deepEqual(costKinds('lc-1', { in: 101, cr: 10, out: 10 }, t), { in: 505e-6, cw5: 0, cw1h: 0, cr: 200e-6, out: 250e-6 }, 'the multiplier applies to every kind');
 });
 
 test('diff: a changed long_context is reported', () => {

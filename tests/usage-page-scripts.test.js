@@ -1,69 +1,135 @@
 'use strict';
-// The usage page's browser scripts outside the page: format.js, colors.js, load.js and demo.js each define
-// their window function and give everything index.html takes from it.
+// The usage page's separate browser scripts. index.html, format.js, charts.js, load.js and demo.js each define their window
+// function and give everything app.js takes from it.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
+const { dir, P, load } = require('./fixtures/usage-page.js');
 
-const dir = path.join(__dirname, '..', 'plugins', 'keel', 'templates', 'usage');
-const P = require(path.join(dir, 'pivot.js'));
 const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+const appSource = fs.readFileSync(path.join(dir, 'app.js'), 'utf8');
 
-// Runs a page script with only the globals given; returns its `window`.
-function load(name, globals = {}) {
-  const window = { ...(globals.window || {}) };
-  vm.runInNewContext(fs.readFileSync(path.join(dir, name), 'utf8'), { ...globals, window });
-  return window;
-}
-// The names index.html destructures from a call such as `window.KeelFormat(`.
-function taken(call) {
-  const m = new RegExp(`const \\{([^}]*)\\} = window\\.${call}\\(`).exec(html);
-  assert.ok(m, `index.html takes names from ${call}`);
+// The names app.js destructures from a helper object, e.g. `const { esc } = F;` or `... = window.KeelLoad();`.
+function taken(pattern) {
+  const m = pattern.exec(appSource);
+  assert.ok(m, `app.js takes names with ${pattern}`);
   return m[1].split(',').map((s) => s.trim()).filter(Boolean);
 }
+
+test('index.html: a fragment that loads keel.css, then style.css, then keel-theme.js before its first element; no chart library', () => {
+  // The publish tool wraps the file in its own page skeleton, so the template has none.
+  assert.doesNotMatch(html, /<!doctype|<\/?(?:html|head|body)\b|charset|name="viewport"/i);
+  assert.match(html, /^<title>keel usage<\/title>\n/);
+  const top = html.slice(0, html.indexOf('<div class="wrap">'));
+  const at = (s) => top.indexOf(s);
+  assert.ok(at('fonts.googleapis.com/css2') > 0 && at('fonts.googleapis.com/css2') < at('href="keel.css"'), 'the fonts before keel.css');
+  assert.ok(at('href="keel.css"') > 0 && at('href="keel.css"') < at('href="style.css"'), 'keel.css before style.css');
+  assert.ok(at('src="keel-theme.js"') > at('href="style.css"'), 'keel-theme.js after the styles, before the first element');
+  assert.doesNotMatch(top, /<script[^>]*\b(?:defer|async)\b/, 'keel-theme.js is a plain script');
+  assert.doesNotMatch(html, /chart\.js|chart\.umd|cdnjs|<canvas/i, 'no chart library');
+  assert.doesNotMatch(html, /<script>/, 'no inline script');
+  assert.ok(!fs.existsSync(path.join(dir, 'colors.js')), 'the colour helper file is gone');
+  assert.ok(html.indexOf('<script src="menu.js"></script>') > 0 && html.indexOf('src="menu.js"') < html.indexOf('src="app.js"'), 'menu.js is loaded before the frame uses it');
+  assert.ok(html.indexOf('<script src="calendar.js"></script>') > 0 && html.indexOf('src="calendar.js"') < html.indexOf('src="app.js"'), 'calendar.js is loaded before the frame uses it');
+  for (const f of fs.readdirSync(dir).filter((n) => /\.(js|html)$/.test(n))) {
+    assert.doesNotMatch(fs.readFileSync(path.join(dir, f), 'utf8'), /<select|<option/, `${f}: a choice is a keel menu, not a browser select`);
+    assert.doesNotMatch(fs.readFileSync(path.join(dir, f), 'utf8'), /type="date"/, `${f}: a date is a keel calendar, not the browser's date field`);
+  }
+});
 
 test('format.js: gives every helper the page takes, and follows the page language as it changes', () => {
   const { KeelFormat } = load('format.js');
   let lang = 'en';
   const F = KeelFormat(P, (key) => key, () => lang);
-  for (const name of taken('KeelFormat')) assert.ok(name in F, `format.js gives ${name}`);
+  for (const name of taken(/const \{([^}]*)\} = F;/)) assert.ok(name in F, `format.js gives ${name}`);
   assert.equal(F.fUsd(12.3), '$12.30');
   assert.equal(F.esc('<a href="x">\'&'), '&lt;a href=&quot;x&quot;&gt;&#39;&amp;');
   assert.equal(F.addDays('2026-01-31', 1), '2026-02-01');
   assert.equal(F.fMeasure(90, 'time_min'), '1.5 common.hours_short');
+  assert.equal(F.fPctAuto(34), '34 %');
+  assert.equal(F.fPctAuto(34.25), '34.3 %', 'one digit at most');
+  assert.equal(F.fSpan((2 * 1440 + 13 * 60) * 60000), '2 common.days_short 13 common.hours_short');
+  assert.equal(F.fSpan(-5), '0 common.minutes_short', 'a moment in the past is zero');
+  assert.equal(F.modelName('opus-5-5'), 'Opus 5.5');
+  assert.equal(F.modelName('claude-weird'), 'claude-weird', 'a name that is not family-version stays');
+  assert.equal(F.dimLabel('model', 'haiku-3-5'), 'Haiku 3.5');
+  assert.match(F.walletChip('api'), /class="pill api"/);
+  assert.match(F.walletChip('subscription'), /class="pill"/);
   lang = 'uk';
   assert.equal(F.fUsd(12.3), '$12,30', 'the locale is read on each call');
 });
 
-test('colors.js: gives every color helper the page takes; colors come from the CSS tokens', () => {
-  const tokens = { '--m-opus': '#a00', '--m-opus-2': '#b00', '--c1': '#111', '--muted': '#777', '--line': '#ccc', '--font-ui': 'Plex' };
-  const Chart = { defaults: { font: {}, plugins: { legend: { labels: {} } } } };
-  const { KeelColors } = load('colors.js', {
-    Chart,
-    window: { Chart },
-    document: { documentElement: {} },
-    getComputedStyle: () => ({ getPropertyValue: (n) => ` ${tokens[n] || ''} ` }),
-    matchMedia: () => ({ matches: true }),
+test('charts.js: a key keeps its series class; models by family and age, token kinds, any other dimension by index', () => {
+  const order = {};
+  const { KeelCharts } = load('charts.js');
+  const C = KeelCharts({ esc: (s) => String(s), t: (k) => k, order });
+  order.model = ['opus-5-5', 'sonnet-5-5', 'opus-4-1'];
+  assert.equal(C.seriesClass('model', 'opus-5-5'), 'opus');
+  assert.equal(C.seriesClass('model', 'opus-4-1'), 'opus-2', 'an older model of the family is the softer step');
+  assert.equal(C.seriesClass('model', 'sonnet-5-5'), 'sonnet');
+  assert.equal(C.seriesClass('model', 'fable-5-2'), 'fable');
+  assert.equal(C.seriesClass('model', 'haiku-3-5'), 'haiku', 'the only haiku loaded is the newest');
+  assert.equal(C.seriesClass('model', 'unknown'), 'm-other');
+  assert.equal(C.seriesClass('model', 'gpt-x'), 'm-other');
+  assert.deepEqual(['out', 'cw5', 'cw1h', 'cr', 'in'].map((k) => C.seriesClass('kind', k)), ['kind1', 'kind2', 'kind2', 'kind3', 'kind4']);
+  order.pc = ['office', 'laptop'];
+  assert.deepEqual([C.seriesClass('pc', 'office'), C.seriesClass('pc', 'laptop')], ['s1', 's2']);
+  const stray = C.seriesClass('pc', 'cloud');
+  assert.match(stray, /^s[1-8]$/);
+  assert.equal(C.seriesClass('pc', 'cloud'), stray, 'the same key, the same class');
+  order.project = Array.from({ length: 9 }, (_, i) => `p${i}`);
+  assert.equal(C.seriesClass('project', 'p8'), 's1', 'the ninth key starts the eight colours again');
+});
+
+test('charts.js: nice ticks, columns, bars, stack, line and tables are escaped, labelled text', () => {
+  const { KeelCharts } = load('charts.js');
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const C = KeelCharts({ esc, t: (k) => k, order: {} });
+  // The script runs in its own realm: compare plain copies.
+  const scale = (max) => JSON.parse(JSON.stringify(C.niceScale(max)));
+  assert.deepEqual(scale(33.9), { max: 40, ticks: [10, 20, 30, 40] });
+  assert.deepEqual(scale(0.3).ticks.map((v) => +v.toFixed(3)), [0.1, 0.2, 0.3, 0.4]);
+  assert.deepEqual(scale(0).ticks, [0.25, 0.5, 0.75, 1], 'nothing to draw still gives a scale');
+  assert.deepEqual(scale(10).ticks, [2.5, 5, 7.5, 10]);
+
+  const cols = [{ label: '01.11', tip: '01.11 · $4', parts: [{ cls: 'opus', value: 3 }, { cls: 'haiku', value: 1 }], pick: '2026-11-01' },
+    { label: '02.11', tip: '02.11 · $0', parts: [{ cls: 'opus', value: 0 }], pick: null }];
+  const picked = C.columns({ cols, fmt: (v) => `$${v}`, summary: 'Spend <by> day' });
+  assert.match(picked, /role="group" aria-label="Spend &lt;by&gt; day"/, 'buttons stay reachable: a group, not an image');
+  assert.match(picked, /<button type="button" class="colm" data-pick="2026-11-01" title="01.11 · \$4" aria-label="01.11 · \$4"><i class="opus" style="height:75.00%"><\/i><i class="haiku" style="height:25.00%"><\/i><\/button>/);
+  assert.match(picked, /<div class="colm" title="02.11 · \$0"><\/div>/, 'an empty day is a plain column');
+  assert.equal((picked.match(/class="y"/g) || []).length, 4, 'four y ticks');
+  assert.match(C.columns({ cols: [cols[1]], fmt: String, summary: 's' }), /role="img"/, 'nothing to press: an image');
+
+  const bars = C.bars([{ name: '<keel>', value: '$9', pct: '50 %', width: 100, pick: 'keel' }, { name: 'x', value: '$1', note: 'note', cls: 'kind1' }]);
+  assert.match(bars, /<button type="button" class="name" data-pick="keel" title="&lt;keel&gt;">&lt;keel&gt;<\/button>/);
+  assert.match(bars, /<div class="track"><i style="width:100.0%"><\/i><\/div>/);
+  assert.match(bars, /<i class="dot kind1"><\/i>x/);
+  assert.match(C.stack([{ cls: 'kind1', share: 42.34 }], 'Output 42 %'), /role="img" aria-label="Output 42 %"><i class="kind1" style="width:42.3%">/);
+  assert.match(C.legend([{ cls: 'opus', label: 'Opus 5.5' }]), /<span><i class="dot opus"><\/i>Opus 5.5<\/span>/);
+  assert.match(C.table(['A', 'B'], [['<x>', '1']]), /<th scope="col">A<\/th><th scope="col" class="r">B<\/th>[\s\S]*<td>&lt;x&gt;<\/td><td class="r">1<\/td>/);
+  assert.match(C.tableDetails(['A'], [['1']]), /^<details class="fallback"><summary>chart\.table<\/summary>/);
+
+  const svg = C.line({
+    xMin: 0, xMax: 100, yMax: 34, fmtY: (v) => `${v} %`, summary: 'Weekly',
+    xTicks: [{ x: 0, label: 'Sun' }, { x: 100, label: 'Sat' }],
+    series: [{ pts: [{ x: 0, y: 0 }, { x: 50, y: 20 }, null, { x: 60, y: 5 }, { x: 80, y: 30 }], area: true, dot: true, label: '30 % now' },
+      { pts: [{ x: 80, y: 30 }, { x: 100, y: 40 }], dashed: true }],
   });
-  const C = KeelColors();
-  for (const name of taken('KeelColors')) assert.ok(name in C, `colors.js gives ${name}`);
-  C.order.model = ['claude-opus-5-5-20260101', 'claude-opus-4-1-20250805'];
-  assert.equal(C.colorFor('model', 'claude-opus-5-5-20260101'), '#a00');
-  assert.equal(C.colorFor('model', 'claude-opus-4-1-20250805'), '#b00');
-  C.order.pc = ['office'];
-  assert.equal(C.colorFor('pc', 'office'), '#111');
-  C.chartDefaults();
-  assert.equal(Chart.defaults.color, '#777');
-  assert.equal(Chart.defaults.font.family, 'Plex');
-  assert.equal(Chart.defaults.animation, false, 'reduced motion: no animation');
+  assert.match(svg, /^<svg class="lc" viewBox="0 0 700 220" role="img" aria-label="Weekly">/);
+  assert.equal((svg.match(/class="ln"/g) || []).length, 2, 'a gap in the data breaks the line');
+  assert.equal((svg.match(/class="area"/g) || []).length, 2);
+  assert.equal((svg.match(/class="dash"/g) || []).length, 1);
+  assert.match(svg, /<circle [^>]*r="6"><\/circle><text class="end"[^>]*>30 % now<\/text>/);
+  assert.match(svg, /<text x="32" y="194" text-anchor="end">0 %<\/text>/);
+  assert.doesNotMatch(svg, /#[0-9a-f]{3,6}\b|rgb|hsl/i, 'no colour in the drawing');
 });
 
 test('load.js: gives every loader the page takes; database days are read page by page past 1000', async () => {
   const { KeelLoad } = load('load.js', { setTimeout });
   const L = KeelLoad();
-  for (const name of taken('KeelLoad')) assert.ok(name in L, `load.js gives ${name}`);
+  for (const name of taken(/const \{([^}]*)\} = window\.KeelLoad\(/)) assert.ok(name in L, `load.js gives ${name}`);
   const all = Array.from({ length: 1500 }, (_, i) => ({ id: `d${i}`, date: `2026-01-${String(1 + Math.floor(i / 50)).padStart(2, '0')}` }));
   const db = {
     collection: (name) => {
@@ -87,111 +153,60 @@ test('load.js: gives every loader the page takes; database days are read page by
 
 test('demo.js: the sample days, machines and calibrations read as the page reads its database', () => {
   const { KeelUsageDemo } = load('demo.js');
-  assert.match(html, /Object\.assign\(S, window\.KeelUsageDemo\(toMs\)\)/);
+  assert.match(appSource, /Object\.assign\(S, window\.KeelUsageDemo\(toMs\)\)/);
   const demo = KeelUsageDemo((v) => Date.parse(v));
   assert.deepEqual(Object.keys(demo).sort(), ['calibs', 'docs', 'machines']);
   const flat = P.flatten(demo.docs);
-  assert.equal(flat.sessions.length, 7);
-  assert.ok(flat.snapshots.length > 0 && flat.hours.length > 0);
   assert.deepEqual(Array.from(demo.machines, (m) => m.name), ['office', 'laptop']);
   assert.deepEqual(Array.from(demo.calibs, (c) => c.pc), ['office', 'laptop']);
+  assert.ok(flat.snapshots.length > 0 && flat.hours.length > 0);
+  // A month of use, not a few days: about 40 sessions on about three weeks of the 30 days, in four projects.
+  const days = new Set(flat.sessions.map((s) => s.date));
+  assert.ok(flat.sessions.length >= 35 && flat.sessions.length <= 45, `${flat.sessions.length} sessions`);
+  assert.ok(days.size >= 18 && days.size <= 27, `${days.size} days with work, the rest without`);
+  assert.deepEqual([...new Set(flat.sessions.map((s) => s.project))].sort(), ['keel', 'mobile-api', 'shop', 'tools']);
+  assert.deepEqual([...new Set(flat.sessions.map((s) => s.wallet))].sort(), ['api', 'subscription']);
+  assert.deepEqual([...new Set(flat.sessions.map((s) => (s.keel && s.keel.level) || 'none'))].sort(), ['basic', 'maximum', 'none', 'standard']);
+  assert.deepEqual([...new Set(flat.rows.map((r) => P.family(r.model)))].sort(), ['fable-5-2', 'haiku-5-5', 'opus-5-5', 'sonnet-5-5']);
+  assert.deepEqual([...new Set(flat.rows.filter((r) => r.kind === 'agent').map((r) => r.participant))].sort(), ['context', 'implementer', 'qa', 'reviewer', 'verifier']);
+  const fable = flat.rows.filter((r) => r.model.includes('fable')).map((r) => r.date).sort();
+  assert.ok(fable[0] >= [...days].sort()[days.size - 7], 'the newest model appears only in the last days');
+  const withDetails = flat.sessions.filter((s) => s.turns.some((x) => x.tok));
+  assert.ok(withDetails.length >= 2 && withDetails.length < flat.sessions.length, 'some sessions keep the per-message details, the rest has none');
+  const titles = flat.sessions.map((s) => s.keel && s.keel.task).filter(Boolean);
+  assert.equal(new Set(titles).size, titles.length, 'every checked session has its own title');
+  const points = demo.calibs[0].weekly.points.length + demo.calibs[0].five_hour.points.length;
+  assert.ok(points >= 18 && points <= 28, `${points} measurements`);
 });
 
-// ---- index.html: the whole page script on its own, with a stub page and a stub database ------------------------
-// Runs the page's inline script against the real pivot.js, i18n, format.js, colors.js, load.js and demo.js. Returns
-// the elements the page writes to, once the first data load has finished; `fetched` lists any network request.
-async function openPage({ db, hash = '#sessions', search = '', nav = 'en' }) {
-  const elements = {};
-  const el = (id) => elements[id] || (elements[id] = {
-    id, innerHTML: '', hidden: false, dataset: {}, setAttribute() {}, addEventListener() {}, querySelector: () => null, closest: () => null,
-  });
-  const window = { claude: { use: async (n) => (n === 'db' && db ? db : Promise.reject(new Error('no capability'))) }, addEventListener() {}, scrollTo() {} };
-  const fetched = [];
-  const root = { lang: '', getAttribute: () => null };
-  const ctx = vm.createContext({
-    window, self: window, console: { warn() {}, log() {} }, setTimeout, clearTimeout, Intl, URL,
-    document: { getElementById: el, documentElement: root, addEventListener() {}, createElement: () => ({}), body: { appendChild() {} } },
-    location: { search, hash }, history: { length: 1 }, navigator: { language: nav },
-    sessionStorage: { getItem: () => null, setItem() {} },
-    matchMedia: () => ({ matches: false, addEventListener() {} }),
-    getComputedStyle: () => ({ getPropertyValue: () => '#000' }),
-    MutationObserver: class { observe() {} },
-    fetch: async (p) => { fetched.push(p); return { ok: false, status: 404 }; },
-  });
-  for (const f of ['pivot.js', 'i18n.js', 'i18n.uk.js', 'format.js', 'colors.js', 'load.js', 'demo.js']) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, { filename: f });
-  const script = /<script>\s*([\s\S]*?)<\/script>/.exec(html)[1];
-  vm.runInContext(script, ctx, { filename: 'index.html' });
-  for (let i = 0; i < 400 && (!el('view').innerHTML || /class="loading"/.test(el('view').innerHTML)); i++) await new Promise((r) => setTimeout(r, 5));
-  return { view: () => el('view').innerHTML, banner: () => el('banner').innerHTML, fetched, window, htmlLang: () => root.lang };
-}
-
-// A database that answers the three collections and the settings document the page reads.
-function stubDb({ days = [], machines = [], calib = [], settings = null }) {
-  const snap = (arr) => ({ docs: arr.map(([id, data]) => ({ id, data: () => data })), size: arr.length });
-  return {
-    collection: (name) => {
-      const arr = name === 'days' ? days.map((d, i) => [`d${i}`, d]) : name === 'machines' ? machines : calib;
-      const q = { where: () => q, orderBy: () => q, limit: () => q, get: async () => snap(arr) };
-      return q;
-    },
-    doc: () => ({ get: async () => ({ exists: !!settings, data: () => settings }) }),
-  };
-}
-
-function fixtureDays() {
-  const { today, addDays } = load('format.js').KeelFormat(P, (k) => k, () => 'en');
-  const d = (n) => addDays(today(), -n);
-  const sess = (id, usd, date) => ({
-    id, project: 'shop', wallet: 'subscription', start: `${date}T10:00:00Z`, end: `${date}T10:30:00Z`, active_min: 5, usd, keel: null, turns: [],
-    participants: [{ kind: 'main', model: 'claude-sonnet-5-5-20260101', by_model: { 'claude-sonnet-5-5-20260101': { requests: 1, tok: { in: 1, cw5: 0, cw1h: 0, cr: 0, out: 0 }, usd } }, start: `${date}T10:00:00Z`, end: `${date}T10:30:00Z`, active_min: 5, requests: 1, tools: {}, agents_launched: 0, tok: { in: 1, cw5: 0, cw1h: 0, cr: 0, out: 0 }, usd, output_estimated: false, resumed: false }],
-  });
-  return { d, sess };
-}
-
-const totalRow = /Total · Sessions: (\d+)<\/td><td data-label="\$">\$([\d.,]+)<\/td>/;
-
-function pageFixture() {
-  const { d, sess } = fixtureDays();
-  const dbDoc = (n, sessions, synced) => ({ schema: 1, date: d(n), pc: 'office', user: 'me@x.com', part: 1, parts: 1, synced_until: synced, hours: [], snapshots: [], sessions });
-  return { d, sess, dbDoc };
-}
-
-test('index.html: shows the database days of the period; a day synced twice counts once, with the newer copy', async () => {
-  const { d, sess, dbDoc } = pageFixture();
-  const db = stubDb({ days: [dbDoc(2, [sess('a', 0.13, d(2))], `${d(2)}T23:00:00Z`), dbDoc(1, [sess('b', 0.29, d(1))], `${d(1)}T12:00:00Z`), dbDoc(1, [sess('b', 0.31, d(1))], `${d(1)}T23:00:00Z`)] });
-  const page = await openPage({ db });
-  const [, n, usd] = totalRow.exec(page.view());
-  assert.deepEqual([n, usd], ['2', '0.44'], '0.31 + 0.13');
-  assert.deepEqual(page.fetched, [], 'the page reads only its database');
+test('demo.js: the same moment gives the same month, and the weekly limit has readings over the week', () => {
+  const NOW = Date.UTC(2026, 10, 14, 13, 30);
+  class FixedDate extends Date {
+    constructor(...args) { super(...(args.length ? args : [NOW])); }
+    static now() { return NOW; }
+  }
+  const run = () => load('demo.js', { Date: FixedDate }).KeelUsageDemo((v) => Date.parse(v));
+  assert.deepEqual(JSON.parse(JSON.stringify(run())), JSON.parse(JSON.stringify(run())));
+  const flat = P.flatten(run().docs);
+  const week = flat.snapshots.filter((s) => Date.parse(s.t) > NOW - 3.6 * 864e5 && typeof s.seven_day === 'number').sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+  assert.ok(week.length >= 6, 'enough readings for a line this week');
+  assert.deepEqual(week.map((s) => s.seven_day), week.map((s) => s.seven_day).slice().sort((a, b) => a - b), 'the percentage only grows within a week');
 });
 
-test('index.html: a database that does not load shows the error', async () => {
-  const broken = { collection: () => { const q = { where: () => q, orderBy: () => q, limit: () => q, get: async () => { throw Object.assign(new Error('down'), { code: 'internal' }); } }; return q; }, doc: () => ({ get: async () => { throw new Error('down'); } }) };
-  const page = await openPage({ db: broken });
-  assert.doesNotMatch(page.view(), /Total · Sessions/);
-  assert.match(page.view(), /down/);
+test('the page scripts: a group of pills is written in one place, the frame\'s helper the views call', () => {
+  const source = (n) => fs.readFileSync(path.join(dir, n), 'utf8');
+  const scripts = fs.readdirSync(dir).filter((n) => /\.js$/.test(n));
+  assert.deepEqual(scripts.filter((n) => /class="seg/.test(source(n))), ['app.js']);
+  assert.equal(source('app.js').match(/class="seg/g).length, 1);
+  assert.deepEqual(scripts.filter((n) => /app\.seg\(/.test(source(n))).sort(), ['view-analysis.js', 'view-overview.js', 'view-sessions.js']);
 });
 
-test('index.html: a database with no data shows the empty state; without a database the page says so', async () => {
-  const emptyDb = await openPage({ db: stubDb({}), hash: '#dash' });
-  assert.match(emptyDb.view(), /No data yet/);
-  const none = await openPage({ hash: '#dash' });
-  assert.match(none.view(), /No data connection/);
-});
-
-test('index.html: ?demo=1 without a database shows the sample data', async () => {
-  const page = await openPage({ search: '?demo=1&lang=en', hash: '#sessions' });
-  assert.deepEqual(totalRow.exec(page.view()).slice(1, 2), ['7']);
-  assert.match(page.banner(), /Sample data for a layout check/);
-  assert.deepEqual(page.fetched, [], 'the demo does not touch the network');
-});
-
-test('index.html: the page language sets the texts and the html lang; a page without one keeps the browser\'s', async () => {
-  const { d, sess, dbDoc } = pageFixture();
-  const days = [dbDoc(1, [sess('a', 0.17, d(1))], `${d(1)}T23:00:00Z`)];
-  assert.equal((await openPage({ db: stubDb({ days, settings: { language: 'uk' } }), nav: 'en-US' })).htmlLang(), 'uk');
-  const page = await openPage({ db: stubDb({ days }), nav: 'uk-UA' });
-  assert.equal(page.htmlLang(), 'uk');
-  assert.doesNotMatch(page.view(), /Total · Sessions/, 'Ukrainian texts, not English');
-  assert.equal((await openPage({ db: stubDb({ days }), nav: 'en-US' })).htmlLang(), 'en');
+test('the page scripts: every text key they use is in the English texts', () => {
+  const { en } = require(path.join(dir, 'i18n.js'));
+  const used = new Set();
+  for (const f of fs.readdirSync(dir).filter((n) => /\.js$/.test(n) && !/^(i18n|pivot)/.test(n))) {
+    for (const m of fs.readFileSync(path.join(dir, f), 'utf8').matchAll(/\bt\(\s*['"`]([a-z_.0-9]+)['"`]/g)) used.add(m[1]);
+  }
+  used.delete('wallet.'); // walletName builds wallet.<name>; every wallet has its key
+  assert.deepEqual([...used].filter((k) => !(k in en)), []);
 });

@@ -64,7 +64,20 @@
             "properties": {
               "requests": { "type": "integer", "minimum": 0 },
               "tok": { "$ref": "#/$defs/tok" },
-              "usd": { "type": "number", "minimum": 0 }
+              "usd": { "type": "number", "minimum": 0 },
+              "usd_kind": {
+                "description": "The dollars split by token kind; absent when no request of the model was priced.",
+                "type": "object",
+                "required": ["in", "cw5", "cw1h", "cr", "out"],
+                "additionalProperties": false,
+                "properties": {
+                  "in": { "type": "number", "minimum": 0 },
+                  "cw5": { "type": "number", "minimum": 0 },
+                  "cw1h": { "type": "number", "minimum": 0 },
+                  "cr": { "type": "number", "minimum": 0 },
+                  "out": { "type": "number", "minimum": 0 }
+                }
+              }
             }
           }
         },

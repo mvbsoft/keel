@@ -49,14 +49,39 @@ function longContext(p) {
   return lc && typeof lc === 'object' && Number.isFinite(lc.over) && lc.over >= 0 && Number.isFinite(lc.mult) && lc.mult > 0 ? lc : null;
 }
 
-function costOf(model, tok, table) {
+// A request's cost before the division by 1e6 (prices are per million tokens): `price` is tokens x the kind's
+// price for each kind, `mult` the long-context multiplier, which applies to the whole request. Null for a model
+// with no price. costOf and costKinds both read this, so the formula exists once.
+function priced(model, tok, table) {
   const p = priceFor(model, table);
   if (!p) return null;
   const t = tok || {};
   const lc = longContext(p);
   const mult = lc && (t.in || 0) + (t.cw5 || 0) + (t.cw1h || 0) + (t.cr || 0) > lc.over ? lc.mult : 1;
-  return mult * ((t.in || 0) * p.input + (t.cw5 || 0) * p.cache_write_5m + (t.cw1h || 0) * p.cache_write_1h
-    + (t.cr || 0) * p.cache_read + (t.out || 0) * p.output) / 1e6;
+  return {
+    mult,
+    price: {
+      in: (t.in || 0) * p.input,
+      cw5: (t.cw5 || 0) * p.cache_write_5m,
+      cw1h: (t.cw1h || 0) * p.cache_write_1h,
+      cr: (t.cr || 0) * p.cache_read,
+      out: (t.out || 0) * p.output,
+    },
+  };
+}
+
+function costOf(model, tok, table) {
+  const c = priced(model, tok, table);
+  if (!c) return null;
+  const { in: i, cw5, cw1h, cr, out } = c.price;
+  return c.mult * (i + cw5 + cw1h + cr + out) / 1e6;
+}
+
+// Dollars of one request split by token kind { in, cw5, cw1h, cr, out }; they add up to costOf (to rounding).
+function costKinds(model, tok, table) {
+  const c = priced(model, tok, table);
+  if (!c) return null;
+  return Object.fromEntries(Object.entries(c.price).map(([kind, v]) => [kind, c.mult * v / 1e6]));
 }
 
 const close = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(Math.abs(a), Math.abs(b), 1e-12);
@@ -93,4 +118,4 @@ function diff(oldTable, newTable) {
   return out;
 }
 
-module.exports = { loadPrices, priceFor, costOf, validate, diff, FIELDS };
+module.exports = { loadPrices, priceFor, costOf, costKinds, validate, diff, FIELDS };

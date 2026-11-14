@@ -16,13 +16,13 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { summarizeSession } = require('./transcripts.js');
-const { loadPrices, costOf } = require('./prices.js');
+const { loadPrices, costOf, costKinds } = require('./prices.js');
 const { readSnapshots } = require('./limits.js');
 const { usageDir: defaultUsageDir, loadMachineConfig, WALLETS } = require('./usage-config.js');
 const { projectOptions } = require('./options.js');
 
 const SCHEMA = 1;
-const CACHE_VERSION = 3;           // 3: turns carry what was done after them; 2: request rows carry the message id (index 8), summaries carry `first`
+const CACHE_VERSION = 4;           // 4: by_model entries carry usd_kind (dollars per token kind); 3: turns carry what was done after them; 2: request rows carry the message id (index 8), summaries carry `first`
 const GHOST_MIN_VERSION = 2;       // an older cache of a session without a transcript still holds its message ids
 // What a turn says about the work after its message; the first thing a too big session gives up.
 const TURN_DETAIL = ['tools', 'agent_types', 'usd_agents', 'tok', 'ctx_max'];
@@ -217,6 +217,7 @@ function parse(ref, ctx, skip) {
   ctx.stats.parsed++;
   return compact(summarizeSession(ref.file, {
     cost: (model, tok) => costOf(model, tok, ctx.table),
+    costKinds: (model, tok) => costKinds(model, tok, ctx.table),
     prompts: ctx.withText,
     ...(ctx.previewChars ? { previewChars: ctx.previewChars } : {}),
     ...(skip ? { skip } : {}),
@@ -390,7 +391,9 @@ const baseName = (cwd) => String(cwd || '').split(/[\\/]/).filter(Boolean).pop()
 function sessionDoc(sum, wallet, keel, ccCost, withText = true) {
   const parts = sum.participants.map((p) => {
     const out = { ...p, usd: r6(p.usd) };
-    out.by_model = Object.fromEntries(Object.entries(p.by_model).map(([m, v]) => [m, { ...v, usd: r6(v.usd) }]));
+    out.by_model = Object.fromEntries(Object.entries(p.by_model).map(([m, v]) => [m, {
+      ...v, usd: r6(v.usd), ...(v.usd_kind ? { usd_kind: Object.fromEntries(Object.entries(v.usd_kind).map(([k, x]) => [k, r6(x)])) } : {}),
+    }]));
     return out;
   });
   return {

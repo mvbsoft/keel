@@ -105,7 +105,7 @@ Standard: по 3 прогони на зміну, Maximum — 1 прогін на
   перевіряють і комітять за тими самими правилами.
 
 <p align="center">
-  <img src="docs/images/usage-dash.png" alt="Панель витрат keel (зразкові дані)" width="720"><br>
+  <img src="docs/images/usage-overview.png" alt="Панель витрат keel (зразкові дані)" width="720"><br>
   <em>Приватна панель витрат (зразкові дані): <a href="docs/usage-dashboard.md">що вона показує</a></em>
 </p>
 

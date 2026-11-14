@@ -76,6 +76,11 @@
   "confirm.plans_word": "keel: ця команда plans.js містить слово commit або push і може запустити цей крок. Виконати її?",
 
   "page.feature": "фіча",
+  "page.brand": "Фіча",
+  "page.snapshot": "знімок {date}",
+  "page.theme": "Тема",
+  "page.theme_dark": "Темна",
+  "page.theme_light": "Світла",
   "page.draft_note": "Чернетка: тікети ще не перенесено в репозиторій, стану в них немає.",
   "page.projects": { "one": "{n} проєкт", "few": "{n} проєкти", "many": "{n} проєктів", "other": "{n} проєкту" },
   "page.as_of": "станом на {date}",
