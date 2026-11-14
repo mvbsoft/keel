@@ -120,8 +120,8 @@ column:
 4. **A question of your own** (which model costs most per hour, which project grew this month)?
    Analysis: pick the measure, the grouping and the split, narrow it with the filter chips, press a
    column or a row for its sessions, and "Save CSV" for a spreadsheet.
-5. **What did one session cost, and why?** Sessions: search or filter, press a row, then open your
-   most expensive messages to see what ran after them.
+5. **What did one session cost, and why?** Sessions: search or filter, press a row, then open the
+   messages with the longest cost bars to see what ran after them.
 6. **Are the percents right?** Plan limit: what 1 % costs, which machines have synced, and which
    measurements were kept or set aside.
 7. To show the page to someone, use Share on the page.
