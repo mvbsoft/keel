@@ -103,6 +103,29 @@ Sessions and Plan limit; the links of the earlier names, `#dash` and `#calib`, o
 limit. One period control in the header (7, 30 or 90 days, or your own range) serves Overview,
 Analysis and Sessions.
 
+![Overview tab in the light theme with sample data](images/usage-light.png)
+
+*The same Overview in the light theme.* On a phone the header, the tabs and the cards stack in one
+column:
+
+<p><img src="images/usage-phone.png" alt="Overview tab on a phone with sample data" width="300"></p>
+
+### How to use it
+
+1. Run `/keel:usage`: it gives the page's link and opens it. Any of your machines that syncs shows
+   the same page.
+2. Pick the period in the header. It applies to Overview, Analysis and Sessions.
+3. **How much of my plan is left, and where did the money go?** Overview. Press a bar of the daily
+   chart to see the sessions of that day, or a name under "Where the money went" for its sessions.
+4. **A question of your own** (which model costs most per hour, which project grew this month)?
+   Analysis: pick the measure, the grouping and the split, narrow it with the filter chips, press a
+   column or a row for its sessions, and "Save CSV" for a spreadsheet.
+5. **What did one session cost, and why?** Sessions: search or filter, press a row, then open your
+   most expensive messages to see what ran after them.
+6. **Are the percents right?** Plan limit: what 1 % costs, which machines have synced, and which
+   measurements were kept or set aside.
+7. To show the page to someone, use Share on the page.
+
 ### Overview
 
 ![Overview tab with sample data](images/usage-overview.png)
@@ -148,7 +171,9 @@ verification level and payment; group by project, PC or day; sort; save all rows
 
 ### A session page
 
-Click a session to open it. It shows the cost, duration and active time, the share of the week and of the
+![A session page with one message opened, sample data](images/usage-session.png)
+
+*Sample data.* Click a session to open it. It shows the cost, duration and active time, the share of the week and of the
 5-hour limit, turns and requests, and tokens with the cache share. Below: a timeline of the participants,
 a table per participant (model, requests, tokens, active time, dollars, share), the cost of each of your
 messages (with the start of the text when previews are on), the tools used, the keel verification (level,

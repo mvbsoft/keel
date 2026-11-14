@@ -190,57 +190,10 @@ Done, Reviews, Git, What next, Costs. Every case: [planning](planning.md#end-kee
 | `/keel:feature-page` | the same for the feature of the current branch (the feature branch or a branch of one of its tickets); none or several → asks which, offering the features this working tree holds and naming those that live only on other branches |
 | `/keel:feature-page csv-export --lang en` | the same page in English from now on |
 
-The page is private, in your claude.ai account. On a computer it has two columns. On the left: the
-feature (its projects and the commits it is a snapshot of open on a click), the overview in short
-with buttons for its sections, decisions, terms and research, which open in a window in the centre;
-what is in progress now (else what is next), with a bar and the tickets' count by state; and the list
-of tickets by repository. On the
-right: the chosen ticket, the one in progress at first, its sections as blocks: In plain words with
-the goal, the trap, Done when, How to check, Boundaries with Out of scope, Where to look, Why with the
-decisions it names, and Dependencies with their states (a click opens that ticket). Each block has an
-ⓘ whose hint says what it holds; "MD file" shows the file as GitHub draws it, diagrams included. On
-a phone the list comes first and a ticket opens as its own screen, with a way back. A link ending in
-`#API-122` opens that ticket. The page opens dark; a switch in the header turns on the light theme,
-and the choice is remembered in that browser ([the design system](design-system.md)).
-
-The texts are those of the md files, which stay the source; keel puts them into a fixed template and
-the page draws the markdown and code itself (libraries from cdnjs), so every feature looks the same.
-A feature on several repositories also shows the other repositories' tickets: read in their folders on
-this machine, else from the overview with the state unknown and a "not on this machine" mark; a
-dependency on such a ticket is unknown too. A ticket of this repository whose file is only on another
-branch is read from that branch and marked "only on branch <branch>". A dependency shows its ticket's own state and, when it
-holds the ticket back or was merged in by hand, where its code is: "ready in the <branch> feature
-branch, not in main" (on hover: wait for that merge, or pull it into your branch with `git merge`),
-"ready in the <branch> ticket branch", or "already in your branch". The page shows git as it was when
-it was built or updated: it does not update itself. keel runs `git fetch` first, so the states are
-fresh; when the fetch fails (no network, no access, or no answer within 60 s), the page is still made, keel says so, and the
-feature card marks the states as of the last fetch. Other repositories of the feature are read as they
-are on this machine, without a fetch. Its feature card says when it was built and gives
-the command that updates it, `/keel:feature-page <feature>`, with a Copy button. keel publishes it with
-the `Artifact` tool. Your conversation only finds the page and asks you what it must (which feature,
-which of several pages); building, translating and publishing run in one Sonnet agent, so the page
-does not stay in the conversation. A new page of 6 tickets translated in full cost about $0.45 in the
-agent and $0.15-0.30 in the conversation (measured; more in a longer conversation).
-
-**Language.** `--lang`, else the language the page already has, else your conversation language.
-The labels come from keel's language files (English and Ukrainian today; English for another
-language). When the page's language is not the tickets', Claude translates the texts on the page only,
-never the md files; the page keeps each translation with a fingerprint of its original, so the next
-update translates only what changed. Translating costs tokens; the same language costs nothing extra.
-
-The page is titled `[API, WEB] - <the overview's heading> (3f9a2c1b)`: the ticket prefixes of the
-repositories with tickets, the heading (cut to 80 characters) and the feature's code. The code is
-random, made once with the draft (`page:` in `plan.md`) and written by the export into every ticket
-of the feature, so it travels with the feature in git: every machine and every repository of the
-feature finds the same page, whether or not the other repositories are on that machine or have a
-remote, and two projects with the same prefix and feature name never share a page. keel looks the
-page up among your latest 200 by the code at the end
-of its title and updates it, renaming it when the heading or the repositories changed. A feature
-exported before the code gets one, written into its tickets in this working tree: commit and push
-them. Not found while you have more → keel asks for its link or makes a new one. A path of this machine in the feature's files (a ticket, the overview, a report) is never
-published: keel names each one and stops; write it from the repository's root. Nothing is kept on this machine: the
-page is built in `.keel/local/tmp/` and removed after publishing. It needs Claude Code signed in to a
-claude.ai account; with an API key there is no page. The run's own cost is the last line of its report.
+A private page in your claude.ai account: the feature's overview, decisions, terms and research,
+what is in progress, and every ticket with its state and dependencies, in your language. It shows git as
+it was when it was built: run the command again to update it. What is on the page, how to use it, how it
+is built and what it costs, with screenshots: [The feature page](feature-page.md).
 
 ## `/keel:cleanup`
 
