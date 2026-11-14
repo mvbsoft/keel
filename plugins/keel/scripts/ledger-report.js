@@ -75,7 +75,7 @@ function lastPerAgent(entries) {
 
 function main(argv) {
   const { opts, pos } = parseArgs(argv);
-  const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || '.');
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   let since = typeof opts.since === 'string' ? opts.since : null;
   if (!since) { const run = readJson(localDir(root, 'tmp', 'verify-run.json')); since = run ? run.started : null; }
   let lines = [];

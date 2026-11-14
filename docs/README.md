@@ -1,7 +1,5 @@
 # keel documentation
 
-[Українська](README.uk.md)
-
 keel is a plugin that plans, builds and independently verifies your work. Today it runs in Claude Code;
 support for other coding agents is planned. The project overview is in the [main README](../README.md).
 
@@ -13,6 +11,7 @@ Where to start: read [How keel works](overview.md) for the whole picture, follow
 | Page | What you find there |
 |---|---|
 | [How keel works](overview.md) | The whole system on one page: the three lanes (tasks, sessions, planning), starting and ending work, the report, the handoff, verification, delegation, git, what runs in the background. |
+| [What keel 2.0 does](features.md) ([українською](features.uk.md)) | A short, complete list: what each command does, what runs by itself, and which questions keel asks in which cases. |
 | [Install](install.md) | Requirements, installing and install scopes, where keel acts and what it changes, updating and removing keel, troubleshooting. |
 | [Getting started](getting-started.md) | A walkthrough: set up a project, run a first task, hand a task off, continue long work, plan a feature first, clean up. |
 
@@ -21,7 +20,8 @@ Where to start: read [How keel works](overview.md) for the whole picture, follow
 | Page | What you find there |
 |---|---|
 | [Ways of working](workflows.md) | Tasks, sessions and planning: when to use which, every case as "you type → keel does", the final report, the task list, the handoff format, where the files live, git. |
-| [How keel behaves](behavior.md) | What keel does in each situation and what guarantees it: Claude Code's confirmations, script guards, the Stop hook, the behaviour tests; `claude -p` and bypass mode; what is not guaranteed. |
+| [Planning](planning.md) | Planning a feature before the code: starting and ending, a feature on several repositories, the export, ticket states, editing an exported feature, the end of a feature. |
+| [How keel behaves](behavior.md) | What keel does in each situation and what guarantees it: Claude Code's confirmations, script guards, the Stop hooks, the behaviour tests; `claude -p` and bypass mode; what is not guaranteed. |
 | [Verification](verification.md) | The four levels: who checks what, how a level is proposed, the report, what it costs, which to choose. |
 | [Cost optimization](cost-optimization.md) | Spending less without losing quality: model choice, levels, compaction, delegation. |
 
@@ -32,6 +32,7 @@ Where to start: read [How keel works](overview.md) for the whole picture, follow
 | [Commands](commands.md) | Every command, how to call it and what happens in each case. |
 | [Settings](settings.md) | Every setting, its values, defaults and where it is stored, with example configurations. |
 | [Usage dashboard](usage-dashboard.md) | The cost report, the "keel usage" page, plan-limit percentages, what leaves your machine. |
+| [Design system](design-system.md) | The one look of every keel page: the theme, every colour token, the type, the shared components, and how to change the style. |
 
 ## Under the hood
 

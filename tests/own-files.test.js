@@ -151,6 +151,12 @@ test('the project argument must be the current project; usage.js writes only und
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project .`, 'Bash', env, proj), null, 'a relative --project');
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project "${proj}" --keel "${proj}/credentials.json"`, 'Bash', env), null);
   assert.equal(shell(`node "${SCRIPTS}/usage.js" prepare --project "${proj}" --keel "${home}/.aws/credentials.json"`, 'Bash', env), null);
+  // The audit's --page folder is read only from the project's .keel/local/ too.
+  assert.equal(shell(`node "${SCRIPTS}/usage.js" audit --project "${proj}" --page "${proj}/.keel/local/usage/audit"`, 'Bash', env), 'allow');
+  assert.equal(shell(`node "${SCRIPTS}/usage.js" audit --project "${proj}" --page "${home}/.ssh"`, 'Bash', env), null);
+  // Turning this machine's sync on or off changes a machine setting: left to Claude Code's own prompt.
+  for (const v of ['on', 'off']) assert.equal(shell(`node "${SCRIPTS}/usage-setup.js" "${proj}" sync ${v}`, 'Bash', env), null, v);
+  assert.equal(shell(`node "${SCRIPTS}/usage-setup.js" "${proj}" show`, 'Bash', env), 'allow');
 });
 
 test('Glob and Grep are allowed only inside keel\'s folder', () => {
@@ -201,7 +207,8 @@ test('a step that must be confirmed is refused when keel\'s script is named by a
 test('keel\'s library run directly (its functions drop or delete without the step scripts) is refused', () => {
   const proj = project({ mode: 'manual' });
   const env = { CLAUDE_PROJECT_DIR: proj };
-  for (const lib of [`${SCRIPTS}/lib/tasks.js`, `${SCRIPTS}/./lib/tasks.js`, `${SCRIPTS}//lib/tasks.js`, '$CLAUDE_PLUGIN_ROOT/scripts/lib/tasks.js', '${CLAUDE_PLUGIN_ROOT}/scripts/lib/trash.js', '~/.claude/plugins/cache/keel/keel/1.0.0/scripts/lib/tasks.js']) {
+  for (const lib of [`${SCRIPTS}/lib/tasks.js`, `${SCRIPTS}/./lib/tasks.js`, `${SCRIPTS}//lib/tasks.js`, '$CLAUDE_PLUGIN_ROOT/scripts/lib/tasks.js', '${CLAUDE_PLUGIN_ROOT}/scripts/lib/trash.js', '~/.claude/plugins/cache/keel/keel/1.0.0/scripts/lib/tasks.js',
+    '~/.claude/plugins/cache/keel/keel/1.0.0/scripts/lib/tasks-store.js', '~/.claude/plugins/cache/keel/keel/1.0.0/scripts/lib/tasks-markers.js']) {
     assert.equal(shell(`node -e "require('${lib}').taskDrop('${proj}', 'X-1')"`, 'Bash', env), 'deny', lib);
     assert.equal(shell(`node --eval "require(\\"${lib}\\")"`, 'Bash', env), 'deny', lib);
   }
@@ -427,6 +434,48 @@ test('PowerShell reads the en dash, em dash and horizontal bar as a dash too, an
   // `-a: -b:commit` reaches node as -a:, -b: and commit.
   assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find -a: x`, 'PowerShell', env), 'deny', 'PowerShell: -a:');
   assert.equal(shell(`node "${SCRIPTS}/plans.js" "${proj}" find -a: x`, 'Bash', env), 'allow', 'Bash: -a:');
+});
+
+test('plans.js commit and push name their repository: the project, or --repo\'s folder from the project\'s repos map; never another project', () => {
+  const proj = project({ mode: 'autonomous' });
+  fs.mkdirSync(path.join(proj, '.keel', 'local', 'plans', 'keel'), { recursive: true });
+  fs.writeFileSync(path.join(proj, '.keel', 'local', 'plans', 'keel', 'settings.json'), JSON.stringify({ repos: { WEB: '/work/web' } }));
+  const env = { CLAUDE_PROJECT_DIR: proj };
+  const reason = (args, tool) => hook(tool, { command: `node "${SCRIPTS}/plans.js" "${proj}" ${args}` }, env);
+  for (const tool of ['Bash', 'PowerShell']) {
+    let out = reason('commit csv-export', tool);
+    assert.equal(out?.permissionDecision, 'ask', tool);
+    assert.equal(out.permissionDecisionReason, `keel: commit the planning files in ${proj}?`, tool);
+    out = reason('commit csv-export --repo WEB', tool);
+    assert.equal(out?.permissionDecision, 'ask', tool);
+    assert.equal(out.permissionDecisionReason, 'keel: commit the planning files in WEB (/work/web)?', tool);
+    out = reason('push csv-export --repo web', tool);
+    assert.equal(out.permissionDecisionReason, 'keel: push the branch with the planning files of WEB (/work/web) to the remote?', tool);
+    assert.equal(reason('push csv-export --repo MOB', tool).permissionDecisionReason, 'keel: push the branch with the planning files of MOB (no folder in the repos map) to the remote?', tool);
+    // The other repository is reached only through this project: named directly, it is refused.
+    assert.equal(shell(`node "${SCRIPTS}/plans.js" "/work/web" commit csv-export`, tool, env), 'deny', tool);
+  }
+});
+
+test('plans.js commit --repo with this project\'s own prefix names the project, as the script runs there', () => {
+  const proj = project({ mode: 'autonomous' });
+  fs.writeFileSync(path.join(proj, '.keel', 'config.json'), JSON.stringify({
+    schema_version: 1,
+    repo_language: 'en',
+    gates: { checks: [], security_scanners: [] },
+    git: { mode: 'autonomous', main_branch: 'main', ask_before_merge: true, state_in_git: true },
+    verification: {
+      tier_rules: { gates_only_max_files: 1, basic_max_modules: 1, large_change_lines: 400, very_large_change_lines: 1000 },
+      verifier_caps: { basic: 3, standard: 5, maximum: 8 },
+    },
+    architecture: { file_lines_warn: 700, file_lines_max: 1000 },
+    docs: { profile: 1, pattern: 'none' },
+    planning: { ticket_prefix: 'API', tickets: 'repo' },
+  }));
+  fs.mkdirSync(path.join(proj, '.keel', 'local', 'plans', 'keel'), { recursive: true });
+  fs.writeFileSync(path.join(proj, '.keel', 'local', 'plans', 'keel', 'settings.json'), JSON.stringify({ repos: { API: '/work/elsewhere' } }));
+  const out = hook('Bash', { command: `node "${SCRIPTS}/plans.js" "${proj}" commit csv-export --repo api` }, { CLAUDE_PROJECT_DIR: proj });
+  assert.equal(out.permissionDecisionReason, `keel: commit the planning files in ${proj}?`);
 });
 
 test('plans.js commit or push anywhere in its command is never silent: refused off the current project, asked on it', () => {

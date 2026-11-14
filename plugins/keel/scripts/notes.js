@@ -8,10 +8,11 @@
 // to keel's trash. Never fetches: "behind" is as of the last fetch. Never prints a task
 // file's text beyond the fields `tasks` lists (lib/tasks.js).
 // Usage: node notes.js <projectDir> <command>
-//   check [--begin] [--session <id>]   presence and size of each file (limit LIMIT lines: the note,
-//            memory and every task.md in this working tree), whether the note is behind the
-//            repository, the unfinished tasks, the session's active task, where this session started,
-//            the next session log name
+//   check [--begin] [--session <id>]   presence and size of each file (limit LIMIT lines or CHAR_LIMIT
+//            characters: the note, memory and every task.md in this working tree), whether the note is
+//            behind the repository, the unfinished tasks, the session's active task, where this session
+//            started, the next session log name, `head:` (the short HEAD commit, in a repository with
+//            commits) and `today:` (the local date task files use), for the note's after_commit and date
 //   --begin  also record the current commit as this session's start (used by end-task/end-session
 //            to verify all the work, also when it was committed along the way) and the untracked
 //            files that are there now (changes.js leaves them out unless they change); an unfinished
@@ -19,9 +20,12 @@
 //   tasks [--session <id>]             the unfinished tasks (this working tree and every branch), one block each
 //   lane <key or link>                 which lane leads a key: a task (start-task), the note (start-session),
 //                                      both (conflict) or none; a link counts with the tracker key in it
-//   task new <id> --title <t> --source <s> [--link <l>] [--session <id>]   the folder and task.md, status active,
-//                                      started: the HEAD commit; refused for a key the note names (that lane
-//                                      is the session's)
+//   task new <id> --title <t> --source <s> [--link <l>] [--session <id>] [--branch <b>] [--base <b>]
+//            [--merge-into <b>] [--execution here|delegate|fresh] [--plan-file <path>]
+//                                      the folder and task.md, status active, started: the HEAD commit;
+//                                      the options fill the front matter (branch names are checked with git);
+//                                      --plan-file copies a text file of up to 200 KB in as plan.md;
+//                                      refused for a key the note names (that lane is the session's)
 //   task active --session <id>         the session's active task
 //   task activate <id> --session <id>  mark a task active for the session (status active)
 //   task deactivate --session <id>     the session works on no task
@@ -41,13 +45,16 @@ const tasks = require('./lib/tasks.js');
 const { localLink, safeLocalWrite } = require('./lib/safe-path.js');
 
 const LIMIT = 150;
+// 150 lines of about 80 characters: a few long lines cannot get past the line limit.
+const CHAR_LIMIT = 12000;
 const NOTE = 'next-session.md';
 const MEMORY = path.join('memory', 'project-memory.md');
 const START = path.join('local', 'session-start.json');
 const MAX_IDS = 8;
 
 const lineCount = (text) => text.replace(/\r?\n$/, '').split(/\r?\n/).length;
-const size = (text) => `${lineCount(text)} / ${LIMIT} lines${lineCount(text) > LIMIT ? ' - over the limit' : ''}`;
+const over = (text) => lineCount(text) > LIMIT || text.length > CHAR_LIMIT;
+const size = (text) => `${lineCount(text)} / ${LIMIT} lines, ${text.length} / ${CHAR_LIMIT} characters${over(text) ? ' - over the limit' : ''}`;
 
 // The commit the note describes: the last commit that changed the note when it is committed as it is
 // now, else the note's own `after_commit` field.
@@ -102,8 +109,11 @@ function check(root, begin, session) {
   out.push(tasks.summaryLine(open, MAX_IDS));
   const here = tasks.treeTasks(root);
   if (here.length) {
-    const over = here.filter((t) => lineCount(t.text) > LIMIT).map((t) => `${t.id} (${lineCount(t.text)} lines)`);
-    out.push(`task files: ${here.length} in this working tree; over the limit of ${LIMIT} lines: ${over.join(', ') || 'none'}`);
+    const named = here.filter((t) => over(t.text)).map((t) => {
+      const what = [lineCount(t.text) > LIMIT && `${lineCount(t.text)} lines`, t.text.length > CHAR_LIMIT && `${t.text.length} characters`].filter(Boolean);
+      return `${t.id} (${what.join(', ')})`;
+    });
+    out.push(`task files: ${here.length} in this working tree; over the limit of ${LIMIT} lines or ${CHAR_LIMIT} characters: ${named.join(', ') || 'none'}`);
   }
   if (session !== undefined) {
     const active = tasks.activeTask(root, session);
@@ -145,6 +155,9 @@ function check(root, begin, session) {
     }
   } catch { /* none yet */ }
   out.push(`next session log: .keel/sessions/${day}-${String(n + 1).padStart(3, '0')}.md`);
+  const short = head ? git(root, ['rev-parse', '--short', 'HEAD']) : null;
+  if (short) out.push(`head: ${short}`);
+  out.push(`today: ${day}`);
   return out;
 }
 
@@ -223,7 +236,7 @@ function taskCommand(root, pos, opts) {
     const keys = new Set([...(typeof id === 'string' ? laneKeys(id) : []), ...(given(opts.link) ? laneKeys(opts.link) : [])]);
     const named = noteKeys(root).find((k) => overlap(laneKeys(k), keys));
     if (named) return ['notes: task new refused (the note .keel/next-session.md names ' + clean(named) + ': /keel:start-session leads it; lanes never mix)'];
-    return tasks.taskNew(root, id, { title: opts.title, source: opts.source, link: opts.link, session });
+    return tasks.taskNew(root, id, { title: opts.title, source: opts.source, link: opts.link, session, branch: opts.branch, base: opts.base, mergeInto: opts['merge-into'], execution: opts.execution, planFile: opts['plan-file'] });
   }
   if (sub === 'active') {
     const active = tasks.activeTask(root, session);
@@ -242,7 +255,7 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const root = require('./lib/project-dir.js').scriptProject(pos[0]);
     const command = pos[1] || 'check';
     const session = typeof opts.session === 'string' ? opts.session : undefined;
     if (command === 'check') lines = check(root, opts.begin === true || typeof opts.begin === 'string', session);

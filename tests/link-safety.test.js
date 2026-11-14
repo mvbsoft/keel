@@ -112,7 +112,7 @@ test('a folder link below .keel/local is never written, moved or removed through
   const out = tmp('keel-out-usage-');
   write(out, 'kept.json', '{}');
   link(out, path.join(dir, '.keel', 'local', 'usage', 'out'));
-  const usage = spawnSync(process.execPath, [path.join(SCRIPTS, 'usage.js'), 'prepare', '--project', dir], { encoding: 'utf8', env: { ...process.env, KEEL_USAGE_DIR: tmp('keel-u-'), KEEL_PROJECTS_DIR: tmp('keel-p-') } });
+  const usage = spawnSync(process.execPath, [path.join(SCRIPTS, 'usage.js'), 'prepare', '--project', dir, '--artifact', 'https://claude.ai/artifact/x'], { encoding: 'utf8', env: { ...process.env, KEEL_USAGE_DIR: tmp('keel-u-'), KEEL_PROJECTS_DIR: tmp('keel-p-') } });
   assert.match(usage.stdout, /usage: error: .*usage\/out is a link/);
   assert.deepEqual(listed(out), ['kept.json']);
 });

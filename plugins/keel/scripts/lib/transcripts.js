@@ -14,6 +14,9 @@ const CHARS_PER_TOKEN = 4;
 const SESSION_FILE = /\.jsonl$/;
 const NOT_A_PROMPT = ['<local-command-stdout>', '<local-command-caveat>',
   '<task-notification>', '<system-reminder>', '[Request interrupted by user'];
+// The desktop app puts notes such as "Linked sessions now" before the user's own words. Only stripped when
+// something follows, so a row that is only a reminder still starts with one and is not a prompt.
+const LEADING_REMINDERS = /^(?:\s*<system-reminder>[\s\S]*?<\/system-reminder>)+\s*(?=\S)/;
 
 function redact(text) {
   let s = String(text == null ? '' : text);
@@ -68,13 +71,13 @@ function promptText(content) {
 }
 
 // A real user prompt: not a tool result, meta row, compact summary, command output or notification
-// wrapper. A slash command is one, returned as { text, command: true }.
+// wrapper; leading system reminders are not part of it. A slash command is one, returned as { text, command: true }.
 function promptOf(row, requireMain) {
   if (row.type !== 'user' || row.isMeta || row.isCompactSummary) return null;
   if (requireMain && row.isSidechain) return null;
   const c = row.message && row.message.content;
   if (Array.isArray(c) && c.length && c.every((b) => b && b.type === 'tool_result')) return null;
-  const text = promptText(c);
+  const text = promptText(c).replace(LEADING_REMINDERS, '');
   const head = text.trimStart();
   if (NOT_A_PROMPT.some((p) => head.startsWith(p))) return null;
   // A slash command arrives wrapped: its turn reads as the user typed it, "/name args".
@@ -127,7 +130,7 @@ function scanFile(file, requireMain, skip) {
     if (m && m.role === 'assistant' && m.id) {
       replied = true;
       let e = r.msgs.get(m.id);
-      if (!e) { e = { t: Number.isFinite(t) ? t : null, usage: null, model: null, chars: 0, tools: {}, launched: 0 }; r.msgs.set(m.id, e); }
+      if (!e) { e = { t: Number.isFinite(t) ? t : null, usage: null, model: null, chars: 0, tools: counter(), launched: 0 }; r.msgs.set(m.id, e); }
       if (e.t == null && Number.isFinite(t)) e.t = t;
       if (m.usage) e.usage = m.usage;
       if (m.model) e.model = m.model;
@@ -169,16 +172,34 @@ function addTok(a, b) {
 
 const zeroTok = () => ({ in: 0, cw5: 0, cw1h: 0, cr: 0, out: 0 });
 
+const TOP_TOOLS = 6;
+const TOP_AGENT_TYPES = 4;
+
+// Tool names and agent types come from the logs and can be any word, `constructor` or `__proto__` included:
+// an object with no prototype counts them like any other name. Everything that leaves this file is made
+// plain again (plain()).
+const counter = () => Object.create(null);
+const plain = (counts) => Object.fromEntries(Object.entries(counts));
+
+// {name: count} of the most used names, most used first (ties by name), at most n; the rest summed as "other".
+function topCounts(counts, n) {
+  const all = Object.entries(counts).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+  const top = Object.fromEntries(all.slice(0, n));
+  const rest = all.slice(n).reduce((sum, x) => sum + x[1], 0);
+  if (rest) top.other = (top.other || 0) + rest;
+  return top;
+}
+
 function readMeta(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')) || {}; } catch { return {}; }
 }
 
 // Builds a participant and its request rows from a scanned file.
-function participant(scan, base, cost, unpriced) {
+function participant(scan, base, cost, costKinds, unpriced) {
   const p = {
     kind: base.kind, ...(base.kind === 'agent' ? { agent_id: base.agent_id } : {}), type: base.type,
     model: null, by_model: {}, start: null, end: null, active_min: activeMinutes(scan.ts), requests: 0,
-    tools: {}, agents_launched: 0, tok: zeroTok(), usd: 0, output_estimated: false,
+    tools: counter(), agents_launched: 0, tok: zeroTok(), usd: 0, output_estimated: false,
     resumed: base.kind === 'agent' ? scan.afterReply : 0,
   };
   if (scan.ts.length) {
@@ -196,21 +217,32 @@ function participant(scan, base, cost, unpriced) {
     const bm = p.by_model[model] || (p.by_model[model] = { requests: 0, tok: zeroTok(), usd: 0 });
     bm.requests++;
     addTok(bm.tok, tok);
-    if (known) { bm.usd += usd; p.usd += usd; }
+    if (known) {
+      bm.usd += usd;
+      p.usd += usd;
+      const kinds = costKinds(model, tok);
+      if (kinds) {
+        // dollars by token kind have the same five keys as the tokens, so the token helpers hold and add them
+        bm.usd_kind = bm.usd_kind || zeroTok();
+        addTok(bm.usd_kind, kinds);
+      }
+    }
     addTok(p.tok, tok);
     p.requests++;
     if (estimated) p.output_estimated = true;
     for (const [name, n] of Object.entries(e.tools)) p.tools[name] = (p.tools[name] || 0) + n;
     p.agents_launched += e.launched;
-    rows.push({ id, t: e.t, model, tok, usd: known ? usd : null });
+    rows.push({ id, t: e.t, model, tok, usd: known ? usd : null, tools: e.tools });
   }
   let best = 0;
   for (const [model, bm] of Object.entries(p.by_model)) if (bm.requests > best) { best = bm.requests; p.model = model; }
+  p.tools = plain(p.tools);
   return { p, rows };
 }
 
 function summarizeSession(mainFile, opts = {}) {
   const cost = opts.cost || (() => null);
+  const costKinds = opts.costKinds || (() => null);
   const withText = opts.prompts !== false;
   const previewChars = opts.previewChars || 100;
   const id = path.basename(mainFile).replace(/\.jsonl$/, '');
@@ -219,7 +251,7 @@ function summarizeSession(mainFile, opts = {}) {
   const skip = opts.skip && opts.skip.size ? opts.skip : null;
   const main = scanFile(mainFile, true, skip);
   const parts = [];
-  const mainPart = participant(main, { kind: 'main', type: 'main' }, cost, unpriced);
+  const mainPart = participant(main, { kind: 'main', type: 'main' }, cost, costKinds, unpriced);
   parts.push(mainPart);
 
   const agentsDir = path.join(path.dirname(mainFile), id, 'subagents');
@@ -235,7 +267,7 @@ function summarizeSession(mainFile, opts = {}) {
       base: { kind: 'agent', agent_id: m[1], type: meta.agentType || 'unknown' } });
   }
   agents.sort((a, b) => a.startMs - b.startMs || (a.base.agent_id < b.base.agent_id ? -1 : 1));
-  for (const a of agents) a.built = participant(a.scan, a.base, cost, unpriced);
+  for (const a of agents) a.built = participant(a.scan, a.base, cost, costKinds, unpriced);
   for (const a of agents) parts.push(a.built);
 
   const allTs = main.ts.concat(...agents.map((a) => a.scan.ts));
@@ -266,27 +298,49 @@ function summarizeSession(mainFile, opts = {}) {
     if (t != null && (lead.t == null || t < lead.t)) lead.t = t;
     return lead;
   };
+  // What was done after each message: the tools of every request (main and agents), the agents started, the
+  // tokens (as a participant's tok), and the largest context one main request read. Left out where empty.
+  const details = new Map();
+  const detailOf = (turn) => {
+    if (!details.has(turn)) details.set(turn, { tools: counter(), types: counter(), usdAgents: 0, tok: zeroTok(), ctxMax: 0 });
+    return details.get(turn);
+  };
+  const addRequest = (turn, r, isMain) => {
+    turn.requests++;
+    if (r.usd != null) turn.usd += r.usd;
+    const d = detailOf(turn);
+    addTok(d.tok, r.tok);
+    for (const [name, n] of Object.entries(r.tools)) d.tools[name] = (d.tools[name] || 0) + n;
+    if (isMain) d.ctxMax = Math.max(d.ctxMax, r.tok.in + r.tok.cw5 + r.tok.cw1h + r.tok.cr);
+    else if (r.usd != null) d.usdAgents += r.usd;
+  };
   // Main requests by their own time, agent requests by the agent's start.
   parts.forEach((x, i) => {
     if (i === 0) {
-      for (const r of x.rows) {
-        const turn = turnFor(r.t);
-        turn.requests++;
-        if (r.usd != null) turn.usd += r.usd;
-      }
+      for (const r of x.rows) addRequest(turnFor(r.t), r, true);
       return;
     }
     const startT = agents[i - 1].startMs;
     const turn = turnFor(Number.isFinite(startT) ? startT : null);
     turn.agents++;
-    for (const r of x.rows) {
-      turn.requests++;
-      if (r.usd != null) turn.usd += r.usd;
-    }
+    const d = detailOf(turn);
+    d.types[x.p.type] = (d.types[x.p.type] || 0) + 1;
+    for (const r of x.rows) addRequest(turn, r, false);
   });
+  const withDetails = (turn) => {
+    const { command, ...out } = turn;
+    const d = details.get(turn);
+    if (!d || !turn.requests) return out;
+    if (Object.keys(d.tools).length) out.tools = topCounts(d.tools, TOP_TOOLS);
+    if (turn.agents) out.agent_types = topCounts(d.types, TOP_AGENT_TYPES);
+    if (d.usdAgents) out.usd_agents = d.usdAgents;
+    out.tok = d.tok;
+    if (d.ctxMax) out.ctx_max = d.ctxMax;
+    return out;
+  };
   // A command the model never answered (/clear, /usage) is not a turn.
   const outTurns = (lead.requests || lead.agents ? [lead] : []).concat(turns.filter((x) => !x.command || x.requests || x.agents))
-    .map(({ command, ...x }) => x);
+    .map(withDetails);
 
   // keel's workflow commands typed in this session: only such sessions go to the usage page in detail.
   const keelCommands = [...new Set(main.prompts.filter((x) => x.command).map((x) => (KEEL_COMMAND.exec(x.text) || [])[1]).filter(Boolean))];

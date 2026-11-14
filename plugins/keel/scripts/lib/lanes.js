@@ -20,7 +20,7 @@ function refusal(project, sid, name, env = process.env) {
     if (feature) return { key: 'lane.planning', vars: { feature, command: name } };
   }
   if (TASK_REFUSES.has(name)) {
-    const task = require('./tasks.js').activeTask(project, sid);
+    const task = require('./tasks.js').sessionMarker(project, sid);
     if (task) return { key: 'lane.task', vars: { id: task.id, command: name } };
   }
   return null;

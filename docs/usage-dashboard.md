@@ -1,14 +1,12 @@
 # Cost report and the "keel usage" page
 
-[Українська](usage-dashboard.uk.md)
-
 keel shows what a session cost at the end of every `/keel:end-task`, `/keel:end-session` and
 `/keel:end-planning`. It can also collect the numbers of all your machines into one private page, "keel
 usage", in your own claude.ai account. On a subscription it estimates how many percent of your plan limits a
 session used. Everything is read from Claude Code's own local logs, so collecting the numbers costs nothing;
 only writing them to the page costs a little (see [syncing](#syncing-between-machines)). This page explains
 the report, the page, where the data comes from, what leaves your machine and what never does. On this page
-a *session* is one Claude Code conversation, as the dashboard calls it, not keel's long-work lane.
+a *session* is one Claude Code conversation, as the page calls it, not keel's long-work lane.
 
 ## The cost report
 
@@ -94,34 +92,48 @@ session's share is its dollars divided by the rate.
 
 ## The "keel usage" page
 
-`/keel:configure usage` can create the page (it asks first), and later [update it](#updating-the-page) to a
-newer keel's page. It is private: only you see it, unless you
-share it. `/keel:usage` gives its link and opens it. Its tabs follow. The screenshots show sample data, not real numbers.
+`/keel:configure usage` can create the page (it asks first, and only for an account that has one: see
+[which accounts get what](#which-accounts-get-what)), and later [update it](#updating-the-page) to a
+newer keel's page. It is private: only you see it, unless you share it. `/keel:usage` gives its link and opens it. Its tabs follow. The screenshots show sample data, not real numbers.
 
-### Dashboard
+The page has the look of every keel page ([the design system](design-system.md)). It opens dark; a switch
+in the header turns on the light theme, and the choice is remembered in that browser for that page. The
+charts are drawn by the page itself, so no chart library is loaded. The tabs are Overview, Analysis,
+Sessions and Plan limit; the links of the earlier names, `#dash` and `#calib`, open Overview and Plan
+limit. One period control in the header (7, 30 or 90 days, or your own range) serves Overview,
+Analysis and Sessions.
 
-![Dashboard tab with sample data](images/usage-dash.png)
+### Overview
 
-*Sample data.* A period selector (7, 30, 90 days or custom). Tiles: this week (percent of the weekly
-limit, dollars, reset time), the forecast at reset (information only), the 5-hour limit now, and the plan
-limit rate (1 % in dollars, median of n points). Charts: daily spend by model, the weekly limit over time
-with the forecast, main conversation versus agents, token kinds and top projects, and spend by user when
-the period has more than one user. If no session in the period pays from a subscription (all pay with an
-API key or credit, or their wallet is unknown), the plan tiles and the weekly chart are replaced by the
-dollars spent, a tile for each of up to 3 users and the spend by user. Dollars and charts count keel
-sessions only; the limit percentages are those of your whole account, as Claude Code counts them.
+![Overview tab with sample data](images/usage-overview.png)
+
+*Sample data.* The plan limit of the week: the percent used, when it resets, the forecast at reset
+(information only), the 5-hour window, what those percents would cost at API prices, and what 1 %
+costs in dollars. Then what was spent in the
+period (sessions, hours of work, your messages), daily columns split by model, where the money went
+(by project, model, who (main conversation or agents), machine or user), the most expensive sessions and
+the spend by token kind (the tokens by kind for a period whose sessions were all sent before keel kept the
+dollars by kind; when only some were, a line under the card says how many of the period's dollars it
+leaves out). If no session in the period pays from a subscription (all pay with an API key or
+credit, or their wallet is unknown), the page says there is no plan limit for that wallet: real money,
+no percents. Dollars and
+charts count keel sessions only; the limit percentages are those of your whole account, as Claude Code
+counts them.
 
 ### Analysis
 
 ![Analysis tab with sample data](images/usage-analysis.png)
 
-*Sample data.* Filter by date range, PC, user, project, wallet, participant and model. Group by day, week,
-project, PC, user, participant, model or hour of day; color by model, PC, project or participant; measure
-dollars, tokens (all or by kind), time, requests, your turns or sessions. Click a bar or a row to see its
-sessions. Below the chart are totals, and "More": cache share of input, dollars per hour, dollars per
-turn, average session, agents launched and tool calls.
+*Sample data.* The controls read as one sentence: show a measure (dollars, tokens, all or by kind,
+hours of work, requests, your messages or sessions) by a grouping (day, week, project, PC, user,
+participant, model or hour of day), colored by a split. Filters (project, PC, model, participant, user,
+payment, which is the [wallet](#wallets)) are chips; the date range is the period control. Under them are six tiles (spent, sessions, hours of work, tokens with
+the cache share, model requests, your messages) and, at the bottom, a "More" card (dollars per hour of
+work, average active time of a session, agents launched and tool calls). The
+chart is followed by the same numbers as a table with two sets of columns, and "Save CSV" saves it. A
+click on a column or a row opens its sessions.
 
-On the Dashboard and Analysis tabs a participant that used several models (for example after a
+On the Overview and Analysis tabs a participant that used several models (for example after a
 `/model` switch) counts once per model, with that model's dollars, tokens and requests, so spend by
 model stays right.
 
@@ -130,24 +142,32 @@ model stays right.
 ![Sessions tab with sample data](images/usage-sessions.png)
 
 *Sample data.* Every keel session: date, PC, project, task, models, dollars, percent of the week and the
-verification level. Search by project, task, prompt text or branch; filter by PC, project and wallet;
-group by project, PC or day; export to CSV.
+verification level. Search by project, task, prompt text or branch; filter (as chips) by project, PC,
+verification level and payment; group by project, PC or day; sort; save all rows as CSV. The list shows
+10 rows, and "Show more" adds 20.
 
 ### A session page
 
 Click a session to open it. It shows the cost, duration and active time, the share of the week and of the
 5-hour limit, turns and requests, and tokens with the cache share. Below: a timeline of the participants,
 a table per participant (model, requests, tokens, active time, dollars, share), the cost of each of your
-turns (with the start of the prompt when previews are on), the tools used, the keel verification (level,
+messages (with the start of the text when previews are on), the tools used, the keel verification (level,
 findings must/should/nice, gates, lines, files, plan steps) and the cache.
 
-### Calibration
+Each of your messages opens to show what was done after it: the tools with counts, the agents it
+started and the part of its dollars they spent, its tokens by kind and the largest context one request
+read. A session whose data has no such details (sent before keel kept them, or shortened to fit on the
+page) says so in one line.
 
-![Calibration tab with sample data](images/usage-calib.png)
+### Plan limit
 
-*Sample data.* The weekly and 5-hour medians, every point with its window, gain, dollars, rate and status
-(kept, dropped or waiting for sync, with the reason), and the machines with their last sync and whether
-the calibration waits for them.
+![Plan limit tab with sample data](images/usage-limit.png)
+
+*Sample data.* What 1 % of the plan costs in dollars (the weekly limit, the 5-hour limit, and the
+whole week at the same rate), how that is counted in three steps, this week's limit as a line, the
+machines with their last sync, when each was last seen and whether the measurements wait for them, and
+the measurements themselves: every point with its window, gain, dollars, rate and status (kept,
+dropped or waiting for sync, with the reason). The latest 5 are shown; "show all" lists the rest.
 
 An empty page says that data arrives after the first `/keel:end-task`, `/keel:end-session` or
 `/keel:end-planning` on any machine. Adding `?demo=1` to the page address shows sample data for a layout
@@ -161,7 +181,7 @@ snapshots, a summary cache, sync state and settings.
 
 ## What goes to the page, and what never does
 
-Per machine and day, the page receives the following. The hourly totals count every Claude Code session
+Per machine, the page receives the following. The hourly totals count every Claude Code session
 on the machine, in all its projects, because the plan limits count them all and the calibration needs
 them; they hold no session id, project or request text. Everything per session goes only for keel
 sessions: a session in which you ran `/keel:start-task`, `/keel:end-task`, `/keel:start-session`,
@@ -177,9 +197,13 @@ conversation without keel shows up only in the hourly totals.
 - per session: its id, the project folder's name (never the full path), the git branch, the wallet,
   the entry point (for example cli), start and end time, active minutes, dollars and Claude Code's own
   cost; per participant (the main conversation or an agent, with the agent's type) its models,
-  requests, tokens, dollars, active minutes, and tool names and counts; per turn of yours its time,
-  dollars, requests and agents; keel's task data (level, findings, gates, lines and files changed, the
-  model of each plan step);
+  requests, tokens, dollars (for each model also split by token kind), active minutes, and tool names
+  and counts; per turn of yours its time,
+  dollars, requests and agents, and what was done after it (never its text): the tool names with counts
+  (the six most used, the rest summed under `other`), the types of the agents it started with counts (the
+  four most used, the rest under `other`), the part of its dollars the agents spent, its tokens by kind
+  (as for a participant) and the largest context one request read; keel's task data (level, findings,
+  gates, lines and files changed, the model of each plan step);
 - the first 100 characters of each of your requests, and the task and step titles. In the requests keel
   masks what looks like a secret: JSON web tokens, API keys and tokens in well-known formats (`sk-...`,
   GitHub, GitLab, npm, Stripe, Google, AWS access key ids, Slack), `Bearer` tokens, the user and password
@@ -188,7 +212,7 @@ conversation without keel shows up only in the hourly totals.
   step titles are sent as written.
 
 Nothing else leaves the machine: not the full project path, and not your code, replies or file
-contents. The page is visible only to you unless you share it; a team page (below) is visible to everyone it is
+contents. The page is visible only to you unless you share it; a shared page is visible to everyone it is
 shared with.
 
 **Turn the previews off** if your requests are sensitive: set `prompt_preview` to false in
@@ -197,60 +221,121 @@ shared with.
 title are sent, and step titles are replaced by "step 1", "step 2". Everything else above is still sent.
 A project can only turn previews off: when the machine's value is off, a project's `true` has no effect.
 
+## Which accounts get what
+
+| Your account | End report | Usage page | Plan-limit shares |
+|---|---|---|---|
+| API key only | exact dollars | none: the page lives in a claude.ai account, so there is no usage page and configure asks no page questions | none |
+| subscription only | dollars and the share of the weekly and 5-hour limits | yes; the limit calibration uses every machine | yes |
+| both | all of that | yes; sessions paid with the API key reach the page with the next claude.ai session | only subscription sessions count in the calibration |
+
 ## Syncing between machines
 
-Each end step (`/keel:end-task`, `/keel:end-session`, `/keel:end-planning`) prepares only the day documents
-that changed since the last sync and writes them to the page through files, never through the conversation.
-It costs about $0.01-0.04 (an estimate). The first sync reaches back 30 days (`history_days`). A session
-that cannot write to the page (for example, an API-key session without the page tool) leaves the backlog for
-the next one that can. Then keel reads the other machines' data back to calibrate the limits, and the page's
-settings to know whether it runs this keel's page ([updating the page](#updating-the-page)).
+Each end step (`/keel:end-task`, `/keel:end-session`, `/keel:end-planning`) builds this machine's days from
+Claude Code's logs, compares them with what it sent before (`sync-state.json`) and writes only the day
+documents that changed to the page's database, through files, never through the conversation. One
+document holds one day of one machine (`<date>_<pc>`); a large day is split into parts. The first sync
+reaches back 30 days (`history_days`). Then keel reads the other machines' data back to calibrate the
+limits, and the page's settings to know whether it runs this keel's page
+([updating the page](#updating-the-page)).
 
-A team can share one page: put its address in the project config as `usage.artifact_url`. Each machine
-sends to it only after its user approves that address, so a cloned repository cannot choose where your
-usage goes. Once approved, the team page receives this machine's usage from **all** its projects, not only
-from this one: project folder names, branches and request previews (unless previews are off), as listed
-above. A machine's own `artifact_url` always wins: a machine that has one keeps sending there.
+The sync runs in a small sync agent on Haiku, which the end step starts. Every request of a model
+re-reads its whole conversation, so the five or so requests of a sync done in the session itself would
+re-read a long session five times. The sync agent's conversation is short, and the session pays only
+for two requests: starting the sync agent and reading its one-line answer.
+
+**What it costs** per end of work, at list prices with an Opus session:
+
+| | cost |
+|---|---|
+| the sync agent (Haiku, about 8 requests) | $0.015-0.017 (measured on 2 runs) |
+| the session's 2 requests | $0.04-0.06 each at 140-185k tokens of conversation (measured); they grow with the length of the conversation |
+| **in all** | **$0.10-0.14 at 140-185k tokens (measured)**; computed from the same prices: about $0.07 after a short session (100k tokens), about $0.20 after a very long one (450k) |
+
+Done in the session itself it cost $0.15-0.55, typically $0.35 (measured on 58 syncs). On a subscription the
+same tokens count against your plan limits instead of money. With a Sonnet session the session's
+requests cost about half (computed from the price table, not measured).
+
+- **No sync agent.** A session without the `Agent` tool, or one whose agent cannot start or has no page
+  tool, does the sync itself; that costs $0.15-0.55, as said above.
+- **Days already on the page stay.** A sync never deletes: when Claude Code removes old logs (after 30
+  days by default), the days built from them stay on the page as they were. Only a
+  [clear](#clearing-the-page) deletes them. A machine that does not sync for longer than its logs are kept
+  loses the days whose logs are gone.
+- **Two machines syncing at the same time** do not overwrite each other: each writes only its own days, and
+  a document changed meanwhile is refused and written again once.
+- **Machine names must differ.** The document id holds the machine name, so two machines with the same
+  name write over each other's days. Give each machine its own name in `/keel:configure usage`.
+- **A session without the page tool** (for example one with an API key only) cannot write to the page: the
+  sync waits, the report says so in one line, and the next session that can sends what the logs still hold.
+
+### Turning the sync on and off
+
+`/keel:usage off` stops this machine's sync: the page and its data stay, and the end reports still show
+the costs. `/keel:usage on` sends what Claude Code's logs still hold of the time it was off (they keep 30 days by
+default, so a longer break leaves a gap on the page), or sets the page up if there is none.
+The same from a shell: `node usage-setup.js <project> sync on|off`; `show` prints `sync: on` or
+`sync: off since <date>`. The settings are in `~/.claude/keel/usage.json` ([settings](settings.md#this-machine)).
+
+### One page per account
+
+There is no shared project page: `usage.artifact_url` in `.keel/config.json` is no longer used. Each
+machine syncs to its owner's own page, and its owner can show it to others with Share on the page. The key
+is still accepted in the config but ignored, and keel says so once per machine.
 
 ## Updating the page
 
-A page is a copy of keel's page files made when it was created, so a newer keel's page (for example the
-planning chats of 1.3.0) does not reach it by itself. When this machine's page was made by an older keel,
-`/keel:usage` says so and `/keel:configure usage` offers to update it. After your yes keel reads the page
-(the Artifact tool publishes over a page only after a read; about $0.1-0.3, an estimate) and publishes
-keel's current page files to the same address. The data stays: every machine's days, the calibration and
-the page's language live in the page's database, not in its files. keel stops and changes nothing when the
-page is not titled "keel usage" or you cannot edit it.
+A page is a copy of keel's page files made when it was created, so a newer keel's page does not reach it
+by itself. When this machine's page was made by an older keel, `/keel:usage` says so and
+`/keel:configure usage` offers the update. After your yes keel reads the page (the Artifact tool publishes
+over a page only after a read; about $0.1-0.3, an estimate) and publishes keel's current page files, with
+the design files (`keel.css`, `keel-theme.js`, `keel-mark.png`), to the same address. The data stays: every machine's days, the calibration and the page's language live in the
+page's database, not in its files. keel stops and changes nothing when the page is not titled "keel usage"
+or you cannot edit it.
+
+keel cannot see which keel version made the page, so an update from a machine with an older keel puts an
+older page back over a newer one; keel says so before you answer. Update keel on every machine that syncs
+to the page.
 
 The page itself says which keel page it runs: creating or updating it writes a fingerprint of the page
-files into the page's settings (next to its language). Each end step reads the settings back with the
-other machines' data and keeps this machine's copy (`page_template`), so after an update from one machine
-every other machine stops offering it at its next end step. Before it offers the update,
-`/keel:configure usage` checks the page's settings once more (one call). A page made before keel wrote the
-fingerprint has none and is offered the update.
-
-Only your own page is offered the update. A team page from the project config, or a page shared with you
-from another account, is updated by its owner: `/keel:usage` only says that the owner can update it.
+files into the page's settings (next to its language). Each end step reads it back and keeps this machine's
+copy (`page_template`), so after an update from one machine every other machine stops offering it at its
+next end step. A page made before keel wrote the fingerprint has none and is offered the update.
 
 ## Clearing the page
 
-`/keel:usage-clear` deletes all data on the page and keeps the page. It reads the page's documents into
-`.keel/local/usage/clear` (their contents never enter the conversation), then shows what would go:
+`/keel:usage clear` clears **only the machine it runs on** and keeps the page. Other machines' data on the
+page stays as it is. To clear the whole page, run `/keel:usage clear` on every machine. It reads the
+page's documents into `.keel/local/usage/clear` (their contents never enter the conversation) and shows
+what would go: this machine's days, from the first to the last, with the number of sessions and their
+dollars, all usage in that period, the calibration data, the size in KB, and the number of delete calls in
+the chat (each needs your approval; the end report shows the real cost).
 
-- the day documents from the first to the last day, with the number of sessions, their dollars and all
-  usage in those days;
-- the machines and the calibration documents, and the size in KB.
+And what it affects: this machine's data on the page starts over from the next `/keel:end-task`,
+`/keel:end-session` or `/keel:end-planning`; everyone the page is shared with sees the change; it cannot be
+undone, because keel keeps no copy of the page. You answer "Delete this PC's data on the page?"; "No, keep
+it" is the first option, and only an explicit yes deletes.
 
-And what it affects: the page is empty until the next `/keel:end-task`, `/keel:end-session` or
-`/keel:end-planning`; the data is gone for every machine and everyone the page is shared with; it cannot be
-undone, because keel keeps no copy of the page. You answer "Delete all data on the page?"; "No, keep it" is
-the first option, and only an explicit yes deletes. Claude Code also asks you to approve each delete call.
+What goes: this machine's day documents, `machines/<pc>` and `calib/<pc>`. After the clear this machine
+sends only what happens from the clear on, rebuilt from the Claude Code logs from that moment. Its logs,
+limit records and calibration stay, so the cost report and the limit percentages keep working, and so do
+the page's language setting and the page itself (it hides nothing by date). To remove the page itself, ask
+Claude to delete it and run `/keel:configure usage` for a new one.
 
-After the deletes this machine starts over: its next sync sends only what happens after the clear, not the
-old history. Its local logs, limit records and calibration stay, so the cost report and the limit
-percentages keep working. Another machine that still sends to the page recreates only its new days. The
-page's language setting stays; to remove the page itself, ask Claude to delete it and run
-`/keel:configure usage` for a new one.
+## Checking the page against the logs
+
+`node <keel>/scripts/usage.js audit --page <folder>` (`<keel>` is the plugin folder; in this repository
+`plugins/keel`) compares this machine's dollars and tokens per session on the page with the local
+transcripts. `<folder>` is a folder under the project's `.keel/local/` with the database documents saved from
+the page; any other folder is refused. The expected number of differences is zero. The audit also names the difference between keel's dollars
+and Claude Code's own cost.
+One exception: a session too big for one page document is shortened on the page (its cheapest agents
+are left out), so its line shows the page's lower dollars against all of the session's and says
+"shortened on the page". Such a session gives up the per-turn details first, then the texts, then the
+turns, then agents. A session that lost only its turn details or texts keeps all its agents and
+dollars, so a difference there has another cause and gets no such mark. The audit compares only dollars
+and tokens, so a day sent before the per-turn details existed is not reported for lacking them; it gets
+them when one of its sessions changes and the day is sent again.
 
 ## Prices
 

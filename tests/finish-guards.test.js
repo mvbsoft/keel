@@ -287,7 +287,7 @@ test('finish-check runs as a Stop hook: no output unless it blocks, fails soft o
   assert.deepEqual(cfg[0].hooks[0], { type: 'command', command: 'node', args: ['${CLAUDE_PLUGIN_ROOT}/hooks/finish-check.js'], timeout: 10 });
 });
 
-// --- round of fixes: names in another case, a push without a commit, lane variants, stale records ---
+// --- names in another case, a push without a commit, lane variants, stale records ---
 
 const FOLD = process.platform === 'win32' || process.platform === 'darwin';
 

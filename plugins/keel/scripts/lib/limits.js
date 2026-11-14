@@ -97,4 +97,18 @@ function readSnapshots(dir = usageDir(), { sinceMs } = {}) {
   return out;
 }
 
-module.exports = { recordSnapshot, snapshotFromPercents, readSnapshots };
+// Snapshots from several sources (this machine's log, other machines) once each, sorted by time.
+// Two are the same snapshot when time, both percentages and session match; the first one seen is kept.
+function dedupeSnapshots(list) {
+  const seen = new Set();
+  const out = [];
+  for (const s of list) {
+    const key = `${s.t}|${s.five_hour}|${s.seven_day}|${s.session_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out.sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+}
+
+module.exports = { recordSnapshot, snapshotFromPercents, readSnapshots, dedupeSnapshots };

@@ -7,7 +7,7 @@ const { tempDir } = require('./fixtures/tmp.js');
 
 const T = require('../plugins/keel/scripts/lib/transcripts.js');
 const { summarize } = require('../plugins/keel/hooks/ledger.js');
-const { buildSession, price, REQ, T0, at, SESSION_ID, writeJsonl, user, asst } = require('./fixtures/transcripts.js');
+const { buildSession, price, priceKinds, REQ, T0, at, SESSION_ID, writeJsonl, user, asst } = require('./fixtures/transcripts.js');
 
 function tempRoot() {
   return tempDir('keel-transcripts-');
@@ -99,6 +99,20 @@ test('usd, unpriced models and by_model', () => {
   assert.equal(out.requests.filter((r) => r.usd === null).length, 2);
 });
 
+test('usd_kind: each priced by_model entry adds up its requests\' dollars per token kind; an entry with no priced request has none', () => {
+  const s = buildSession(tempRoot());
+  const out = T.summarizeSession(s.main, { cost: price, costKinds: priceKinds });
+  const [main, a, b] = out.participants;
+  const opus = Object.values(REQ).filter((r) => r.who === 'main');
+  for (const kind of ['in', 'cw5', 'cw1h', 'cr', 'out']) {
+    near(main.by_model['test-opus-1'].usd_kind[kind], sum(opus.map((r) => priceKinds(r.model, r.tok)[kind])));
+  }
+  const u = a.by_model['test-haiku-1'];
+  near(sum(Object.values(u.usd_kind)), u.usd);
+  assert.ok(!('usd_kind' in b.by_model['test-mystery-1']));
+  assert.ok(!('usd_kind' in T.summarizeSession(s.main, { cost: price }).participants[0].by_model['test-opus-1']), 'no kind prices given, no detail');
+});
+
 test('default cost function prices nothing: usd 0 and every model unpriced', () => {
   const s = session();
   const out = T.summarizeSession(s.main);
@@ -137,6 +151,27 @@ test('a slash command the model answers is a turn, read as typed; one it never a
   assert.deepEqual(out.turns.map((t) => t.text), ['first prompt', '/keel:end-task finish, quick']);
   assert.equal(out.turns[1].requests, 1);
   assert.ok(!('command' in out.turns[1]));
+});
+
+test('a prompt after a leading system reminder is a turn without it; a reminder or notification alone is not', () => {
+  const root = tempRoot();
+  const main = path.join(root, 'p', 's1.jsonl');
+  const row = (r) => ({ sessionId: 's1', cwd: 'C:\\x\\proj', isSidechain: false, ...r });
+  const note = '<system-reminder>\nLinked sessions now: top = local_1 (idle)\n</system-reminder>';
+  writeJsonl(main, [
+    row(user(1, `${note}\n\nreal question`)),
+    row(asst('m1', [{ type: 'text', text: 'ok' }])),
+    row(user(5, note)),
+    row(user(6, `${note}\n<task-notification>agent done</task-notification>`)),
+    row(user(7, '<task-notification>agent done</task-notification>')),
+    row(user(10, [{ type: 'text', text: note }, { type: 'text', text: 'second question' }])),
+    row(asst('m3', [{ type: 'text', text: 'ok' }])),
+    row(user(15, `${note}${note}\n<command-message>keel:end-task</command-message>\n<command-name>/keel:end-task</command-name>\n<command-args>quick</command-args>`)),
+    row(asst('m4', [{ type: 'text', text: 'ok' }])),
+  ]);
+  const out = T.summarizeSession(main, { cost: price });
+  assert.deepEqual(out.turns.map((t) => t.text), ['real question', 'second question', '/keel:end-task quick']);
+  assert.deepEqual(out.keel_commands, ['end-task']);
 });
 
 test('keel_commands: the planning commands count, a longer name does not', () => {

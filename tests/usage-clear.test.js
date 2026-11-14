@@ -15,9 +15,9 @@ const tmp = tempDir;
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const write = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(value)); };
 
-function world() {
+function world(pc = 'testpc') {
   const w = { dir: tmp('keel-clear-usage-'), root: tmp('keel-clear-proj-'), home: tmp('keel-clear-home-'), project: tmp('keel-clear-work-') };
-  fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ pc: 'testpc', user: 't@x.y', wallet_default: 'subscription', history_days: 3650 }));
+  fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ pc, user: 't@x.y', wallet_default: 'subscription', history_days: 3650, artifact_url: 'https://claude.ai/artifact/test' }));
   w.run = (script, args) => {
     const r = spawnSync(process.execPath, [script, ...args], {
       encoding: 'utf8',
@@ -52,24 +52,29 @@ test('start: a fresh query folder under .keel/local/usage/clear, emptied each ti
   assert.deepEqual(fs.readdirSync(dir), []);
 });
 
-test('plan: the summary names the period, machines, sessions and dollars; meta stays; versions come from the sync state or --version', () => {
+// A clear takes only this machine's documents; other machines' documents stay.
+test('plan: the summary names this machine\'s period, sessions and dollars; other machines and meta stay; versions come from the sync state or --version', () => {
   const w = world();
   const out = tmp('keel-clear-out-');
   savedPage(out);
-  write(path.join(w.dir, 'sync-state.json'), { docs: { '2026-01-01_testpc': { version: 3, hash: 'h' }, '2026-01-01_testpc_p2': { version: 1, hash: 'h' }, 'machines/testpc': { version: 7, hash: 'h' }, 'calib/testpc': { version: 2, hash: 'h' } }, pending: {} });
+  write(path.join(out, 'machines', 'office.json'), { name: 'office', synced_until: '2026-01-05T00:00:00Z' });
+  write(path.join(w.dir, 'sync-state.json'), { docs: { '2026-01-01_testpc': { version: 3, hash: 'h' }, 'machines/testpc': { version: 7, hash: 'h' }, 'calib/testpc': { version: 2, hash: 'h' } }, pending: {} });
   const first = JSON.parse(w.run(CLEAR, ['plan', '--in', out]));
   assert.deepEqual(first.summary, {
-    documents: 5, day_documents: 3, first_day: '2026-01-01', last_day: '2026-01-05', days_with_data: 2,
-    machines: ['office', 'testpc'], sessions: 3, sessions_usd: 3.75, all_usd: 8, calibration_documents: 1, kilobytes: first.summary.kilobytes,
+    documents: 4, day_documents: 2, first_day: '2026-01-01', last_day: '2026-01-01', days_with_data: 1,
+    sessions: 3, sessions_usd: 3.75, all_usd: 4, calibration_documents: 1, kilobytes: first.summary.kilobytes,
   });
-  assert.deepEqual(first.missing_versions, ['2026-01-05_office'], 'another machine\'s day: its version is not known here');
+  assert.deepEqual(first.missing_versions, ['2026-01-01_testpc_p2'], 'a part this machine has no version for');
   assert.equal(first.batches, undefined, 'nothing is deleted before every version is known');
-  const plan = JSON.parse(w.run(CLEAR, ['plan', '--in', out, '--version', 'days/2026-01-05_office=4']));
+  const at = w.state().clear_pending_at;
+  assert.ok(at, 'the first plan sets the clear time');
+  const plan = JSON.parse(w.run(CLEAR, ['plan', '--in', out, '--version', 'days/2026-01-01_testpc_p2=1']));
   assert.equal(plan.missing_versions, undefined);
+  assert.equal(w.state().clear_pending_at, at, 'a rerun for the missing versions keeps the time of the first plan');
+  assert.equal(plan.summary.delete_calls, 1, 'the warning names the calls');
   assert.deepEqual(plan.batches.flatMap((b) => b.writes), [
     { op: 'delete', collection: 'days', doc_id: '2026-01-01_testpc', if_version: 3 },
     { op: 'delete', collection: 'days', doc_id: '2026-01-01_testpc_p2', if_version: 1 },
-    { op: 'delete', collection: 'days', doc_id: '2026-01-05_office', if_version: 4 },
     { op: 'delete', collection: 'machines', doc_id: 'testpc', if_version: 7 },
     { op: 'delete', collection: 'calib', doc_id: 'testpc', if_version: 2 },
   ]);
@@ -80,13 +85,14 @@ test('plan: more than 50 documents are split into batches of at most 50 deletes'
   const out = tmp('keel-clear-out-');
   const docs = {};
   for (let i = 0; i < 120; i++) {
-    const id = `2026-01-${String(1 + (i % 28)).padStart(2, '0')}_pc${i}`;
-    write(path.join(out, 'days', `${id}.json`), { date: id.slice(0, 10), pc: `pc${i}`, hours: [], sessions: [] });
+    const id = `2026-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String(1 + (i % 28)).padStart(2, '0')}_testpc`;
+    write(path.join(out, 'days', `${id}.json`), { date: id.slice(0, 10), pc: 'testpc', hours: [], sessions: [] });
     docs[id] = { version: 1, hash: 'h' };
   }
   write(path.join(w.dir, 'sync-state.json'), { docs, pending: {} });
   const plan = JSON.parse(w.run(CLEAR, ['plan', '--in', out]));
   assert.deepEqual(plan.batches.map((b) => b.writes.length), [50, 50, 20]);
+  assert.equal(plan.summary.delete_calls, 3);
 });
 
 test('done: this machine forgets the sent documents and the next sync sends nothing from before the clear', () => {
@@ -95,6 +101,8 @@ test('done: this machine forgets the sent documents and the next sync sends noth
   const prepare = () => JSON.parse(w.run(USAGE, ['prepare', '--project', w.project])).batches.flatMap((b) => b.writes);
   assert.ok(prepare().some((x) => x.doc_id === '2026-01-01_testpc'), 'before: the old day is sent');
   w.run(USAGE, ['ack']);
+  w.run(CLEAR, ['start', '--project', w.project]);
+  w.run(CLEAR, ['plan', '--in', tmp('keel-clear-out-')]);
   assert.match(w.run(CLEAR, ['done']), /^usage-clear: this machine sends only data from \S+ on/);
   const state = w.state();
   assert.deepEqual([state.docs, state.pending, state.sessions_rule], [{}, {}, 'keel']);
@@ -113,16 +121,81 @@ test('done: this machine forgets the sent documents and the next sync sends noth
   assert.equal(doc.hours.reduce((n, h) => n + h.req, 0), 1);
 });
 
-test('usage-clear skill: user-only, warns with the period and the effects, deletes only after a yes, then resets', () => {
-  const text = fs.readFileSync(path.join(PLUGIN, 'skills', 'usage-clear', 'SKILL.md'), 'utf8');
-  assert.match(text, /^disable-model-invocation: true$/m);
-  assert.match(text, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/usage-setup\.js" "\$\{CLAUDE_PROJECT_DIR\}" show`$/m);
+test('plan: a plan that fails leaves no clear time, so done after it changes nothing', () => {
+  const w = world();
+  w.run(CLEAR, ['start', '--project', w.project]);
+  assert.match(w.run(CLEAR, ['plan']), /^usage-clear: error: give --in /);
+  assert.ok(!fs.existsSync(path.join(w.dir, 'sync-state.json')) || !w.state().clear_pending_at);
+  assert.match(w.run(CLEAR, ['done']), /^usage-clear: nothing to finish/);
+});
+
+test('plan --in: a day document saved wrapped ({version, data}) is still this machine\'s and is deleted', () => {
+  const w = world();
+  const out = tmp('keel-clear-out-');
+  savedPage(out);
+  const file = path.join(out, 'days', '2026-01-01_testpc.json');
+  write(file, { version: 3, data: read(file) });
+  write(path.join(w.dir, 'sync-state.json'), { docs: {}, pending: {} });
+  const plan = JSON.parse(w.run(CLEAR, ['plan', '--in', out]));
+  assert.deepEqual([plan.summary.day_documents, plan.summary.sessions, plan.summary.first_day], [2, 3, '2026-01-01']);
+  assert.ok(plan.missing_versions.includes('2026-01-01_testpc'));
+});
+
+test('done: uses the time of the plan; without a plan it changes nothing', () => {
+  const w = world();
+  const HOUR = 3600000;
+  const at = Date.now() - 3 * HOUR;
+  writeSession(w.root, { id: 'old', rows: [{ t: at, prompt: 'old work' }, { t: at + 60000, model: 'claude-opus-4-test', tok: { in: 1000000 } }], mtimeMs: at + 120000 });
+  assert.equal(JSON.parse(w.run(USAGE, ['prepare', '--project', w.project])).action, 'write');
+  w.run(USAGE, ['ack']);
+
+  assert.match(w.run(CLEAR, ['done']), /^usage-clear: nothing to finish/);
+  assert.equal(w.state().cleared_at, null);
+  w.run(CLEAR, ['start', '--project', w.project]);
+  w.run(CLEAR, ['plan', '--in', tmp('keel-clear-out-')]);
+  const planned = w.state().clear_pending_at;
+  assert.match(w.run(CLEAR, ['done']), new RegExp(`sends only data from ${planned} on`));
+  const state = w.state();
+  assert.deepEqual([state.cleared_at, state.synced_until, state.clear_pending_at], [planned, planned, null]);
+  assert.match(w.run(CLEAR, ['done']), /^usage-clear: nothing to finish/, 'a second done does not move the clear time');
+  assert.equal(w.state().cleared_at, planned);
+});
+
+test('start: forgets the clear time of an earlier run that was not finished', () => {
+  const w = world();
+  w.run(CLEAR, ['start', '--project', w.project]);
+  w.run(CLEAR, ['plan', '--in', tmp('keel-clear-out-')]);
+  const declined = w.state().clear_pending_at;
+  assert.ok(declined);
+  w.run(CLEAR, ['start', '--project', w.project]);
+  assert.equal(w.state().clear_pending_at, null);
+  const before = Date.now();
+  w.run(CLEAR, ['plan', '--in', tmp('keel-clear-out-')]);
+  w.run(CLEAR, ['done']);
+  assert.ok(Date.parse(w.state().cleared_at) >= before, 'the clear that ran, not the declined one');
+});
+
+// /keel:usage clear has its steps in _shared/usage-clear.md and clears only this machine's data.
+test('usage clear: warns with the period and the effects, deletes only after a yes, then resets', () => {
+  const skill = fs.readFileSync(path.join(PLUGIN, 'skills', 'usage', 'SKILL.md'), 'utf8');
+  assert.match(skill, /^disable-model-invocation: true$/m);
+  assert.match(skill, /^!`node "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/usage-setup\.js" "\$\{CLAUDE_PROJECT_DIR\}" show`$/m);
+  assert.match(skill, /\*\*`clear`\*\*: read `<keel>\/skills\/_shared\/usage-clear\.md`/);
+  assert.ok(!fs.existsSync(path.join(PLUGIN, 'skills', 'usage-clear')), 'the old /keel:usage-clear skill is gone');
+  const text = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'usage-clear.md'), 'utf8');
   for (const sub of ['start --project', 'plan --in', 'done']) assert.ok(text.includes(`usage-clear.js" ${sub}`), sub);
+  const cli = fs.readFileSync(CLEAR, 'utf8');
+  for (const m of text.matchAll(/usage-clear\.js" (\w+)/g)) assert.ok(cli.includes(`node usage-clear.js ${m[1]}`), `usage-clear.js documents no ${m[1]}`);
   assert.match(text, /`first_day` to `last_day`/);
   assert.match(text, /it cannot be undone/);
   assert.match(text, /"No, keep\s+it" first/);
   assert.match(text, /Only an explicit yes goes on/);
   assert.match(text, /never read the saved files/);
+  // The local reset runs right after the yes, so a clear cut short never re-sends old data.
+  assert.ok(text.indexOf('Only an explicit yes') < text.indexOf('usage-clear.js" done'), 'the reset comes after the yes');
   assert.ok(text.indexOf('Only an explicit yes') < text.indexOf('action: "batch"'), 'the question comes before any delete');
-  assert.ok(text.indexOf('action: "batch"') < text.indexOf('usage-clear.js" done'), 'the reset comes after the deletes');
+  assert.ok(text.indexOf('usage-clear.js" done') < text.indexOf('action: "batch"'), 'the reset comes before the deletes');
+  assert.match(text, /The clear deletes only \*\*this machine's\*\* data/);
+  assert.match(text, /runs `\/keel:usage clear` on every machine/);
+  assert.ok(text.indexOf('`delete_calls` calls') > 0 && text.indexOf('`delete_calls` calls') < text.indexOf('Only an explicit yes'), 'the price is named before the question');
 });

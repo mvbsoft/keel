@@ -471,7 +471,7 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const root = require('./lib/project-dir.js').scriptProject(pos[0]);
     const command = pos[1] || 'find';
     if (command === 'find') lines = find(root, typeof opts.from === 'string' ? opts.from : null);
     else if (command === 'refs') lines = refs(root, typeof opts.folder === 'string' ? opts.folder : null, typeof opts.prefix === 'string' ? `/${opts.prefix.replace(/^\/+/, '')}` : null);

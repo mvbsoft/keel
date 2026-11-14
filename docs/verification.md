@@ -1,7 +1,5 @@
 # Verification levels
 
-[Українська](verification.uk.md)
-
 When you run `/keel:end-task` or `/keel:end-session`, keel checks your change before you commit. There are
 four levels, from the project's own checks only to a full team of agents. keel proposes a level from the
 change; you choose. This page explains what each level does, how the proposal is made, what the report
@@ -12,7 +10,8 @@ the task file as open questions.
 
 Verification needs git to see what changed; in a folder without git keel offers `git init`. Untracked
 files that existed when the task started and did not change are not this task's work: they are left out
-and listed in the report. When keel has no record of the task start, it lists the untracked files and
+and listed in the report. The setup `/keel:configure` writes (`.keel/config.json`,
+`.keel/profile.json`, `.keel/.gitignore`) is the exception: not committed yet, it goes into the first task's commit. When keel has no record of the task start, it lists the untracked files and
 asks "Are all of these part of this task?".
 
 ## The four levels
@@ -102,7 +101,8 @@ What triggers a specialist group:
   an HTML sink (`innerHTML`, `dangerouslySetInnerHTML`, `v-html`); weak hashing or randomness (`md5`,
   `sha1`, `createCipher`, `Math.random`); or a recursive file removal (`rm -rf`, `shutil.rmtree`,
   `fs.rm` or `fs.rmSync` with `recursive: true`). A file removal deletes files, not data, so it
-  proposes Standard, not Maximum; the security group checks what the removed path can be.
+  proposes Standard, not Maximum; the security group checks what the removed path can be. The words above are the main ones; the full
+  lists are in `plugins/keel/data/change-signals.json`.
 - **data**: a migration, a schema or model file (`.sql`, `models/`, `entities/`, `schema/`,
   `schema.prisma`), an API file (routes, controllers, endpoints, handlers), or the project's data paths.
 - **env**: a dependency manifest or lock file, or the project's environment paths.
@@ -207,7 +207,7 @@ permission prompts, the same checks); scoring was done by a separate model, with
 |---|---|---|---|---|
 | Gates only | ≈$0.2 | $0.21, $0.20 ($0.18-0.27) | 0.7 / 0.7 | 0 in 24 runs |
 | Basic | ≈$0.25-0.5 | $0.34, $0.34 ($0.25-0.41) | 15.3 / 15.0 | 0 in 24 runs |
-| Standard | ≈$1.4-4.3 | $2.38, $2.00 ($1.39-4.30) | 16.3 / 15.0 | 1 in 24 runs |
+| Standard | ≈$1.4-4.3 | $2.38, $2.00 ($1.39-4.30) | 16.3 / 15.0 | 0 in 24 runs |
 | Maximum | ≈$2.7-7.6 | $4.97, $4.74 ($2.72-7.60) | 17 / 14 | 0 in 8 runs |
 
 **On what.** 8 changes of 73 to 1083 lines, all JavaScript, with 17 known defects: 3 real bugs from

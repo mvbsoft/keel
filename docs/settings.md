@@ -1,7 +1,5 @@
 # keel settings
 
-[Українська](settings.uk.md)
-
 Every keel setting: what it does, its values, where it is stored, and who it applies to.
 
 ## Where a setting applies
@@ -14,7 +12,7 @@ Each setting has one of three homes:
 | **This project** | this project, for everyone who works on it | `.keel/config.json` | yes, shared with the team |
 | **Machine or project** | every project on this computer, unless a project sets its own value | machine: as above; project: `.claude/settings.local.json` or `.keel/local/options.json` | no, personal |
 
-Planning keeps a file of its own, this project on this machine ([planning settings](#planning-settings)).
+Planning keeps a small file of its own, this project on this machine ([planning settings](#planning-settings)).
 
 **Rule:** a project's own value wins over the machine value. Remove the project value and the machine
 value applies again. One exception: `prompt_preview` can only be turned off for a project. When the
@@ -28,10 +26,10 @@ itself. Sessions in that project compact at 500,000; every other project still c
 | When | What it sets |
 |---|---|
 | Installing keel | the two plugin options below, as **machine** values |
-| `/keel:configure` in a project | asks first: this project, or only this machine. Project mode sets the project's settings and, for "machine or project" settings, shows both values and lets you keep the machine value or set one for the project. A first setup also asks: **quick** (recommended, about six questions; every other value is keel's recommendation) or **detailed** (every section; both explain each question group first) |
+| `/keel:configure` in a project | asks first: this project, or only this machine. Project mode sets the project's settings and, for "machine or project" settings, shows both values and lets you keep the machine value or set one for the project. A first setup also asks: **quick** (recommended, 11 to 18 questions, depending on the project and the machine; every other value is keel's recommendation) or **detailed** (every section; both explain each question group first) |
 | `/keel:configure machine` | only the machine values, for every project |
 | `/keel:configure check` | which sections to run again since the last configure, and why; changes no setting |
-| `/keel:configure <section>[,<section>...]` | those sections again, written once at the end (`gates,git`); sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage` or `prices` |
+| `/keel:configure <section>[,<section>...]` | those sections again, written once at the end (`gates,git`); sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage` or `prices`; `planning` asks only the [planning settings](#planning-settings) |
 
 Nothing is written without your yes. The Claude Code settings files and the price table are backed up
 before keel changes them (project files in `.keel/local/backups/`, the machine file next to itself).
@@ -40,7 +38,7 @@ before keel changes them (project files in `.keel/local/backups/`, the machine f
 
 keel works only in a project that has `.keel/config.json`, the file `/keel:configure` writes. In any
 other project its hooks add nothing to the conversation, Claude cannot load its skills on its own
-(configure and help run only when you type them), and its agents are refused until `/keel:configure` has created the
+(configure, help and usage run only when you type them), and its agents are refused until `/keel:configure` has created the
 `.keel/` folder. A keel command you type there offers to run `/keel:configure` first. Two things keep
 working everywhere: recording which wallet a session pays from, and the status line. Installed for
 your user, keel's agents and skills are still listed in every project, because Claude Code lists them.
@@ -68,7 +66,7 @@ value it did not ask, with the section that changes it.
 
 | Setting | What it does | Values | Default | keel recommends |
 |---|---|---|---|---|
-| `conversation_language` | the language keel talks, asks, reports and plans in | a language code: `en`, `uk`, `de`... | `en` | your language |
+| `conversation_language` | the language keel talks, asks, reports and plans in; a Ukrainian conversation never switches to Russian, not even on request | a language code: `en`, `uk`, `de`... | `en` | your language |
 | `allow_opus` | off: keel agents that would run on Opus run on Sonnet instead (cheaper, less thorough) | on / off | on | on |
 | `autoCompactWindow` | at how many tokens Claude Code compacts the conversation; keel's [context warning](under-the-hood.md#what-runs-by-itself) comes at 90 % of it (of `CLAUDE_CODE_AUTO_COMPACT_WINDOW` when that is set), at most the model's own window; a value below 100,000 here is ignored (the environment variable is raised to 100,000) | a number of tokens | Claude Code's own (about 967k with a 1M model) | 300,000 |
 | `showClearContextOnPlanAccept` | after you approve a plan, offer to start the work from the plan alone, without the planning conversation | on / off | off | on |
@@ -93,17 +91,18 @@ In `~/.claude/keel/usage.json` unless noted. Set in `/keel:configure` (section "
 | Setting | What it does | Values | Default |
 |---|---|---|---|
 | `statusLine` (in `~/.claude/settings.json`) | the status line; keel's own, or yours wrapped so keel can record the plan-limit percentages | keel / wrap yours / none | none |
+| `statusline` | keel's record of the status line it set up (the `statusLine` above): `mode` (keel / wrap / none) and, when it wraps yours, the one you had; written by `/keel:configure` | written by keel | `none` |
 | `wallet_default` | the wallet of a session keel's hook did not mark at its start; a marked session is `api` with an API key, token or helper (or Bedrock, Vertex, Foundry, Mantle), `cloud_wallet` on the web, otherwise `subscription` | `subscription` / `api` / `credit` | `subscription` |
 | `cloud_wallet` | how Claude Code on the web pays | `subscription` / `api` / `credit` | `credit` |
 | `also_api` | this machine uses both a subscription and an API key. On: a session keel's hook did not mark is shown as `unknown` instead of `wallet_default`, and is left out of the limit calibration | on / off | off |
 | `pc` | this machine's name on the usage page | 1 to 40 letters, digits, `-`, `_` | the computer name |
-| `user` | your name on the usage page, to tell people apart on a team page | text | your git email |
-| `history_days` | how far back the first sync to a usage page reaches (also the first sync after the page address changes); later syncs send what changed since the last one | days | 30 |
+| `user` | your name on the usage page, to tell people apart when the page is shared | text | your git email |
+| `history_days` | how far back the first sync to a usage page reaches (also the first sync after the page address changes); later syncs send what changed since the last one | days, 1 to 3650 | 30 |
 | `artifact_url` | the address of your private "keel usage" page | a claude.ai link | none |
-| `approved_artifact_urls` | team page addresses from project configs that you allowed this machine to send to; used only while `artifact_url` is not set | claude.ai links | none |
-| `page_template` | which keel page the usage page runs (a fingerprint of its files), as the page's settings said at the last end step or configure; when this keel's files differ, `/keel:usage` and `/keel:configure usage` offer to [update the page](usage-dashboard.md#updating-the-page) | written by keel | none |
-| `page_shared` | `artifact_url` is a page shared with you from another account: its owner updates it, so keel never offers the update | written by `/keel:configure usage` | off |
-| autonomous git (in `trusted-git.json`) | projects where you confirmed, in Claude Code's prompt, that keel may run its git steps (branch, commit, update from the main branch, push) without asking each time (a push from the main branch goes through your normal permissions; a merge still asks unless `git.ask_before_merge` is off), with a fingerprint of the project's `git` settings: when they change, keel asks again until you confirm once more | written by `git-flow.js trust` | none |
+| `sync` | whether this machine sends its usage to the page; set by `/keel:usage on` / `off` or `usage-setup.js <project> sync on\|off`. Off: the end reports still show the costs; `on` sends what Claude Code's logs still hold (30 days by default) | on / off | on |
+| `sync_off_since` | the date the sync was turned off, shown by `usage-setup.js <project> show` | written by keel | none |
+| `page_template` | which keel page the usage page runs (a fingerprint of its files), as the page's settings said at the last end step or configure; when this keel's files differ, `/keel:usage` says so and `/keel:configure usage` can [update the page](usage-dashboard.md#updating-the-page) | written by keel | none |
+| autonomous git (in `trusted-git.json`) | projects where you confirmed, in Claude Code's prompt, that keel may run its git steps (branch, commit, update from the main branch, push, and `save`: commit, update from the base, push and the switch back in one call) without asking each time (a push or `save` from the main branch goes through your normal permissions; a merge still asks unless `git.ask_before_merge` is off), with a fingerprint of the project's `git` settings: when they change, keel asks again until you confirm once more | written by `git-flow.js trust` | none |
 | prices (in `prices.json`) | your own price table, written by `/keel:configure prices` | a price table | keel's bundled table |
 
 ## This project
@@ -116,7 +115,7 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 | ★ `schema_version` | the version of the config format; written by `/keel:configure`, do not edit it | `1` | `1` |
 | ★ `repo_language` | the language of what keel writes into the repository: commit messages, the note, memory, session logs, new documents | a lowercase language code, optionally with a region: `en`, `uk`, `pt-BR` | `en` |
 | ★ `gates.checks` | the commands keel runs as gates: tests, linters, type checks, per part of a monorepo | commands | proposed from the project scan |
-| ★ `gates.security_scanners` | security scanners run with the gates; one that is not installed is a loud warning, not a failure. A command may start with a path from the project folder (`./gradlew …`, `.venv/bin/bandit …`); a bare name is looked up on PATH | commands | proposed from the scan |
+| ★ `gates.security_scanners` | security scanners run with the gates; one that is not installed is a loud warning, not a failure. A command may start with a path from the project folder (`./gradlew …`, `.venv/bin/bandit …`); a bare name is looked up on PATH. An audit that reads the lock file (npm, pnpm, composer, cargo and similar) is proposed only for a part that has one | commands | proposed from the scan |
 | ★ `git.mode` | who does git: you (keel writes a commit message and runs no git step nobody asked for) or keel (commit, update from the main branch, push; merge as `git.ask_before_merge` says). In both modes keel runs what you ask for: the branch you choose at a task's start, your own git steps | `manual` / `autonomous` | none: `/keel:configure` asks and recommends `manual` for a first project |
 | ★ `git.main_branch` | the main branch | a branch name | from the repository |
 | ★ `git.ask_before_merge` | autonomous mode. On: keel merges into the main branch only when your instruction asks for it (`/keel:end-task finish and merge into main`), and Claude Code asks you to confirm. Off: finishing a task or a line of work also merges; it runs without asking only once you confirmed autonomous mode on this machine, otherwise Claude Code asks | on / off | on |
@@ -135,16 +134,47 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 | `comments.refs_exempt` | more files where ids are the subject and are not reported; the built-in ones (decision records, task and ticket folders, changelogs, `.keel/`) always apply | glob patterns | none |
 | ★ `docs.profile` | how much documentation keel writes: 1 keep docs true, 2 + ADRs, 3 + a spec per feature, 4 heavy | 1-4 | 1 |
 | ★ `docs.pattern` | where new docs go (profiles 3-4). Existing docs are not moved as a side effect: when detailed setup picks a pattern your docs do not follow yet, keel offers to prepare the move as its own task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)) | `none` / `diataxis` / `arc42` / `arc42-c4` | `none` |
-| `delegation.min_plan_steps`, `min_plan_files` | from this plan size keel offers to hand the steps to implementer agents | steps, files | 8, 15 |
+| `docs.adr_style` | how decision records (ADRs) are kept when the project has or writes them ([ADR styles](#adr-styles)). `/keel:configure` asks it, says how your ADRs are kept now, and `/keel:configure check` reminds you while it is not chosen | `journal` / `living` / `custom` | `journal` |
+| `delegation.min_plan_steps`, `min_plan_files` | from this plan size keel recommends a fresh conversation for the plan, or handing the steps to implementer agents | steps, files | 8, 15 |
 | `cleanup.trash_max_age_days` | `/keel:cleanup empty-trash` deletes batches this many days old or more by default | days | 30 |
 | `tasks.in_git` | where unfinished task folders live: `true` in `.keel/tasks/<id>/`, committed on the task's branch so the team sees them; `false` in `.keel/local/tasks/<id>/`, this machine only. See [ways of working](workflows.md#where-the-files-live) | on / off | on |
+| `planning.ticket_prefix` | the start of every ticket key planning gives (`PROJ` in `PROJ-12`), one per repository. New comments and docs are checked for it as for `comments.ticket_prefixes` | 2-10 capital letters and digits, starting with a letter | none: `/keel:configure` proposes the tracker's prefix from git history, else 3-4 letters of the repository's name |
+| `planning.tickets` | where exported tickets live, with the researcher's reports: `repo` in `planning.tickets_dir`, committed on the feature branch so the team sees them; `pc` on this machine only. Without `ticket_prefix` and `tickets` planning does not start | `repo` / `pc` | none: `/keel:configure` recommends `repo` |
+| `planning.tickets_dir` | the repository folder for exported tickets | a folder; never a hidden one, `handoff/`, `handoffs/`, `docs/plans` or a place outside the project | `tickets` |
+| `planning.language` | the language of `plan.md` and the tickets. Detailed setup asks it; quick setup takes `repo_language` | a language code | `repo_language` |
 | `stack_skills` | the stack plugins you chose (for information) | names | none |
-| `usage.artifact_url` | a usage page the team shares. A machine sends to it only after its user approves it, and only while the machine has no `artifact_url` of its own. It then receives that machine's usage from **all** its projects (project folder names, branches, request previews unless turned off), not only from this one | a claude.ai link | none |
+| `usage.artifact_url` | no longer used: each machine syncs to its owner's own page ([one page per account](usage-dashboard.md#one-page-per-account)). The key stays valid and is ignored; keel says so once per machine | a claude.ai link | none |
 
 `.keel/profile.json`, also committed, holds what the project scan found and you confirmed: the parts of
 the project, their languages and commands, and the secret files by path. Its `run_command` per part is
 the command that starts the app, which the QA agent uses (or `null` when there is none). Change the
 profile with `/keel:configure scan`.
+
+### ADR styles
+
+An ADR (architecture decision record) is a short file on why a decision was made, for example
+"we use Postgres because...". When the decision changes, say to SQLite, a project can treat its
+records in one of three ways:
+
+- **journal** (teams of people, regulated or audited work): an accepted record is never edited
+  except its status. The change is a new record that restates everything still valid, and the old
+  one only gets "Superseded by" the new one. Links in your rules and docs move to the new record.
+  Everyone sees who decided what and when; the folder grows by one record per change.
+- **living** (one owner, a small team, work done mostly by agents): one record per topic, always
+  the current decision. The Postgres record is rewritten in place to say SQLite, and Postgres moves to
+  its "Alternatives considered" with the reason it was dropped. A record whose decision is gone is
+  deleted after your yes and every link to it is fixed. The history is in git; numbers are never
+  reused. Choosing living in a project whose ADRs are a journal, keel offers a one-time clean-up as
+  its own task: merge, rewrite and renumber the records once, never again.
+- **custom**: your own way, or the way your ADRs are kept now when it is neither of the two. keel
+  writes the rule into the ADR folder's README and follows it.
+
+configure recommends living for one owner or work done mostly by agents, journal otherwise; when your
+own rules already say how records are kept (CLAUDE.md, AGENTS.md, the ADR folder's README or
+template), it recommends that style.
+
+Both keel styles require an "Alternatives considered" section. With `living`, configure proposes
+`comments.adr_refs: forbidden`, because a record may be deleted.
 
 Two more project settings are personal and live in `.claude/settings.local.json` (outside git; when
 git does not ignore that file yet, `/keel:configure` offers to add it to `.gitignore`):
@@ -156,18 +186,21 @@ git does not ignore that file yet, `/keel:configure` offers to add it to `.gitig
 
 ### Planning settings
 
-Planning keeps its own settings in `.keel/local/plans/keel/settings.json` (outside git, this machine
-only). `/keel:configure` does not ask them: the first `/keel:start-planning` asks the language and
-where drafts live, the first export where tickets go and their prefix, and a change you name at any
-start ("draft in the repo") is saved too.
+What the team shares is in `.keel/config.json`: the ticket prefix, where the tickets live and their
+language (`planning.*` in the table above). `/keel:configure` asks them, quick setup too, and
+`/keel:configure planning` asks only them; without them `/keel:start-planning` stops and says so.
+
+What is personal stays in `.keel/local/plans/keel/settings.json` (outside git, this machine only). The
+first `/keel:start-planning` asks where the draft lives, and a change you name at any start ("draft in
+the repo") is saved too.
 
 | Setting | What it does | Values | Default |
 |---|---|---|---|
-| `language`, `draft`, `draft_dir` | the language of `plan.md` and the tickets; where a draft lives; its folder in the repository | a language code; `pc` (this machine) or `repo`; a folder | `repo_language`; `pc`; `tickets` |
-| `export`, `export_dir`, `prefix` | where exported tickets go; their folder in the repository; the start of each ticket key (`PROJ` in `PROJ-12`) | `pc` or `repo`; a folder; 2-10 capital letters and digits, starting with a letter | none; `tickets`; none |
+| `draft`, `draft_dir` | where a draft lives while you plan; its folder in the repository | `pc` (this machine) or `repo`; a folder | `pc`; `tickets` |
+| `repos` | where the neighbouring repositories are on this machine, by their ticket prefix (`"WEB": "/path/to/web"`); set with `plans.js settings set --repo WEB=<folder>`; keel reads the state of their tickets a `depends_on` names there ([Ticket states](planning.md#ticket-states)), and where planning reads the rules, code and ticket files of a feature on several repositories ([A feature on several repositories](planning.md#a-feature-on-several-repositories)) | a prefix and an absolute folder each | none |
 
-Places keel never uses: [export](workflows.md#export). How they are used:
-[ways of working](workflows.md#planning).
+Places keel never uses: [export](planning.md#export). How they are used:
+[planning](planning.md).
 
 ## Examples
 
@@ -225,8 +258,7 @@ prefixes checked.
     "adr_refs": "forbidden",
     "refs_exempt": ["docs/debt-register.md"]
   },
-  "docs": { "profile": 2, "pattern": "none" },
-  "usage": { "artifact_url": "https://claude.ai/artifact/EXAMPLE" }
+  "docs": { "profile": 2, "pattern": "none" }
 }
 ```
 
@@ -236,11 +268,7 @@ repository stays clean); `/keel:configure git` sets it and lists those files in 
 developer's machine instead of travelling on the task branches. `ticket_prefixes` and `adr_refs` make
 keel report `PROJ-123` and `ADR-12` in new comments and
 docs. `refs_exempt` lists a file where such ids are the subject. Profile 2 adds an ADR for significant
-decisions. `usage.artifact_url` is a placeholder for a usage page the team shares; each machine sends to
-it only after its user approves it, and a machine that has its own `artifact_url` keeps sending there. An
-approved machine sends its usage from all its projects, not only from this one, so the team sees those
-projects' folder names and branches too (and request previews, unless they are off). Each developer
-confirms autonomous mode once on their own machine.
+decisions. Each developer confirms autonomous mode once on their own machine.
 
 ### c) A large monorepo with its own settings
 

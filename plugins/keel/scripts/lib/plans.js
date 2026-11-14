@@ -5,300 +5,56 @@
 //   repository when settings say `draft: repo`. Both places are always read, so changing the setting
 //   does not hide a draft.
 // - plan.md (front matter `type: plan`, `status`, `branch`, `merge_into`, `last_ticket`...),
-//   tickets/T<n>-<slug>.md (front matter `id`, `depends_on`, `review_hash`), reviews/ (written by the
+//   tickets/T<n>-<slug>.md (front matter `id`, `repo`, `depends_on`, `review_hash`; `type: stub` for a
+//   stub, lib/plans-stubs.js), reviews/ (written by the
 //   conversation). `branch` (the feature branch) and `merge_into` (where the feature merges) go into
-//   every exported ticket (lib/plans-export.js).
+//   every exported ticket (lib/plans-export.js), and so does `page`, the feature's random code that
+//   names its page (feature-page.js) the same from every machine and repository.
 // - States: draft -> ready -> exported, draft or ready -> abandoned, ready -> draft. A plan changed
 //   after `ready` (its ready_hash no longer matches) is a draft again.
-// - Settings: .keel/local/plans/keel/settings.json. The planning chat marks:
+// - Settings: lib/plans-settings.js. The planning chat marks (in the main checkout, lib/chat-marks.js):
 //   .keel/local/plans/keel/sessions/<session id>.json = { "feature": "<name>" }.
 // - An exported feature is edited in its feature folder: mark set, ticket and check take it when no
 //   draft of that name is here or the draft is exported (lib/plans-export.js).
+// - A feature on several repositories: plan.md `repos`, a ticket's `repo`, plan.md
+//   `after_commit_repos` (lib/plans-repos.js); check, stale and review read another repository's
+//   tickets in its folder.
+// - Reading and writing a draft: lib/plans-drafts.js; check and stale: lib/plans-check.js.
 // Nothing here prints a draft's text beyond its name, state, counts and the problems check finds.
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { checkConfig } = require('./config.js');
 const { moveToTrash } = require('./trash.js');
-const { git, read, frontmatter, clean } = require('./repo-read.js');
-const { linkOnWay, unsafeRel, localLink, safeLocalPath, safeLocalWrite } = require('./safe-path.js');
+const { git, clean, validBranchName } = require('./repo-read.js');
+const { unsafeRel, localLink, safeLocalPath, safeLocalWrite } = require('./safe-path.js');
 const { validSid } = require('./ids.js');
-const { sections, setFront, dateOf } = require('./tasks.js');
+const { setFront, dateOf } = require('./tasks.js');
+const { base, badFolder, settings } = require('./plans-settings.js');
+const { MARKS, markHome, marksDir } = require('./chat-marks.js');
+const {
+  PLAN_FILE, STATES, TICKET_FILE, FEATURE_RULE, validFeature, draftDirs, listDrafts, needDraft,
+  reopens, exportedHere, tickets, ticketIds, openQuestions, ticketHash, pageCode, PAGE_CODE, draftHash,
+  stateOf, writePlan, settle, writeFile, where, draftList, draftFind,
+} = require('./plans-drafts.js');
+const {
+  draftCheck, draftStale, problems, ticketProblems, cycles,
+  mentionedFiles, machineFolders, localPaths, localProblems, researchTexts,
+} = require('./plans-check.js');
 
-const PLAN_FILE = 'plan.md';
 const TEMPLATES = path.join(__dirname, '..', '..', 'templates', 'keel', 'planning');
-const STATES = ['draft', 'ready', 'exported', 'abandoned'];
 const MOVES = { draft: ['ready', 'abandoned'], ready: ['draft', 'exported', 'abandoned'], exported: [], abandoned: [] };
-const PLAN_SECTIONS = ['Summary', 'Problem / Goal', 'Decisions', 'Out of scope', 'Design sketch', 'Terms', 'Open questions', 'Tickets', 'Next action'];
-const TICKET_SECTIONS = ['Goal', 'Why', 'Acceptance criteria', 'Where to look', 'Out of scope', 'Dependencies', 'How to check'];
-// 2-4 English words joined by hyphens, starting with a letter; a word never starts with a digit, else
-// part of the name reads as a tracker key (add-2fa -> ADD-2).
-const FEATURE = /^[a-z][a-z0-9]*(?:-[a-z][a-z0-9]*){1,3}$/;
-const FEATURE_MAX = 40;
 const SLUG_MAX = 60;
-const TICKET_FILE = /^T(\d+)-[a-z0-9-]+\.md$/;
-const DEFAULTS = { draft: 'pc', draft_dir: 'tickets', export_dir: 'tickets' };
-const SETTING_KEYS = ['language', 'draft', 'draft_dir', 'export', 'export_dir', 'prefix'];
-// Files a ticket names in "Where to look" without a folder or a line count only with a known extension:
-// `obj.id` or `fs.readFileSync` are code, not files.
-const FILE_EXT = new Set(['js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'py', 'go', 'rs', 'java', 'kt', 'rb', 'php', 'cs', 'c', 'h', 'cpp', 'hpp', 'swift', 'dart', 'ex', 'exs', 'scala', 'md', 'json', 'yml', 'yaml', 'toml', 'xml', 'sql', 'sh', 'ps1', 'html', 'css', 'scss', 'vue', 'svelte', 'txt', 'ini', 'cfg', 'gradle', 'lock', 'proto', 'graphql']);
 
 const refuse = (what, why) => [`plans: ${what} refused (${why})`];
 const rel = (root, file) => path.relative(root, file).split(path.sep).join('/');
-const base = (root) => path.join(root, '.keel', 'local', 'plans', 'keel');
 const oneLine = (s) => String(s).replace(/\s+/g, ' ').trim();
 const lf = (text) => String(text).replace(/\r\n/g, '\n');
-const sha = (text) => crypto.createHash('sha256').update(text).digest('hex').slice(0, 12);
 const given = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '-';
-
-// --- settings ---
-
-const settingsFile = (root) => path.join(base(root), 'settings.json');
-
-// Why a repository folder cannot hold planning files, or null. The places keel's scanner reads as
-// another system (handoff/, handoffs/), hidden folders and docs/plans are never used.
-function badFolder(root, dir) {
-  if (typeof dir !== 'string' || !dir.trim()) return 'empty';
-  const why = unsafeRel(root, dir);
-  if (why) return why;
-  const parts = dir.replace(/\\/g, '/').replace(/\/+$/, '').split('/');
-  if (parts.some((p) => p.startsWith('.'))) return 'a hidden folder';
-  if (parts.some((p) => /^handoffs?$/i.test(p))) return 'handoff/ and handoffs/ belong to another system';
-  if (/^docs\/plans(\/|$)/i.test(parts.join('/'))) return 'docs/plans is not for tickets';
-  return null;
-}
-
-const SETTING_CHECKS = {
-  language: (v) => (/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(v) ? null : 'a language code such as en or uk'),
-  draft: (v) => (['pc', 'repo'].includes(v) ? null : 'pc or repo'),
-  draft_dir: (v, root) => badFolder(root, v),
-  export: (v) => (['pc', 'repo'].includes(v) ? null : 'pc or repo'),
-  export_dir: (v, root) => badFolder(root, v),
-  prefix: (v) => (/^[A-Z][A-Z0-9]{1,9}$/.test(v) ? null : '2-10 capital letters and digits, starting with a letter'),
-};
-
-// The saved settings (only valid values) and whether the file exists.
-function readSettings(root) {
-  const text = read(settingsFile(root));
-  let raw = null;
-  try { raw = text === null ? null : JSON.parse(text); } catch { /* unreadable: defaults */ }
-  const saved = {};
-  if (raw && typeof raw === 'object') {
-    for (const k of SETTING_KEYS) if (typeof raw[k] === 'string' && !SETTING_CHECKS[k](raw[k], root)) saved[k] = raw[k];
-  }
-  return { exists: text !== null, readable: text === null || (raw !== null && typeof raw === 'object'), saved };
-}
-
-// The settings in effect: saved values over the defaults; the language defaults to repo_language.
-function settings(root) {
-  const { saved } = readSettings(root);
-  const { state, config } = checkConfig(root);
-  return { language: (state === 'ok' && config.repo_language) || 'en', ...DEFAULTS, ...saved };
-}
 
 // The project's main branch (config git.main_branch), or null without a valid config.
 function mainBranch(root) {
   const { state, config } = checkConfig(root);
   return state === 'ok' ? config.git.main_branch : null;
-}
-
-function settingsShow(root) {
-  const { exists, readable, saved } = readSettings(root);
-  const s = settings(root);
-  const out = [exists ? `settings: ${rel(root, settingsFile(root))}${readable ? '' : ' (unreadable: defaults in use)'}` : 'settings: none yet (the first planning here asks the language and where the draft lives)'];
-  for (const k of SETTING_KEYS) out.push(`${k}: ${s[k] === undefined ? '-' : s[k]}${k in saved ? '' : s[k] === undefined ? '' : ' (default)'}`);
-  return out;
-}
-
-function settingsSet(root, opts) {
-  const updates = {};
-  for (const k of SETTING_KEYS) {
-    if (opts[k] === undefined) continue;
-    const v = typeof opts[k] === 'string' ? opts[k].trim().replace(/\\/g, '/').replace(/\/+$/, '') : '';
-    const why = SETTING_CHECKS[k](v, root);
-    if (why) return refuse('settings set', `--${k}: ${why}`);
-    updates[k] = v;
-  }
-  if (!Object.keys(updates).length) return refuse('settings set', `nothing to set: --${SETTING_KEYS.join(', --')}`);
-  try {
-    safeLocalWrite(root, ['plans', 'keel', 'settings.json'], JSON.stringify({ ...readSettings(root).saved, ...updates }, null, 2) + '\n');
-  } catch (e) { return refuse('settings set', e.message); }
-  return settingsShow(root);
-}
-
-// --- the drafts ---
-
-const validFeature = (name) => typeof name === 'string' && name.length <= FEATURE_MAX && FEATURE.test(name);
-const FEATURE_RULE = '2-4 English words joined by hyphens, [a-z0-9-], at most 40 characters, starting with a letter, no digit right after a hyphen (add-2fa reads as the key ADD-2)';
-
-// The folders that may hold drafts: this machine's first, then the repository's draft_dir.
-function draftDirs(root) {
-  const dir = settings(root).draft_dir;
-  return [{ dir: base(root), local: true }, ...(badFolder(root, dir) ? [] : [{ dir: path.join(root, dir), local: false }])];
-}
-
-// The repository folder exported features go to (export_dir), or null when it is not one
-// keel uses.
-function exportDir(root, s = settings(root)) {
-  const dir = s.export_dir;
-  return badFolder(root, dir) ? null : path.join(root, dir);
-}
-
-// One draft: its folder, plan.md text and front matter. Links are skipped: a draft folder is always a
-// real folder.
-function draftAt(folder, local) {
-  const text = read(path.join(folder, PLAN_FILE));
-  if (text === null) return null;
-  const fm = frontmatter(text);
-  if (fm.type !== 'plan' || !STATES.includes(fm.status)) return null;
-  return { feature: path.basename(folder), folder, local, text, fm };
-}
-
-function listDrafts(root) {
-  const out = [];
-  for (const { dir, local } of draftDirs(root)) {
-    let entries = [];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { /* none */ }
-    for (const e of entries) {
-      if (!e.isDirectory() || !validFeature(e.name)) continue;
-      const d = draftAt(path.join(dir, e.name), local);
-      if (d) out.push(d);
-    }
-  }
-  return out.sort((a, b) => a.feature.localeCompare(b.feature));
-}
-
-// The draft named `feature`, or { why } for the refusal.
-function needDraft(root, feature, what) {
-  if (!validFeature(feature)) return { why: refuse(what, `invalid feature name "${clean(String(feature))}": ${FEATURE_RULE}`) };
-  const found = listDrafts(root).filter((d) => d.feature === feature);
-  if (!found.length) return { why: refuse(what, `no draft "${feature}" (plans.js list shows the drafts)`) };
-  if (found.length > 1) return { why: refuse(what, `two drafts "${feature}": ${found.map((d) => `${rel(root, d.folder)}/`).join(' and ')}; keep one`) };
-  return { d: found[0] };
-}
-
-// Whether a command edits the exported feature instead of a draft: no draft of that name here, or an
-// exported one.
-const reopens = (root, feature, d) => (d ? stateOf(d) === 'exported' : validFeature(feature) && !listDrafts(root).some((x) => x.feature === feature));
-
-// The exported feature's tickets in the working tree (lib/plans-export.js) when the command edits it,
-// or null.
-const exportedHere = (root, feature, d) => (reopens(root, feature, d) ? require('./plans-export.js').featureFolder(root, feature) : null);
-
-// The draft's tickets, by T-number. A file whose name is not T<n>-<slug>.md is not a ticket.
-function tickets(d) {
-  let names = [];
-  try { names = fs.readdirSync(path.join(d.folder, 'tickets'), { withFileTypes: true }).filter((e) => e.isFile()).map((e) => e.name); } catch { /* none */ }
-  return names.map((name) => TICKET_FILE.exec(name)).filter(Boolean)
-    .map((m) => { const file = path.join(d.folder, 'tickets', m[0]); const text = read(file) || ''; return { id: `T${Number(m[1])}`, n: Number(m[1]), name: m[0], file, text, fm: frontmatter(text) }; })
-    .sort((a, b) => a.n - b.n);
-}
-
-const ticketIds = (value) => String(value || '').replace(/[[\]]/g, '').split(/[\s,;]+/).filter((x) => x && x !== '-');
-
-// Open questions: the Q<n> items of "Open questions" (an answered one moves to Decisions).
-function openQuestions(text) {
-  const sec = sections(text)['Open questions'] || '';
-  return sec.split('\n').filter((l) => /^\s*(?:[-*]\s+)?(?:\*\*)?Q\d+\b/.test(l)).length;
-}
-
-// The newest change of any file in the folder, as a local date.
-function lastChange(folder) {
-  let newest = 0;
-  const walk = (dir) => {
-    let entries = [];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-    for (const e of entries) {
-      const p = path.join(dir, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (e.isFile()) { try { newest = Math.max(newest, fs.statSync(p).mtimeMs); } catch { /* gone */ } }
-    }
-  };
-  walk(folder);
-  return newest ? dateOf(new Date(newest)) : '-';
-}
-
-// --- hashes ---
-
-// A ticket's review hash: its text without the review_hash line.
-const frontOnly = (text, re) => lf(text).replace(/^---\n[\s\S]*?\n---/, (fm) => fm.replace(re, ''));
-const ticketHash = (text) => sha(frontOnly(text, /^review_hash:.*\n?/gm).trimEnd());
-
-// The whole draft but its state: plan.md without status and ready_hash, and every ticket. reviews/
-// records decisions and does not count.
-function draftHash(d) {
-  const plan = frontOnly(d.text, /^(status|ready_hash):.*\n?/gm);
-  return sha([plan, ...tickets(d).map((t) => `\n--- ${t.name}\n${lf(t.text)}`)].join(''));
-}
-
-// The state in effect: a ready plan changed since (another hash) is a draft again.
-const editedAfterReady = (d) => d.fm.status === 'ready' && d.fm.ready_hash !== draftHash(d);
-const stateOf = (d) => (editedAfterReady(d) ? 'draft' : d.fm.status);
-
-// Writes plan.md's front matter fields; returns the updated draft.
-function writePlan(root, d, updates) {
-  const text = setFront(d.text, updates);
-  if (text === null) throw new Error(`${rel(root, path.join(d.folder, PLAN_FILE))} has no front matter`);
-  writeFile(root, d, path.join(d.folder, PLAN_FILE), text);
-  return { ...d, text, fm: frontmatter(text) };
-}
-
-// A ready plan changed since goes back to draft in the file too.
-function settle(root, d) {
-  return editedAfterReady(d) ? writePlan(root, d, { status: 'draft', ready_hash: '-' }) : d;
-}
-
-// Every write into a draft: under .keel/local through safeLocalPath, in the repository with no link on
-// the way.
-function writeFile(root, d, file, text) {
-  if (d.local) {
-    const target = safeLocalPath(root, ...path.relative(path.join(root, '.keel', 'local'), file).split(path.sep));
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, text);
-    return;
-  }
-  const why = linkOnWay(root, file);
-  if (why) throw new Error(`${why}: keel does not write through it`);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, text);
-}
-
-// --- the list ---
-
-function where(root, d) {
-  return `${rel(root, d.folder)}/${d.local ? ' (this machine only)' : ''}`;
-}
-
-function draftLine(root, d) {
-  const state = stateOf(d);
-  const note = editedAfterReady(d) ? ' (changed after ready)' : '';
-  return `- ${d.feature}: ${state}${note} · open Q ${openQuestions(d.text)} · tickets ${tickets(d).length} · changed ${lastChange(d.folder)} · ${where(root, d)}`;
-}
-
-function draftList(root) {
-  const drafts = listDrafts(root);
-  return [`drafts: ${drafts.length}`, ...drafts.map((d) => draftLine(root, d))];
-}
-
-// Words of a request ("continue planning the S3 connection") against folder names and Summary. Words
-// shorter than 3 letters are left out unless they hold a digit (s3); a word of 5 letters or more
-// matches by its first 5 (connect ~ connection, підключення ~ підключенням).
-const words = (text) => (String(text).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length >= 3 || (w.length === 2 && /\d/.test(w)));
-const stem = (w) => (w.length >= 5 ? w.slice(0, 5) : w);
-
-function draftFind(root, query) {
-  const asked = [...new Set(words(query).map(stem))];
-  if (!asked.length) return refuse('find', 'needs words');
-  const drafts = listDrafts(root);
-  const scored = drafts.map((d) => {
-    const have = new Set([...words(d.feature.replace(/-/g, ' ')), ...words(sections(d.text).Summary || '')].map(stem));
-    return { d, score: asked.filter((w) => have.has(w)).length };
-  });
-  const top = Math.max(0, ...scored.map((s) => s.score));
-  const best = top ? scored.filter((s) => s.score === top).map((s) => s.d) : [];
-  if (best.length === 1) return ['find: 1 match', draftLine(root, best[0])];
-  if (best.length > 1) return [`find: ${best.length} matches`, ...best.map((d) => draftLine(root, d))];
-  return [`find: no match (all drafts: ${drafts.length})`, ...drafts.map((d) => draftLine(root, d))];
 }
 
 // --- making drafts and tickets ---
@@ -331,13 +87,13 @@ function draftNew(root, feature, now = new Date()) {
   const draft = listDrafts(root).find((d) => d.feature === feature);
   if (draft) return refuse('new', `a draft "${feature}" exists (${stateOf(draft)}, ${where(root, draft)}): continue it or pick another name`);
   const folder = path.join(local ? base(root) : path.join(root, s.draft_dir), feature);
-  const repoDirs = [s.draft_dir, s.export_dir].filter((x) => x && !badFolder(root, x));
+  const repoDirs = [s.draft_dir, s.tickets_dir].filter((x) => x && !badFolder(root, x));
   const taken = [folder, ...repoDirs.map((x) => path.join(root, x, feature))].find((f) => fs.existsSync(f));
   if (taken) return refuse('new', `${rel(root, taken)}/ exists: pick another name`);
   // A draft committed on its feature branch is not seen from another branch: that branch takes the name.
   if (!local && featureBranchElsewhere(root, feature)) return refuse('new', `branch ${feature} exists and may hold this draft: switch to it, or pick another name`);
   const head = git(root, ['rev-parse', '--short', 'HEAD']);
-  const front = { type: 'plan', status: 'draft', feature, language: s.language, export: '-', branch: feature, merge_into: mainBranch(root) || '-', created: dateOf(now), after_commit: head || '-', last_ticket: 0, ready_hash: '-' };
+  const front = { type: 'plan', status: 'draft', feature, page: pageCode(), language: s.language, export: '-', branch: feature, merge_into: mainBranch(root) || '-', repos: '-', created: dateOf(now), after_commit: head || '-', after_commit_repos: '-', last_ticket: 0, ready_hash: '-' };
   const t = fromTemplate(PLAN_FILE, front);
   const d = { feature, folder, local, text: '', fm: {} };
   try { writeFile(root, d, path.join(folder, PLAN_FILE), t.text(t.body.replace(/^# .*$/m, () => `# ${feature}`))); } catch (e) { return refuse('new', e.message); }
@@ -353,31 +109,55 @@ function ticketNew(root, feature, o) {
   if (!found && !ex) return why;
   const d = ex ? null : settle(root, found);
   if (d && !['draft', 'ready'].includes(d.fm.status)) return refuse('ticket', `the plan is ${d.fm.status}`);
+  if (o['from-stub'] !== undefined) return stubs().fromStub(root, feature, d, ex, o['from-stub']);
+  if (o.stub !== undefined && ex) return refuse('ticket', '--stub: the feature is exported; a stub is planned while the feature is a draft');
+  if (o.stub !== undefined && o.repo !== undefined) return refuse('ticket', '--stub names the repository itself: --stub WEB, without --repo');
   if (typeof o.title !== 'string' || !oneLine(o.title)) return refuse('ticket', 'needs --title');
   const slug = slugOf(typeof o.slug === 'string' ? o.slug : o.title);
   if (!slug) return refuse('ticket', 'the title has no English words for the file name: add --slug <english-words>');
   const deps = typeof o.depends === 'string' ? ticketIds(o.depends) : [];
-  if (ex) return require('./plans-export.js').exportedTicket(root, feature, ex, { title: oneLine(o.title), slug, deps });
+  if (o.repo !== undefined && (typeof o.repo !== 'string' || !o.repo.trim())) return refuse('ticket', '--repo needs a ticket prefix: --repo WEB');
+  if (ex) return require('./plans-export.js').exportedTicket(root, feature, ex, { title: oneLine(o.title), slug, deps, repo: o.repo });
+  let repo = null;
+  if (o.stub !== undefined) {
+    const r = stubs().stubRepo(root, o.stub, feature);
+    if (r.why) return refuse('ticket', r.why);
+    repo = r.prefix;
+  } else if (o.repo !== undefined) {
+    const asked = o.repo.trim().toUpperCase();
+    const own = settings(root).ticket_prefix;
+    if (asked !== own && !repos().planRepos(d.fm).includes(asked)) return refuse('ticket', `--repo: ${clean(asked, 20)} is not in the plan's repos (plans.js set ${feature} --repos ...)`);
+    if (asked !== own) repo = asked;
+  }
   const all = tickets(d);
-  const unknown = deps.filter((x) => !all.some((t) => t.id === x));
-  if (unknown.length) return refuse('ticket', `--depends: no ticket ${unknown.join(', ')}`);
+  const other = otherRepos(root, deps.filter((x) => !all.some((t) => t.id === x)));
+  // Another repository's key is unknown only when that repository lacks it; not checked is never unknown.
+  const unknown = deps.filter((x) => !all.some((t) => t.id === x) && (!other.foreign(x) || other.missing.has(x.toUpperCase())));
+  if (unknown.length) return refuse('ticket', `--depends: no ticket ${unknown.map((x) => `${clean(x, 40)}${other.missing.has(x.toUpperCase()) ? ` ${other.missing.get(x.toUpperCase())}` : ''}`).join(', ')}`);
   // Numbers are never reused: past the highest ever given and the highest file there.
   const n = Math.max(Number(d.fm.last_ticket) || 0, ...all.map((t) => t.n)) + 1;
   const id = `T${n}`;
   const file = path.join(d.folder, 'tickets', `${id}-${slug}.md`);
-  const t = fromTemplate('ticket.md', { id, depends_on: `[${deps.join(', ')}]`, review_hash: '-' });
+  const t = o.stub !== undefined ? fromTemplate('stub.md', { id, type: 'stub', repo, depends_on: `[${deps.join(', ')}]`, review_hash: '-' })
+    : fromTemplate('ticket.md', { id, ...(repo ? { repo } : {}), depends_on: `[${deps.join(', ')}]`, review_hash: '-' });
   try {
     writeFile(root, d, file, t.text(t.body.replace(/^# .*$/m, () => `# [${id}] ${oneLine(o.title)}`)));
     writePlan(root, d, { last_ticket: n, ...(d.fm.status === 'ready' ? { status: 'draft', ready_hash: '-' } : {}) });
   } catch (e) { return refuse('ticket', e.message); }
-  return [`created: ${rel(root, file)}`, `ticket: ${id}`];
+  return [`created: ${rel(root, file)}`, `ticket: ${id}`, ...[...other.notes].map(([k, why]) => neighbours().noteLine(id, k, why))];
 }
+
+const neighbours = () => require('./plans-neighbours.js');
+const repos = () => require('./plans-repos.js');
+const stubs = () => require('./plans-stubs.js');
+// Another repository's keys among a draft's dependencies (lib/plans-neighbours.js).
+const otherRepos = (root, deps) => neighbours().lookUp(root, deps);
 
 // --- the feature branch ---
 
 // A branch name git takes as it is (check-ref-format would turn @{-1} into another name) and never
 // reads as an option.
-const validBranch = (root, name) => typeof name === 'string' && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name) && git(root, ['check-ref-format', '--branch', name]) === name;
+const validBranch = (root, name) => validBranchName(root, name) && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name);
 
 // The feature branch and where it merges, as the exported tickets get them: plan.md's values, else the
 // feature name and the main branch.
@@ -385,8 +165,9 @@ function branchesOf(root, d) {
   return { branch: given(d.fm.branch) ? d.fm.branch : d.feature, merge_into: given(d.fm.merge_into) ? d.fm.merge_into : mainBranch(root) };
 }
 
-// plans.js set: the plan's branch and merge_into. A plan is changed only while it is a draft; a ready
-// one becomes a draft again.
+// plans.js set: the plan's branch and merge_into; its repositories (--repos, lib/plans-repos.js); and
+// --after-commit: after_commit and the other repositories' after_commit_repos from their HEAD now. A
+// plan is changed only while it is a draft; a ready one becomes a draft again.
 function draftSet(root, feature, o) {
   const { d: found, why } = needDraft(root, feature, 'set');
   if (!found) return why;
@@ -396,7 +177,23 @@ function draftSet(root, feature, o) {
     if (!validBranch(root, o[opt])) return refuse('set', `--${opt}: "${clean(String(o[opt]))}" is not a valid branch name`);
     updates[key] = o[opt];
   }
-  if (!Object.keys(updates).length) return refuse('set', 'nothing to set: --branch, --merge-into');
+  const s = settings(root);
+  let list = repos().planRepos(found.fm);
+  if (o.repos !== undefined) {
+    const r = repos().reposValue(root, o.repos, s);
+    if (r.why) return refuse('set', `--repos: ${r.why}`);
+    updates.repos = r.value;
+    list = r.list;
+  }
+  const commit = o['after-commit'] !== undefined;
+  if (commit && o['after-commit'] !== true) return refuse('set', '--after-commit takes no value');
+  if (commit) {
+    const head = repos().headOf(root);
+    if (!head) return refuse('set', '--after-commit: no commit here (not a git repository, or no commit yet)');
+    updates.after_commit = head;
+  }
+  if (o.repos !== undefined || commit) updates.after_commit_repos = repos().commitsText(repos().recordCommits(found.fm, list, s, commit ? 'all' : null));
+  if (!Object.keys(updates).length) return refuse('set', 'nothing to set: --branch, --merge-into, --repos, --after-commit');
   let d;
   try { d = settle(root, found); } catch (e) { return refuse('set', e.message); }
   if (!['draft', 'ready'].includes(d.fm.status)) return refuse('set', `the plan is ${d.fm.status}`);
@@ -406,134 +203,14 @@ function draftSet(root, feature, o) {
     try { d = writePlan(root, d, { ...Object.fromEntries(changed), ...(back ? { status: 'draft', ready_hash: '-' } : {}) }); } catch (e) { return refuse('set', e.message); }
   }
   const b = branchesOf(root, d);
-  return [`branch: ${b.branch}`, `merge_into: ${b.merge_into || '-'}`, ...(back ? ['status: draft (the plan changed after ready)'] : [])];
-}
-
-// --- the structure check ---
-
-// The text a placeholder search reads: no code blocks, no inline code, no links in angle brackets.
-const prose = (text) => lf(text).replace(/^```[\s\S]*?^```/gm, (m) => m.replace(/[^\n]/g, ' ')).replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length)).replace(/<https?:[^>\s]*>/g, (m) => ' '.repeat(m.length));
-
-// "TBD" or "<...>" left in the text after the front matter, with its line.
-function placeholders(text) {
-  const all = lf(text);
-  const fmEnd = /^---\n[\s\S]*?\n---\n?/.exec(all);
-  const skip = fmEnd ? fmEnd[0].split('\n').length - 1 : 0;
-  const out = [];
-  prose(all).split('\n').forEach((line, i) => {
-    if (i < skip) return;
-    const m = /\bTBD\b/.exec(line) || /<[^<>\n]*>/.exec(line);
-    if (m) out.push(`${clean(m[0], 40)} (line ${i + 1})`);
-  });
-  return out;
-}
-
-// The files "Where to look" names: inline code or a bare path:line, without the line part.
-function mentionedFiles(text) {
-  const found = new Set();
-  const add = (raw) => {
-    const p = raw.trim().replace(/#L\d+.*$/, '').replace(/:\d+(?:[-:]\d+)?$/, '');
-    if (!p || /[\s*?(){}<>]/.test(p) || /^[a-z]+:\/\//i.test(p)) return;
-    const ext = /\.([A-Za-z0-9]+)$/.exec(p);
-    if (p.includes('/') || /:\d+/.test(raw) || (ext && FILE_EXT.has(ext[1].toLowerCase()))) found.add(p.replace(/^\.\//, ''));
-  };
-  for (const m of text.matchAll(/`([^`\n]+)`/g)) add(m[1]);
-  for (const m of text.replace(/`[^`\n]*`/g, ' ').matchAll(/(?:^|[\s(])([\w./-]+\.[A-Za-z0-9]+:\d+)/gm)) add(m[1]);
-  return [...found];
-}
-
-// Dependency cycles, each as T1 -> T2 -> T1.
-function cycles(list) {
-  const deps = new Map(list.map((t) => [t.id, ticketIds(t.fm.depends_on).filter((x) => x !== t.id)]));
-  const out = [];
-  const seen = new Set();
-  const visit = (id, stack) => {
-    if (stack.includes(id)) { out.push([...stack.slice(stack.indexOf(id)), id].join(' -> ')); return; }
-    if (seen.has(id) || !deps.has(id)) return;
-    seen.add(id);
-    for (const next of deps.get(id)) visit(next, [...stack, id]);
-  };
-  for (const t of list) visit(t.id, []);
-  return out;
-}
-
-// One ticket's text, a draft's or an exported one: its sections, acceptance criteria, no placeholders,
-// the files Where to look names exist.
-function ticketProblems(root, label, text) {
-  const out = [];
-  const secs = sections(text);
-  for (const name of TICKET_SECTIONS) if (!(name in secs)) out.push(`${label}: no section "## ${name}"`);
-  if ('Acceptance criteria' in secs && !secs['Acceptance criteria'].trim()) out.push(`${label}: acceptance criteria are empty`);
-  for (const p of placeholders(text)) out.push(`${label}: placeholder ${p}`);
-  for (const f of mentionedFiles(secs['Where to look'] || '')) {
-    const outside = path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..');
-    if (outside) out.push(`${label}: ${clean(f)} in Where to look is outside the project`);
-    else if (!fs.existsSync(path.join(root, f))) out.push(`${label}: ${clean(f)} in Where to look does not exist`);
-  }
-  return out;
-}
-
-function problems(root, d) {
-  const out = [];
-  const plan = sections(d.text);
-  for (const name of PLAN_SECTIONS) if (!(name in plan)) out.push(`plan.md: no section "## ${name}"`);
-  for (const p of placeholders(d.text)) out.push(`plan.md: placeholder ${p}`);
-  const list = tickets(d);
-  const ids = new Set(list.map((t) => t.id));
-  for (const t of list) {
-    if (t.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(t.fm.id || '')}", the file name says ${t.id}`);
-    out.push(...ticketProblems(root, t.id, t.text));
-    for (const dep of ticketIds(t.fm.depends_on)) {
-      if (dep === t.id) out.push(`${t.id}: depends on itself`);
-      else if (!ids.has(dep)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist`);
-    }
-  }
-  for (const c of cycles(list)) out.push(`dependency cycle: ${c}`);
-  return { out, count: list.length };
-}
-
-// A draft: plan.md and its tickets. An exported feature: its tickets, whose depends_on are keys.
-function draftCheck(root, feature) {
-  const { d: found, why } = needDraft(root, feature, 'check');
-  const ex = exportedHere(root, feature, found);
-  if (ex) {
-    const { out, count } = require('./plans-export.js').exportedProblems(root, ex);
-    if (!out.length) return [`check: clean (${count} tickets in ${rel(root, ex.folder)}/)`];
-    return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`)];
-  }
-  if (!found) return why;
-  let d;
-  try { d = settle(root, found); } catch (e) { return refuse('check', e.message); }
-  const { out, count } = problems(root, d);
-  const back = d !== found ? ['status: draft (the plan changed after ready)'] : [];
-  if (!out.length) return [`check: clean (plan.md and ${count} tickets)`, ...back];
-  return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`), ...back];
-}
-
-// --- staleness ---
-
-const STALE_SHOWN = 10;
-
-// Which of the files the tickets name in "Where to look" changed since plan.md's after_commit: in
-// commits since then or uncommitted. Read-only; only those files are compared.
-function draftStale(root, feature) {
-  const { d, why } = needDraft(root, feature, 'stale');
-  if (!d) return why;
-  const after = d.fm.after_commit;
-  if (!given(after) || after.startsWith('-')) return ['stale: unknown (no after_commit)'];
-  if (git(root, ['rev-parse', '--git-dir']) === null) return ['stale: unknown (not a git repository)'];
-  if (git(root, ['rev-parse', '-q', '--verify', `${after}^{commit}`]) === null) return [`stale: unknown (after_commit ${clean(after, 40)} not found)`];
-  // A named folder (src/lib/) counts by everything in it.
-  const files = [...new Set(tickets(d).flatMap((t) => mentionedFiles(sections(t.text)['Where to look'] || '')).map((f) => f.replace(/\\/g, '/').replace(/\/+$/, '')))]
-    .filter((f) => f && !(path.isAbsolute(f) || path.win32.isAbsolute(f) || f.split('/').includes('..') || f.startsWith('-')));
-  if (!files.length) return [`stale: none of 0 named files changed since ${after}`];
-  // Paths from the project folder (--relative), which may sit below the repository's top.
-  const lines = (args) => (git(root, args) || '').split('\n').filter(Boolean);
-  const changed = new Set([...lines(['diff', '--relative', '--name-only', after, 'HEAD', '--', ...files]), ...lines(['diff', '--relative', '--name-only', 'HEAD', '--', ...files])]);
-  const hit = files.filter((f) => [...changed].some((c) => c === f || c.startsWith(`${f}/`)));
-  if (!hit.length) return [`stale: none of ${files.length} named files changed since ${after}`];
-  const shown = hit.slice(0, STALE_SHOWN).map((f) => clean(f)).join(', ') + (hit.length > STALE_SHOWN ? ', …' : '');
-  return [`stale: ${hit.length} of ${files.length} named files changed since ${after}: ${shown}`];
+  return [
+    `branch: ${b.branch}`, `merge_into: ${b.merge_into || '-'}`,
+    ...(o.repos !== undefined ? [`repos: ${d.fm.repos}`] : []),
+    ...(commit ? [`after_commit: ${d.fm.after_commit}`] : []),
+    ...('after_commit_repos' in updates ? [`after_commit_repos: ${d.fm.after_commit_repos}`] : []),
+    ...(back ? ['status: draft (the plan changed after ready)'] : []),
+    ...(o.repos !== undefined || commit ? repos().noCommitNotes(list, s) : []),
+  ];
 }
 
 // --- reviews ---
@@ -543,9 +220,19 @@ const reviewState = (t) => (!given(t.fm.review_hash) ? 'never reviewed' : t.fm.r
 function draftReview(root, feature) {
   const { d, why } = needDraft(root, feature, 'review');
   if (!d) return why;
-  const list = tickets(d).map((t) => ({ t, state: reviewState(t) }));
+  const s = settings(root);
+  const list = tickets(d).map((t) => ({ t, state: reviewState(t), target: repos().targetOf(root, t, s) }));
   const due = list.filter((x) => x.state !== 'unchanged').length;
-  return [`review: ${due} of ${list.length} tickets to review`, ...list.map((x) => `- ${x.t.id}: ${x.state}`)];
+  // Another repository's ticket is reviewed in its folder; the plan reviewer gets every folder.
+  const where = (target) => (target.folder ? clean(target.folder, 200) : target.bad ? 'not a ticket prefix' : 'not on this machine');
+  const place = (target) => (target.own ? '' : ` (${clean(target.prefix, 20)}: ${where(target)})`);
+  const planned = repos().planRepos(d.fm);
+  const folders = planned.map((p) => { const r = repos().targetOf(root, { fm: { repo: p } }, s); return `${clean(p, 20)}=${r.own ? 'this project' : where(r)}`; });
+  return [
+    `review: ${due} of ${list.length} tickets to review`,
+    ...(planned.length ? [`repos: ${folders.join(', ')}`] : []),
+    ...list.map((x) => `- ${x.t.id}: ${x.state}${place(x.target)}`),
+  ];
 }
 
 function draftReviewed(root, feature, ids) {
@@ -607,8 +294,6 @@ function draftState(root, feature, to) {
 
 // --- the planning chat marks ---
 
-const marksDir = (root) => path.join(base(root), 'sessions');
-
 function marks(root) {
   let names = [];
   try { names = fs.readdirSync(marksDir(root)).filter((n) => n.endsWith('.json')); } catch { /* none */ }
@@ -630,7 +315,7 @@ function planningMark(root, sid) {
 }
 
 // The exported feature's folder mark set recorded for this chat (hooks/planning-guard.js lets the chat
-// write there, wherever export_dir points): an absolute path inside the project whose way passes the
+// write there, wherever tickets_dir points): an absolute path inside the project whose way passes the
 // feature's name, or null.
 function markedFolder(root, sid) {
   if (!validSid(sid)) return null;
@@ -641,7 +326,7 @@ function markedFolder(root, sid) {
 }
 
 function clearMarks(root, match) {
-  for (const m of marks(root)) if (match(m)) fs.rmSync(safeLocalPath(root, 'plans', 'keel', 'sessions', `${m.session}.json`), { force: true });
+  for (const m of marks(root)) if (match(m)) fs.rmSync(safeLocalPath(markHome(root), ...MARKS, `${m.session}.json`), { force: true });
 }
 
 function markCommand(root, sub, feature, sid) {
@@ -662,16 +347,18 @@ function markCommand(root, sub, feature, sid) {
     if (!ex && !d) return why;
     if (!ex && ['exported', 'abandoned'].includes(stateOf(d))) return refuse('mark set', `the plan is ${stateOf(d)}`);
     // An exported feature's folder is recorded for the write guard.
-    safeLocalWrite(root, ['plans', 'keel', 'sessions', `${sid}.json`], JSON.stringify(ex ? { feature, folder: rel(root, ex.folder) } : { feature }) + '\n');
+    safeLocalWrite(markHome(root), [...MARKS, `${sid}.json`], JSON.stringify(ex ? { feature, folder: rel(root, ex.folder) } : { feature }) + '\n');
     return [ex ? `planning: ${feature} (exported: ${rel(root, ex.folder)}/)` : `planning: ${feature}`];
   } catch (e) { return refuse(`mark ${sub}`, e.message); }
 }
 
 module.exports = {
-  validFeature, settings, settingsShow, settingsSet, listDrafts, draftList, draftFind, draftNew, ticketNew,
+  validFeature, listDrafts, draftList, draftFind, draftNew, ticketNew,
   draftCheck, draftReview, draftReviewed, draftState, planningMark, markedFolder, markCommand, ticketHash, draftDirs,
-  draftSet, exportDir, draftStale,
+  draftSet, draftStale,
   // for lib/plans-export.js
-  base, badFolder, SETTING_CHECKS, needDraft, settle, stateOf, problems, tickets, ticketIds, writePlan, writeFile,
+  base, needDraft, settle, stateOf, problems, tickets, ticketIds, writePlan, writeFile,
   branchesOf, mainBranch, PLAN_FILE, TICKET_FILE, fromTemplate, ticketProblems, cycles,
+  // for feature-page.js
+  mentionedFiles, pageCode, PAGE_CODE, machineFolders, localPaths, localProblems, researchTexts,
 };

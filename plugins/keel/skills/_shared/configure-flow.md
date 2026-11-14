@@ -31,8 +31,8 @@ Section 0 says what each answer runs.
   the recommended one first and marked; a recommendation never removes the other options.
 - Every recommendation comes from the section's script output (scan, `comments.js --project`,
   `stack-skills.js`, `claude-settings.js show`), never from a guess. When you cannot ask
-  interactively (no AskUserQuestion), first run the scripts of every section, then ask all questions
-  in one message, numbered by section.
+  interactively (no AskUserQuestion), first run the scripts of every section (the batch of section 0,
+  then the others), then ask all questions in one message, numbered by section.
 - Talk in the conversation language from section 1; write files in `repo_language`.
 - Never open secret files (the scan lists them under `secret_paths`); mention them by path only.
 - Never run deploy, publish, migration or data-changing commands. Only tests, linters and type checks,
@@ -66,9 +66,10 @@ machine has none yet) / only this machine's settings, for every project.
 - **Project mode** is everything below.
 
 **Quick or detailed** (project mode, fresh setup only; a second question in the same call as the first
-one): quick (recommended: about six questions, every other value is the recommendation and can be
-changed later with `/keel:configure <section>`) / detailed (every section asked). Both explain each
-question group first. Quick runs:
+one): quick (recommended: 11 to 18 questions, depending on the project and on whether this machine
+already has usage settings; every other value is the recommendation and can be changed later with
+`/keel:configure <section>`) / detailed (every section asked). Both explain each question group first.
+Quick runs:
 
 | Section | Quick |
 |---|---|
@@ -77,19 +78,22 @@ question group first. Quick runs:
 | 3 Gates | asked: the commands and the one dry run; scanners: those already on PATH, without a question; the missing ones are named in the summary |
 | 4 Git | asked: mode (both modes offered) and main branch, two questions in one call; `ask_before_merge` yes, state and task folders in git |
 | 5 Verification | the defaults, stated in one line |
-| 6 Code | file sizes 700 / 1,000; the comment level `comments.js --project` recommends; ticket prefixes it lists from git history; `adr_refs` `allowed` |
+| 6 Code | file sizes 700 / 1,000; the comment level `comments.js --project` recommends; planning tickets asked: the prefix and where they live, two questions in one call (the language is `repo_language`); ticket prefixes it lists from git history; `adr_refs` `allowed` |
 | 7 Stack plugins | skipped; the summary says `/keel:configure plugins` |
-| 8 Documentation | the suggested profile and pattern, stated with the reason; existing docs are kept up to date in every profile |
+| 8 Documentation | the suggested profile and pattern, stated with the reason; existing docs are kept up to date in every profile; the ADR style asked as one question when the profile is 2 or higher or there is an ADR folder (with the clean-up offer as in section 8) |
 | 9 Moving | asked only when `migrate.js find` finds another system |
 | 10 Claude Code settings | asked (never taken without a question: they change Claude Code's own settings) as one question: the recommended values from `show` (listed, each with what it does), written for the machine where it has none, else for this project only where they differ; options: yes to all / choose one by one (then as in section 10) / none |
-| 11 Usage and costs | asked when this machine has no usage settings: how it pays, the status line and the dashboard page in one group; names and prompt previews take the defaults from `show` |
+| 11 Usage and costs | asked when this machine has no usage settings: how it pays first (API key only → no page questions), then the status line and the usage page in one group; names and prompt previews take the defaults from `show` |
 | 12 Write | as written, and the summary lists every value with the section to change it |
 
 Read the check output the command showed. A `git: none` line → before anything else, say that keel
 needs a git repository and offer `git init` and a first commit of the current state (as
 `<keel>/skills/_shared/preflight.md` says); no → stop the setup. `git: not installed` → say so and stop.
 Then by the first line:
-- `keel-config: missing` → a fresh setup: every section from 1.
+- `keel-config: missing` with a `settings on branch: <name>` line → keel is already set up on that
+  branch; its settings reach this branch when that branch is merged. Say so and stop, unless the user
+  insists on a fresh setup here.
+- `keel-config: missing` (without that line) → a fresh setup: every section from 1.
 - `outdated` → **repair path**: load the existing config, ask only about fields the current schema
   added, keep everything else, then go to section 12.
 - `broken` or `invalid` → **repair path**: list each problem in plain words, propose a fix per
@@ -100,8 +104,22 @@ Then by the first line:
   line. An argument that names sections (numbers or `languages`, `scan`, `gates`, `git`,
   `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`; several
   separated by commas or spaces, such as `gates,git` or `3,4`) runs only those, in section order
-  whatever order they were given in, then section 12 once for what they changed. A name that is no
+  whatever order they were given in, then section 12 once for what they changed. `planning` runs only
+  the "Planning tickets" block of section 6 (all three of its questions). A name that is no
   section → list the sections and ask; run nothing before the answer.
+
+**The setup's scripts run once, together.** When the setup goes on (none of the stops above) and the
+first answer is known, run these in ONE message as separate tool calls, each its own plain `node`
+command (none depends on another's output; they write only their own files):
+- project mode, all five: `node "<keel>/scripts/scan.js" "<project>" --out "<project>/.keel/local/tmp/scan.json"`
+  (section 2), `node "<keel>/scripts/comments.js" "<project>" --project` (section 6),
+  `node "<keel>/scripts/migrate.js" "<project>" find` (section 9),
+  `node "<keel>/scripts/claude-settings.js" "<project>" show` (section 10) and
+  `node "<keel>/scripts/usage-setup.js" "<project>" show` (section 11);
+- machine mode, the last two only: it scans, reads comments and moves nothing.
+`migrate.js find` is always in the batch: the scan does not see what it sees. A run of chosen sections
+or a repair runs only the commands of the sections that run. Each section below uses the output
+already in the conversation and does not run its script again.
 
 Existing AI instruction files (`profile.ai_rules` from the scan: AGENTS.md, CLAUDE.md, Cursor or
 Copilot rules...) are read first: they state the project's own conventions and win over keel's guesses.
@@ -118,9 +136,10 @@ Copilot rules...) are read first: they state the project's own conventions and w
    language (texts for the app's users) comes from the project and the task, not from here.
 
 ## 2. Project scan (3 layers)
-1. **Layer 1, script:** run
-   `node "<keel>/scripts/scan.js" "<project>" --out "<project>/.keel/local/tmp/scan.json"`.
-   It prints a short summary (languages, parts with their best commands, secret files by path, gaps)
+1. **Layer 1, script:**
+   `node "<keel>/scripts/scan.js" "<project>" --out "<project>/.keel/local/tmp/scan.json"` ran in
+   section 0's batch: use its output (run it here only when the batch did not, in a run of chosen
+   sections). It prints a short summary (languages, parts with their best commands, secret files by path, gaps)
    and writes the full result to that file; read the file only for the details a question needs.
 2. **Layer 2, `keel:context` agent (Haiku), whenever `findings.gaps` is not empty**, also when you
    will ask the user about a gap anyway: the agent reads the files behind it (is a lock file empty,
@@ -144,7 +163,8 @@ For every part, propose test, lint and type-check commands from `findings.comman
 conventions) and say where each came from. The user can accept, change or drop each.
 
 Then offer **one dry run** of the confirmed commands, so a wrong command is caught now:
-1. For each command run `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- <command>`.
+1. For each command run `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- <command>`
+   (several commands: all in one message as separate tool calls; it writes nothing).
    `refused:` → do not run it; tell the user why and that they can run it themselves.
 2. Show the safe commands together and ask before running them. Run them one at a time from the
    part's folder; bring back only pass or fail and the first error lines.
@@ -153,14 +173,21 @@ Then offer **one dry run** of the confirmed commands, so a wrong command is caug
 
 **Security scanners are a separate question**, never bulk-confirmed. Propose `gitleaks` (secrets) and
 `semgrep` (risky code patterns) plus the ecosystem's audit command (npm/pnpm audit, composer audit,
-pip-audit, cargo audit, govulncheck, dotnet list package --vulnerable, bundle audit). Which are
-installed comes from the scan's "scanners on PATH" line; do not run them to find out. A scanner that
-is not installed stays in the list and becomes a loud warning in reports, not a red gate; say so.
+pip-audit, cargo audit, govulncheck, dotnet list package --vulnerable, bundle audit). An audit that
+reads the lock file (npm/pnpm/yarn/bun audit, composer audit, cargo audit, bundle audit) is not
+proposed for an ecosystem the scan names in a part's `(no lock file: <ecosystems>)` mark (the
+part's other ecosystems keep theirs): it fails there on every task (npm: `ENOLOCK`);
+say so in one line and that it can be added with `/keel:configure gates` once the lock file exists.
+Which are installed comes from the scan's "scanners on PATH" line; do not run them to find out. In
+detailed setup a scanner that is not installed stays in the list and becomes a loud warning in
+reports, not a red gate; say so. Quick setup keeps only the installed ones (the Quick table) and
+names the missing ones as not added, with the command that adds them; never say there that they stay
+in the list.
 - **gitleaks is two scanners** (`<keel>/data/catalog.json`, `security.scanners`), because keel verifies
   before the user commits: `gitleaks detect --no-banner --redact --log-opts=<main>..HEAD` (the commits
   of this branch) and `gitleaks protect --no-banner --redact` (uncommitted changes). A plain
-  full-history `detect` took 2.5 minutes on every task in a project with 9,701 commits (the branch
-  scan took 17 s) and misses what is not committed yet. `<main>` is the main branch confirmed in
+  full-history `detect` rescans every commit on every task, which takes minutes in a project with
+  thousands of commits, and misses what is not committed yet. `<main>` is the main branch confirmed in
   section 4: you substitute it (a name taken from the repository, never from user text) before the
   commands go to the config in section 12.
 - **gitleaks not on PATH but Docker is:** the same two scanners can run in the official image, for
@@ -177,7 +204,9 @@ is not installed stays in the list and becomes a loud warning in reports, not a 
   on later with `/keel:configure git`. Autonomous → after the config is written,
   run `node "<keel>/scripts/git-flow.js" "<project>" trust` once (Claude Code asks the user to confirm).
 - **Main branch:** propose the repository's default (`git symbolic-ref refs/remotes/origin/HEAD`, else
-  the current branch). Confirm.
+  the current branch). Confirm. That command fails in many repositories that have a remote (one pushed
+  with `git push -u` has no `origin/HEAD`): it says nothing about the remote, so never tell the user
+  there is no remote or that no push is needed; `git remote` shows the remotes.
 - **Ask before merging** (`ask_before_merge`, autonomous only): yes by default: keel merges only when
   your instruction asks, and Claude Code asks you to confirm each such merge. No: a finish also merges
   into the target, without a confirmation.
@@ -198,8 +227,9 @@ agents, 350 for implementers, fixed in each agent's own file, not in the config)
 **File sizes:** warning at 700 lines and limit at 1,000 lines. These are signals to look, not rules
 to split; keel splits by responsibility, never by line count.
 
-**Code comments** (`comments.level`). First run `node "<keel>/scripts/comments.js" "<project>" --project`:
-it gives the share of comment lines in the code now and the closest level; recommend that level
+**Code comments** (`comments.level`). First use the output of
+`node "<keel>/scripts/comments.js" "<project>" --project` from section 0's batch (run it here only
+when the batch did not, in a run of chosen sections): it gives the share of comment lines in the code now and the closest level; recommend that level
 (`short` when the project has no code yet). Explain:
 - Tricky code always gets a comment, as long as needed (formulas, hidden behaviour of called code, an
   order that matters, legacy or compatibility rules, code that looks wrong but is right), and unclear
@@ -215,46 +245,43 @@ it gives the share of comment lines in the code now and the closest level; recom
   session.
 - keel checks new code with `comments.js` at the end of a task and when it accepts a delegated step.
 
+**Planning tickets** (`planning`; alone: `/keel:configure planning`). `/keel:start-planning` turns a
+feature into tickets that `/keel:start-task` then builds; these settings say how the tickets are named
+and where they live, the same for the whole team (they go into git). Without them planning does not
+start. Ask in one call (only this block runs → run `comments.js --project` first: the batch of
+section 0 holds it in that case too):
+- **Ticket prefix** (`planning.ticket_prefix`): the start of every ticket key (`API` in `API-12`), one
+  per repository. Propose the first prefix the `--project` run lists from git history (the tracker's),
+  else 3-4 capital letters from the repository's name (`api-gateway` → `API`): 2-10 capital letters and
+  digits, starting with a letter.
+- **Where the tickets live** (`planning.tickets`): in the repository (recommended: the team sees them
+  and a task starts from a ticket on any machine), in `tickets/` or a ticket folder the project already
+  has (`planning.tickets_dir`; written only when it is not `tickets`; never a hidden folder, `handoff/`,
+  `handoffs/`, `docs/plans` or a place outside the project), together with the reports of keel's
+  researcher (`research/`) / only on this machine (outside git; the reports stay with them).
+- **Ticket language** (`planning.language`), detailed setup only: the language of `plan.md` and the
+  tickets; recommend `repo_language` (the team reads them) and write it only when it differs. Quick
+  setup takes `repo_language`.
+
 **Ids in comments and docs** (`comments.ticket_prefixes`, `comments.adr_refs`, `comments.refs_exempt`).
 A ticket id, a commit hash or a record code in a comment or doc points at something that may be
 deleted; `comments.js` reports them in new comment and doc lines (commit hashes always). Ask, in one
 question:
 - ticket prefixes: propose the ones the `--project` run lists from git history and ask for the ones
   it cannot see (register or debt rows such as `D-12`, acceptance criteria). None: ticket ids are not
-  checked;
+  checked. The planning ticket prefix is always checked too: list it as "added on its own" and never
+  write it into `ticket_prefixes`;
 - decision records (`ADR-12`): `allowed` (default) when the project keeps them for good; `forbidden`
-  when they may be removed or renamed, so a comment states the reason itself and a doc links the record;
+  when they may be removed or renamed, so a comment states the reason itself and a doc links the record
+  (the ADR style in section 8 may change it: `living` deletes records);
 - files where ids are the subject besides the built-in ones (decision records, task and ticket
   folders, changelogs, `.keel/`): a debt register, generated run records.
 
 ## 7. Stack plugins
-1. Run `node "<keel>/scripts/stack-skills.js" "<project>"`. It matches the project against keel's
-   checked list and searches the marketplaces the user has added (never the Anthropic Directory: most
-   of its 3,000+ entries are not about code, and it exists only with a claude.ai account).
-2. Show, per plugin: what it is, why it helps here, the author, and what it runs or needs (an MCP
-   server, a program, an account). Keep the groups apart: **checked by keel**; **marketplace not
-   added** (a reputable marketplace keel knows; the user adds it with the printed command);
-   **found in your marketplaces, not checked by keel** (drop any that clearly does not fit this
-   project, saying why in a few words); **nothing reliable found** for a framework.
-3. The user picks (multi-select; nothing is preselected). Also on "accept all" or "your
-   recommendation": list the plugins by name, none marked recommended or preselected, and wait for
-   the user's picks; this step is the exception to "recommended option first".
-4. **A language server plugin (LSP):** explain it plainly: after every edit Claude sees type and
-   compile errors at once, and finds definitions and callers exactly instead of by text search; the
-   cost is a program to install (the command comes from the script). The program is installed
-   together with the plugins, after the files are written; section 12 waits for it.
-5. **Installing:** Claude Code refuses plugin installs that Claude runs, so give the user the commands
-   to run in their own terminal, in order: `claude plugin marketplace add ...` first when needed, then
-   `claude plugin install <plugin>@<marketplace> --scope project` per plugin. Project scope records the
-   plugin in `.claude/settings.json`, but another machine does not fetch or offer it from there (Claude
-   Code only reports it as enabled in project settings and not installed), so each developer runs the
-   same commands; section 12 writes them into the project's docs. A plugin from a custom marketplace
-   also needs `extraKnownMarketplaces` committed in `.claude/settings.json`. New plugins load in the
-   next session.
-6. **Nothing reliable for a framework** (for example Yii2): install nothing, say so, and offer to
-   write a project skill from the project's own conventions later, as a separate task
-   (`/keel:start-task`).
-7. Store the picked plugin ids in `stack_skills`.
+**Stack plugins** (the user picks plugins for the project's stack: keel's checked list and the user's
+marketplaces, a language server, the install commands for the user's own terminal, a framework with
+nothing reliable; stored in `stack_skills`; the section a quick setup skips, and `/keel:configure
+plugins`) → read `<keel>/skills/_shared/configure-plugins.md` and follow it.
 
 ## 8. Documentation
 From the scan (`findings.docs`): the doc files, ADR and spec folders, a Diátaxis-like `docs/`, arc42
@@ -272,11 +299,48 @@ or C4 files, and the files Claude Code loads into every session with their line 
      read per task.
    The profile is the most a task may write; the task size decides. Details for the user if asked:
    `<keel>/skills/_shared/docs-profiles.md`.
-2. **Pattern** (`docs.pattern`), only for profiles 3-4: none / Diátaxis / arc42 / arc42 + C4;
+2. **ADR style** (`docs.adr_style`), when the chosen profile is 2 or higher or the scan found an ADR
+   folder (an old system's ADR folder is asked in section 9). Each style: the "In short" part of
+   `<keel>/skills/_shared/adr-journal.md` and `adr-living.md`.
+   - First say what the project has now: no ADRs yet, or how the existing ones are kept, from
+     `findings.docs.adr_records` (records, superseded, amended) and 2-3 records read, in one or two
+     plain sentences that name the records (for example "0001 is superseded by 0003", "0003 amends
+     part of 0002"). This line opens the question itself, also when all questions go in one message.
+   - Ask in one question, each option with its "In short" and cost: **journal**, **living**, **my
+     own way** (the user describes it). When the existing records already follow one style, mark that
+     option "this is how you keep them now". When they follow neither style (records that amend or
+     partly replace others, correction notes), add **keep them as they are**: describe the current
+     way in a few lines, in the option itself. Existing records with history marks (`superseded` or `amended` above 0) →
+     the **living** option also says that it comes with the one-time clean-up below, so its price is
+     known before the choice.
+   - Recommend `living` when the project has one human owner or is mostly worked on by agents (the
+     authors in `git shortlog -sn HEAD`, bots left out), `journal` otherwise; the recommended option
+     says why in its own words (how many people, who does the work). The project's own rules already
+     say how its records are kept (CLAUDE.md, AGENTS.md, the ADR folder's README or its template:
+     "propose a new ADR instead", a `superseded by` status) → recommend that style instead and say
+     the rule is theirs; the other option names the rule it would change.
+   - **keep them as they are** or **my own way** → `custom`: write the rule the user confirmed into
+     the ADR folder's README (`<ADR folder>/README.md`, a section "How we keep these records"; an
+     existing README gets the section), so keel's ADR skill and reviewers follow it. No ADR folder yet
+     → `docs/adr/README.md`.
+   - `comments.adr_refs` (section 6) is still `allowed` and the style is `living` → propose
+     `forbidden` in one line (a record may be deleted, so a comment states the reason itself and a doc
+     links the record); `journal` keeps `allowed`.
+   - `living` chosen while the existing records are kept as a journal (`superseded` or `amended`
+     above 0): offer once a one-time clean-up, done only after the user's yes: merge the records of
+     one topic into one, delete the dead ones (each after the user's yes), rewrite each to describe
+     only today's decision, then renumber once without gaps and fix every link and mention in the
+     same change. Say plainly that it renumbers once, at the switch, and never again (after it the
+     numbers are permanent), and that an old commit or note keeps the old numbers: the price of a
+     list without gaps. Prepare → write `<project>/.keel/local/adr-cleanup.md` with the Write tool
+     (goal, the records and what each becomes, acceptance criteria: one record per topic, no history
+     marks, numbers without gaps, every link resolves); section 12 names it as the first task. Not
+     now → nothing changes; new records follow `living`.
+3. **Pattern** (`docs.pattern`), only for profiles 3-4: none / Diátaxis / arc42 / arc42 + C4;
    recommend `findings.docs.suggested_pattern` when the project already follows one. Existing docs are
    never restructured as a side effect of other work; moving them is its own task (next item).
    Quick setup takes the suggested profile and pattern: keel keeps the docs the way they are.
-3. **Moving the existing docs** (detailed setup, when the chosen pattern is not the one the docs
+4. **Moving the existing docs** (detailed setup, when the chosen pattern is not the one the docs
    follow now, `findings.docs.suggested_pattern`; a profile alone needs no move: its first ADR or spec
    creates the folder). Same pattern → say "your docs already follow it; nothing to move". Otherwise:
    - count the doc files and their lines (`findings.docs.files` and the docs folders; sizes only, no
@@ -293,23 +357,20 @@ or C4 files, and the files Claude Code loads into every session with their line 
    to `<pattern>`), the current docs (files, folders), the target layout, acceptance criteria (every
    page's content kept, every link resolves, the navigation and README point to the new places), out
    of scope (rewriting content), and the estimate. Section 12 then names it as the first task.
-4. **Growth guard:** each file in `findings.docs.always_loaded` over 200 lines → say so: it is loaded
+5. **Growth guard:** each file in `findings.docs.always_loaded` over 200 lines → say so: it is loaded
    into every session, costs context each time and is followed less reliably; propose moving detail into files loaded on demand, as a separate task.
 
 ## 9. Moving from another system
-Run `node "<keel>/scripts/migrate.js" "<project>" find` (with `--from "<folder or plugin>"` when the
-user named one). No other system → skip this section without a question. Otherwise explain in plain
-words: two systems would give conflicting instructions (two notes, two memories), so keel offers to
-move the old notes, memory and logs into `.keel/`; project data and secrets stay. Ask: move now
-(recommended) / later (`/keel:configure migration`) / never (the old system stays); the user who ran
-`/keel:configure migration` has already chosen "now", so do not ask. On "move now"
-read `<keel>/skills/_shared/migrate.md` and follow it; its config proposals are compared with the
-answers already given (an answer changes only on a yes), and its git step waits for section 12.
+Use the output of `node "<keel>/scripts/migrate.js" "<project>" find` from the batch of section 0 (run
+it again with `--from "<folder or plugin>"` only when the user named one). No other system → skip this
+section without a question. Otherwise (explain, ask move now / later / never, and the move itself) →
+read `<keel>/skills/_shared/configure-migration.md` and follow it.
 
 `/keel:configure migration` (or `9`) in a configured project runs only this section.
 
 ## 10. Claude Code settings
-Run `node "<keel>/scripts/claude-settings.js" "<project>" show`. It lists every key twice: the `user`
+Use the output of `node "<keel>/scripts/claude-settings.js" "<project>" show` from section 0's batch
+(run it here only when the batch did not). It lists every key twice: the `user`
 row is the machine value, the `project` row this project's own value and which one applies. A machine
 value that already matches keel's recommendation is not asked again. Then, in one question group:
 
@@ -363,20 +424,26 @@ regressions and handled more edge cases.
 
 ## 11. Usage and costs (this machine)
 Asked once per machine: when `show` says `not configured on this machine yet`, or when the user asks
-for `usage` or `prices` (`/keel:configure prices` runs only step 6). Run
-`node "<keel>/scripts/usage-setup.js" "<project>" show`.
+for `usage` or `prices` (`/keel:configure prices` runs only step 6). Use the output of
+`node "<keel>/scripts/usage-setup.js" "<project>" show` from section 0's batch (run it here only when
+the batch did not).
 Explain first: at the end of every `/keel:end-task`, `/keel:end-session` and `/keel:end-planning` keel
 shows what the session cost: each participant (the main session, each agent run), its model, tokens
 and dollars at list price; on a subscription also about how many percent of the weekly and 5-hour
-limits that is. A private page "keel usage" in the user's claude.ai account collects this from every
-machine (charts, filters, every keel session with its agents and the cost of each request; other
-conversations count only in the hourly totals the limit calibration needs). Everything is read from Claude
-Code's own local logs; nothing leaves the machine except into that private page.
+limits that is. Everything is read from Claude Code's own local logs on this machine.
 Then, in one question group:
-1. **How this machine pays** (`wallet_default`): subscription (Pro/Max/Team; recommended when `show`
-   says the session wallet is `subscription`) / API key / both (`also_api: true`: sessions keel did
-   not mark are shown as "unknown" and left out of the limit calibration). **Cloud sessions**
-   (`cloud_wallet`, Claude Code on the web): separate credit (default) / subscription / API.
+1. **How this machine pays** (first: it decides what else is asked) (`wallet_default`): subscription
+   (Pro/Max/Team; recommended when `show` says the session wallet is `subscription`) / API key /
+   both (`also_api: true`: sessions keel did not mark are shown as "unknown" and left out of the
+   limit calibration). **Cloud sessions** (`cloud_wallet`, Claude Code on the web): separate credit
+   (default) / subscription / API. What each case gets:
+   - API key only: the report with exact dollars at every end; no usage page (it lives in a claude.ai
+     account, which an API-key session cannot reach), no plan-limit shares. Questions 2, 3 and 5 are
+     not asked: the names and previews only matter on the page.
+   - subscription only: the report with dollars and the share of the weekly and 5-hour limits, the
+     usage page, the limit calibration from every machine of the account.
+   - both: all of that; the API sessions reach the page with the next session signed in with
+     claude.ai, and only the subscription sessions count in the limit calibration.
 2. **Names**: this machine (`pc`, default from `show`; letters, digits, `-`, `_`) and the user email
    (`user`, default from `show`). With an API key the page groups by user, so a team sees who spent.
 3. **Prompt previews** (`prompt_preview`): the first 100 characters of each request, secrets masked,
@@ -387,37 +454,35 @@ Then, in one question group:
    limits); `offer: wrap` → the user's line stays exactly as it is and keel only records the
    percentages; `now: keel` → nothing to ask. Options: the offer (recommended) / skip (no percentages
    in the terminal).
-5. **Dashboard page**: `artifact_url` in `show` → keep it. When `show` also says
-   `page template: ... | offer: update`, the page itself says which keel page it runs: `ArtifactData`
-   `get`, that url, collection `meta`, doc `settings` (one call). Its `template` is this keel's (the
-   `page template` line) → save it as `page_template` (step 7) and offer nothing. Otherwise look
-   whether the page is this account's: the Artifact tool, `action: list`, mine, `limit` 200; the url is
-   not listed → save `page_shared: true` and say its owner updates it; listed → offer to update it
-   (step 7; its data stays). `show` says `its owner updates it` → offer nothing.
-   No `artifact_url` → look with the Artifact tool (`action: list`, mine, then shared) for one titled
-   "keel usage"; found → use it, with `page_shared` true when it came from the shared list and false
-   from mine. None → offer to create it (step 7). When the user says the team shares one page, its URL can also go to the project
-   config (`usage.artifact_url`, committed). A machine uses that URL only after its user approves it
-   (`approved_artifact_urls`, step 7), so a cloned repository cannot choose where usage data goes; a
-   machine `artifact_url` always wins.
-6. **Price update** (offer; about $0.1–0.3): start a `general-purpose` agent with `model: "sonnet"`:
-   "Find the current Claude API pricing page in the official docs (it was
-   platform.claude.com/docs/en/about-claude/pricing) and read it. Write
-   `<project>/.keel/local/tmp/prices-new.json` in the shape of `<keel>/data/prices.json`: `about`,
-   `source` (URL and date), `models` [{ `match` (model id prefix), `input`, `cache_write_5m`,
-   `cache_write_1h`, `cache_read`, `output` (USD per million tokens), `note` (long-context or other
-   surcharges) }] for every current and legacy model on the page. Reply with the file path and any
-   price you were unsure of." Then run
-   `node "<keel>/scripts/usage-setup.js" "<project>" prices-diff "<project>/.keel/local/tmp/prices-new.json"`,
-   show the changes and the `check:` lines, and after a yes run
-   `node "<keel>/scripts/usage-setup.js" "<project>" prices-apply "<project>/.keel/local/tmp/prices-new.json"`.
+5. **Usage page** ("Keep a usage page?" Yes (recommended) / No). Explain in plain words before the
+   question: a private page "keel usage" in the user's claude.ai account collects the costs of every
+   machine of the account (charts, filters, every keel session with its agents and the cost of each
+   request; other conversations count only in the hourly totals the limit calibration needs), so it
+   shows which project, session, agent or model costs most. It is updated at the end of every
+   `/keel:end-*` by a small Haiku sync agent, and each update adds a cost: about $0.07-0.20 at list
+   prices (on a subscription it counts toward the plan limits instead; give it in dollars only, never as
+   a share of a limit: plans differ). The longer the session, the more it costs, because starting the
+   sync agent re-reads the whole conversation: about $0.07 after a short session, $0.10-0.14 after a
+   medium one (measured), about $0.20 after a very long one. Without the page the end reports still show
+   the costs; only the page is missing. The choice holds for this
+   whole machine; `/keel:usage off` stops the sync later and `/keel:usage on`
+   starts it again (it sends what Claude Code's logs still hold of that time (they keep 30 days by default)). Nothing leaves the machine except into that private page.
+   `artifact_url` in `show` → the page exists: keep it, and when `show` says
+   `page template: ... | offer: update` follow `<keel>/skills/_shared/usage-page.md` section Update.
+   Yes and no page → `<keel>/skills/_shared/usage-page.md` (it finds the page another machine of the
+   account made, or offers to create one). Yes and `show` says `sync: off` → run
+   `node "<keel>/scripts/usage-setup.js" "<project>" sync on` after the write. No → nothing is sent;
+   with a page already set, run `node "<keel>/scripts/usage-setup.js" "<project>" sync off` after the write.
+   A project config with `usage.artifact_url` (a shared project page of an older keel) → say in one
+   line that it is no longer used: each machine syncs to its owner's page, and Share on that page
+   shows it to others.
+6. **Price update** (offer; about $0.1–0.3: a Sonnet agent reads the official pricing page, a diff is
+   shown, a yes applies it) → read `<keel>/skills/_shared/configure-prices.md` and follow it.
 
 7. **Write**, after showing it and the user's yes, in this order:
    - Machine settings first (`apply` accepts `statusline.original` only while it is still the status
      line in the user's settings): write the confirmed keys (`pc`, `user`, `wallet_default`,
-     `cloud_wallet`, `also_api`, `prompt_preview`, `artifact_url`, `page_shared`, `page_template`,
-     `approved_artifact_urls` (the team page URL from the project config, when the user approves it),
-     and `statusline`:
+     `cloud_wallet`, `also_api`, `prompt_preview` and `statusline`:
      `{ "mode": "keel" }`, `{ "mode": "wrap", "original": <object> }` or `{ "mode": "none" }`) to
      `<project>/.keel/local/tmp/usage-setup.json` and run
      `node "<keel>/scripts/usage-setup.js" "<project>" apply "<project>/.keel/local/tmp/usage-setup.json"`.
@@ -430,28 +495,8 @@ Then, in one question group:
      `install` on macOS or Linux: run `command -v jq`; nothing found → say that keel's line then shows
      less (the limit recording still works) and give the install hint (`brew install jq`, or the
      system's package manager, e.g. `sudo apt install jq`).
-   - Create the page (only after a yes): run `node "<keel>/scripts/usage-setup.js" "<project>" page`,
-     then publish with the Artifact tool: `file_path` `<project>/.keel/local/tmp/usage-page/index.html`,
-     `files` `{ "pivot.js": ".../usage-page/pivot.js", "i18n.js": ".../usage-page/i18n.js", "i18n.uk.js": ".../usage-page/i18n.uk.js" }`,
-     `title` "keel usage", `icon` "chart", `capabilities` `{ "db": {}, "user": {}, "downloads": true }`.
-     Then write the page settings with ArtifactData `set` to collection `meta`, doc `settings`,
-     `{ "language": "<conversation language code>", "schema": 1, "template": "<page_template printed by page>" }`.
-     Then save on this machine, through the same `apply`:
-     `{ "artifact_url": "<page url>", "page_shared": false, "page_template": "<printed value>" }`.
-   - Update the page (only after a yes): the page is the `artifact_url` from `show`. Read it with the
-     Artifact tool (`action: read`, that `url`; the tool publishes over a page only after a read, and
-     it costs about $0.1-0.3). Its title is not "keel usage" → stop and say why. The read does not say
-     "writer" → stop, save `{ "page_shared": true }` and say its owner updates it. Otherwise run
-     `node "<keel>/scripts/usage-setup.js" "<project>" page` and publish with the Artifact tool: that
-     `url`, the same `file_path` and `files` as when creating it, no `title`, `icon` or `capabilities`
-     (the page keeps its own). Its data stays: it lives in the page's database, not in the published
-     files. Then ArtifactData `update` collection `meta`, doc `settings`,
-     `{ "template": "<page_template printed by page>" }`, `if_version` = the `version` that step 5's
-     `get` of that document returned (a write to an existing document without it is refused); it keeps
-     `language` and `schema`. The `get` found no such document → `set` it, without `if_version`, with
-     `"language": "<conversation language code>", "schema": 1` too. Then save `{ "page_template": "<printed value>" }` through the same `apply`.
-   - The first sync happens at the next `/keel:end-task`, `/keel:end-session` or
-     `/keel:end-planning` (the last 30 days of logs on this machine).
+   - The page: `<keel>/skills/_shared/usage-page.md` (find, create or update; it saves `artifact_url`
+     and `page_template` through the same `apply`).
 
 ## 12. Write and summary
 1. Build `.keel/config.json` (all required fields; defaults for anything not asked) and
@@ -492,7 +537,9 @@ Then, in one question group:
    at the start of a conversation in a project that has its config. A docs move was prepared (section
    8) → make it the first thing, on its own line: "First run `/keel:start-task .keel/local/docs-migration.md`:
    it moves your docs to <pattern> (about $X-Y); do it before other tasks, so new docs land in the
-   new places."
+   new places." An ADR clean-up was prepared (section 8) → the same, before the docs move: "First run
+   `/keel:start-task .keel/local/adr-cleanup.md`: it turns your ADRs into living records and renumbers
+   them once."
 6. **A picked LSP plugin whose program is not on PATH is a stop.** Give the install commands (the
    program and the plugin) and ask, as its own question: "installed, check again" or "skip for now".
    The setup is not finished before the answer: without AskUserQuestion, ask it in your message and
@@ -510,22 +557,6 @@ Then, in one question group:
    `other instructions:` line of the scan (section 2): it ends with `audit: advise` (50 or
    more lines in those files, or 3 or more rules, skills, commands, agents or output styles) or
    `audit: not needed`. Not needed → say nothing about it, not even that it is not needed. Advise →
-   it is the last part of the summary, after the commit step: a heading such as
-   "Recommended: check your instructions" and these four points as a list, each starting with its
-   label (translated), never folded into one paragraph:
-   - **Why:** before keel this project (or this machine) already had its own instructions for Claude;
-     name what the line lists ("CLAUDE.md, 120 lines; 4 rules; 6 skills in ~/.claude"). The more of
-     them, the likelier two say opposite things (one rule "a doc comment on every function", another
-     "small functions, no comments"): Claude then picks one arbitrarily and behaves differently from
-     day to day. Outdated lines (a removed folder, an old command) also cost context in every
-     conversation;
-   - **What it does:** Claude Code's own check `/doctor prompt-audit` reads the CLAUDE.md, AGENTS.md,
-     rules, skills, commands and agents of this project and of `~/.claude` (not keel's rules: their
-     conflicts with yours are the ones this setup raised), and lists contradictions, outdated
-     instructions and references to missing files, each with a proposed edit. It changes nothing until
-     you agree;
-   - **The effect:** one consistent set of instructions that Claude follows the same way every time,
-     and fewer lines loaded into every conversation;
-   - **How:** type `/doctor prompt-audit` in a new conversation (`/clear` first); keel cannot start a
-     Claude Code command for you. It runs on the current model. A report that is hard to read → ask
-     Claude to retell it as a short list: what was, what it will become, why it was a problem.
+   it is the last part of the summary, after the commit step: read
+   `<keel>/skills/_shared/configure-instruction-check.md` and follow it (the heading and its four
+   points: why, what it does, the effect, how).

@@ -1,7 +1,5 @@
 # Ways of working
 
-[Українська](workflows.uk.md)
-
 keel has three lanes of work:
 
 - **Tasks are point changes.** A separate job with a clear end: a bug, a ticket, a small feature.
@@ -14,7 +12,8 @@ keel has three lanes of work:
 - **Planning comes before the code.** A feature that needs several tasks is first talked through in
   its own conversation: one question at a time, decisions and short tickets, no code. It ends in a
   feature folder of tickets that tasks or a session then do. Think of a blueprint before the build.
-  Commands: `/keel:start-planning`, `/keel:end-planning`.
+  Commands: `/keel:start-planning`, `/keel:end-planning`; `/keel:feature-page` shows a planned
+  feature as a page to read.
 
 **How to choose:** "done" within 1-3 sittings → a task. A plan for weeks, with items for "later" → a
 session. A feature for several tasks that is not thought through yet → plan it first.
@@ -94,9 +93,18 @@ settles all of it.
 | `/keel:start-task CAN-9` when task CAN-9 was finished or dropped earlier | Says so and asks whether to start it as a new task. No → it stops; the old folder may still be in keel's trash (see [restore](#where-the-files-live)). |
 
 A simple task (one module, no new public interface, 1-3 files) gets a short plan in the chat and
-"Start?". A complex one gets Plan Mode: no file changes until you approve the plan. A big plan (8 steps
-or 15 files by default) brings the question whether to do it here or hand the steps to implementer
-agents ([cost optimization](cost-optimization.md)).
+"Start?". A complex one gets Plan Mode: no file changes until you approve the plan.
+
+**A big plan** (8 steps or 15 files by default) does not fit one conversation together with the
+planning and the review, so the plan ends with the choice how to run it: in a fresh conversation
+(recommended; the plan is saved), through implementer agents from this conversation, here, or your own
+way. Approving the plan answers it ([cost optimization](cost-optimization.md#5-delegation-thresholds)).
+For a fresh conversation, approve with Claude Code's "Yes, clear context" when it is shown, or approve
+as usual: keel makes the branch and the task, writes into the task file what the conversation settled
+beyond the plan, and asks you to type `/clear`, then `/keel:start-task <id>`. The fresh conversation
+asks once: implementer agents or here. Later resumes do not ask again; they say in one line how the
+work goes on. A very big plan (10 steps or 40 files) is planned as a feature instead
+([too big for a task](#start-a-planned-ticket)).
 
 **Which branch.** The "Start?" question (a simple task) or the plan's first Execution step (a complex
 one, changed in your answer to the plan) names the branch you are on and offers:
@@ -113,7 +121,7 @@ step stops it, and keel shows what happened and asks. It never pushes or merges 
 unless your instruction says so.
 
 The branch comes before the task folder, so the folder is born on it. Uncommitted changes stop the
-start first: keel offers to hand off the current task, commit, or stash. The setup files that
+start first: keel offers to hand off the current task (its work committed and pushed), or commit. The setup files that
 `/keel:configure` left uncommitted are the exception: the first task offers to take them into its
 branch, so they reach the main branch with the task's merge.
 
@@ -122,7 +130,7 @@ branch, so they reach the main branch with the task's merge.
 `/keel:start-task CAN-123`, then "continuation" (or the id of an unfinished task). keel:
 
 1. when it has to switch branches and there are uncommitted changes, stops first and offers: hand off
-   the current task, commit, or `git stash push -m "keel: <id>"`. It carries changes into another task
+   the current task (a work-in-progress commit on its own branch, pushed), or commit. It carries changes into another task
    only when you say they belong to it. On the task's branch already, the changes stay and belong to
    the task;
 2. switches to the task's branch (manual git: gives `git switch <branch>` and waits);
@@ -134,20 +142,21 @@ branch, so they reach the main branch with the task's merge.
 6. reads a ticket, link or file source again and tells you what changed against the goal and the
    acceptance criteria; it does not overwrite them without your yes;
 7. sums up in 3-6 lines (goal, where we are, done and not done, open questions) and names the next
-   action.
+   action. A plan chosen for a fresh conversation asks once here: implementer agents or here; any
+   other plan goes on as chosen, with no question.
 
 ### Start a planned ticket
 
-Tickets come from [planning](#planning). Only three instructions go to them: none (the list ends with
+Tickets come from [planning](planning.md). Only three instructions go to them: none (the list ends with
 "next planned: <KEY>"), "next ticket" in any words, and a ticket key; other words go through the usual
-search. For the last two keel fetches first; then it reads the ticket's [state](#ticket-states):
+search. For the last two keel fetches first; then it reads the ticket's [state](planning.md#ticket-states):
 
 | The ticket is | keel does |
 |---|---|
 | `to do` or `next` | Reads it, checks its Goal, Acceptance criteria and Where to look against the code, then the usual retell, questions and plan. The task id is the key (`PROJ-104`), the title is the ticket's. |
 | `in progress` or `waiting for ...` | Names the branch, author and date behind it and asks: continue it on that branch, start over, or take another ticket. A waiting ticket is never offered as free; with `stale`: "Nobody touched it for 30 days: treat it as free?" |
 | `reverted` | Explains that the branch was merged once and the merge reverted: merging it again brings nothing back; it needs a revert of that revert, or new commits. |
-| blocked by a dependency | A dependency done only on its ticket branch, or not done in another feature → start from its branch, wait for its merge, or start anyway. One of the same feature not done, or not found → start anyway, or take the next ticket. |
+| blocked by a dependency | A dependency of this repository done only on its ticket branch, or not done in another feature → pull it in (`git merge <branch>`), wait for its merge, or start anyway. One of the same feature not done, or not found → take the next ticket, or start anyway. Another repository's: [Ticket states](planning.md#ticket-states). |
 | `done` | Says so; starts it again only on your yes. |
 | `duplicate key` | Warns first: two tickets with this key, naming the files. |
 
@@ -161,14 +170,41 @@ the feature branch too. Only a passed verification (gates green, no "must fix" l
 `status: done` into the ticket file, in the same commit as the code; red verification or a handoff
 leaves it `todo` (manual git: keel reminds you to commit the ticket file with the code). On the shared
 feature branch keel only commits, pulls the branch and pushes: the feature branch merges at the
-[end of the feature](#end-of-a-feature), after its last ticket. A handoff there, with 2 or more
-tickets, asks: a new ticket branch from the feature branch (recommended), commit and push to the
-feature branch (you work on it alone), or no commit.
+[end of the feature](planning.md#end-of-a-feature), after its last ticket. A handoff there, with 2 or more
+tickets, goes to a new ticket branch from the feature branch, committed as work in progress and
+pushed.
 
-**Too big for a task.** When you say the task is too big, or its plan comes out very big, keel offers
-"Plan this as a feature instead?". On yes you type `/keel:start-planning`; the plan in this chat is its
-source. A task folder already created goes to keel's trash first, only while no code changed (its own
-branch is deleted only on its own yes). Code changed → hand off first, then plan in a new conversation.
+**Too big for a task.** When the task's plan comes out very big (10 steps or 40 files), keel offers to plan it as a feature
+with one question: 1) a new chat (recommended when this one is long), 2) plan here, 3) do not split,
+or your own way. When you say it is too big or ask to split it, in any words, that is the yes: keel
+does not ask whether, and "do not split" is not offered.
+- **New chat**: keel writes what this chat found into a brief,
+  `.keel/local/plans/briefs/<name>-brief.md` on this machine (Goal, Files, Decisions and why, Open
+  questions; `<name>` is the feature name it proposes), and gives you the command to type in a new
+  chat:
+  `/keel:start-planning .keel/local/plans/briefs/<name>-brief.md`. keel cannot type it for you.
+- **Here**: you type `/keel:start-planning` in this chat; the plan in this chat is its source.
+- **Do not split**: it stays one task. keel records your choice in task.md, so it does not ask again
+  in this task, also after a resume; the next big task is asked anew.
+
+A task folder already created goes to keel's trash first while no code changed (its own branch is
+deleted only on its own yes). When code has changed, keel says what is done and advises by it, and
+you choose:
+- the work done runs on its own (its tests pass): finish it as a task. keel writes the brief of the
+  rest first, then you type `/keel:end-task`, then `/keel:start-planning` with the brief;
+- it is half of something: either (a) the work goes on in a branch of its own, the feature's: the
+  task's branch, or, when the task works directly on a shared branch (the main branch, a feature
+  branch), a new one from it (`<KEY>-<short-name>` for a planned ticket, else the feature's name), so
+  a half never lands in a shared branch. keel writes the brief ("already done on branch X: ..."),
+  moves the task to keel's trash (its code and branch stay), and commits the work in
+  progress there and pushes it, so another machine sees it; planning goes on in that branch and its
+  first ticket continues it. Or (b) bring it to a working state, finish the task, and plan the rest
+  with a brief.
+
+`/keel:start-planning` with a brief takes its content into the plan (the Goal grows into In plain
+words, Files into What was gathered, decisions and open questions into theirs), moves the brief to
+keel's trash (`/keel:cleanup restore` puts it back), and starts from the open questions without asking
+again what is settled.
 
 ### End a task: `/keel:end-task`
 
@@ -180,7 +216,7 @@ branch is deleted only on its own yes). Code changed → hand off first, then pl
 | `/keel:end-task finish, level standard` | Finishes with the Standard verification level, without the level question. A level word (gates, basic, standard, maximum, none; quick means basic) counts only on its own or after "level". |
 | `/keel:end-task push` | Not clear whether to finish or hand off, so keel asks. |
 | `/keel:end-task finish: create branch bug/FIX-12, push, merge into main` | Finishes; the actions from your instruction run after verification: the work moves to `bug/FIX-12`, is pushed and merged into `main`. |
-| `/keel:end-task finish and push` and verification stays red | Claude Code has already asked about the folder (that comes before git). keel stops before any git step and asks what to do; stopping puts the task back. |
+| `/keel:end-task finish and push` and verification stays red | Claude Code has already asked about the folder (that comes before git). keel stops before any git step and asks what to do. The task is put back when you choose to stop (manual git: when you say you did not commit). |
 | `/keel:end-task` when the task is only on another branch | Switches to the task's branch first (uncommitted changes: it asks what to do with them), then goes on. |
 | `/keel:end-task` with no task at all | Offers to create a task from what this conversation did, or to verify without a task file (then there is no folder to remove, and a handoff is not possible). |
 | `/keel:end-task` in a conversation that runs a long-work session | "This conversation leads a long-work line: end it with /keel:end-session." It stops. |
@@ -217,7 +253,7 @@ branch is deleted only on its own yes). Code changed → hand off first, then pl
 | Autonomous git: a step before the removal is committed stops (a failing commit hook) | The git script itself puts the folder back and makes the task active again. The report says what stopped; fix it, then run `/keel:end-task` again. |
 | Autonomous git: the update from the base branch or the push stops after the commit (a conflict, a refused push) | The removal is already committed, so the task is not put back; the script says so. Fix the cause, then keel runs that step again. |
 | Autonomous git: new commits from the base branch turn the gates red | The removal is committed but not pushed. keel stops git and offers: fix them now (then commit and push), or put the task back. |
-| Verification is red and your instruction says push or merge | Claude Code has already asked about the folder. keel stops before any git step and asks; stopping puts the task back. |
+| Verification is red and your instruction says push or merge | Claude Code has already asked about the folder. keel stops before any git step and asks what to do. The task is put back when you choose to stop (manual git: when you say you did not commit). |
 | Autonomous git: keel would end its answer with the folder in the trash and nothing committed | Claude Code's Stop hook keeps it working once: go on with git, or put the task back. It does not interrupt a question to you. |
 | Manual git and you do not commit | Say so: keel puts the task back. If you never say it, the folder stays in keel's trash; `/keel:cleanup restore <batch>` brings it back. |
 
@@ -233,15 +269,11 @@ What guarantees each step: [How keel behaves](behavior.md).
 4. **The final report**: "handed off: continue with `/keel:start-task <id>`".
 
 **A handoff without the task's own branch** (the task works in the base branch or the main branch,
-which other work shares) and no git instruction from you: before any git step keel asks, in both git
-modes:
-
-- a new branch from here: commit and push there, then back on the current branch (recommended);
-- commit and push to the current branch (not offered on the main branch, where keel never commits);
-- no commit: the changes stay uncommitted for next time (they move with you if you switch branches);
-- your own instruction.
-
-Your answer is then run, in manual git too, because you asked for it.
+which other work shares) and no git instruction from you: no question. keel makes a new branch
+`<id>-<short-name>` from here, commits the work there as "Work in progress: <title>", pushes it and
+switches back to the current branch. Unfinished work never stays on one machine only: uncommitted
+changes or a stash would. Manual git: keel gives the same steps as commands. Your own git
+instruction wins (for example "do not commit").
 
 ### See and drop tasks: `/keel:tasks`
 
@@ -267,7 +299,7 @@ Continue one with /keel:start-task <id>.
 A task whose base branch moved since the handoff also gets a "Base moved" line. A task handed off 30
 days ago or more: keel offers to finish it or drop it.
 
-Then the planned tickets, when there are any not done, with their [states](#ticket-states):
+Then the planned tickets, when there are any not done, with their [states](planning.md#ticket-states):
 
 ```
 Planned
@@ -282,7 +314,7 @@ Start the next one with /keel:start-task PROJ-104.
 ```
 
 A feature whose every ticket is `done` or `waiting for the feature merge` gets the offer of its
-[end](#end-of-a-feature).
+[end](planning.md#end-of-a-feature); a feature with a stub left is not complete, and no end is offered.
 
 | You type | keel does |
 |---|---|
@@ -320,8 +352,8 @@ are not part of it.
 | `/keel:start-session only write the tests today` | The same, following your instruction. Extra work is added to the plan. |
 | `/keel:start-session` with no note | Looks for work in the project: plans, TODO markers in recently changed files, unfinished work in git; proposes 1-3 briefly. Nothing → "There is no work for a session; tell me what to do." Unfinished tasks → it adds "There are unfinished tasks: /keel:tasks shows them, /keel:start-task continues one." It never starts a task itself. |
 | `/keel:start-session docs/invoicing-plan.md` | A new line from a plan file: its items become the note's plan (all not done), its goal the note's goal, **Later** is empty. Shows it and asks "Start?". Then the branch for the line. |
-| `/keel:start-session build the invoicing module` (or a link) | A new line from a description: retell, the brainstorm offer or questions, then the plan, which becomes the note's plan. |
-| `/keel:start-session csv-export` (a feature name or folder: "do these tickets one by one") | A new line from [planned tickets](#planning): the Plan is the feature's `next` and `to do` tickets, the next one first, each after the tickets it depends on, one step per ticket; their keys go into `keys:`. Tickets `in progress` or `waiting for ...` are listed with their hints, and you decide whether any goes in. Shows it and asks "Start?"; then it switches to the feature branch (or creates it) and writes the note. Each `/keel:end-session` with a passed full verification writes `done` into the tickets whose steps are all done, in the same commit as the code; gates only or red → no. A feature branch is merged only at the [end of the feature](#end-of-a-feature). |
+| `/keel:start-session build the invoicing module` (or a link) | A new line from a description: retell, the brainstorm offer or questions, then the plan, which becomes the note's plan. A big plan brings the same choice as a task's ([a big plan](#start-a-task-keelstart-task)); for a fresh conversation keel writes the note and asks you to type `/clear`, then `/keel:start-session`, which asks once: implementer agents or here. |
+| `/keel:start-session csv-export` (a feature name or folder: "do these tickets one by one") | A new line from [planned tickets](planning.md): the Plan is the feature's `next` and `to do` tickets, the next one first, each after the tickets it depends on, one step per ticket; their keys go into `keys:`. Tickets `in progress` or `waiting for ...` are listed with their hints, and you decide whether any goes in. Shows it and asks "Start?"; then it switches to the feature branch (or creates it) and writes the note. Each `/keel:end-session` with a passed full verification writes `done` into the tickets whose steps are all done, in the same commit as the code; gates only or red → no. A feature branch is merged only at the [end of the feature](planning.md#end-of-a-feature). |
 | `/keel:start-session CAN-123` (or a link with CAN-123 in it) | CAN-123 is led by a task → "Tasks use /keel:start-task: better continue it there." and stops. Both a task and the note name it → keel shows both, asks which lane leads it and stops. Nobody leads it → keel finds what it is ("Is this it?"), the session goes on, and the key is written into the note's `keys:` field. |
 | `/keel:start-session CAN-9` when task CAN-9 was finished or dropped earlier | Says so and asks whether to start it as a new line; no → it stops. |
 | `/keel:start-session <a link or a description>` while a note is open | If it is about a different line of work: "Continue the written line or start a new one?" There is only one note, so a new line asks next: end the old line, or carry its open steps into the new note's **Later**. |
@@ -344,135 +376,9 @@ Preparing means: the note is updated, not rewritten; things found along the way 
 
 ## Planning
 
-A *feature* is one finished capability of the product that one sentence explains (a connection to
-S3). Planning turns it into short tickets in a conversation with you, before any code: the
-conversation writes only the draft, and keel's hook refuses changes to other project files
-([what is guaranteed and what is not](behavior.md#planning)). One conversation plans one feature.
-
-### Start: `/keel:start-planning`
-
-| You type | keel does |
-|---|---|
-| `/keel:start-planning` the first time in a project | Two questions, one per message: the tickets' language (default: the project's `repo_language`), and where the draft lives: on this machine (default, outside git) or in the repository (a `tickets/` folder, or a ticket folder the project already has; colleagues see it through git). Say "draft in the repo" at any start to change it. |
-| `/keel:start-planning` | Lists the drafts (feature, state, open questions, tickets, last change, where) and asks which to continue or what the new feature is. |
-| `/keel:start-planning csv-export` | Continues that draft: its open questions, the review findings without a decision, which files its tickets name changed since, a summary in 3-6 lines and the Next action. |
-| `/keel:start-planning continue the CSV export` | Looks for the words in the drafts' names and summaries: one match → "Continue `csv-export`?"; several or none → the list. |
-| `/keel:start-planning <idea, link or file>` | A new feature (below). |
-
-**A new feature.** keel reads the source as `/keel:start-task` reads a link, retells the goal, who
-gains and what is out, and checks in the code that what the feature relies on is there. Then:
-
-- **size**: small (up to 5 questions, one conversation) or large (several conversations, each ended
-  with `/keel:end-planning`); one goal for 1-3 sittings looks like one task, so keel suggests
-  `/keel:start-task`, and you decide;
-- **name**: 2-4 English words joined by `-` (`[a-z0-9-]`, at most 40 characters, starting with a
-  letter, no digit right after a hyphen: `add-2fa` would read as the key `ADD-2`); what, not how:
-  `s3-connection`. Your word wins;
-- **main branch**: with several candidates (main, master, develop, release/*) one question: "Where
-  will this feature's tasks merge?"; otherwise keel names `git.main_branch` in one line;
-- **project rules**: when `AGENTS.md`, `CLAUDE.md` or `CONTRIBUTING.md` says otherwise ("no backlog in
-  the repo"), keel quotes it and offers: follow the project, keep your choice, or your own way;
-- **a draft in the repository**, before its first file and each commit: on the main branch → "Create
-  branch `<feature>`?"; on another task's branch → a new branch; other uncommitted changes → commit or
-  stash them first; the feature's branch exists → "Switch to it?"; a task active in another
-  conversation → the draft on this machine for now, another copy (`git worktree add`), or your risk.
-
-**The work.** One question per message, answerable in a line; a design choice comes with 2-3
-approaches and a recommendation. keel keeps `plan.md` true as you go: Summary, Problem / Goal,
-Decisions (`D1. decision - why`), Out of scope, Design sketch, Terms, Open questions
-(`Q1. question - what depends on it`; an answered Q becomes a D), Tickets, Next action. Tickets are
-written at once and stay short (150-400 words, one goal, no implementation steps): Goal, Why,
-Acceptance criteria, Where to look (`file:line`), Out of scope, Dependencies, How to check. In the
-draft they are `T1`, `T2`...; a T-number is never reused. More than about 15 tickets → keel offers to
-split the feature. keel looks up code facts itself; a pricier model or web research only when you ask.
-
-**Abandon a draft**: say so in the planning conversation; after your yes the plan is `abandoned`. A
-draft on this machine goes to keel's trash (`/keel:cleanup` restores it); one in the repository stays
-until you remove it.
-
-### End: `/keel:end-planning`
-
-| You type | keel does |
-|---|---|
-| `/keel:end-planning we continue tomorrow` (any words for "later") | **Hands over**: reviews only the tickets never reviewed or changed since their review; each finding is fixed now or becomes a Q; `plan.md` gets the open questions and the Next action. A draft in the repository: the commit questions (below). |
-| `/keel:end-planning final review and export` | **Final**: below. |
-| `/keel:end-planning` | Open questions or structure problems → hands over, with the reason in one line; otherwise asks "Final review and export, or hand over?". |
-
-**Final.** 1) The gates: no open questions, a clean structure check (sections, acceptance criteria, no
-TBD, the named files exist, dependencies without cycles), and a decision for every finding; else keel
-shows what blocks and offers to hand over. 2) Ticket reviews of the tickets not reviewed as they are
-(`keel:ticket-reviewer`, up to 4 tickets per call), then one review of the whole plan
-(`keel:plan-reviewer`), both on Sonnet. You decide each finding: fix, defer to a Q, or reject with a
-reason; decisions go into `reviews/` and are not raised again. Fixed tickets are reviewed again, at
-most 2 rounds per `/keel:end-planning`; a failed review is named as failed, never as "no findings".
-3) The plan becomes `ready` (any later change makes it a draft again), then "Export the <n> tickets
-now?"; no → it stays `ready` for the next `/keel:end-planning`.
-
-Every end, also after a no, frees the conversation from planning. The report: **Done**, **Reviews**,
-**Git**, **What next** (the Next action, or "a ticket starts with `/keel:start-task <KEY>`"),
-**Costs**.
-
-### Export
-
-- **Where**, asked the first time: the repository (a ticket folder the project has, else `tickets/`;
-  the feature lands in `<folder>/<feature>/`) or this machine only (keel says "These tickets are seen
-  on this machine only"). A draft in the repository always exports there. Never used: hidden folders,
-  `handoff/` and `handoffs/` (another notes system), `docs/plans`, a place outside the project.
-- **Names**: `PROJ-123-add-csv-export.md` with the title `# [PROJ-123] Add CSV export`. The prefix is
-  asked once: the first of `comments.ticket_prefixes` in `.keel/config.json`, else 3-4 capital
-  letters from the repository's name; you confirm.
-- **Shared numbers**: after a `git fetch`, the next number is 1 + the highest of that prefix in commit
-  messages, ticket file names on every branch, branch names and ticket folders (exact: `PROJ-10` is
-  not `PROJ-101`). The commit checks again: a key another ticket file took meanwhile gets a new number
-  while ours is on no remote yet (a published one is refused, to settle by hand); the push checks once
-  more and refuses.
-- **All or nothing**: every key first, `T1`... replaced everywhere (dependencies, links, the
-  overview), the files written into a temporary folder and renamed once. A failed run leaves no
-  feature folder and the plan `ready`.
-- **After**: the feature folder is the one source: the tickets (`type: ticket`, `key`, `status: todo`,
-  `feature`, `branch`, `merge_into`, `depends_on`) and, from 2 tickets, a `README.md` overview. A draft
-  on this machine goes to keel's trash; one in the repository leaves with the commit of the tickets.
-- **Git**: "Commit the planning files?", then "Push `<branch>`?", each on its own, and Claude Code asks
-  too, every time. Never on the main branch; planning never opens a pull request.
-
-### Ticket states
-
-`/keel:tasks` and `/keel:start-task` work out each ticket's state from git and the files (a script, no
-tokens). The file holds only `todo` or `done`. The first state that holds wins (keel shows them in the
-conversation language):
-
-| State | When |
-|---|---|
-| `done` | `done` on the remote's `merge_into` |
-| `waiting for the feature merge` | `done` on the feature branch, not yet in `merge_into` |
-| `waiting for merge into the feature branch` | `done` only on another branch, such as a ticket branch |
-| `in progress` | a commit with the key that changes more than the ticket, a branch named with the key, an unfinished keel task with the key as its id, or the key in the session note's `keys:` |
-| `to do` | none of these |
-
-`next` marks the first `to do` ticket of a feature whose dependencies are done (or waiting for the
-feature merge). Marks after the state: `reverted` (done on a branch merged once, then taken back),
-`stale` (the branch behind the state has no commit for 30 days), `duplicate key` (several files). Each
-line names the branch, author and age behind it. Branches without a commit in 30 days are not read,
-except each ticket's own `branch` and `merge_into`. Tickets on this machine: `done` in the file,
-`in progress` by a task or the note here, else `to do`.
-
-### Edit an exported feature
-
-`/keel:start-planning <feature>` reopens it in its feature folder (when the folder is on another
-branch, keel offers to switch). Only `to do` and `next` tickets are edited, each change on your yes,
-then checked and reviewed; you decide each finding in the chat. A ticket `in progress`,
-`waiting for ...` or `done` is never changed: keel offers a new ticket or to leave it, and names whom it
-concerns. A new ticket takes the next shared key. `/keel:end-planning` then checks the folder and
-offers the commit and push; no plan gates, no plan review.
-
-### End of a feature
-
-When the last ticket is marked done, or `/keel:tasks` finds every ticket `done` or
-`waiting for the feature merge`, keel says "Feature <f> is complete" and asks one question at a time,
-each step only on its yes, in both git modes: 1) onto the feature branch (a ticket branch first merges
-into it); 2) keep the tickets (default) or delete them: the folder goes to keel's trash, and one in the
-repository leaves in its own commit on the feature branch, before the merge; 3) "Merge `<branch>` into
-`<merge_into>`?"; 4) after the merge, "Delete the branch `<branch>`?".
+A feature that needs several tasks is first planned in its own conversation, into short tickets that
+tasks or a session then do. How it goes, from `/keel:start-planning` to the end of a feature:
+[planning](planning.md).
 
 ## Merging into the main branch
 
@@ -540,7 +446,7 @@ history and the code, so the file is a brief written in advance:
 |---|---|
 | Goal | one sentence |
 | Next action | one concrete step |
-| State | one line per step: ✅ done and verified · ◐ in progress · ⚠ broken · ⬜ not started; and where the work is: the branch and "committed together with this note" (manual git: "uncommitted: the user commits it on branch X"; a stash by name); never push or merge results |
+| State | one line per step: ✅ done and verified · ◐ in progress · ⚠ broken · ⬜ not started; and where the work is: the branch and "committed together with this note" (manual git: "uncommitted: the user commits and pushes it on branch X"); never push or merge results |
 | Files | changed / important, read / next |
 | Decisions and why | so they are not reopened |
 | Tried and did not work | so it is not retried |
@@ -556,7 +462,7 @@ Rules:
 
 - **Update, do not rewrite**: change what changed, keep what still holds.
 - **Keep a sentence only if** without it the next conversation would act differently.
-- **At most 150 lines per file** (each task file, the note, project memory), checked by
+- **At most 150 lines and 12000 characters per file** (each task file, the note, project memory), checked by
   `notes.js check`. Over it → compress: done steps one line each, resolved questions out, from "Tried
   and did not work" only what could tempt a retry; a big task plan goes to `plan.md` in the task
   folder.
@@ -574,9 +480,11 @@ Rules:
 | `.keel/next-session.md`, `.keel/memory/`, `.keel/sessions/` | the session note, project memory and session logs | yes (`git.state_in_git`) |
 | `.keel/local/trash/<batch>/` | the folders of finished and dropped tasks; exported, abandoned and dropped planning folders | no, this machine only |
 | `.keel/local/plans/claude/` | Claude Code's Plan Mode plans (the `plansDirectory` keel recommends) | no, this machine only |
-| `.keel/local/plans/keel/<feature>/` | a planning draft on this machine: `plan.md`, `tickets/T<n>-<slug>.md`, `reviews/`; after an export to this machine, its `tickets/` holds the exported tickets | no, this machine only |
-| `.keel/local/plans/keel/sessions/`, `settings.json`, `samples/` | which conversation plans which feature; the planning settings; the ticket reviewers' inputs and replies, kept to compare models later | no, this machine only |
-| `tickets/<feature>/` (or the folder you chose) | a planning draft in the repository, and the feature folder: `<KEY>-<slug>.md` tickets and, from 2 tickets, `README.md` | yes, on the feature branch, after your yes |
+| `.keel/local/plans/keel/<feature>/` | a planning draft on this machine: `plan.md`, `tickets/T<n>-<slug>.md`, `reviews/`, `research/` (the researcher's reports); after an export to this machine, its `tickets/` holds the exported tickets and their `research/` | no, this machine only |
+| `.keel/local/plans/briefs/<name>-brief.md` | the brief of a task too big for one, written for `/keel:start-planning`; it goes to keel's trash when planning takes it | no, this machine only |
+| `.keel/local/plans/keel/sessions/`, `settings.json`, `samples/` | which conversation plans which feature; this machine's planning settings (where drafts live, where neighbouring repositories are); the ticket reviewers' inputs and replies, kept to compare models later | no, this machine only |
+| `tickets/<feature>/` (or the folder you chose) | a planning draft in the repository, and the feature folder: `<KEY>-<slug>.md` tickets, from 2 tickets `README.md`, and the reports in `research/` | yes, on the feature branch, after your yes |
+| `<tickets_dir>/<feature>/` in another repository | that repository's tickets of a feature on several repositories, by its own settings, and the same `README.md` | yes, on the feature branch there, after your yes |
 
 - **The task folder lives on the task branch.** It is created after the branch, and a finish removes
   it before the last commit, so the main branch's files never hold it (in manual git, as long as you
@@ -589,7 +497,8 @@ Rules:
   Code's confirmation; by default it deletes batches 30 days old or more
   (`cleanup.trash_max_age_days`).
 - **Restoring a folder.** `/keel:cleanup restore <batch>` puts that batch back; without a name it takes
-  the newest batch of any kind (a cleanup too). Files come back into the branch checked out now,
+  the newest batch of any kind (a cleanup too) that this folder moved: the main checkout, or the
+  worktree the session works in. Files come back into the branch checked out now,
   uncommitted: for a task's folder, switch to the task's branch first.
 - **Task ids** compare without case (`CAN-123` and `can-123` are one task). Windows device names
   (`CON`, `NUL`, `AUX`, `COM1`...) and an id ending in a dot are refused.
@@ -607,20 +516,20 @@ Set by `git.mode` (required: `/keel:configure` asks it and recommends `manual` f
 |---|---|---|
 | Start a task | keel runs the branch you chose ([which branch](#start-a-task-keelstart-task)) before the task folder, so the folder is born on it. A new branch starts from the current branch, updated first. With uncommitted changes you said belong to the task (such as keel's setup files), the branch starts from the current commit and carries them | the same: your choice is your instruction, so keel runs it (a new branch with `git switch -c <branch>`; Claude Code may ask) |
 | Continue a task | keel switches to the task's branch | keel gives `git switch <branch>` and waits |
-| Hand off a task | commit (secret files and untouched files from before the task left out), push (if refused, the handoff stands and keel says so), the merge when your instruction asks for it ([above](#merging-into-the-main-branch)), switch back to the base branch | the changed files and a commit message; commit the work and the task folder on the task branch, then `git switch <base>`; or commit only the folder and `git stash push -u -m "keel: <id>"` for the rest |
-| Hand off a task without its own branch, no git instruction | keel asks where the work goes ([above](#end-a-task-keelend-task)) and runs your answer | the same: keel asks and runs your answer |
+| Hand off a task | commit (secret files and untouched files from before the task left out), push (if refused, the handoff stands and keel says so), the merge when your instruction asks for it ([above](#merging-into-the-main-branch)), switch back to the base branch | the changed files and a commit message; commit the work and the task folder on the task branch, push it, then `git switch <base>` (a task without its own branch: `git switch -c <id>-<short-name>` first) |
+| Hand off a task without its own branch, no git instruction | a new branch from here, commit, push, back on the current branch ([above](#end-a-task-keelend-task)) | the same steps as commands: `git switch -c <id>-<short-name>`, commit, push |
 | Finish a task | commit (with the folder's removal), update from the base branch, push; the merge only as [above](#merging-into-the-main-branch). When a step stops: [what can go wrong](#what-can-go-wrong-in-a-finish) | the changed files and a ready commit message (the removed folder is part of it); you merge as you usually do |
 | Start a new line (session) | keel creates the branch for the line | keel gives `git switch -c <name>` |
 | End a session or prepare the next one | commit, push; no update from the base branch | "commit and push when convenient; the note is part of the commit" |
 | Finish a line (session) | commit, update from the base branch, push; the merge only as above | a ready commit message; you merge as you usually do |
 
-keel never asks which git steps to take (except the branch at a task's start, a handoff without
-the task's own branch, each step at the [end of a feature](#end-of-a-feature) and each commit and push
+keel never asks which git steps to take (except the branch at a task's start, each step at the [end of a feature](planning.md#end-of-a-feature) and each commit and push
 of planning files): these are the defaults, and your instruction only adds or changes steps.
 Actions from your instruction run after verification; "create branch bug/FIX-12" moves the work to that
 branch. Red verification and an instruction to push or merge → keel stops and asks before any git step.
 Secret files, keel's `.keel/local/` files and untracked files that were there before the task and did
-not change (not this task's work; verification leaves them out too), which a commit leaves out on
+not change (not this task's work; verification leaves them out too; the setup `/keel:configure` writes,
+`.keel/config.json`, `.keel/profile.json` and `.keel/.gitignore`, is not among them, so it goes into the first task's commit), which a commit leaves out on
 purpose, do not stop the next git steps (git itself still refuses a merge that would overwrite such a file).
 Commit messages follow your `git log` style, name the task id when it is a tracker key and never mention
 AI. The git steps never force-push, rebase pushed work or commit to the main branch directly; only
@@ -629,4 +538,4 @@ feature branch at the end of a feature and a task's own branch when it turns int
 confirm autonomous mode once on your machine; until then Claude Code's normal permission rules decide
 each git step.
 
-Planning's commit and push are the same in both modes ([export](#export)).
+Planning's commit and push are the same in both modes ([export](planning.md#export)).

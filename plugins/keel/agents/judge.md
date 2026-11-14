@@ -1,6 +1,6 @@
 ---
 name: judge
-description: Read-only agent that merges verified findings into one ranked list - removes duplicates, sorts by severity, numbers them and marks contradictions - without adding findings of its own.
+description: Read-only agent: merges verified findings into one ranked list without adding findings of its own.
 model: sonnet
 effort: high
 maxTurns: 60

@@ -1,6 +1,6 @@
 ---
 name: data
-description: Read-only specialist group for data - database changes and migrations, API compatibility and input validation, and performance in a code change.
+description: Read-only specialist group: database and migrations, API compatibility, input validation, performance.
 model: sonnet
 effort: high
 maxTurns: 60

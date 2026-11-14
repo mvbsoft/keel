@@ -63,7 +63,7 @@ function summarize(transcriptPath) {
 
 // Whether the conversation plans a feature (its chat mark, scripts/lib/plans.js).
 function planning(project, session) {
-  return require('../scripts/lib/ids.js').validSid(session) && fs.existsSync(path.join(project, '.keel', 'local', 'plans', 'keel', 'sessions', `${session}.json`))
+  return require('../scripts/lib/ids.js').validSid(session) && fs.existsSync(require('../scripts/lib/chat-marks.js').markFile(project, session))
     && require('../scripts/lib/plans.js').planningMark(project, session) !== null;
 }
 
@@ -111,15 +111,16 @@ function saveSample(project, session, agentId, transcriptPath) {
   const reply = fs.readFileSync(path.join(project, '.keel', 'local', ...replyParts(project, session, 'ticket-reviewer', agentId)), 'utf8');
   if (prompt === null) return;
   const day = new Date().toISOString().slice(0, 10);
-  require('../scripts/lib/safe-path.js').safeLocalWrite(project, ['plans', 'keel', 'samples', `${day}-ticket-reviewer-${agentId}.md`], `# Task\n\n${prompt}\n\n# Reply\n\n${reply}\n`);
+  // Samples are this machine's planning files: a worktree's go to its main checkout (lib/project-dir.js).
+  require('../scripts/lib/safe-path.js').safeLocalWrite(require('../scripts/lib/project-dir.js').mainOf(project), ['plans', 'keel', 'samples', `${day}-ticket-reviewer-${agentId}.md`], `# Task\n\n${prompt}\n\n# Reply\n\n${reply}\n`);
 }
 
 function main() {
   const input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
   const type = String(input.agent_type || '');
   if (!type || !input.agent_id) return;
-  const project = process.env.CLAUDE_PROJECT_DIR || input.cwd;
-  if (!project || !fs.existsSync(path.join(project, '.keel'))) return;
+  const project = require('../scripts/lib/project-dir.js').hookProject(input);
+  if (!project || !require('../scripts/lib/active.js').started(project)) return;
   // Every write refuses a link on the way or at the file (a junction below .keel/local would carry
   // agent replies out of the project).
   const { safeLocalWrite } = require('../scripts/lib/safe-path.js');

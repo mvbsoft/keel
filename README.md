@@ -27,6 +27,9 @@ choose, with its price shown before and after ([measurements](docs/verification.
 
 keel runs in **Claude Code** today; support for other coding agents is planned.
 
+**Everything keel does, on one page.** What each command does, what runs by itself without a
+command, and which questions keel asks in which cases: [What keel 2.0 does](docs/features.md).
+
 ## The idea: spend where it pays
 
 keel exists to make building with an AI agent cheaper without making the result worse. Every choice in
@@ -94,13 +97,15 @@ Standard's on every change.
 - **Your git stays clean.** Branches, commits that leave out secret files and files from before the task and carry no AI attribution, updates from main and
   pushes, done the same way every time; merging into main only when you say so (or on every finish, if you set that up).
 - **You know what the work cost.** Every end of work shows a table of who ran, the tokens and the
-  dollars, and on a subscription the share of your plan limits (once keel has measured it). An
-  optional private dashboard collects every machine.
+  dollars (exact with an API key), and on a subscription the share of your plan limits (once keel has
+  measured it). A private dashboard in your claude.ai account collects every machine; with an API key
+  only there is no page, just the report. Update keel on every machine that syncs to it
+  ([details](docs/usage-dashboard.md#syncing-between-machines)).
 - **Your team works one way.** The project's keel settings live in git, so everyone plans, checks and
   commits by the same rules.
 
 <p align="center">
-  <img src="docs/images/usage-dash.png" alt="The keel usage dashboard (sample data)" width="720"><br>
+  <img src="docs/images/usage-overview.png" alt="The keel usage dashboard (sample data)" width="720"><br>
   <em>The private usage dashboard (sample data): <a href="docs/usage-dashboard.md">what it shows</a></em>
 </p>
 
@@ -174,7 +179,7 @@ projects you set up with `/keel:configure`. Terminal install, scopes, updates an
 
 ## Quick start
 
-1. **Set up the project:** `/keel:configure`, quick (about six questions) or detailed. keel scans the
+1. **Set up the project:** `/keel:configure`, quick (11 to 18 questions, depending on the project) or detailed. keel scans the
    project, proposes the test and lint commands, git mode and code rules; it can also set up
    machine-wide Claude Code settings, a status line and a private usage page, each only after your
    yes. Commit the setup on main with the commands keel gives, or let the first task take it into its
@@ -190,7 +195,7 @@ The full walkthrough: [Getting started](docs/getting-started.md).
 
 | Command | What it does | Example |
 |---|---|---|
-| `/keel:configure [section \| machine]` | set up or change keel for this project or this machine | `/keel:configure git` |
+| `/keel:configure [check \| section \| machine]` | set up or change keel for this project or this machine, or check what to reconfigure | `/keel:configure git` |
 | `/keel:start-task <link, key or words>` | start a task, continue one or take the next planned ticket: retell, plan, code | `/keel:start-task password reset returns 500` |
 | `/keel:end-task [instruction]` | finish the task (verification, git) or hand it off; no instruction: a menu | `/keel:end-task finish and merge into main` |
 | `/keel:tasks [id \| drop id]` | list the unfinished tasks and the planned tickets, show one, or drop one with what it left | `/keel:tasks drop fix-reset-500` |
@@ -198,7 +203,9 @@ The full walkthrough: [Getting started](docs/getting-started.md).
 | `/keel:end-session [instruction]` | verify the session, write the note for next time, git | `/keel:end-session we continue tomorrow, prepare` |
 | `/keel:start-planning [idea, link, file or feature]` | plan a feature in its own conversation: one question at a time, decisions and short tickets, no code | `/keel:start-planning CSV export of invoices` |
 | `/keel:end-planning [instruction]` | hand the plan over for later, or review it and export the tickets into the feature folder | `/keel:end-planning final review and export` |
+| `/keel:feature-page [feature] [--lang code]` | a private page of a planned feature in your claude.ai account: overview, tickets with their states, research; in your language | `/keel:feature-page csv-export` |
 | `/keel:cleanup [restore \| empty-trash]` | move leftovers to keel's trash, put them back, or empty old trash | `/keel:cleanup` |
+| `/keel:usage [on \| off \| clear]` | give the link to your private usage page (what each session cost) and open it; turn this machine's sync on or off, or clear its data on the page | `/keel:usage off` |
 | `/keel:help` | a short table of the commands | `/keel:help` |
 
 Every variant: [Commands](docs/commands.md).
@@ -211,6 +218,7 @@ Every variant: [Commands](docs/commands.md).
 | install, update or remove keel, or fix a problem | [Install](docs/install.md) |
 | set up a project and run a first task | [Getting started](docs/getting-started.md) |
 | know what to type in each situation | [Ways of working](docs/workflows.md) |
+| plan a feature before the code | [Planning](docs/planning.md) |
 | know what keel does in each situation and what guarantees it | [How keel behaves](docs/behavior.md) |
 | look up a command and its variants | [Commands](docs/commands.md) |
 | pick a verification level | [Verification](docs/verification.md) |

@@ -9,7 +9,7 @@ allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" *), Pow
 # keel: end-session
 
 - `<keel>` (the plugin folder): `${CLAUDE_PLUGIN_ROOT}`
-- `<project>` (the project folder): `${CLAUDE_PROJECT_DIR}`
+- `<project>` (the project folder): `${CLAUDE_PROJECT_DIR}`; a keel script's `project: <folder>` line (this session works in a worktree of it) replaces it from then on
 - `<sid>` (this session's id): `${CLAUDE_SESSION_ID}`
 - Talk to the user in: the language in keel's session-start line (this project's own, else the machine's: ${user_config.conversation_language}; a language the user explicitly asks for in this session wins, for this session only)
 - The user's instruction (arguments, free text): `$ARGUMENTS`
@@ -18,7 +18,15 @@ Current state of this project:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" "${CLAUDE_PROJECT_DIR}" --profile`
 
-1. Read `<keel>/skills/_shared/preflight.md` and act on the state above.
+1. The state above is exactly the two lines `keel-config: ok` and `profile: ok`, with no other line
+   → go on without reading preflight.md. Any other line (such as `git: refused`), or no state above → read `<keel>/skills/_shared/preflight.md` and
+   act on it. These rules hold for this whole command. Run every keel script (`node` with a file in
+   keel's `scripts` folder) as its own plain command with full paths, never joined with `;`, `&&`,
+   pipes or redirections. In Bash write a path that starts with `\\` as `//server/share/...`. Read
+   keel's own files with Read, Grep and Glob, not the shell. Before each action say in one short
+   line what it will do. An instruction you cannot read one way only: ask, never guess. Steps that
+   need nothing from each other's output may go in one message as separate calls, where the command
+   says so. A keel script refused by a project hook: follow preflight.md's rule for it.
 2. Run `node "<keel>/scripts/notes.js" "<project>" check --session <sid>`. `active task:` is not `none`,
    or this conversation ran `/keel:start-task` → say "This conversation works on a task: end it with
    /keel:end-task." and stop. A `lane conflict:` line → show it, ask which lane leads that key and
@@ -34,7 +42,8 @@ Current state of this project:
    Ambiguous → ask, never guess.
 4. Verification: read `<keel>/skills/_shared/verify.md` and follow it (gates only: its steps 1, 2 and
    12). Prepare only: gates only, no question. Otherwise, without a level in the instruction the user
-   chooses it (verify.md step 3): ask it as your next message and end your turn; never fall back to
+   chooses it (verify.md step 3; a level from a brief, the note or memory is only
+   advice): ask it as your next message and end your turn; never fall back to
    gates only on your own. When `session start:` shows commits since, step 1 uses `--base <that commit>`: verify this
    session's work, committed or not.
 5. Prepare: read `<keel>/skills/_shared/handoff.md` and write the note (update, do not rewrite; new
@@ -45,20 +54,21 @@ Current state of this project:
    Planned tickets first: a passed full verification (not gates only, not red) → for each key in the
    note's `keys:` whose Plan items are all ✅, `node "<keel>/scripts/plans.js" "<project>" done <KEY>`
    (`done: <KEY> (<path>)`; `done: none (no ticket <KEY> here)` for a key `plans.js tickets <KEY>`
-   knows → warn that its status is not written). git.md's `commit` then adds `--tickets "<those keys>"`
+   knows → warn that its status is not written). git.md's `save` then adds `--tickets "<those keys>"`
    (comma-separated, quoted), so their ticket files go into the commit; `done: feature <f> complete (<n> tickets)`
-   → git.md "End of feature" after the push. Gates only or red → no `plans.js done` call. git stops
-   before the commit holds them (`commit` stopped or never ran) → `plans.js done <KEY> --undo` for
-   each (the tickets are `todo` again); a stop after the commit (sync, push) → no undo: the commit
-   holds them, say the push is left. Manual git → one line: "The ticket files <paths> are marked
+   → git-end-of-feature.md after the push; `done: feature <f> has stubs left: ...` → say it in the
+   report (the feature is not complete). Gates only or red → no `plans.js done` call. git stops
+   before the commit holds them (`save` stopped with `commit` not in its `done:` line, or never
+   ran) → `plans.js done <KEY> --undo` for each (the tickets are `todo` again); a stop after the
+   commit (`commit` in `done:`: sync, push) → no undo: the commit holds them, say the push is left. Manual git → one line: "The ticket files <paths> are marked
    done: commit them with the code." (not for tickets under `.keel/local/`: they are outside git);
    with `done: feature <f> complete` also "Feature <f> is complete; /keel:tasks offers its end once
    you have committed and pushed."
-7. Costs: read `<keel>/skills/_shared/usage-sync.md` and follow its steps 1-4 with session id
-   `${CLAUDE_SESSION_ID}` and the level and findings from step 4; its step 5 runs in step 9, right
+7. Costs: read `<keel>/skills/_shared/usage-sync.md` and start its sync agent (steps 1-3) with session id
+   `${CLAUDE_SESSION_ID}` and the level and findings from step 4; its step 4 runs in step 8, right
    before the report.
-8. Run `node "<keel>/scripts/cleanup.js" "<project>" reminder`; its line goes into the report only
-   when it names `/keel:cleanup`.
-9. Report: run usage-sync.md step 5 (the cost report), then read
-   `<keel>/skills/_shared/final-report.md` and follow it. An answer to "Agree, or change
+8. Run usage-sync.md step 4 (the cost report). Then, in one message as two calls: run
+   `node "<keel>/scripts/cleanup.js" "<project>" reminder` (its line goes into the report only when
+   it names `/keel:cleanup`) and read `<keel>/skills/_shared/final-report.md`.
+9. Report: follow final-report.md. An answer to "Agree, or change
    it?" that changes the plan → update the note (in git: commit it as git.md says, manual mode: say so).

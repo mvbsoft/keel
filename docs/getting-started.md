@@ -1,7 +1,5 @@
 # Getting started with keel
 
-[Українська](getting-started.uk.md)
-
 This walkthrough takes you from install to a finished task, a task that continues the next day and a
 feature planned before any code.
 keel is a Claude Code plugin (Claude Code is the platform today; other coding agents are planned). You
@@ -32,7 +30,7 @@ Open your project in Claude Code and run:
 ```
 
 It first asks whether you set up this project or only this machine and, for a new project, whether you
-want the **quick** setup (recommended, about six questions) or the **detailed** one. keel needs a git
+want the **quick** setup (recommended, 11 to 18 questions depending on the project) or the **detailed** one. keel needs a git
 repository: in a folder without one it offers `git init` and a first commit of the current state, and
 stops if you say no. Then it works in these steps.
 
@@ -47,13 +45,15 @@ recommended one comes first, and you can always write your own answer. Ask for m
 the setting in full. Quick setup explains too; it only asks fewer questions.
 
 - **Quick setup** asks only: the two languages (the one keel talks in and the one it writes into the
-  repository), the gate commands (the commands that must pass) and one dry run of them, the git mode
-  and the main branch, the recommended Claude Code settings (all, one by one, or none), and, when this machine
+  repository), the gate commands (the commands that must pass) and one dry run of them, the run command of a part that serves something, the git mode
+  and the main branch, the planning ticket prefix and where the tickets live, the recommended Claude Code
+  settings (all, one by one, or none), the [ADR style](settings.md#adr-styles) when the project has or
+  will write decision records (an ADR folder or documentation profile 2 or higher), and, when this machine
   has no usage settings yet, how it pays, the status line and the usage page. Every other value is
   keel's recommendation; the summary lists each one with the command that changes it, for example
   `/keel:configure verification`.
 - **Detailed setup** goes through every section: languages, gates, security scanners, git,
-  verification thresholds, code size and comments, stack plugins, documentation, moving from another
+  verification thresholds, code size and comments, planning tickets, stack plugins, documentation, moving from another
   notes system, Claude Code settings, and costs. Some sections can be skipped; the repository
   language, gates, git, thresholds, file sizes and comment level, and the documentation profile cannot
   be skipped, but you can accept the proposal with one answer.
@@ -69,7 +69,9 @@ where and gives the cost as an estimate, with how it made it: the docs' characte
 an ordinary keel task: its own branch, a plan you approve, Haiku implementers for the moves, Sonnet
 for content and links, then Standard verification. On your yes keel prepares the task file
 `.keel/local/docs-migration.md`, and the setup summary tells you to run
-`/keel:start-task .keel/local/docs-migration.md` first, so new docs land in the new places. When the
+`/keel:start-task .keel/local/docs-migration.md` first, so new docs land in the new places. When you
+also agreed to the one-time [ADR clean-up](settings.md#adr-styles), `/keel:start-task .keel/local/adr-cleanup.md`
+comes before it. When the
 docs already follow the pattern, keel says there is nothing to move.
 
 An abridged example of a quick setup:
@@ -97,7 +99,7 @@ you:  1 Autonomous, 2 main.
 
 Optionally, each only after your yes: the Claude Code settings it recommends, for this project or for
 the whole machine (a backup of each file is kept first), a status line, a short "Working with Claude
-Code" section in your README, and a private usage page ([usage dashboard](usage-dashboard.md)).
+Code" section in your README, and a private usage page in your claude.ai account ([usage dashboard](usage-dashboard.md#which-accounts-get-what); an API key alone gets exact dollars in the report but no page).
 
 **The setup commit.** keel's git steps never commit on the main branch, so at the end keel offers two
 ways, in both git modes:
@@ -144,10 +146,12 @@ unfinished tasks). keel then:
    files, where each new thing lives, what the framework or installed packages already provide, the
    tests, the documentation to update and the likely verification level (at the end keel proposes a
    level from the actual change, which may differ). A large plan (8 steps or 15 files by default) also
-   proposes handing its steps to implementer agents; approving or changing the plan answers that, with
-   no separate question ([cost optimization](cost-optimization.md#5-delegation-thresholds)). With the
-   Claude Code setting "Yes, clear context" turned on during setup, approving the plan that way starts
-   the work in a fresh conversation from the plan alone.
+   says how to run it: in a fresh conversation (recommended), through implementer agents, or here;
+   approving or changing the plan answers that, with no separate question
+   ([cost optimization](cost-optimization.md#5-delegation-thresholds)). With the Claude Code setting
+   "Yes, clear context" turned on during setup, approving the plan that way starts the work in a fresh
+   conversation from the plan alone; otherwise keel saves the plan and asks you to type `/clear` and
+   `/keel:start-task <id>`.
 5. **Codes**, step by step, or through the implementer agents when the plan says so.
 
 The "Start?" question (or the plan's first Execution step) also names the branch you are on and asks
@@ -217,7 +221,9 @@ git:
 - **Manual git** (`git.mode`: `manual`, recommended for a first project): keel runs no git step you
   did not ask for. It gives you the changed files and a ready commit command, which includes the
   removal of the task folder.
-- **Autonomous git**: keel commits (secret files are left out), updates the branch from main and re-runs
+- **Autonomous git**: keel commits (secret files are left out; a source file only named like one,
+  such as `secrets.py`, is committed when git already tracks it, and a new one is left out and
+  listed, for you to commit by hand once if it is code), updates the branch from main and re-runs
   the tests if new commits came in, and pushes the branch. It merges only when you asked for it, for
   example `/keel:end-task finish and merge into main`; Claude Code then shows its permission
   prompt for the merge. With `git.ask_before_merge: false` in autonomous mode confirmed on this machine, a finish
@@ -249,10 +255,9 @@ you name one), then updates the task file: the goal, the next action, the state 
 in progress, broken, not started) and where the work is, the files, decisions, what did not work, open
 questions and how to check. The task gets `status: handed-off`. Git does a handoff instead of a finish:
 no merge (autonomous: commit, push, switch back to the base branch). A task that works without its own
-branch (in the main branch or its base), handed off with no git instruction, first gets a question, in
-both git modes: a new branch from here (recommended), commit and push to the current branch (not on the main branch), no commit
-for now (the changes stay uncommitted and move with you if you switch branches), or your own
-instruction; keel runs the answer. Later, in any conversation:
+branch (in the main branch or its base), handed off with no git instruction, gets a new branch from
+here: the work is committed there as work in progress and pushed, so another machine can go on with
+it. Later, in any conversation:
 
 ```
 /keel:start-task CAN-123
@@ -274,7 +279,7 @@ description:
 keel writes the note `.keel/next-session.md` (goal, the plan, a "Later" list for things found along the
 way, one first action), shows it and asks "Start?". On yes it creates the branch for this line of work
 (manual git: it gives you `git switch -c <name>` and waits until you say it ran). The note is kept to
-about 150 lines and never contains passwords, keys or tokens. Next time, in a new conversation:
+about 150 lines (12000 characters) and never contains passwords, keys or tokens. Next time, in a new conversation:
 
 ```
 /keel:start-session
@@ -308,8 +313,9 @@ conversation of its own, and it writes no code:
 /keel:start-planning CSV export of invoices
 ```
 
-The first time in a project keel asks two things: the language of the tickets, and where the draft
-lives (on this machine, outside git, or in the repository, where colleagues see it). Then it retells
+Planning needs the project's ticket prefix and where the tickets live, set once by `/keel:configure`
+(or `/keel:configure planning`). The first time in a project keel then asks where the draft lives (on
+this machine, outside git, or in the repository, where colleagues see it). Then it retells
 the feature, checks in the code what it relies on, proposes a name and asks one question at a time.
 Your answers become decisions; the work becomes short tickets (T1, T2…) in the draft. With no argument,
 keel lists the drafts to continue. While a conversation plans, keel refuses the task, session, configure
@@ -324,7 +330,7 @@ decide each finding, keel exports the tickets into the feature folder with real 
 Then build the tickets, each in a fresh conversation (`/clear`): `/keel:start-task next ticket` takes
 the next free ticket and offers its feature branch; from there it is an ordinary task. Or
 `/keel:start-session <feature>` takes them one by one in a session. `/keel:tasks`
-shows the planned tickets too. Every case: [planning](workflows.md#planning).
+shows the planned tickets too. Every case: [planning](planning.md).
 
 ## 8. Clean up: `/keel:cleanup`
 
@@ -339,6 +345,7 @@ Every variant: [commands](commands.md#keelcleanup).
 ## Next
 
 - [Ways of working](workflows.md): what to type in each situation.
+- [Planning](planning.md): plan a feature before the code.
 - [Verification](verification.md): which level to choose.
 - [Cost optimization](cost-optimization.md): how to spend less.
 - [Settings](settings.md): change keel's defaults.

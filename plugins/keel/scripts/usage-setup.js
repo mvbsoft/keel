@@ -5,7 +5,9 @@
 //        node usage-setup.js <projectDir> prices-diff <prices.json> old → new diff and multiplier warnings, writes nothing
 //        node usage-setup.js <projectDir> prices-apply <prices.json> writes the machine price override
 //        node usage-setup.js <projectDir> install-statusline        writes the stable shim, prints the statusLine command
-//        node usage-setup.js <projectDir> page                      copies the dashboard page to .keel/local/tmp/usage-page
+//        node usage-setup.js <projectDir> sync on|off               turns this machine's page sync on or off (after
+//          `on` the next sync sends what Claude Code's logs still hold of the time in between)
+//        node usage-setup.js <projectDir> page                      copies the dashboard page and the design system files to .keel/local/tmp/usage-page
 //          (the Artifact tool publishes only files under the project or the scratchpad) and prints the
 //          template fingerprint that configure writes to the page (meta/settings `template`) and to page_template
 // `show` also says what the status line is now: keel's runner, a command keel could wrap, or none,
@@ -19,6 +21,7 @@ const { parseArgs } = require('./lib/project.js');
 const { WALLETS, usageDir, loadMachineConfig, writeMachineConfig, detectWallet } = require('./lib/usage-config.js');
 const prices = require('./lib/prices.js');
 const { readJsonFile } = require('./lib/json.js');
+const { DESIGN_DIR: DESIGN, DESIGN_FILES } = require('./lib/design-files.js');
 
 const RUNNER = path.join(__dirname, '..', 'statusline', 'run.js');
 // The statusLine setting points at a shim in the usage folder, not into the plugin: the plugin folder
@@ -50,11 +53,9 @@ const KEYS = {
   cloud_wallet: (v) => WALLETS.includes(v),
   also_api: (v) => typeof v === 'boolean',
   prompt_preview: (v) => typeof v === 'boolean',
-  history_days: (v) => Number.isInteger(v) && v >= 0 && v <= 3650,
+  history_days: (v) => Number.isInteger(v) && v >= 1 && v <= 3650, // 3650: ten years of days, a cap against a mistyped value
   artifact_url: (v) => v === null || (typeof v === 'string' && /^https:\/\/claude\.ai\//.test(v)),
-  approved_artifact_urls: (v) => Array.isArray(v) && v.length <= 20 && v.every((u) => typeof u === 'string' && /^https:\/\/claude\.ai\//.test(u)),
   page_template: (v) => typeof v === 'string' && /^[0-9a-f]{12}$/.test(v),
-  page_shared: (v) => typeof v === 'boolean',
   statusline: (v) => v && typeof v === 'object' && ['keel', 'wrap', 'none'].includes(v.mode),
 };
 
@@ -83,8 +84,9 @@ function show(root = process.cwd()) {
     `usage folder: ${usageDir()}${m.configured ? '' : ' (not configured on this machine yet)'}`,
     `pc: ${m.pc} | user: ${m.user || 'unknown'} | wallet of this session: ${detectWallet({ projectDir: root, machine: m })}`,
     `wallet_default: ${m.wallet_default} | cloud_wallet: ${m.cloud_wallet} | also_api: ${m.also_api} | prompt_preview: ${m.prompt_preview}`,
-    `artifact_url: ${m.artifact_url || 'not set'}${m.approved_artifact_urls.length ? ` | approved project urls: ${m.approved_artifact_urls.join(', ')}` : ''}`,
-    ...(m.artifact_url || m.approved_artifact_urls.length ? [pageTemplateLine(m)] : []),
+    `artifact_url: ${m.artifact_url || 'not set'}`,
+    `sync: ${m.sync ? 'on' : `off${m.sync_off_since ? ` since ${m.sync_off_since}` : ''}`}`,
+    ...(m.artifact_url ? [pageTemplateLine(m)] : []),
     `status line now: ${sl.now}${sl.command ? ` (${sl.command})` : ''}${sl.offer ? ` | offer: ${sl.offer}` : ''}`,
     ...(sl.original ? [`status line setting to keep as statusline.original when wrapping: ${JSON.stringify(sl.original)}`] : []),
     `prices: ${table.source}, ${table.models.length} models${prices.validate(table).length ? ` | notes: ${prices.validate(table).join('; ')}` : ''}`,
@@ -117,29 +119,45 @@ function installStatusline() {
   return { type: 'command', command: `node "${shim}"`, padding: 0 };
 }
 
-const PAGE_FILES = ['index.html', 'pivot.js', 'i18n.js', 'i18n.uk.js'];
+// The page's own files, and the design system's files that are published beside them.
+const PAGE_FILES = ['index.html', 'style.css', 'app.js', 'charts.js', 'menu.js', 'calendar.js', 'view-overview.js', 'view-analysis.js', 'view-sessions.js', 'view-session.js', 'view-limit.js',
+  'pivot.js', 'i18n.js', 'i18n.uk.js', 'format.js', 'load.js', 'demo.js'];
 const TEMPLATE = path.join(__dirname, '..', 'templates', 'usage');
-// Line endings do not count: a checkout with CRLF publishes the same page.
-function pageTemplate(dir = TEMPLATE) {
+// Line endings do not count: a checkout with CRLF publishes the same page. The mark is an image: its bytes count as they are.
+function pageTemplate(dir = TEMPLATE, designDir = DESIGN) {
   const h = crypto.createHash('sha256');
-  for (const name of PAGE_FILES) h.update(`${name}\n${fs.readFileSync(path.join(dir, name), 'utf8').replace(/\r\n/g, '\n')}\n`);
+  const files = [...PAGE_FILES.map((name) => [name, path.join(dir, name)]), ...DESIGN_FILES.map((name) => [name, path.join(designDir, name)])];
+  for (const [name, file] of files) {
+    h.update(`${name}\n`);
+    h.update(/\.png$/.test(name) ? fs.readFileSync(file) : fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
+    h.update('\n');
+  }
   return h.digest('hex').slice(0, 12);
 }
 
-// page_template is what the page's meta/settings said at the last sync or configure. A page published before
-// keel recorded the fingerprint has none. Only this account's own page (artifact_url, not page_shared) is
-// offered the update: a team page or one shared from another account is updated by its owner.
+// page_template is what the page said at the last sync or configure. A page published before keel recorded the
+// fingerprint has none.
 function pageTemplateLine(m) {
   const now = pageTemplate();
   if (m.page_template === now) return `page template: ${now} (this keel's)`;
-  const own = !!m.artifact_url && !m.page_shared;
-  return `page template: ${m.page_template || 'unknown'}, this keel's: ${now} | ${own ? 'offer: update' : "another account's page: its owner updates it"}`;
+  return `page template: ${m.page_template || 'unknown'}, this keel's: ${now} | offer: update`;
+}
+
+// Turning the sync off keeps the date it was first turned off, so /keel:usage can say since when this machine's
+// data waits.
+function setSync(value) {
+  const m = loadMachineConfig();
+  if (value === 'on') writeMachineConfig({ sync: true, sync_off_since: null });
+  else writeMachineConfig({ sync: false, sync_off_since: (!m.sync && m.sync_off_since) || new Date().toISOString() });
+  const now = loadMachineConfig();
+  return now.sync ? 'sync: on' : `sync: off since ${now.sync_off_since}`;
 }
 
 function page(root) {
   const to = require('./lib/safe-path.js').safeLocalPath(root, 'tmp', 'usage-page');
   fs.mkdirSync(to, { recursive: true });
   for (const name of PAGE_FILES) fs.copyFileSync(path.join(TEMPLATE, name), path.join(to, name));
+  for (const name of DESIGN_FILES) fs.copyFileSync(path.join(DESIGN, name), path.join(to, name));
   return to;
 }
 
@@ -169,20 +187,21 @@ function pricesApply(file) {
 
 if (require.main === module) {
   const { pos: args } = parseArgs(process.argv.slice(2));
-  const root = path.resolve(args[0] || '.');
+  const root = require('./lib/project-dir.js').scriptProject(args[0] || '.');
   const pos = args.slice(1);
   try {
     if (pos[0] === 'show') process.stdout.write(`${show(root)}\n`);
     else if (pos[0] === 'apply' && pos[1]) process.stdout.write(`written ${apply(path.resolve(pos[1]))}\n`);
     else if (pos[0] === 'prices-diff' && pos[1]) process.stdout.write(`${pricesDiff(path.resolve(pos[1]))}\n`);
     else if (pos[0] === 'prices-apply' && pos[1]) process.stdout.write(`written ${pricesApply(path.resolve(pos[1]))} (previous kept as prices.json.bak)\n`);
-    else if (pos[0] === 'page') process.stdout.write(`page files in ${page(root)}: ${PAGE_FILES.join(', ')}\npage_template: ${pageTemplate()}\n`);
+    else if (pos[0] === 'page') process.stdout.write(`page files in ${page(root)}: ${[...PAGE_FILES, ...DESIGN_FILES].join(', ')}\npage_template: ${pageTemplate()}\n`);
     else if (pos[0] === 'install-statusline') process.stdout.write(`${JSON.stringify(installStatusline())}\n`);
-    else process.stdout.write('usage: usage-setup.js <projectDir> show | apply <changes.json> | prices-diff <prices.json> | prices-apply <prices.json> | install-statusline | page\n');
+    else if (pos[0] === 'sync' && ['on', 'off'].includes(pos[1])) process.stdout.write(`${setSync(pos[1])}\n`);
+    else process.stdout.write('usage: usage-setup.js <projectDir> show | apply <changes.json> | prices-diff <prices.json> | prices-apply <prices.json> | install-statusline | page | sync on|off\n');
   } catch (e) {
     process.stdout.write(`usage-setup: ${e.message}\n`);
     process.exitCode = 1;
   }
 }
 
-module.exports = { show, apply, statusLineState, installStatusline, page, pageTemplate, pricesDiff, pricesApply, RUNNER };
+module.exports = { show, apply, statusLineState, installStatusline, page, pageTemplate, pricesDiff, pricesApply, setSync, RUNNER, PAGE_FILES, DESIGN_FILES };

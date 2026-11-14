@@ -72,6 +72,23 @@ test('day document: shape validates against the schema, hours and sessions match
   assert.ok(!('requests' in s), 'the per-request list is not stored');
 });
 
+test('day document: every priced by_model entry carries usd_kind adding up to its usd; unpriced models have none', () => {
+  const e = env();
+  buildSession(e.root);
+  const doc = e.build().docs[0].doc;
+  assert.deepEqual(validate(doc, SCHEMA), []);
+  let seen = 0;
+  for (const p of doc.sessions[0].participants) {
+    for (const [model, v] of Object.entries(p.by_model)) {
+      if (model === 'test-mystery-1') { assert.ok(!('usd_kind' in v)); continue; }
+      near(sum(Object.values(v.usd_kind)), v.usd);
+      assert.deepEqual(Object.keys(v.usd_kind).sort(), ['cr', 'cw1h', 'cw5', 'in', 'out']);
+      seen++;
+    }
+  }
+  assert.equal(seen, 2);
+});
+
 test('a session across midnight: hours in two documents, the session in the day it started', () => {
   const e = env();
   const t0 = Date.UTC(2026, 2, 3, 23, 50, 0);
@@ -189,6 +206,21 @@ test('summary cache: the second build does not parse again, a changed file does'
   // a new price table makes the cached dollars stale
   const dearer = e.build({ prices: { models: TABLE.models.map((m) => ({ ...m, output: m.output * 2 })) } });
   assert.equal(dearer.stats.parsed, 1);
+});
+
+test('summary cache: a summary cached by the keel before dollars by token kind is parsed again', () => {
+  const e = env();
+  buildSession(e.root);
+  e.build();
+  const file = path.join(e.dir, 'usage-cache', `${SESSION_ID}.json`);
+  const cache = JSON.parse(fs.readFileSync(file, 'utf8'));
+  // version 3 is the cache of the keel before this detail: its summaries have no usd_kind
+  cache.v = 3;
+  fs.writeFileSync(file, JSON.stringify(cache, (key, value) => (key === 'usd_kind' ? undefined : value)));
+  const again = e.build();
+  assert.deepEqual(again.stats, { parsed: 1, reused: 0 });
+  const kinds = again.docs[0].doc.sessions[0].participants.flatMap((p) => Object.values(p.by_model)).filter((v) => v.usd_kind);
+  assert.equal(kinds.length, 2, 'both priced models have the dollars by kind again');
 });
 
 test('rebuilding a day takes in sessions that did not change; sessions long before the day do not matter', () => {

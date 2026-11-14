@@ -96,13 +96,13 @@ test('apply: writes the allowed keys, merges with the existing usage.json, keeps
   const w = world({ usage: { pc: 'old', user: 'a@b.c', custom_note: 'kept' } });
   const r = w.run('apply', w.file('c.json', {
     pc: 'new-pc', wallet_default: 'api', cloud_wallet: 'subscription', also_api: true, prompt_preview: false,
-    history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', approved_artifact_urls: ['https://claude.ai/artifact/team'], page_template: '0123456789ab', statusline: { mode: 'keel' },
+    history_days: 1, artifact_url: 'https://claude.ai/artifact/abc', page_template: '0123456789ab', statusline: { mode: 'keel' },
   }));
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /^written .*usage\.json$/);
   assert.deepEqual(readJson(path.join(w.dir, 'usage.json')), {
     pc: 'new-pc', user: 'a@b.c', custom_note: 'kept', wallet_default: 'api', cloud_wallet: 'subscription', also_api: true,
-    prompt_preview: false, history_days: 0, artifact_url: 'https://claude.ai/artifact/abc', approved_artifact_urls: ['https://claude.ai/artifact/team'], page_template: '0123456789ab', statusline: { mode: 'keel' },
+    prompt_preview: false, history_days: 1, artifact_url: 'https://claude.ai/artifact/abc', page_template: '0123456789ab', statusline: { mode: 'keel' },
   });
   // A second apply changes only its own keys; artifact_url may be cleared with null.
   assert.equal(w.run('apply', w.file('d.json', { user: 'z@x.y', artifact_url: null })).code, 0);
@@ -163,14 +163,17 @@ test('apply: an unknown key or a bad value is refused and nothing is written', (
     [{ user: '' }, 'user'],
     [{ also_api: 'yes' }, 'also_api'],
     [{ prompt_preview: 1 }, 'prompt_preview'],
+    [{ history_days: 0 }, 'history_days'],
     [{ history_days: -1 }, 'history_days'],
     [{ history_days: 1.5 }, 'history_days'],
     [{ history_days: 4000 }, 'history_days'],
     [{ artifact_url: 'http://claude.ai/artifact/x' }, 'artifact_url'],
     [{ artifact_url: 'https://evil.example/claude.ai/' }, 'artifact_url'],
-    [{ approved_artifact_urls: 'https://claude.ai/artifact/x' }, 'approved_artifact_urls'],
-    [{ approved_artifact_urls: ['https://evil.example/claude.ai/'] }, 'approved_artifact_urls'],
-    [{ approved_artifact_urls: ['https://claude.ai/artifact/x', 5] }, 'approved_artifact_urls'],
+    // keys of the shared project page, which keel no longer uses
+    [{ approved_artifact_urls: ['https://claude.ai/artifact/x'] }, 'approved_artifact_urls'],
+    [{ page_shared: true }, 'page_shared'],
+    // written by usage-setup.js sync, never by apply
+    [{ sync: false }, 'sync'],
     [{ page_template: '0123456789AB' }, 'page_template'],
     [{ page_template: '0123456789a' }, 'page_template'],
     [{ page_template: '0123456789abc' }, 'page_template'],
@@ -234,7 +237,7 @@ test('the usage line is printed for no command, an unknown command, or a command
   for (const args of [[], ['bogus'], ['apply'], ['prices-diff'], ['prices-apply']]) {
     const r = w.run(...args);
     assert.equal(r.code, 0, args.join(' '));
-    assert.match(r.out, /^usage: usage-setup\.js <projectDir> show \| apply <changes\.json> \| prices-diff <prices\.json> \| prices-apply <prices\.json> \| install-statusline \| page$/);
+    assert.match(r.out, /^usage: usage-setup\.js <projectDir> show \| apply <changes\.json> \| prices-diff <prices\.json> \| prices-apply <prices\.json> \| install-statusline \| page \| sync on\|off$/);
   }
 });
 
@@ -420,9 +423,33 @@ test('prices-apply: an invalid table is refused with exit code 1 and nothing is 
 
 // --- page ---
 
-const PAGE_FILES = ['index.html', 'pivot.js', 'i18n.js', 'i18n.uk.js'];
+const { PAGE_FILES, DESIGN_FILES } = require(CLI);
+const DESIGN = path.join(PLUGIN, 'templates', 'design');
 
-test('page: copies the dashboard files to <project>/.keel/local/tmp/usage-page',
+test('page files: the list, the template, the files the page loads and the publish step name the same files', () => {
+  assert.deepEqual(fs.readdirSync(TEMPLATES).sort(), [...PAGE_FILES].sort());
+  assert.deepEqual(fs.readdirSync(DESIGN).sort(), [...DESIGN_FILES].sort(), 'the design system folder holds exactly the files published with the page');
+  const html = fs.readFileSync(path.join(TEMPLATES, 'index.html'), 'utf8');
+  const local = [...html.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((u) => !/^https?:/.test(u));
+  // keel-mark.png is not loaded by the html: keel.css draws it.
+  const loaded = [...PAGE_FILES.filter((n) => n !== 'index.html'), ...DESIGN_FILES.filter((n) => n !== 'keel-mark.png')];
+  assert.deepEqual(local.sort(), loaded.sort(), 'the files index.html loads');
+  // The publish step's `files` map in usage-page.md (the update reuses it): every page and design file but index.html.
+  const flow = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'usage-page.md'), 'utf8');
+  const step = flow.slice(flow.indexOf('## Create'), flow.indexOf('## Update'));
+  const published = [...step.matchAll(/"([^"]+)": "\.\.\.\/usage-page\/\1"/g)].map((m) => m[1]);
+  assert.deepEqual(published.sort(), [...PAGE_FILES.filter((n) => n !== 'index.html'), ...DESIGN_FILES].sort(), 'the publish step\'s files');
+  // The menu behaviour is a page file of its own: listed, loaded by the page and published with it.
+  assert.ok(PAGE_FILES.includes('menu.js'), 'PAGE_FILES');
+  assert.match(html, /<script src="menu\.js"><\/script>/, 'index.html');
+  assert.ok(published.includes('menu.js'), 'the publish step');
+  // So is the calendar of the own period.
+  assert.ok(PAGE_FILES.includes('calendar.js'), 'PAGE_FILES');
+  assert.match(html, /<script src="calendar\.js"><\/script>/, 'index.html');
+  assert.ok(published.includes('calendar.js'), 'the publish step');
+});
+
+test('page: copies the dashboard files and the design system files to <project>/.keel/local/tmp/usage-page',
   { skip: fs.existsSync(path.join(TEMPLATES, 'index.html')) ? false : 'templates/usage/index.html is not written yet' },
   () => {
     const w = world({ usage: { pc: 'p' } });
@@ -430,8 +457,9 @@ test('page: copies the dashboard files to <project>/.keel/local/tmp/usage-page',
     assert.equal(r.code, 0, r.out);
     const to = path.join(w.project, '.keel', 'local', 'tmp', 'usage-page');
     assert.ok(r.out.includes(to), r.out);
-    assert.deepEqual(fs.readdirSync(to).sort(), [...PAGE_FILES].sort());
+    assert.deepEqual(fs.readdirSync(to).sort(), [...PAGE_FILES, ...DESIGN_FILES].sort());
     for (const name of PAGE_FILES) assert.equal(fs.readFileSync(path.join(to, name), 'utf8'), fs.readFileSync(path.join(TEMPLATES, name), 'utf8'), name);
+    for (const name of DESIGN_FILES) assert.ok(fs.readFileSync(path.join(to, name)).equals(fs.readFileSync(path.join(DESIGN, name))), `${name} is copied byte for byte`);
     // Running it again replaces the copies.
     fs.writeFileSync(path.join(to, 'pivot.js'), 'stale');
     assert.equal(w.run('page').code, 0);
@@ -465,6 +493,17 @@ test('page template: changes when any page file changes, not when only its line 
   for (const changed of PAGE_FILES) {
     assert.notEqual(pageTemplate(copyTemplates((s, name) => (name === changed ? `${s} ` : s))), now, changed);
   }
+  // The design system files are part of the page: a change to one is another page, a CRLF checkout is not.
+  const designCopy = (edit) => {
+    const dir = tmp('keel-us-design-');
+    for (const name of DESIGN_FILES) fs.writeFileSync(path.join(dir, name), edit(fs.readFileSync(path.join(DESIGN, name)), name));
+    return dir;
+  };
+  assert.equal(pageTemplate(copyTemplates(), designCopy((b) => b)), now);
+  for (const changed of DESIGN_FILES) {
+    assert.notEqual(pageTemplate(copyTemplates(), designCopy((b, name) => (name === changed ? Buffer.concat([b, Buffer.from(' ')]) : b))), now, changed);
+  }
+  assert.equal(pageTemplate(copyTemplates(), designCopy((b, name) => (name === 'keel.css' ? Buffer.from(b.toString('utf8').replace(/\r?\n/g, '\r\n')) : b))), now, 'a CRLF keel.css');
   // Text moved from one file to the next is another page.
   const split = (first, second) => pageTemplate(copyTemplates((s, name) => (name === 'i18n.js' ? first : name === 'i18n.uk.js' ? second : s)));
   assert.notEqual(split('ab', ''), split('a', 'b'));
@@ -483,24 +522,3 @@ test('show: an own page with an older or unknown template → offer: update; the
   assert.equal(line({ page_template: 'aaaaaaaaaaaa' }), undefined);
 });
 
-test("show: a page this machine cannot write (shared from another account, or a team page) is never offered the update", () => {
-  const now = pageTemplate();
-  const line = (usage) => world({ usage: { pc: 'p', ...usage }, settings: {} }).run('show').out.split('\n').find((l) => l.startsWith('page template:'));
-  const owner = `page template: unknown, this keel's: ${now} | another account's page: its owner updates it`;
-  assert.equal(line({ artifact_url: 'https://claude.ai/artifact/x', page_shared: true }), owner);
-  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'] }), owner);
-  // page_shared belongs to artifact_url: a team page stays its owner's even when it is false.
-  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'], page_shared: false }), owner);
-  assert.equal(line({ approved_artifact_urls: ['https://claude.ai/artifact/team'], page_template: now }), `page template: ${now} (this keel's)`);
-});
-
-test('apply: page_shared is true or false', () => {
-  const w = world({ usage: { pc: 'p' } });
-  assert.equal(w.run('apply', w.file('c.json', { page_shared: true })).code, 0);
-  assert.equal(readJson(path.join(w.dir, 'usage.json')).page_shared, true);
-  for (const v of ['yes', 1, null]) {
-    const r = w.run('apply', w.file('c.json', { page_shared: v }));
-    assert.equal(r.code, 1, String(v));
-    assert.ok(r.out.includes('page_shared'), r.out);
-  }
-});

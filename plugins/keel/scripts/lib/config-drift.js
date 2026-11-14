@@ -13,6 +13,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { git } = require('./diff.js');
 const { readJson, localDir, writeLocal } = require('./project.js');
+const { ticketPrefixes } = require('./config.js');
 
 const SNAPSHOT = 'configure-snapshot.json';
 // The configure sections by number (configure-flow.md); a reason names one of them.
@@ -48,11 +49,7 @@ function recommendedThen(record) {
 function scanBasis(root, { profile, findings }) {
   const stackSkills = require('../stack-skills.js');
   const data = require('../../data/stack-skills.json');
-  const stack = {
-    languages: new Set(profile.languages.map((l) => l.name)),
-    ecosystems: new Set(profile.parts.flatMap((p) => p.ecosystems)),
-    packages: stackSkills.packagesOf(root, profile.parts.map((p) => p.path)),
-  };
+  const stack = stackSkills.stackOf(root, profile);
   return {
     scan: {
       monorepo: profile.monorepo_tool || null,
@@ -117,14 +114,19 @@ function saveSnapshot(root, { scanResult, sections = RECORDED }) {
   return writeLocal(root, SNAPSHOT, JSON.stringify(snapshot, null, 2) + '\n');
 }
 
-// Leftovers of a rebuild that was killed: their temp folders and git's worktree entries.
+// Leftovers of a rebuild that was killed: their temp folders and their worktree entries. Only keel's own
+// entries are removed (a folder inside a temp folder of keel's, now gone); other worktrees are not touched.
 function clearLeftovers(root, gitRun) {
   const hourAgo = Date.now() - 3600 * 1000;
   for (const name of fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith(TMP_PREFIX))) {
     const dir = path.join(os.tmpdir(), name);
     try { if (fs.statSync(dir).mtimeMs < hourAgo) fs.rmSync(dir, { recursive: true, force: true }); } catch { /* in use or gone */ }
   }
-  try { gitRun(['worktree', 'prune']); } catch { /* nothing to prune */ }
+  for (const [, dir] of (git(root, ['worktree', 'list', '--porcelain']) || '').matchAll(/^worktree (.+)$/gm)) {
+    if (path.basename(path.dirname(dir)).startsWith(TMP_PREFIX) && !fs.existsSync(dir)) {
+      try { gitRun(['worktree', 'remove', '--force', dir]); } catch { /* already gone */ }
+    }
+  }
 }
 
 // No record on this machine: scan the project as it was at the commit of keel's settings files, in a
@@ -158,9 +160,8 @@ function rebuildSnapshot(root, commit) {
   } catch {
     return null;
   } finally {
-    try { run(['worktree', 'remove', '--force', tree]); } catch { /* removed below */ }
+    try { run(['worktree', 'remove', '--force', tree]); } catch { /* the next rebuild clears the entry */ }
     fs.rmSync(base, { recursive: true, force: true });
-    try { run(['worktree', 'prune']); } catch { /* nothing to prune */ }
   }
 }
 
@@ -283,10 +284,15 @@ function liveReasons(root, now, ctx) {
       add('git', 'needed', `main branch "${main}" is not in the repository${head ? `; the remote's default branch is "${head}"` : ''}`, 'keel starts each task from it and merges the work back into it');
     }
   }
+  // 8 docs: a project that keeps ADRs, or will (profile 2+), without a chosen way of keeping them
+  const docs = config.docs || {};
+  const known = require('../../data/catalog.json').docs.adr_dirs;
+  const adrDirs = now.docs.doc_dirs.filter((d) => known.includes(d));
+  if (!docs.adr_style && ((docs.profile || 1) >= 2 || adrDirs.length)) add('docs', 'worth', `no ADR style chosen${adrDirs.length ? ` (ADR folder ${adrDirs.join(', ')})` : ''}`, 'keel keeps ADRs as a journal until you choose: journal, living (one record per topic) or your own way');
   if (!rec) { ctx.skipped.push('ticket ids, new stack plugins, files loaded every session, new decision or spec folders, other notes systems'); return out; }
 
   // 6 code: ticket ids keel could keep out of comments
-  const have = new Set((config.comments && config.comments.ticket_prefixes) || []);
+  const have = new Set(ticketPrefixes(config));
   const seen = new Set(rec.code ? rec.code.ticket_prefixes : []);
   const tickets = now.code.ticket_prefixes.filter((t) => !have.has(t.prefix) && !seen.has(t.prefix));
   if (tickets.length) add('code', 'worth', `ticket ids in the git history: ${tickets.map((t) => `${t.prefix} (${t.ids} ids)`).join(', ')}`, 'keel can point out comments that refer to tickets, which may be renamed or deleted');

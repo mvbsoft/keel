@@ -9,7 +9,7 @@ allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" *), Pow
 # keel: tasks
 
 - `<keel>` (the plugin folder): `${CLAUDE_PLUGIN_ROOT}`
-- `<project>` (the project folder): `${CLAUDE_PROJECT_DIR}`
+- `<project>` (the project folder): `${CLAUDE_PROJECT_DIR}`; a keel script's `project: <folder>` line (this session works in a worktree of it) replaces it from then on
 - `<sid>` (this session's id): `${CLAUDE_SESSION_ID}`
 - Talk to the user in: the language in keel's session-start line (this project's own, else the machine's: ${user_config.conversation_language}; a language the user explicitly asks for in this session wins, for this session only)
 - Arguments: `$ARGUMENTS` (empty: the list; `<task id>`: its details; `drop <task id>`: remove it and what it left)
@@ -18,7 +18,15 @@ Current state of this project:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" "${CLAUDE_PROJECT_DIR}" --profile`
 
-1. Read `<keel>/skills/_shared/preflight.md` and act on the state above.
+1. The state above is exactly the two lines `keel-config: ok` and `profile: ok`, with no other line
+   → go on without reading preflight.md. Any other line (such as `git: refused`), or no state above → read `<keel>/skills/_shared/preflight.md` and
+   act on it. These rules hold for this whole command. Run every keel script (`node` with a file in
+   keel's `scripts` folder) as its own plain command with full paths, never joined with `;`, `&&`,
+   pipes or redirections. In Bash write a path that starts with `\\` as `//server/share/...`. Read
+   keel's own files with Read, Grep and Glob, not the shell. Before each action say in one short
+   line what it will do. An instruction you cannot read one way only: ask, never guess. Steps that
+   need nothing from each other's output may go in one message as separate calls, where the command
+   says so. A keel script refused by a project hook: follow preflight.md's rule for it.
 2. Run `node "<keel>/scripts/notes.js" "<project>" tasks --session <sid>`. Each block is one task (this
    working tree and every branch).
 3. No argument: show each block as printed (`<id> · <title>`, then Source, State, Next, Files, and
@@ -27,14 +35,24 @@ Current state of this project:
    `/keel:tasks drop <id>`, or `/keel:start-task <id>` then `/keel:end-task` to finish it; say nothing
    about age otherwise. End with: "Continue one with `/keel:start-task <id>`." No tasks → say so.
    Then the planned tickets: `node "<keel>/scripts/plans.js" "<project>" tickets`. Not
-   `tickets: none` → a block "Planned": each feature and its ticket lines as printed (states and hints
-   in the conversation language; keys, branches and names stay), the data-date line
+   `tickets: none` → a block "Planned": each feature and its ticket lines as printed (states, hints and
+   marks such as `<KEY> only in feature branch <b>` in the conversation language; keys, branches and
+   names stay), the data-date line
    (`server data from <date>`, `no remote` or `never fetched`), and "Start the next one with
    `/keel:start-task <KEY>`" with the key of its `next:` line (`next: none` → no such line). A
    feature whose every ticket is `done` or `waiting for the feature merge` (all done in its feature
-   branch) → offer its end as `<keel>/skills/_shared/git.md` "End of feature" says.
+   branch) and that has no `— stub (` line in `plans.js tickets <f>` → offer its end as
+   `<keel>/skills/_shared/git-end-of-feature.md` says; with a stub left, say it is not complete yet.
+   `linked:` lines after `next:` → a block "Other repositories" (tickets of the same features there,
+   never the next one here): each `linked: <feature> in <name> (<PREFIX>; <folder>, <data date>)`
+   with its ticket lines as printed; `... has more tickets, state unknown (<why>):` → "<name> is not
+   on this machine; its tickets from the overview:" with its lines and the why. `... the overview in
+   <names> differs ...` → one line: pull there first; still different → offer the alignment: run
+   `plans.js align <feature>`, show its versions and each section's `-` / `+` lines as they are, and
+   ask which version is right, its `default:` first; on the answer `plans.js align <feature> --take
+   <PREFIX>`; the commit and push of each `commit:` line only on the user's yes.
 4. `<task id>`: show its block, then read its `task.md` (and `plan.md`): in this working tree from the
-   path in Files; on another branch: `git show <branch>:<path>/task.md`. Tell its goal, state,
+   path in Files; on another branch: `git show <branch>:./<path>/task.md`. Tell its goal, state,
    open questions and next action in 3-6 lines. An id that is not listed → say so and show the list.
 5. `drop <task id>`: run `node "<keel>/scripts/notes.js" "<project>" task inventory <id>` and explain in
    plain words what the task left: its folder, the branch (local, pushed), the commits not in the base,

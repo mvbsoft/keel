@@ -1,13 +1,13 @@
 # keel preflight (first step of every keel command except configure)
 
 `<keel>` below is the plugin folder the command gave you. The command placed the output of
-`check-config.js` above. For this whole command: run every keel script (`node` with a file in keel's `scripts` folder)
-as its own plain command with the full paths filled in, never joined with `;`, `&&`, pipes or
-redirections; keel's permission hook lets only that form through without a prompt. In Bash, write a
-path that starts with `\\` (a network or WSL share) with forward slashes: `//server/share/...`. Read and search
-keel's own files with the Read, Grep and Glob tools, not with shell commands. Before each action (a
-script, a git step, a file change, an agent), say in one short line what it is and what it will do.
-An instruction you cannot read one way only: ask, never guess.
+`check-config.js` above. These rules hold for this whole command. Run every keel script (`node` with a file in keel's
+`scripts` folder) as its own plain command with full paths, never joined with `;`, `&&`, pipes or
+redirections. In Bash write a path that starts with `\\` as `//server/share/...`. Read keel's own
+files with Read, Grep and Glob, not the shell. Before each action say in one short line what it will do.
+An instruction you cannot read one way only: ask, never guess. Steps that need nothing from each
+other's output may go in one message as separate calls, where the command says so. A keel script
+refused by a project hook: follow preflight.md's rule for it.
 
 **A keel script refused by a project hook** (the refusal's reason does not start with `keel:`), for
 example a guard that refuses `node` on this machine because the project's tools run in containers:
@@ -31,7 +31,17 @@ the check, then on a `git:` line:
   after the command; do not block.
 - `keel-config: unavailable` → tell the user the `reason:` line in plain words and stop. Nothing else
   runs.
-- `keel-config: missing | broken | invalid | outdated` → the command cannot run yet:
+- `keel-config: missing` with a `settings on branch: <name>` line → keel is set up here, not lost: the
+  settings were committed with the work on branch `<name>` and reach this branch when that branch is
+  merged. Say so in plain words. A `settings in folder: <path>` line after it → that branch is checked
+  out in that folder and cannot be switched to here: tell the user to work in `<path>` and stop;
+  never offer to switch the branch here. Otherwise offer (AskUserQuestion): switch to `<name>` and go
+  on there, or stop. Switch → autonomous git: `node "<keel>/scripts/git-flow.js" "<project>" switch --name <name>`;
+  manual git: give `git switch <name>` and wait until the user says it ran. Then run
+  `node "<keel>/scripts/check-config.js" "<project>"` again; if it says `ok`, continue **this same
+  command with its original arguments**. Stop → say "Not on the settings' branch, so the command did
+  not run." and stop. Never offer to configure again and never commit the settings here.
+- `keel-config: missing | broken | invalid | outdated` (without that line) → the command cannot run yet:
   1. Say in one or two plain sentences why (from the `reason:` line), e.g. "This project has no keel
      settings yet, so /keel:start-task cannot run."
   2. Ask: "Configure now? It takes a few questions." (AskUserQuestion: Yes / No.)

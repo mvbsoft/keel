@@ -10,19 +10,22 @@
 // owns it. `summary` is the session as its transcript says; `dedup` is the same without the messages others own.
 // A session whose transcript Claude Code deleted stays in the cache, so rebuilding a day keeps its history.
 //   keel-tasks.jsonl             keel fields (task, level, findings...) per session, appended by `usage.js prepare`
-//   sync-state.json              {artifact_url, synced_until, docs, pending, pending_until}
+//   sync-state.json              {artifact_url, synced_until, docs, pending, pending_until, notes}
 // Days are UTC dates, hours are UTC hour starts. Never writes outside <usageDir>; read-only on the transcripts.
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { summarizeSession } = require('./transcripts.js');
-const { loadPrices, costOf } = require('./prices.js');
+const { loadPrices, costOf, costKinds } = require('./prices.js');
 const { readSnapshots } = require('./limits.js');
 const { usageDir: defaultUsageDir, loadMachineConfig, WALLETS } = require('./usage-config.js');
 const { projectOptions } = require('./options.js');
 
 const SCHEMA = 1;
-const CACHE_VERSION = 2;           // 2: request rows carry the message id (index 8), summaries carry `first`
+const CACHE_VERSION = 4;           // 4: by_model entries carry usd_kind (dollars per token kind); 3: turns carry what was done after them; 2: request rows carry the message id (index 8), summaries carry `first`
+const GHOST_MIN_VERSION = 2;       // an older cache of a session without a transcript still holds its message ids
+// What a turn says about the work after its message; the first thing a too big session gives up.
+const TURN_DETAIL = ['tools', 'agent_types', 'usd_agents', 'tok', 'ctx_max'];
 const MAX_DOC_BYTES = 240000;      // a bit under ArtifactData's 262 144 byte limit
 const DAY_MS = 86400000;
 const HOUR_MS = 3600000;
@@ -214,6 +217,7 @@ function parse(ref, ctx, skip) {
   ctx.stats.parsed++;
   return compact(summarizeSession(ref.file, {
     cost: (model, tok) => costOf(model, tok, ctx.table),
+    costKinds: (model, tok) => costKinds(model, tok, ctx.table),
     prompts: ctx.withText,
     ...(ctx.previewChars ? { previewChars: ctx.previewChars } : {}),
     ...(skip ? { skip } : {}),
@@ -251,7 +255,7 @@ function entryOf(ref, ctx) {
 // A session whose transcript is gone, from its cache file alone (null when there is none or it predates message ids).
 function ghostOf(id, ctx) {
   const c = readJson(cacheFile(ctx, id));
-  if (!c || c.v !== CACHE_VERSION || !c.summary || !Array.isArray(c.summary.reqs)) return null;
+  if (!c || !(c.v >= GHOST_MIN_VERSION) || !c.summary || !Array.isArray(c.summary.reqs)) return null;
   ctx.cache.set(id, c);
   return { id, ref: null, raw: viewOf(c.summary, c.withText, ctx), birth: c.birthMs || 0, c };
 }
@@ -340,6 +344,10 @@ function prune(ctx, refs, nowMs) {
 function shrinkSession(sess, budget) {
   if (bytes(sess) <= budget) return sess;
   const s = { ...sess, truncated: true };
+  if (s.turns.some((t) => TURN_DETAIL.some((k) => k in t))) {
+    s.turns = s.turns.map((t) => Object.fromEntries(Object.entries(t).filter(([k]) => !TURN_DETAIL.includes(k))));
+    if (bytes(s) <= budget) return s;
+  }
   if (s.turns.some((t) => 'text' in t)) {
     s.turns = s.turns.map(({ text, ...t }) => t);
     if (bytes(s) <= budget) return s;
@@ -383,7 +391,9 @@ const baseName = (cwd) => String(cwd || '').split(/[\\/]/).filter(Boolean).pop()
 function sessionDoc(sum, wallet, keel, ccCost, withText = true) {
   const parts = sum.participants.map((p) => {
     const out = { ...p, usd: r6(p.usd) };
-    out.by_model = Object.fromEntries(Object.entries(p.by_model).map(([m, v]) => [m, { ...v, usd: r6(v.usd) }]));
+    out.by_model = Object.fromEntries(Object.entries(p.by_model).map(([m, v]) => [m, {
+      ...v, usd: r6(v.usd), ...(v.usd_kind ? { usd_kind: Object.fromEntries(Object.entries(v.usd_kind).map(([k, x]) => [k, r6(x)])) } : {}),
+    }]));
     return out;
   });
   return {
@@ -404,7 +414,10 @@ function sessionDoc(sum, wallet, keel, ccCost, withText = true) {
     turns: sum.turns.map((t) => {
       const out = { t: t.t == null ? null : new Date(t.t).toISOString() };
       if (withText && typeof t.text === 'string') out.text = t.text;
-      return Object.assign(out, { usd: r6(t.usd), requests: t.requests, agents: t.agents });
+      Object.assign(out, { usd: r6(t.usd), requests: t.requests, agents: t.agents });
+      for (const k of TURN_DETAIL) if (t[k] !== undefined) out[k] = t[k];
+      if (out.usd_agents !== undefined) out.usd_agents = r6(out.usd_agents);
+      return out;
     }),
   };
 }
@@ -527,7 +540,7 @@ function buildDays(opts = {}) {
     const hours = hoursFor(date, touching, walletFor, fromMs);
     // The day of the clear holds nothing yet: no empty document goes back to the cleared page.
     if (fromMs > -Infinity && !hours.length && !daySnaps.length && !own.length) continue;
-    const built = packDay(header, hours, daySnaps, own);
+    const built = packDay(header, hours, daySnaps, own, opts.maxDocBytes);
     const id = `${date}_${pc}`;
     built.forEach((doc, i) => docs.push({ id: partId(id, i + 1), key: partId(id, i + 1), doc, hash: hashOf(doc) }));
   }
@@ -597,6 +610,11 @@ function readState(dir) {
     sessions_rule: ok && typeof s.sessions_rule === 'string' ? s.sessions_rule : null,
     pending_rule: ok && typeof s.pending_rule === 'string' ? s.pending_rule : null,
     cleared_at: ok && typeof s.cleared_at === 'string' ? s.cleared_at : null,
+    // the clear time of the /keel:usage clear run in progress; `usage-clear.js done` uses it as cleared_at
+    clear_pending_at: ok && typeof s.clear_pending_at === 'string' ? s.clear_pending_at : null,
+    // the lines the next report says once
+    notes: ok && Array.isArray(s.notes) ? s.notes.filter((n) => n && typeof n.key === 'string') : [],
+    team_page_noted: ok && s.team_page_noted === true,
   };
 }
 
@@ -663,8 +681,15 @@ function ack(state, { failed = [], batch = null } = {}) {
   return { committed, left, unknown };
 }
 
+// The later of two ISO times; a missing one gives the other.
+const later = (a, b) => (!a ? b : !b ? a : Date.parse(a) >= Date.parse(b) ? a : b);
+
+// Whether another machine's user counts as this machine's for calibration: limits and plans belong to one account.
+// A machine whose user is unknown (no git e-mail) is counted, and so is everyone when the local user is unknown.
+const sameUser = (localUser) => (u) => !localUser || typeof u !== 'string' || !u || u.toLowerCase() === String(localUser).toLowerCase();
+
 module.exports = {
-  MAX_DOC_BYTES, sanitizePc, listSessions, projectFolderName, newestSessionIn, readWallets, walletOf, readKeel, readLines,
+  MAX_DOC_BYTES, sanitizePc, listSessions, projectFolderName, newestSessionIn, readWallets, walletOf, readKeel, recordKeel, readLines,
   buildDays, buildMachineDoc, localRequests, sessionSummary, readState, writeState, stage, ack, packDay, hashOf, sha1, SAFETY_MS,
-  DAY_MS, readJson, dayOf, SESSIONS_RULE, earliestDay,
+  DAY_MS, readJson, dayOf, SESSIONS_RULE, earliestDay, later, sameUser,
 };

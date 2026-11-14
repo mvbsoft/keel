@@ -9,7 +9,7 @@
 //                                     clean; from HEAD, carrying the changes, when it is not
 //   switch --name <b>                 switch to an existing branch (clean tree only)
 //   commit --message-file <f> [--tickets "<K1,K2>"]   stage every changed file except secret and planning
-//                                     ones, drop AI trailers from the message, commit (never on the main
+//                                     ones and new files named like a secret, drop AI trailers from the message, commit (never on the main
 //                                     branch); the ticket files of the keys --tickets names go in (tickets
 //                                     a session marked done), as the finished task's own does with --finish
 //   sync [--from <base>]              merge the updated base into the current branch; on the base itself
@@ -17,14 +17,19 @@
 //                                     others' pushes (the main branch: only when it moves forward); none
 //                                     yet: nothing to pull
 //   push                              push the current branch with upstream tracking
+//   save --message-file <f> [--sync <base>] [--back-to <base>] [--tickets "<K1,K2>"]
+//                                     commit, then sync --from <base> (a finish), push, then switch to
+//                                     <base> (a task handoff), in one call; stops at the first step that
+//                                     stops, and after a sync that merged commits (run the gates first). Without
+//                                     --sync a refused push does not stop it: the work stays on this machine
 //   merge [--into <target>]           merge the current branch into target with --no-ff, push target;
 //                                     when the push is refused, target is reset to where it was
 //   trust                             record that the user confirmed autonomous git for this project on
 //                                     this machine (lib/trust.js); never allowed without a prompt
 //   delete-branch --name <b> [--remote]  delete a task branch (/keel:tasks drop): never the main branch or
 //                                     the current one; --remote also deletes it on the remote
-// start, commit, sync and push take `--finish <task id> --session <id>` in a finish whose task folder
-// went to keel's trash: when the step stops, the task is put back at once (`restored:`), so a finish
+// start, commit, sync, push and save take `--finish <task id> --session <id>` in a finish whose task folder
+// went to keel's trash: when a step stops, the task is put back at once (`restored:`), so a finish
 // never ends without a commit and without its task. A commit records the finish as committed
 // (lib/finish.js); a push that completes after that commit ends it.
 // First output line: `git-flow: ok | stopped | unavailable`; then `reason:` and details. Exit code 0.
@@ -38,11 +43,14 @@ const { readFinish, clearFinish, markCommitted, validSid } = require('./lib/fini
 const { stripAttribution } = require('./lib/attribution.js');
 const { untrackedRecord, fileStamp } = require('./lib/diff.js');
 const { planningFiles } = require('./lib/planning.js');
+const { isSecretName } = require('./lib/secret-names.js');
+const { validBranchName } = require('./lib/repo-read.js');
 
 const ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', LC_ALL: 'C', LANG: 'C', GIT_EDITOR: 'true', GIT_MERGE_AUTOEDIT: 'no' };
 
-function git(root, args, input) {
-  const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', env: ENV, input, maxBuffer: 64 * 1024 * 1024 });
+// `timeout` (ms): past it git is killed and the call throws an ETIMEDOUT error.
+function git(root, args, input, timeout) {
+  const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', env: ENV, input, maxBuffer: 64 * 1024 * 1024, timeout });
   if (r.error) throw r.error;
   return { ok: r.status === 0, out: (r.stdout || '').trim(), raw: r.stdout || '', err: (r.stderr || '').trim() };
 }
@@ -105,6 +113,12 @@ function notTaskWork(ctx, f) {
   return Boolean(b) && Object.prototype.hasOwnProperty.call(b, f.path) && b[f.path] !== null && b[f.path] === fileStamp(ctx.root, f.path);
 }
 
+// A file git has not committed yet (not in HEAD: untracked, or added to the index) whose name is a secret
+// even for a source file (credentials.js may hold keys). A file already in HEAD is code and is committed.
+function newSecretName(ctx, p) {
+  return isSecretName(p, { strict: true }) && !gitOk(ctx.root, ['cat-file', '-e', `HEAD:${p}`]);
+}
+
 // Planning's files (lib/planning.js) are not a task's work: its commit leaves them out and they do not
 // block a step. Only the tickets a commit names go in (the finished task's own, a session's --tickets),
 // so their `done` lands with the code. Keys compare without case.
@@ -119,10 +133,10 @@ function requireReady(ctx, { clean = false } = {}) {
   if (ctx.busy) throw new Stop(`a git operation is in progress (${ctx.busy}); finish or abort it first`);
   if (!ctx.branch) throw new Stop('HEAD is detached; switch to a branch first');
   if (clean) {
-    // What commit leaves out on purpose (secret files, keel's own .keel/local, planning) does not block a step:
+    // What commit leaves out on purpose (secret files, new files named like a secret, keel's own .keel/local, planning) does not block a step:
     // otherwise a finish whose commit kept a modified .env out could never update or merge. git itself
     // still refuses a merge that would overwrite such a file.
-    const dirty = changedFiles(ctx.root).filter((f) => !(f.path === '.keel/local' || f.path.startsWith('.keel/local/') || ctx.isSecret(f.path) || notTaskWork(ctx, f) || planningOf(ctx)(f.path)));
+    const dirty = changedFiles(ctx.root).filter((f) => !(f.path === '.keel/local' || f.path.startsWith('.keel/local/') || ctx.isSecret(f.path) || newSecretName(ctx, f.path) || notTaskWork(ctx, f) || planningOf(ctx)(f.path)));
     if (dirty.length) throw new Stop('the working tree has uncommitted changes', [`changed: ${dirty.slice(0, 10).map((f) => f.path).join(', ')}${dirty.length > 10 ? ` (+${dirty.length - 10})` : ''}`]);
   }
 }
@@ -145,7 +159,7 @@ function freshRef(ctx, branch) {
 
 function validName(root, name) {
   if (typeof name !== 'string' || !name) throw new Stop('--name is required');
-  if (!gitOk(root, ['check-ref-format', '--branch', name])) throw new Stop(`"${name}" is not a valid branch name`);
+  if (!validBranchName(root, name)) throw new Stop(`"${name}" is not a valid branch name`);
 }
 
 // Classifies a refused push from git's stderr (GitHub, GitLab, Bitbucket and plain server hooks).
@@ -234,6 +248,7 @@ const commands = {
     const files = changedFiles(ctx.root);
     const paths = new Set();
     const secret = [];
+    const newNamed = [];
     const notTask = [];
     const planning = [];
     const planned = (p) => {
@@ -247,6 +262,7 @@ const commands = {
         // even in a clone whose .keel/.gitignore is missing.
         if (p === '.keel/local' || p.startsWith('.keel/local/')) continue;
         if (ctx.isSecret(p)) secret.push(p);
+        else if (newSecretName(ctx, p)) newNamed.push(p);
         else if (planned(p)) { if (!planning.includes(p)) planning.push(p); }
         // Only a path with unstaged changes is added: a change already in the index (`git rm`, the
         // source of `git mv`) may be on neither side any more, and git add stops on such a pathspec.
@@ -262,12 +278,15 @@ const commands = {
     const staged = git(ctx.root, ['diff', '--cached', '--name-only', '--no-renames', '-z']).out.split('\0').filter(Boolean);
     const stagedSecret = staged.filter((p) => ctx.isSecret(p));
     const stagedLocal = staged.filter((p) => p.startsWith('.keel/local/') && !ctx.isSecret(p));
-    const stagedPlanning = staged.filter((p) => !ctx.isSecret(p) && !p.startsWith('.keel/local/') && planned(p));
-    const kept = [...stagedSecret, ...stagedLocal, ...stagedPlanning];
+    const stagedNamed = staged.filter((p) => !ctx.isSecret(p) && !p.startsWith('.keel/local/') && newSecretName(ctx, p));
+    const stagedPlanning = staged.filter((p) => !ctx.isSecret(p) && !p.startsWith('.keel/local/') && !stagedNamed.includes(p) && planned(p));
+    const kept = [...stagedSecret, ...stagedLocal, ...stagedNamed, ...stagedPlanning];
     if (kept.length) git(ctx.root, ['reset', '-q', '--', ...kept]);
     for (const p of stagedPlanning) if (!planning.includes(p)) planning.push(p);
     for (const p of stagedSecret) if (!secret.includes(p)) secret.push(p);
+    for (const p of stagedNamed) if (!newNamed.includes(p)) newNamed.push(p);
     const out = secret.length ? [`not committed (secret files, by path only): ${secret.join(', ')}`] : [];
+    if (newNamed.length) out.push(`not committed (new files named like a secret; if one is code, commit it by hand once): ${newNamed.join(', ')}`);
     if (notTask.length) out.push(`not committed (untracked before the task, unchanged): ${notTask.slice(0, 10).join(', ')}${notTask.length > 10 ? ` (+${notTask.length - 10})` : ''}`);
     if (planning.length) out.push(`not committed (planning files): ${planning.slice(0, 10).join(', ')}${planning.length > 10 ? ` (+${planning.length - 10})` : ''}`);
     if (staged.length === kept.length) return ['commit: nothing to commit', ...out];
@@ -338,7 +357,12 @@ const commands = {
     const back = () => git(ctx.root, ['checkout', '-q', source]);
 
     let r = localTarget ? git(ctx.root, ['checkout', '-q', target]) : git(ctx.root, ['checkout', '-q', '--track', '-b', target, remoteTarget]);
-    if (!r.ok) throw new Stop(`could not switch to ${target}: ${firstLines(r.err)}`);
+    if (!r.ok) {
+      // git's wording changed between versions: "already checked out at" and "already used by worktree at".
+      const folder = /already (?:checked out|used by worktree) at '([^']+)'/.exec(r.err);
+      if (folder) throw new Stop(`${target} is checked out in another folder (${folder[1]})`, [`run the merge there, or finish from that folder; ${source} is still checked out here`]);
+      throw new Stop(`could not switch to ${target}: ${firstLines(r.err)}`);
+    }
     // Local target commits the remote lacks would be published by the push below.
     if (remoteTarget && (!gitOk(ctx.root, ['merge', '--ff-only', remoteTarget]) || Number(git(ctx.root, ['rev-list', '--count', `${remoteTarget}..HEAD`]).out) > 0)) {
       back();
@@ -413,12 +437,59 @@ const commands = {
 
 const FINISH_STEPS = new Set(['start', 'commit', 'sync', 'push']);
 
-function run(root, command, opts) {
+// One step with the finish bookkeeping: its own lines, and the lines about the finish that follow them.
+function runStep(root, command, opts) {
   const lines = step(root, command, opts);
   // A commit stages every change, a finished task's removal too.
   if (command === 'commit' && lines[0] === 'git-flow: ok') markCommitted(root);
-  if (opts.finish === undefined || !FINISH_STEPS.has(command)) return lines;
-  return [...lines, ...afterFinishStep(root, command, opts, lines[0] === 'git-flow: ok')];
+  if (opts.finish === undefined || !FINISH_STEPS.has(command)) return { lines, after: [] };
+  return { lines, after: afterFinishStep(root, command, opts, lines[0] === 'git-flow: ok') };
+}
+
+function run(root, command, opts) {
+  if (command === 'save') return save(root, opts);
+  const { lines, after } = runStep(root, command, opts);
+  return [...lines, ...after];
+}
+
+// commit, then sync (a finish), push, then back to the base (a handoff), each through runStep so the
+// finish logic applies per step as when they run one by one.
+function save(root, opts) {
+  for (const o of ['sync', 'back-to']) {
+    if (opts[o] === true) return ['git-flow: stopped', `reason: --${o} needs a base branch: --${o} <base>`];
+  }
+  if (opts.finish !== undefined && opts.sync === undefined) return ['git-flow: stopped', 'reason: --finish needs --sync <base> in save (a finish always updates from its base before the push)'];
+  const finish = { finish: opts.finish, session: opts.session };
+  const plan = [
+    ['commit', { 'message-file': opts['message-file'], tickets: opts.tickets, ...finish }],
+    ...(opts.sync !== undefined ? [['sync', { from: opts.sync, ...finish }]] : []),
+    ['push', finish],
+    ...(opts['back-to'] !== undefined ? [['switch', { name: opts['back-to'] }]] : []),
+  ];
+  const names = plan.map(([name]) => name);
+  const body = [];
+  const done = [];
+  for (const [i, [name, stepOpts]] of plan.entries()) {
+    const { lines, after } = runStep(root, name, stepOpts);
+    const ok = lines[0] === 'git-flow: ok';
+    if (!ok && name === 'push' && opts.sync === undefined && lines[0] === 'git-flow: stopped') {
+      // A handoff's work is committed; a refused push must not keep the handoff from finishing.
+      body.push(`push: refused (${lines[1].replace(/^reason: /, '')}); the work is on this machine only`, ...lines.slice(2), ...after);
+      done.push('push (refused)');
+      continue;
+    }
+    if (!ok) return stopped(lines[1], [...lines.slice(2), ...body], done, names.slice(i), after);
+    body.push(...lines.slice(1), ...after);
+    done.push(name);
+    // Matches the line the sync command prints when it merged commits; the two change together.
+    const merged = name === 'sync' && /^sync: merged (\d+) new commits from (\S+) /.exec(lines[1]);
+    if (merged) return stopped(`reason: sync merged ${merged[1]} new commits from ${merged[2]}; run the gates again before the push`, body, done, names.slice(i + 1), []);
+  }
+  return ['git-flow: ok', ...body];
+}
+
+function stopped(reason, body, done, left, after) {
+  return ['git-flow: stopped', reason, ...body, `done: ${done.join(', ') || '(nothing)'}`, `left: ${left.join(', ')}`, ...after];
 }
 
 // A finish's step that stopped puts its task back; a commit or a completed push moves the finish on.
@@ -443,7 +514,7 @@ function afterFinishStep(root, command, opts, ok) {
 }
 
 function step(root, command, opts) {
-  if (!commands[command]) return ['git-flow: unavailable', `reason: unknown command "${command}" (status, start, switch, commit, sync, push, merge, trust, delete-branch)`];
+  if (!commands[command]) return ['git-flow: unavailable', `reason: unknown command "${command}" (status, start, switch, commit, sync, push, save, merge, trust, delete-branch)`];
   let ctx;
   try { ctx = context(root); } catch (e) {
     return ['git-flow: unavailable', `reason: ${e.message}`];
@@ -460,7 +531,7 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    lines = run(path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd()), pos[1] || 'status', opts);
+    lines = run(require('./lib/project-dir.js').scriptProject(pos[0]), pos[1] || 'status', opts);
   } catch (e) {
     lines = ['git-flow: unavailable', `reason: ${e.message}`];
   }

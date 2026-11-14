@@ -66,4 +66,38 @@ function safeLocalWrite(root, parts, text, { append = false } = {}) {
   return file;
 }
 
-module.exports = { realPath, samePath, linkOnWay, unsafeRel, localLink, safeLocalPath, safeLocalWrite };
+// Replaces .keel/local/<name> with text by writing a temporary file and renaming it over the file, so a
+// reader sees the old content or the new one, never half of it; returns its path.
+function safeLocalReplace(root, name, text) {
+  const temp = safeLocalWrite(root, `${name}.${process.pid}.tmp`, text);
+  try { fs.renameSync(temp, safeLocalPath(root, name)); } catch (e) { fs.rmSync(temp, { force: true }); throw e; }
+  return path.join(root, '.keel', 'local', name);
+}
+
+const LOCK_WAIT_MS = 10 * 1000;
+const LOCK_STALE_MS = 60 * 1000;
+// Runs fn while holding .keel/local/<name>.lock, a file created exclusively, so keel runs that share a
+// store (worktree sessions use the main checkout's) take turns. Only the folder is checked for links:
+// the lock file itself comes and goes with other runs, and 'wx' never opens an existing one.
+function withLocalLock(root, name, fn) {
+  const dir = safeLocalPath(root);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, `${name}.lock`);
+  const until = Date.now() + LOCK_WAIT_MS;
+  for (;;) {
+    try { fs.closeSync(fs.openSync(file, 'wx')); break; } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      // shortcut: a lock older than LOCK_STALE_MS counts as left by a run that died; two runs taking it
+      // over at the same moment can still meet. Redo with an owner check if that is ever seen.
+      let age = 0;
+      try { age = Date.now() - fs.statSync(file).mtimeMs; } catch { continue; }
+      if (age > LOCK_STALE_MS) { fs.rmSync(file, { force: true }); continue; }
+      if (Date.now() > until) throw new Error(`${name} is locked by another keel run: try again`);
+      // Sleeps 20 ms without a busy loop.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
+  try { return fn(); } finally { fs.rmSync(file, { force: true }); }
+}
+
+module.exports = { realPath, samePath, linkOnWay, unsafeRel, localLink, safeLocalPath, safeLocalWrite, safeLocalReplace, withLocalLock };

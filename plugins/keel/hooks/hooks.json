@@ -112,7 +112,7 @@
         ]
       },
       {
-        "matcher": "Read|Edit|Write|Bash|PowerShell",
+        "matcher": "Edit|Write|Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
@@ -177,6 +177,29 @@
               "${CLAUDE_PLUGIN_ROOT}/hooks/finish-check.js"
             ],
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/language-guard.js"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/language-guard.js"
+            ],
+            "timeout": 5
           }
         ]
       }

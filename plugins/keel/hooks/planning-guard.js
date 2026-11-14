@@ -1,9 +1,9 @@
 'use strict';
 // PreToolUse hook on Edit, Write, NotebookEdit, Bash and PowerShell: while the conversation plans a
 // feature (its chat mark, scripts/lib/plans.js), project files stay unchanged. Allowed: the feature's
-// draft folder, its exported feature folder in the repository (<export_dir>/<feature>/: export writes it
+// draft folder, its exported feature folder in the repository (<tickets_dir>/<feature>/: export writes it
 // and the conversation edits the exported tickets; also the folder plans.js mark set recorded in the chat
-// mark when it reopened an exported feature, wherever export_dir points), the planning settings, keel's
+// mark when it reopened an exported feature, wherever tickets_dir points), the planning settings, keel's
 // working files in .keel/local/tmp/, Claude Code's Plan Mode files in .keel/local/plans/claude/ (Plan
 // Mode writes its plan with Write and Edit) and anything outside the project (memory, temporary files).
 // A safeguard against slips, not a wall: shell commands are read with skill-hints.js shell(), which sees redirections,
@@ -14,7 +14,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { validSid } = require('../scripts/lib/ids.js');
 
-const norm = (p) => path.resolve(p).replace(/\\/g, '/').replace(/\/+$/, '');
+// The real path, so a folder named through a link and by its real path (git prints those) is one; a file
+// not written yet takes the real path of its nearest existing folder.
+function real(p) {
+  const full = path.resolve(p);
+  for (let at = full; ; at = path.dirname(at)) {
+    try { return path.join(fs.realpathSync.native(at), path.relative(at, full)); } catch { /* not there yet */ }
+    if (path.dirname(at) === at) return full;
+  }
+}
+const norm = (p) => real(p).replace(/\\/g, '/').replace(/\/+$/, '');
 const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
 const within = (file, place) => fold(norm(file)) === fold(norm(place)) || fold(norm(file)).startsWith(`${fold(norm(place))}/`);
 
@@ -23,13 +32,13 @@ const within = (file, place) => fold(norm(file)) === fold(norm(place)) || fold(n
 function allowedPlaces(root, feature, sid) {
   const local = path.join(root, '.keel', 'local');
   const plans = require('../scripts/lib/plans.js');
-  const exported = plans.exportDir(root);
+  const exported = require('../scripts/lib/plans-settings.js').exportDir(root);
   const marked = plans.markedFolder(root, sid);
   return [
     ...plans.draftDirs(root).map((d) => path.join(d.dir, feature)),
     ...(exported ? [path.join(exported, feature)] : []),
     ...(marked ? [marked] : []),
-    path.join(local, 'plans', 'keel', 'settings.json'),
+    require('../scripts/lib/plans-settings.js').settingsFile(root),
     path.join(local, 'tmp'),
     path.join(local, 'plans', 'claude'),
   ];
@@ -54,15 +63,18 @@ function written(tool, args, cwd) {
 
 function main() {
   const input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
-  const root = process.env.CLAUDE_PROJECT_DIR || input.cwd;
+  const { hookProject, mainOf } = require('../scripts/lib/project-dir.js');
+  const root = hookProject(input);
   const sid = input.session_id;
-  // Most conversations do not plan: one file check before anything is loaded.
-  if (!root || !validSid(sid) || !fs.existsSync(path.join(root, '.keel', 'local', 'plans', 'keel', 'sessions', `${sid}.json`))) return null;
+  // Most conversations do not plan: one file check before anything else is loaded.
+  if (!root || !validSid(sid) || !fs.existsSync(require('../scripts/lib/chat-marks.js').markFile(root, sid))) return null;
+  // In a linked worktree the main checkout's files are as much the project's.
+  const roots = [...new Set([root, mainOf(root)])];
   const feature = require('../scripts/lib/plans.js').planningMark(root, sid);
   if (!feature) return null;
-  const places = allowedPlaces(root, feature, sid);
+  const places = roots.flatMap((r) => allowedPlaces(r, feature, sid));
   const blocked = written(input.tool_name, input.tool_input || {}, input.cwd || root)
-    .find((f) => within(f, root) && !places.some((p) => within(f, p)));
+    .find((f) => roots.some((r) => within(f, r)) && !places.some((p) => within(f, p)));
   if (!blocked) return null;
   const file = path.relative(root, blocked).split(path.sep).join('/');
   return {

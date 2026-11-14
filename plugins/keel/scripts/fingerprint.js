@@ -86,7 +86,7 @@ function lastVerify(root, current) {
 
 function main(argv) {
   const { opts, pos } = parseArgs(argv);
-  const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || '.');
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   const cmd = pos[1];
   const { isSecret } = loadProject(root);
   if (cmd === 'save') {

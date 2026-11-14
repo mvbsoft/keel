@@ -125,7 +125,7 @@ gitTest('tickets: every state of the queue with its hint, and the next ticket', 
   assert.equal(line(out, 'PROJ-6'), '  PROJ-6 Ticket PROJ-6 — in progress · keel task');
   assert.equal(line(out, 'PROJ-7'), '  PROJ-7 Ticket PROJ-7 — in progress · session (.keel/next-session.md)');
   // PROJ-8 waits for PROJ-3 (on a ticket branch only); PROJ-9's PROJ-2 is on the feature branch.
-  assert.equal(line(out, 'PROJ-8'), '  PROJ-8 Ticket PROJ-8 — to do');
+  assert.equal(line(out, 'PROJ-8'), '  PROJ-8 Ticket PROJ-8 — to do · PROJ-3 only in ticket branch PROJ-3-dl');
   assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — next');
   assert.equal(out[out.length - 1], 'next: PROJ-9 (s3-storage)');
 
@@ -136,9 +136,10 @@ gitTest('tickets: every state of the queue with its hint, and the next ticket', 
     'tickets: 1 feature, 1 ticket; never fetched',
     's3-storage (1 of 9 done, 2 waiting for merge)',
     '  branch: s3-storage -> main',
-    '  PROJ-8 Ticket PROJ-8 — to do',
+    '  PROJ-8 Ticket PROJ-8 — to do · PROJ-3 only in ticket branch PROJ-3-dl',
     `  file: ${file(8)}`,
     '  depends: PROJ-3 waiting for merge into the feature branch',
+    '  where: PROJ-3 is ready in ticket branch PROJ-3-dl, not in feature branch s3-storage yet: wait for that merge',
     'next: PROJ-9 (s3-storage)',
   ]);
   assert.deepEqual(run(work, 'tickets', 'no-such-feature'), ['tickets: none (no ticket or feature no-such-feature)']);
@@ -172,6 +173,8 @@ gitTest('tickets: commits with the key on merge_into after the folder came there
   const out = run(work, 'tickets');
   assert.equal(line(out, 'PROJ-60'), '  PROJ-60 Ticket PROJ-60 — in progress · commits with the key on main, status not written');
   assert.equal(line(out, 'PROJ-61'), '  PROJ-61 Ticket PROJ-61 — next', 'a commit from before the folder came does not count');
+  const { readStates } = require(path.join(SCRIPTS, 'lib', 'plans-state.js'));
+  assert.deepEqual(readStates(work, new Date()).keys.get('PROJ-60').via, { kind: 'commits', branch: 'main' }, 'the feature page\'s "in progress now" names where');
 });
 
 gitTest('tickets: a squash merge is done; a merged branch whose folder was removed since is done', () => {
@@ -195,7 +198,7 @@ gitTest('tickets: a squash merge is done; a merged branch whose folder was remov
   assert.deepEqual(run(work, 'tickets', 'pdf-report').slice(1), ['pdf-report (1 of 1 done)', '  branch: pdf-report -> main', '  PROJ-30 Ticket PROJ-30 — done', 'next: none']);
   const removed = run(work, 'tickets', 'PROJ-31');
   assert.equal(line(removed, 'PROJ-31'), '  PROJ-31 Ticket PROJ-31 — done');
-  assert.ok(removed.includes(`  file: doc-export:${file(31, 'tickets/doc-export')}`), removed.join('\n'));
+  assert.ok(removed.includes(`  file: doc-export:./${file(31, 'tickets/doc-export')}`), removed.join('\n'));
 });
 
 gitTest('tickets: a branch merged and reverted on merge_into is marked reverted', () => {
@@ -391,7 +394,9 @@ gitTest('tickets: tickets dropped, merged, then the merge reverted on merge_into
   };
   const work = droppedDependency('done', revert);
   assert.equal(line(run(work, 'tickets', 'PROJ-1'), 'PROJ-1'), '  PROJ-1 Ticket PROJ-1 — waiting for the feature merge · branch PROJ-1-client, Test, today · reverted');
-  assert.equal(line(run(work, 'tickets', 'PROJ-9'), 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — to do');
+  const before = run(work, 'tickets', 'PROJ-9');
+  assert.equal(line(before, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — to do · PROJ-1 only in branch PROJ-1-client');
+  assert.ok(before.includes('  where: PROJ-1 is ready in branch PROJ-1-client, not in main. To start PROJ-9: wait for its merge into main, or pull it into auth-flow: git merge PROJ-1-client'), before.join('\n'));
   git(work, 'branch', '-q', '-D', 'PROJ-1-client');
   const out = run(work, 'tickets', 'PROJ-9');
   assert.equal(line(out, 'PROJ-9'), '  PROJ-9 Ticket PROJ-9 — to do', 'found in history only');
@@ -448,7 +453,7 @@ gitTest('tickets: a project in a sub-folder of its repository reads the branches
   git(repo, 'checkout', '-q', 'main');
   const out = run(work, 'tickets', 'PROJ-56');
   assert.equal(line(out, 'PROJ-56'), '  PROJ-56 Ticket PROJ-56 — waiting for the feature merge · branch csv-export, Test, today');
-  assert.ok(out.includes(`  file: csv-export:${file(56, 'tickets/csv-export')}`), out.join('\n'));
+  assert.ok(out.includes(`  file: csv-export:./${file(56, 'tickets/csv-export')}`), out.join('\n'));
 });
 
 gitTest('tickets: hundreds of branches do not hide work in progress', () => {
@@ -617,4 +622,56 @@ gitTest('drop: this machine\'s feature folder goes to keel\'s trash once its tic
   assert.ok(m, out.join('\n'));
   assert.ok(!exists(work, `${LOCAL}/pdf-report`));
   assert.ok(exists(work, `.keel/local/trash/${m[1]}/files/${T}/PROJ-5-a.md`));
+});
+
+// chat's PROJ-1 is done on the chat feature branch, PROJ-2 on its ticket branch, PROJ-3 is in progress
+// on a branch, PROJ-4 is not started; notify's PROJ-5..8 depend on them one each.
+function twoFeatures() {
+  const { work } = setup({ remote: false });
+  const C = 'tickets/chat';
+  const N = 'tickets/notify';
+  const chat = (n, status = 'todo') => ticket(`PROJ-${n}`, { feature: 'chat', status });
+  const notify = (n, dep) => ticket(`PROJ-${n}`, { feature: 'notify', depends: [`PROJ-${dep}`] });
+  commit(work, 'Add the tickets', {
+    [file(1, C)]: chat(1), [file(2, C)]: chat(2), [file(3, C)]: chat(3), [file(4, C)]: chat(4),
+    [file(5, N)]: notify(5, 1), [file(6, N)]: notify(6, 2), [file(7, N)]: notify(7, 3), [file(8, N)]: notify(8, 4),
+  });
+  git(work, 'checkout', '-q', '-b', 'chat');
+  commit(work, 'PROJ-1: send', { 'src/send.js': '1\n', [file(1, C)]: chat(1, 'done') });
+  git(work, 'checkout', '-q', '-b', 'PROJ-2-read');
+  commit(work, 'PROJ-2: read', { 'src/read.js': '1\n', [file(2, C)]: chat(2, 'done') });
+  git(work, 'checkout', '-q', 'main');
+  git(work, 'checkout', '-q', '-b', 'PROJ-3-edit');
+  commit(work, 'PROJ-3: edit, first part', { 'src/edit.js': '1\n' });
+  git(work, 'checkout', '-q', 'main');
+  return work;
+}
+
+gitTest('tickets: where a dependency of another feature is, and what the waiting ticket can do', () => {
+  const work = twoFeatures();
+  const where = (key) => run(work, 'tickets', key).filter((l) => l.startsWith('  where: '));
+  assert.deepEqual(where('PROJ-5'), ['  where: PROJ-1 is ready in feature branch chat, not in main. To start PROJ-5: wait for its merge into main, or pull it into notify: git merge chat']);
+  assert.deepEqual(where('PROJ-6'), ['  where: PROJ-2 is ready in ticket branch PROJ-2-read, not in feature branch chat yet: wait for that merge']);
+  assert.deepEqual(where('PROJ-7'), ['  where: PROJ-3 is in progress (branch PROJ-3-edit, Test, today): wait for it']);
+  assert.deepEqual(where('PROJ-8'), ['  where: PROJ-4 is not started: wait for it']);
+  assert.deepEqual(where('PROJ-2'), [], 'a ticket with no dependencies has no where line');
+  const notify = run(work, 'tickets', 'notify');
+  assert.deepEqual(notify.slice(3), [
+    '  PROJ-5 Ticket PROJ-5 — to do · PROJ-1 only in feature branch chat',
+    '  PROJ-6 Ticket PROJ-6 — to do · PROJ-2 only in ticket branch PROJ-2-read',
+    '  PROJ-7 Ticket PROJ-7 — to do',
+    '  PROJ-8 Ticket PROJ-8 — to do',
+    'next: none',
+  ]);
+});
+
+gitTest('tickets: a dependency already pulled into the waiting ticket\'s feature branch lets it start', () => {
+  const work = twoFeatures();
+  git(work, 'checkout', '-q', '-b', 'notify');
+  git(work, 'merge', '-q', '--no-edit', 'chat');
+  git(work, 'checkout', '-q', 'main');
+  assert.ok(run(work, 'tickets', 'PROJ-5').includes('  where: PROJ-1 is in your feature branch notify: PROJ-5 can start'));
+  assert.deepEqual(run(work, 'tickets', 'notify').slice(3, 4), ['  PROJ-5 Ticket PROJ-5 — next']);
+  git(work, 'checkout', '-q', 'notify');
+  assert.equal(run(work, 'tickets', 'notify').at(-1), 'next: PROJ-5 (notify)', 'the working tree stands for the checked-out feature branch');
 });

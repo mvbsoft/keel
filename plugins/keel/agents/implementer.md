@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Implementer for keel's delegated execution - does one planned step (files, change, tests) and reports what it changed, the test results and each done-when criterion.
+description: Implementer for keel's delegated execution: does one planned step and reports what it did.
 model: sonnet
 effort: high
 maxTurns: 350

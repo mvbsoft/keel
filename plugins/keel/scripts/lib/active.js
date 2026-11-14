@@ -7,14 +7,17 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-// The project has a keel configuration (valid or not: keel's commands report a broken one).
+const { configHome, mainOf } = require('./project-dir.js');
+
+// The project has a keel configuration (valid or not: keel's commands report a broken one); a linked
+// worktree without one of its own has its main checkout's (lib/project-dir.js configHome).
 function configured(project) {
-  return typeof project === 'string' && project !== '' && fs.existsSync(path.join(project, '.keel', 'config.json'));
+  return typeof project === 'string' && project !== '' && fs.existsSync(path.join(configHome(project), '.keel', 'config.json'));
 }
 
 // keel has started in the project: configured, or /keel:configure is running (its scan writes .keel/local/).
 function started(project) {
-  return typeof project === 'string' && project !== '' && fs.existsSync(path.join(project, '.keel'));
+  return typeof project === 'string' && project !== '' && (fs.existsSync(path.join(project, '.keel')) || fs.existsSync(path.join(mainOf(project), '.keel')));
 }
 
 module.exports = { configured, started };

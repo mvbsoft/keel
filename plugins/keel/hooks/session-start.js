@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { commentRules } = require('./comment-rules.js');
 const { standards } = require('./standards.js');
-const { pickLanguage, translator } = require('../scripts/lib/i18n.js');
+const { pickLanguage, isUkrainian, translator } = require('../scripts/lib/i18n.js');
 const { effectiveOptions } = require('../scripts/lib/options.js');
 
 const MIN_NODE = 22;
@@ -20,26 +20,34 @@ function languageName(code) {
   } catch { return code; }
 }
 
+// Models drift from Ukrainian into Russian in long conversations full of English tool output (seen in
+// planning sessions): Ukrainian gets one more sentence; hooks/language-guard.js also checks each reply.
+const russianGuard = (language) => (isUkrainian(language)
+  ? ' Ukrainian is never mixed with Russian: not one word, also in a reply after long English tool output, and not even when the user asks for Russian.'
+  : '');
+
 function main() {
   let source = '';
   let sessionId = '';
+  let cwd;
   try {
     const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+    cwd = input.cwd;
     source = String(input.source || '');
     sessionId = /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(input.session_id) ? input.session_id : '';
   } catch { /* no input: treat as a start */ }
   const root = process.env.CLAUDE_PLUGIN_ROOT || path.join(__dirname, '..');
-  const project = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  const project = require('../scripts/lib/project-dir.js').hookProject({ cwd });
   if (!require('../scripts/lib/active.js').configured(project)) return null;
   const language = effectiveOptions(project).conversation_language;
   // The other keel scripts need Node 22: say so once, on a fresh start.
   const oldNode = Number(process.versions.node.split('.')[0]) < MIN_NODE && (source === 'startup' || !source);
   return {
-    ...(oldNode && { systemMessage: translator(pickLanguage())('start.old_node', { min: MIN_NODE, found: process.versions.node }) }),
+    ...(oldNode && { systemMessage: translator(pickLanguage(language))('start.old_node', { min: MIN_NODE, found: process.versions.node }) }),
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
       additionalContext: `${standards(root)}
-keel: talk to the user and write plans in this language: ${languageName(language)}. If the user explicitly asks for another language in this session, use that one for this session only. Code, paths, commands and technical names stay as they are.${sessionId ? `
+keel: talk to the user and write plans in this language: ${languageName(language)}. If the user explicitly asks for another language in this session, use that one for this session only. Code, paths, commands and technical names stay as they are.${russianGuard(language)}${sessionId ? `
 keel session id (for --session): ${sessionId}` : ''}
 
 ${commentRules(root, project)}`,

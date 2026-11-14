@@ -1,7 +1,5 @@
 # Spending less with keel
 
-[Українська](cost-optimization.uk.md)
-
 Cost grows with the number of requests and with the size of the conversation each request re-reads. keel gives you several levers: the model, the verification level,
 cheaper models for mechanical work, a smaller conversation, and a report that shows where the money went.
 This page lists them with their mechanism. The numbers are in [one table at the end](#summary), each
@@ -65,8 +63,12 @@ exact change each, with the files, the place and a checkable "done when".
 
 ## 5. Delegation thresholds
 
-When a plan reaches 8 steps or 15 files, keel asks whether to do it in this conversation or hand the steps
-to implementers (one fresh agent per step, each on the model the step needs). Settings:
+When a plan reaches 8 steps or 15 files, the planning, the work and the review no longer fit one
+conversation, so keel recommends running the saved plan in a fresh conversation; the other choices
+are to hand the steps to implementers from this conversation (one fresh agent per step, each on the
+model the step needs) or to do it here. A fresh conversation asks once more: implementers or here.
+From 10 steps or 40 files (not a setting) the plan is too big for one task even so, and keel offers
+to plan it as a feature. Settings:
 `delegation.min_plan_steps` and `delegation.min_plan_files` (defaults 8 and 15). The defaults are a
 starting estimate, not a measurement. Below both thresholds keel works in the conversation, unless you
 ask to delegate. Delegation is not free: see section 4.
@@ -104,7 +106,7 @@ characters.
 
 In a project keel is set up in, keel adds its working standards and the project's comment rules to every
 conversation. The plugin's skill and agent descriptions are listed in every conversation. The
-end-of-task sync to the [usage page](usage-dashboard.md) costs a little too. All of these are small next
+end-of-task sync to the [usage page](usage-dashboard.md#syncing-between-machines) costs a little too (`/keel:usage off` stops it). All of these are small next
 to the levers above (see the table).
 
 ## 10. Read the cost report

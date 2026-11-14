@@ -104,9 +104,4 @@ function calibrate(input) {
 
 const share = (usd, rate) => (rate === null || rate === undefined || !(rate > 0) ? null : usd / rate);
 
-function forecast({ current, usdLast48h, rate, hoursToReset }) {
-  if (share(1, rate) === null || current === null || current === undefined) return null;
-  return round1(current + (usdLast48h / 48 / rate) * hoursToReset);
-}
-
-module.exports = { periodKey, spendBetween, findPoints, rateFrom, calibrate, share, forecast };
+module.exports = { periodKey, spendBetween, findPoints, rateFrom, calibrate, share };

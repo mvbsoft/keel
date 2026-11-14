@@ -23,8 +23,8 @@ planning." Nothing else: run nothing, read nothing.
 | `/keel:end-session [instruction]` | verifies, writes the note for the next session, then git and the action you name | `/keel:end-session we continue tomorrow, prepare` |
 | `/keel:start-planning [idea, link, file or feature]` | plans a feature in its own conversation: one question at a time, decisions and short tickets in a draft, no code; no argument lists the drafts | `/keel:start-planning CSV export of invoices` |
 | `/keel:end-planning [instruction]` | hands the plan over to continue later, or reviews the tickets and the plan and exports the tickets into the feature folder; git only with your yes | `/keel:end-planning we continue tomorrow` |
-| `/keel:configure [check \| section,...]` | sets up or changes keel for this project; `check` says what to reconfigure and why, changing no setting | `/keel:configure check` |
-| `/keel:cleanup` | finds leftovers and moves the ones you pick to keel's trash, with an undo | `/keel:cleanup restore` |
-| `/keel:usage` | gives the link to your private usage page (what each session cost) and opens it | `/keel:usage` |
-| `/keel:usage-clear` | deletes all data on the usage page, after a warning and your yes | `/keel:usage-clear` |
+| `/keel:feature-page [feature] [--lang code]` | makes a private page of a planned feature in your claude.ai account (overview, tickets with their states, research), or updates it; no feature: the current branch's; in your language unless --lang | `/keel:feature-page csv-export` |
+| `/keel:configure [check \| section,... \| machine]` | sets up or changes keel for this project; `check` says what to reconfigure and why, changing no setting; `machine` changes only this machine's settings, for every project | `/keel:configure machine` |
+| `/keel:cleanup [restore [batch] \| empty-trash]` | finds leftovers and moves the ones you pick to keel's trash; `restore` puts a batch back; `empty-trash` deletes old trash for good | `/keel:cleanup restore` |
+| `/keel:usage [on \| off \| clear]` | gives the link to your private usage page (what each session cost) and opens it; `off` stops this machine's sync, `on` starts it again (sending what Claude Code's logs still hold, 30 days by default) or sets the page up; `clear` deletes this PC's data on the page (other PCs' data stays), after a warning and your yes; with an API key only, no page: the end reports show exact dollars | `/keel:usage off` |
 | `/keel:help` | this table | `/keel:help` |

@@ -1,29 +1,50 @@
 ---
 id: <T-number, as in the file name>
+repo: <only for another repository of the plan's repos: its ticket prefix; none means this project>
 depends_on: <[T1, T2] or []>
 review_hash: <set by plans.js reviewed; a different text means the ticket changed since its review, or ->
 ---
-<!-- A short draft ticket, 150-400 words (plans.js ticket). What to do and how to check it are exact; how
-to do it is free: no implementation steps. Headings and front matter keys stay in English; the text is
-in the plan's language. Comments are removed when the file is made. -->
+<!-- A draft ticket (plans.js ticket). The sections stay in this order; Example and Correct the priors
+may be removed when there is nothing to say. Every section is for a reader who has not seen the
+feature: short, but in whole sentences, with concrete people and values; a term, a T or a D number
+comes with its words. In plain words is for a person and is as long as it needs; the rest, the
+technical part, is 150-500 words: what to do and how to check it are exact, how to do it is free (no
+implementation steps). Plain markdown, no HTML; code blocks name their language. Headings, the
+Boundaries labels and front matter keys stay in English; the text is in the plan's language.
+Comments are removed when the file is made. -->
 # [<T-number>] <title>
 
-## Goal
-<1-2 sentences: what to do and how to tell it is done>
+## In plain words
+<the whole task in plain words, without code or paths (a diagram or a table is fine): what changes for a person, how it works step by step (here a mermaid diagram or a table where it shows the work better than words, after a sentence naming it), what is in and what is not, examples>
 
-## Why
-<1-2 lines, with the decision it follows (D3)>
+## Example
+<what happens -> what we see, one pair per line; or remove this section>
+
+## Goal
+<1-2 sentences: what changes, and how to tell it is done>
 
 ## Acceptance criteria
-<behaviour: Given/When/Then or a list that an action checks>
-
-## Where to look
-<files and functions, with file:line>
-
-## Out of scope
-
-## Dependencies
-<Blocked by / Blocks>
+- [ ] <situation -> what we see: a whole sentence with concrete people and values; one behaviour per item that an action checks>
 
 ## How to check
-<a command and the manual steps>
+<a command in a code block with its language, and the manual steps: what to do and what to see>
+
+## Boundaries
+- always: <what to do every time in this ticket> - <why, in a few words>
+- ask first: <what needs a yes before it is done> - <why, in a few words>
+- never: <what must not be done> - <why, in a few words>
+
+## Correct the priors
+<the obvious but wrong way here, and the right one; or remove this section>
+
+## Where to look
+<file:line - what is there and what it has to do with this ticket, for each place you checked>
+
+## Out of scope
+<what this ticket does not do, and which ticket or later work does it>
+
+## Why
+<the decision it follows with its words (D3: one event for every client), and the research report when there is one>
+
+## Dependencies
+<why it needs the tickets in depends_on, or which tickets need it; the list itself is depends_on>

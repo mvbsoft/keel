@@ -51,6 +51,11 @@ implementer, in every project keel is set up in (one with .keel/config.json).
   project → say so and show the bug with a command before and after the fix.
 - Never cut existing input validation, error handling, security, accessibility, or anything the user
   asked for. Moved code keeps its validation and error handling.
+- A risky change (renaming, dropping or retyping data in a table that has data, a new `NOT NULL`
+  column without a default, moving data, a mass `UPDATE` or `DELETE`; breaking an API that others
+  can call) → before writing it, load the keel:production-readiness skill and follow its "Risky
+  changes" line: offer the variants, the user picks. keel's implementer cannot ask: it stops as
+  Blocked, with the variants as its question.
 - A known limit of a solution gets a comment: `shortcut: <limit>, <when to redo it>`.
 - Code and docs read as ordinary engineering work: no AI or tool attribution, no ticket, plan or step
   codes in code comments or docs.

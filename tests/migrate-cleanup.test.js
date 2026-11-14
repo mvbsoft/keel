@@ -8,6 +8,7 @@ const { makeOldSystem, hasGit } = require('./fixtures/old-system.js');
 const { CANARY } = require('./fixtures/projects.js');
 const { folderPattern, prefixPattern } = require('../plugins/keel/scripts/migrate.js');
 const { tempDir } = require('./fixtures/tmp.js');
+const { shared, says } = require('./fixtures/texts.js');
 
 const SCRIPTS = path.join(__dirname, '..', 'plugins', 'keel', 'scripts');
 const git = hasGit();
@@ -241,6 +242,8 @@ test('cleanup find: three groups, secrets only by path, references move an item 
   assert.deepEqual(group('check'), ['.pytest_cache/', 'notes-draft.txt']);
   assert.ok(!list.items.some((i) => i.path.startsWith('.orbit') || i.path.startsWith('.claude/settings.local.json') && !i.path.includes('backup')), 'the old folder before a move and tool settings are not leftovers');
   assert.ok(!out.includes(CANARY));
+  // The user does not see a script's output: the last line makes the list itself the reply, with the question as its last line.
+  assert.match(out.trim().split('\n').pop(), /^next: your reply is this list.*every item with its number.*last line.*plain text.*not AskUserQuestion/);
   // A tracked file that mentions the draft: it moves to "do not touch".
   fs.appendFileSync(path.join(root, 'docs/setup.md'), 'Draft: notes-draft.txt\n');
   run('cleanup.js', root, ['find']);
@@ -261,6 +264,69 @@ test('cleanup after a migration: what the old system left is listed; its secret 
   assert.deepEqual(left, ['.orbit/adr/', '.orbit/config.yml', '.orbit/fix_prices_0923.py', '.orbit/memory/', '.orbit/next-session.md', '.orbit/notes/', '.orbit/runs/']);
   assert.deepEqual(list.secrets, ['.orbit/cloud-keys.env']);
   assert.match(out, /secret files \(never moved or opened\): \.orbit\/cloud-keys\.env/);
+});
+
+test('the migration text says what source loose files get and that they are listed one by one', () => {
+  says(shared('migrate.md'), ['`system (loose files)`', 'the `source` is `.`', 'one by one', 'never `.`']);
+});
+
+test('cleanup after a migration of loose notes: the project root is never an old system', () => {
+  const { root } = makeOldSystem();
+  fs.writeFileSync(path.join(root, 'NEXT-SESSION.md'), '# Next session\n');
+  const plan = writePlan(root, { source: '.', actions: [{ op: 'trash', from: 'NEXT-SESSION.md' }] });
+  assert.match(run('migrate.js', root, ['apply', plan]), /^migrate: ok; 1 done/);
+  assert.equal(JSON.parse(readRel(root, '.keel/local/migrate-state.json')).sources[0].path, '.');
+  const fromOldSystem = () => JSON.parse(readRel(root, '.keel/local/tmp/cleanup.json')).items.filter((i) => /^old system/.test(i.source)).map((i) => i.path);
+  run('cleanup.js', root, ['find']);
+  assert.deepEqual(fromOldSystem(), []);
+  // Other spellings of the root, and paths that leave the project, count the same.
+  for (const source of ['./', '', './/', 'src/..', '..', '../elsewhere', path.resolve(root)]) {
+    fs.writeFileSync(path.join(root, '.keel/local/migrate-state.json'), JSON.stringify({ sources: [{ path: source, finished: true }], done: [] }));
+    run('cleanup.js', root, ['find']);
+    assert.deepEqual(fromOldSystem(), [], `source ${JSON.stringify(source)}`);
+  }
+});
+
+test('cleanup find: another checkout under .claude/worktrees is not walked; the main checkout\'s own backups still are', () => {
+  const root = tempDir('keel-worktrees-');
+  const files = { '.claude/settings.json.bak': '1', '.claude/worktrees/other/.git': 'gitdir: /elsewhere\n', '.claude/worktrees/other/src/app.js.bak': '1', '.claude/worktrees/other/.DS_Store': '1', '.claude/worktrees/plain/note.bak': '1' };
+  for (const [rel, text] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), text);
+  }
+  const listed = () => JSON.parse(readRel(root, '.keel/local/tmp/cleanup.json')).items.map((i) => i.path).sort();
+  const expected = ['.claude/settings.json.bak', '.claude/worktrees/plain/note.bak'];
+  if (git) { spawnSync('git', ['-C', root, 'init', '-q']); run('cleanup.js', root, ['find']); assert.deepEqual(listed(), expected, 'with git'); fs.rmSync(path.join(root, '.git'), { recursive: true, force: true }); }
+  fs.mkdirSync(path.join(root, 'plain-checkout'));
+  fs.writeFileSync(path.join(root, 'plain-checkout/.git'), 'gitdir: /elsewhere\n');
+  fs.writeFileSync(path.join(root, 'plain-checkout/x.orig'), '1');
+  fs.writeFileSync(path.join(root, '.git'), 'gitdir: /nonexistent\n');
+  run('cleanup.js', root, ['find']);
+  assert.deepEqual(listed(), expected, 'without git');
+});
+
+test('cleanup find: a worktree folder that git lists itself is skipped, ignored or beside a tracked file', (t) => {
+  if (!git) { t.skip('git is not installed'); return; }
+  const gitIn = (root, ...args) => {
+    const r = spawnSync('git', ['-C', root, '-c', 'user.name=t', '-c', 'user.email=t@x.y', ...args], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+  };
+  const put = (root, rel, text) => { fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), text); };
+  for (const layout of ['ignored', 'tracked beside']) {
+    const root = tempDir('keel-worktree-top-');
+    gitIn(root, 'init', '-q', '-b', 'main');
+    put(root, '.claude/settings.json.bak', '1');
+    put(root, layout === 'ignored' ? '.gitignore' : '.claude/worktrees/README.md', layout === 'ignored' ? '.claude/worktrees/*\n' : 'worktrees\n');
+    gitIn(root, 'add', '-A');
+    gitIn(root, 'commit', '-q', '-m', 'one');
+    gitIn(root, 'worktree', 'add', '-q', '.claude/worktrees/other', '-b', 'other');
+    put(root, '.claude/worktrees/other/top.bak', '1');
+    put(root, '.claude/worktrees/other/.DS_Store', '1');
+    put(root, '.claude/worktrees/other/sub/deep.bak', '1');
+    run('cleanup.js', root, ['find']);
+    const listed = JSON.parse(readRel(root, '.keel/local/tmp/cleanup.json')).items.map((i) => i.path).filter((p) => p.includes('worktrees/other'));
+    assert.deepEqual(listed, [], layout);
+  }
 });
 
 test('cleanup move, gates hint, restore and the "do not touch" guard', (t) => {

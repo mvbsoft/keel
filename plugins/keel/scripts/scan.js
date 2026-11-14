@@ -10,7 +10,8 @@ const crypto = require('node:crypto');
 const catalog = require('../data/catalog.json');
 const { listFiles, onPath } = require('./lib/files.js');
 const languages = require('./lib/languages.js');
-const { matches, matchesAny } = require('./lib/patterns.js');
+const { matchesAny, matchesPath } = require('./lib/patterns.js');
+const { isSecretName: isSecret } = require('./lib/secret-names.js');
 const { findCommands } = require('./lib/commands.js');
 const { safeLocalWrite } = require('./lib/safe-path.js');
 const instructions = require('./lib/instructions.js');
@@ -22,12 +23,6 @@ const MAX_READ = 1024 * 1024;
 const DOTNET_PROJECT = /\.(sln|slnx|csproj|fsproj|vbproj)$/i;
 const DOTNET_SETTINGS = /(^|\/)(global\.json|Directory\.Build\.props|Directory\.Packages\.props)$/i;
 
-const secretCache = new Map();
-const isSecret = (rel) => {
-  let hit = secretCache.get(rel);
-  if (hit === undefined) { hit = matchesAny(rel, catalog.secrets.patterns) && !matchesAny(rel, catalog.secrets.allowed); secretCache.set(rel, hit); }
-  return hit;
-};
 const dirOf = (rel) => (rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '.');
 const under = (rel, part) => part === '.' || rel === part || rel.startsWith(`${part}/`);
 
@@ -61,7 +56,7 @@ function resolveMembers(globs, manifestDirs) {
   for (const g of globs) {
     const clean = g.replace(/^\.\//, '').replace(/\/$/, '');
     if (clean.startsWith('!')) continue;
-    for (const d of manifestDirs) if (d !== '.' && matches(d, clean.includes('/') ? clean : `${clean}`)) dirs.add(d);
+    for (const d of manifestDirs) if (d !== '.' && matchesPath(d, clean)) dirs.add(d);
   }
   return [...dirs];
 }
@@ -98,6 +93,10 @@ function workspaceGlobs(root, files, readText) {
     const text = files.has(f) ? readText(f) : null;
     if (text) for (const m of text.matchAll(/^\s*include\s*\(?([^\n)]*)/gm)) for (const q of m[1].matchAll(/['"]:?([^'"]+)['"]/g)) globs.push(q[1].replace(/:/g, '/'));
   }
+  const pyproject = files.has('pyproject.toml') ? readText('pyproject.toml') : null;
+  // shortcut: the workspace's exclude list is not read, so an excluded member shows as a part; redo it when that matters.
+  const uv = pyproject && /\[tool\.uv\.workspace\][\s\S]*?^\s*members\s*=\s*\[([\s\S]*?)\]/m.exec(pyproject);
+  if (uv) globs.push(...[...uv[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]));
   const gowork = files.has('go.work') ? readText('go.work') : null;
   if (gowork) globs.push(...[...gowork.matchAll(/^\s*(?:use\s+)?(\.\/[^\s)]+)/gm)].map((m) => m[1]));
   return globs;
@@ -108,7 +107,7 @@ function scan(root) {
   const { files: list, ignored, truncated, git } = listFiles(root, catalog.skip_dirs);
   const files = new Set(list);
   const { readText, readFirstLine, reads } = makeReader(root);
-  const findings = { git, truncated, files: list.length, gaps: [] };
+  const findings = { git, truncated, files: list.length, gaps: [], no_lock_file: [] };
 
   // Secrets: by name only, including git-ignored ones.
   const secretPaths = [...new Set([...list, ...ignored.filter((p) => !p.endsWith('/'))].filter(isSecret))].sort();
@@ -196,21 +195,29 @@ function scan(root) {
 
 
   // Parts: ecosystems, package managers, commands.
+  // A lock file counts when it is on disk, also git-ignored: the audit and the package manager run here.
+  const lockPresent = (rel) => files.has(rel) || fs.existsSync(path.join(root, rel));
   const parts = partDirs.map((dir) => {
     const ecos = [...(ecoByDir.get(dir) || [])];
     const packageManagers = {};
+    const unlocked = [];
     for (const id of ecos) {
-      const locks = Object.entries(ecoById[id].locks || {}).filter(([lock]) => files.has(dir === '.' ? lock : `${dir}/${lock}`));
+      const locks = Object.entries(ecoById[id].locks || {}).filter(([lock]) => lockPresent(dir === '.' ? lock : `${dir}/${lock}`));
       const pms = [...new Set(locks.map(([, pm]) => pm))];
       if (pms.length > 1) findings.gaps.push({ kind: 'conflict', part: dir, detail: `several lock files for ${id}: ${pms.join(', ')}` });
       if (pms.length) packageManagers[id] = pms[0];
       if (id === 'npm' && !pms.length) {
         // Inherit the monorepo root's lock file, or read packageManager from package.json.
-        const rootLock = Object.entries(ecoById.npm.locks).find(([lock]) => files.has(lock));
+        const rootLock = Object.entries(ecoById.npm.locks).find(([lock]) => lockPresent(lock));
         const declared = /"packageManager"\s*:\s*"([a-z]+)@/.exec(readText(dir === '.' ? 'package.json' : `${dir}/package.json`) || '');
         packageManagers.npm = rootLock ? rootLock[1] : declared ? declared[1] : 'npm';
       }
+      // No lock of its own and none at the root (workspace members of npm, pnpm, Cargo and uv share
+      // that one); an ecosystem without lock names in the catalog (gradle, ...) has nothing to miss.
+      const lockNames = Object.keys(ecoById[id].locks || {});
+      if (!pms.length && lockNames.length && !lockNames.some(lockPresent)) unlocked.push(id);
     }
+    if (unlocked.length) findings.no_lock_file.push({ part: dir, ecosystems: unlocked });
     const candidates = findCommands({ part: dir, files, readText, catalog, ecosystems: ecos.map((id) => ecoById[id]), packageManagers, isRoot: dir === '.' });
     const commands = {};
     for (const kind of ['test', 'lint', 'types']) {
@@ -309,11 +316,15 @@ function scan(root) {
 
 // What the project's documentation looks like (configure section 8): doc files, ADR and spec folders,
 // a Diátaxis-like docs/ (at least three of its four kinds), arc42 and C4 files, the files Claude Code
-// loads into every session with their line counts, and the profile and pattern that fit what exists.
+// loads into every session with their line counts, how the existing ADRs are kept, and the profile
+// and pattern that fit what exists.
 function docsShape(list, pick, readText) {
   const d = catalog.docs;
   const hasDir = (dir) => list.some((r) => r.startsWith(`${dir}/`));
   const adrDirs = d.adr_dirs.filter(hasDir);
+  // A README or index states the folder's own rule ("superseded records stay"), not a decision, so its
+  // words are not counted as marks.
+  const adrTexts = list.filter((r) => adrDirs.some((dir) => r.startsWith(`${dir}/`)) && /\.md$/i.test(r) && !/(^|\/)(README|index)\.md$/i.test(r)).map((r) => readText(r) || '');
   const specDirs = d.spec_dirs.filter(hasDir);
   const kinds = Object.entries(d.diataxis).filter(([, names]) => names.some((n) => hasDir(`docs/${n}`))).map(([kind]) => kind);
   const arc42 = pick(d.arc42).length > 0;
@@ -324,6 +335,15 @@ function docsShape(list, pick, readText) {
   return {
     files: pick(d.files.map((f) => f.split('#')[0])).filter((f) => !f.includes('/') || f.startsWith('docs/')),
     adr_dirs: adrDirs,
+    // configure says from these how the records are kept now. superseded: a status line that marks the
+    // record superseded (the newer record's "Supersedes" is the same pair, not counted again). amended:
+    // a history note, a line that starts with Amended/Amends, Correction or Was: (after a list or quote
+    // mark), or a partial supersede; the same words inside a sentence are ordinary prose.
+    adr_records: {
+      records: adrTexts.length,
+      superseded: adrTexts.filter((t) => /^[\s>*_-]*status\W[^\n]*\bsuperseded\b/im.test(t)).length,
+      amended: adrTexts.filter((t) => /^[\s>*_-]*(amend(s|ed|ment)?|corrections?|was:)/im.test(t) || /\b(partly|partially) superseded\b/i.test(t)).length,
+    },
     spec_dirs: specDirs,
     diataxis_kinds: kinds,
     arc42,
@@ -338,7 +358,7 @@ function docsShape(list, pick, readText) {
 // 38,000-file project).
 const fingerprint = (root) => scan(root).profile.manifest_fingerprint;
 
-module.exports = { scan, fingerprint, isSecret };
+module.exports = { scan, fingerprint };
 
 // Short plain-text summary for the conversation; the full result goes to the --out file.
 function summary(result, outFile) {
@@ -348,13 +368,15 @@ function summary(result, outFile) {
   lines.push(`monorepo: ${profile.monorepo_tool || 'no'}`);
   for (const p of profile.parts) {
     const cmds = Object.entries(p.commands).map(([k, v]) => `${k}: ${v[0]}`).join('; ');
-    lines.push(`part ${p.path}: ${p.ecosystems.join(', ') || 'no manifest'}${cmds ? ` | ${cmds}` : ''}`);
+    const entry = findings.no_lock_file.find((u) => u.part === p.path);
+    const unlocked = entry ? ` (no lock file: ${entry.ecosystems.join(', ')})` : '';
+    lines.push(`part ${p.path}: ${p.ecosystems.join(', ') || 'no manifest'}${unlocked}${cmds ? ` | ${cmds}` : ''}`);
   }
   lines.push(`secret files (never opened): ${profile.secret_paths.join(', ') || 'none'}`);
   lines.push(`AI instruction files: ${profile.ai_rules.join(', ') || 'none'}`);
   lines.push(instructions.describe(findings.other_instructions));
   const d = findings.docs;
-  lines.push(`docs: ${d.files.join(', ') || 'no README or docs site'}; ADR ${d.adr_dirs.join(', ') || 'none'}; specs ${d.spec_dirs.join(', ') || 'none'}; pattern ${d.suggested_pattern}; suggested profile ${d.suggested_profile}`);
+  lines.push(`docs: ${d.files.join(', ') || 'no README or docs site'}; ADR ${d.adr_dirs.join(', ') || 'none'}${d.adr_dirs.length ? ` (${d.adr_records.records} records, ${d.adr_records.superseded} superseded, ${d.adr_records.amended} amended)` : ''}; specs ${d.spec_dirs.join(', ') || 'none'}; pattern ${d.suggested_pattern}; suggested profile ${d.suggested_profile}`);
   if (d.always_loaded.length) lines.push(`loaded every session: ${d.always_loaded.map((f) => `${f.path} ${f.lines} lines${f.lines > 200 ? ' (over 200)' : ''}`).join(', ')}`);
   lines.push(`gaps: ${findings.gaps.length ? findings.gaps.map((g) => `${g.kind}${g.part ? ` (${g.part})` : ''}: ${g.detail}`).join(' | ') : 'none'}`);
   lines.push(`scanners on PATH: ${Object.entries(findings.scanners_installed).map(([n, ok]) => `${n} ${ok ? 'yes' : 'no'}`).join(', ')}`);
@@ -365,14 +387,16 @@ function summary(result, outFile) {
 if (require.main === module) {
   // Arguments are read like every keel script (and like hooks/own-files.js): the project comes first.
   const { opts, pos } = require('./lib/project.js').parseArgs(process.argv.slice(2));
-  const root = path.resolve(pos[0] || process.cwd());
+  const given = path.resolve(pos[0] || process.cwd());
+  const { scriptProject, sameIn } = require('./lib/project-dir.js');
+  const root = scriptProject(given);
   const result = scan(root);
   if (opts.out === undefined) {
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
   } else {
     // The full result may only be written to the project's keel temp folder, through no link.
     const tmp = path.join(root, '.keel', 'local', 'tmp');
-    const r = typeof opts.out === 'string' ? path.relative(tmp, path.resolve(opts.out)) : '';
+    const r = typeof opts.out === 'string' ? path.relative(tmp, path.resolve(sameIn(given, root, opts.out))) : '';
     if (!r || r.startsWith('..') || path.isAbsolute(r)) {
       process.stdout.write(`scan: --out must be a file inside ${tmp}\n`);
     } else {

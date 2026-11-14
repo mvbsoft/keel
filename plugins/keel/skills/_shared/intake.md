@@ -53,8 +53,9 @@ Wishes about git ("branch off release-2.3, merge into develop") are recorded for
 not hold → say it in the retell with `file:line`.
 **Which lane:** "done" in 1-3 sittings → a task; a plan for weeks with "later" items → a session. A
 request that clearly fits a session → suggest `/keel:start-session` in one line; the user decides.
-Too big for one task (the user says so in any words, or the Plan Mode plan is very big) → "Task to
-planning" below, at any step.
+Too big for one task (the user says so or asks to split it, in any words, or `plan-steps.js` says
+`very big:` for the Plan Mode plan: 10 steps or 40 files) → "Task to planning" below, at any step. When the task's Decisions and why records that the
+user chose not to split it, keel does not offer it again; the user asking to split it still goes there.
 Always settle "new or continuation" in the same message:
 - `lane: task` for the given key → one question: "This is the unfinished task <id>: continue it?";
 - unfinished tasks on the same thing (same key or link, or a title or goal about it) → name the 1-3
@@ -144,10 +145,17 @@ seen failing before the fix). Per step choose:
   changes, text and config).
 
 Then, still in Plan Mode, run `node "<keel>/scripts/plan-steps.js" "<project>" "<plan file>"`; fix
-every `problems` line and put its step table (step, model, effort) into the plan. Its
-`suggest: delegate` → the plan's Execution step 3 proposes delegating and states its `ask:` line (here
-or delegate, in the conversation language), so approving or changing the plan answers it. Below the
-thresholds: execution here, unless the user asks to delegate. No separate question after ExitPlanMode.
+every `problems` line and put its step table (step, model, effort) into the plan. Its `very big:`
+line → "Task to planning" below, before ExitPlanMode; "do not split" there → go on with this plan.
+Its `suggest: delegate` → the plan's Execution step 3 names the choice and states its `ask:` line
+(in the conversation language): `fresh` (recommended: a fresh conversation runs the saved plan),
+`delegate` (implementers, from this conversation), `here`, or what the user says instead; approving
+or changing the plan answers it. For `fresh` the plan also says both ways in: approve with Claude
+Code's "Yes, clear context" (when it is shown), or approve as usual, then type `/clear` and the
+command keel names; and its Execution step 4 holds what the discussion settled that the plan's
+sections do not say (decisions with why, open questions, a "do not split"), because a fresh
+conversation knows only the plan. Below the thresholds: execution here, unless the user asks
+otherwise. No separate question after ExitPlanMode.
 
 **Branch** (one per task): `<id>-<short-name>`, the short name 2-4 lowercase ASCII words joined by
 `-`; the id alone when it already is a slug (`fix-reset-500`). From the base the user chose in the
@@ -166,57 +174,53 @@ lands on the main branch:
      --from`, `start`), plain git otherwise. A conflict, a refusal or a step that is unclear → stop,
      show it and ask. Never push, and never merge into the main branch, unless the instruction says so.
    Any `stopped` or `unavailable` → tell the user the reason and wait.
-2. `node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source <jira|linear|asana|github|file|text> [--link <url or path>] --session <sid>`
+2. `node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source <jira|linear|asana|github|file|text> [--link <url or path>] --branch <branch> --base <base> --merge-into <target> --execution <here|delegate|fresh> [--plan-file <plan file>] --session <sid>`
    (any other page or document link, e.g. Google Docs or Notion: `--source text --link <url>`; a
-   planned ticket: `--source file --link <its file path>`; a title with double or curly quotes, `$`, a
-   backquote or a backslash before a quote or a space is refused by keel (nothing runs): keep
-   `--title` plain and fix it in the file). A line starting `notes:` is a refusal: read it, fix the
-   argument; `the note ... names <key>` → that key is led by /keel:start-session: say so and stop.
-   Then fill the `task.md` it names (Edit): front matter `branch`, `base`, `merge_into` (a planned
-   ticket: as "Planned ticket" says), `execution`, `plan`, and the
-   sections Goal, Next action, Acceptance criteria, Out of scope, State (a simple task: its steps as
-   `- ⬜ step` lines), How to check, User's changes. A complex plan: save it as `plan.md` in the task
-   folder, `plan: plan.md`, and State says "see plan.md". Both files in the language "Languages" gives
-   them (`repo_language` in git): translate the retell and the plan when writing the files, also when
-   the chat ran in another language.
+   planned ticket: `--source file --link <its file path>`, `--branch`, `--base` and `--merge-into` as
+   "Planned ticket" says; a complex plan: `--plan-file` copies it into the task folder as `plan.md`
+   and sets `plan: plan.md`, only when the plan file is already in the language "Languages" gives
+   the task files, else write `plan.md` yourself in that language; a title with double or curly
+   quotes, `$`, a backquote or a backslash before a quote or a space is refused by keel (nothing
+   runs): keep `--title` plain and fix it in the file). A line starting `notes:` is a refusal: read
+   it, fix the argument; `the note ... names <key>` → that key is led by /keel:start-session: say so
+   and stop. Then fill the sections of the `task.md` it names (Edit): Goal, Next action, Acceptance
+   criteria, Out of scope, State (a simple task: its steps as `- ⬜ step` lines; with a plan.md:
+   "see plan.md"), How to check, User's changes (with the plan's Execution step 4: its settled
+   decisions into Decisions and why, its open questions into Open questions). Both files in
+   the language "Languages" gives them (`repo_language` in git):
+   translate the retell and the plan when writing the files, also when the chat ran in another language.
 3. Work through the plan: `execution: here` → step by step yourself, marking each step done (✅);
-   `execution: delegate` → follow `<keel>/skills/_shared/delegate.md` with the plan file.
+   `execution: delegate` → follow `<keel>/skills/_shared/delegate.md` with the plan file (the task
+   folder's `plan.md`; a simple task without one: its `task.md`);
+   `execution: fresh` → "Fresh conversation" below.
 4. When it is done: "Run /keel:end-task to verify and finish, or to hand the task off for another
    session (/keel:tasks lists the tasks)."
 
 A user's request on the side (e.g. "add a comment to the Jira ticket") is done as an ordinary request.
 
+**Fresh conversation** (`execution: fresh`). This conversation began with the plan alone (approved
+with Claude Code's "Yes, clear context": nothing before the plan) → it is the fresh one: ask how to
+run the rest as task-resume.md step 7 says, then go on as item 3 says. Otherwise the plan discussion stays
+behind, so first check that task.md holds what it settled (item 2 copies the plan's Execution step
+4; add what is still missing to Decisions and why, with why, and Open questions). Then say: "The
+plan is saved. Type `/clear`, then `/keel:start-task <id>`: the work goes on from the plan." and
+stop; keel never types it for the user.
+
 ## Resume
-1. **Uncommitted changes** (see "Before any branch change" below) come first, only when step 2 needs
-   a branch switch; on the task's branch already they stay and belong to the task.
-2. The branch: the task's `branch` (`State: ... branch <name>`), else the one in `Files: (on branch ...)`;
-   without a remote prefix (`origin/x` → `x`). Not the current branch → autonomous: `node "<keel>/scripts/git-flow.js" "<project>" switch --name <branch>`
-   (`stopped` → tell the reason, wait); manual: give `git switch <branch>` and wait until the user says it ran.
-3. `node "<keel>/scripts/notes.js" "<project>" task activate <id> --session <sid>`, then read the
-   `task.md` it names and the folder's `plan.md` if any. `State: active in another session` → tell
-   the user in a line.
-4. **Stale?** `Base moved:` → say how many commits the task is behind and offer
-   `git-flow.js sync --from <base>` (manual: `git merge <base>`); it needs a clean tree, so with
-   uncommitted work offer to commit it on the task branch first. Handed off 7 days ago or more, or
-   commits after its `after_commit` → compare
-   `git log --oneline <after_commit>..HEAD` with State and
-   Files and say what no longer holds.
-5. Run the "How to check" command once; its result in one line (red → that comes first).
-6. A tracker, link or file task: read the source again (as in step 2) and tell the user what changed
-   against Goal and Acceptance criteria. Do not overwrite them without a yes.
-7. Summary in 3-6 lines: goal, where we are, done / not done, open questions. Then the **Next action**.
-   Delegation (only when the task has `plan: plan.md` or `execution: delegate`; a simple task's
-   `- ⬜` lines are not plan steps): `node "<keel>/scripts/plan-steps.js" "<project>" "<plan.md or task.md>" --remaining`,
-   and ask its `ask:` line when it says `suggest: delegate`; `execution: delegate` stays.
+**Resume** (the task is a continuation: the branch, the task file, staleness, the "How to check" run,
+the summary and the next action, 7 steps) → read `<keel>/skills/_shared/task-resume.md` and follow it.
 
 ## Before any branch change (new task or resume)
 Run `node "<keel>/scripts/git-flow.js" "<project>" status`. `changed files:` not 0 → stop and offer:
-hand off the current task first (`/keel:end-task`), commit, or `git stash push -m "keel: <id>"`
-(use `-u` for new files). Never carry changes into another task unless the user says they belong to it.
+hand off the current task first (`/keel:end-task hand off`: a work-in-progress commit on
+its own branch, pushed), or commit them. Never carry changes into another task unless the user says they belong to it.
 When every changed file is keel's setup (`.keel/` outside `tasks/`, and README, CLAUDE.md, `.gitignore`
 or `.claude/settings.json` changed by `/keel:configure`) and there is no task yet, offer first (recommended):
 take the setup into this task's branch, so it reaches the main branch with the task's merge; a yes
-counts as "they belong to it".
+counts as "they belong to it". A new branch carries them (`start`). An existing branch (a planned
+ticket whose branch exists, a resumed task): `git-flow.js switch` stops on them, so run plain
+`git switch <branch>` (Claude Code may ask): git carries the files over, or refuses when that branch
+has its own version of one; then show git's message and ask.
 
 ## Planned ticket
 Tickets exported by `/keel:end-planning` live in a feature folder; `plans.js tickets` reads their state
@@ -226,21 +230,36 @@ from git (0 tokens). Each call is `node "<keel>/scripts/plans.js" "<project>" ti
    `tickets --fetch`, take the key of its `next:` line (`next: none` → say so and show its list), then
    `tickets <KEY>`. A key → `tickets <KEY> --fetch`; `tickets: none (no ticket or feature <x>)` → not a
    planned ticket: step 2's internal search goes on.
+   A key `<PREFIX>-S<n>` is a stub: the place of work in a repository that was not on the planner's
+   machine, not a ticket to build. Say so and stop; when that repository is this one, add that
+   `/keel:start-planning <feature>` turns it into a ticket (planning-exported.md).
 2. **Its state** (the `<KEY>` view: the ticket line, `branch: <b> -> <merge_into>`, `file:`, `depends:`):
    - `duplicate key (<n> files)` → warn first: "two tickets with the key <KEY>", naming the files;
-   - `to do` or `next` → read the ticket (`file:` a path, or `<ref>:<path>`: `git show <ref>:<path>`),
-     check its Goal, Acceptance criteria and Where to look against the code (step 3's premise check),
-     then steps 3-6 as for any task, with its acceptance criteria;
+   - `to do` or `next` → read the ticket (`file:` a path, or `<ref>:./<path>`: `git show <ref>:./<path>`,
+     the `./` reads the path from the project folder), check its Goal, Acceptance criteria and Where
+     to look against the code (step 3's premise check), then steps 3-6 as for any task, with its
+     acceptance criteria;
    - `in progress` or `waiting for ...` → say the branch, author and date of its hint and ask: continue
      it (on that branch) / start over / take another ticket. A waiting ticket is never offered as free;
      with `stale` ask "Nobody touched it for 30 days: treat it as free?". `reverted` → say "The branch
      was merged once and that merge was reverted; merging it again brings nothing back: it needs a
      revert of that revert, or new commits.";
-   - a `depends:` ticket `waiting for merge into the feature branch`, or one of another feature that is
-     not done (not `not found`) → ask: start from that ticket's branch / wait for its merge / start
-     anyway;
+   - a `depends:` ticket of this repository `waiting for merge into the feature branch`, or one of
+     another feature that is not done (not `not found`) → its `where:` line says where its code is: say
+     it in plain words. `... or pull it into <b>: git merge <x>` → ask: wait for its merge / pull it in
+     (`git merge <x>` on `<b>`, after step 3's branch) / start anyway; another `where:` → ask: wait for
+     it / start anyway. `... is in your feature branch <b>: <KEY> can start` → say so, nothing to ask;
+   - a `depends:` ticket of another repository (its state is followed by `(<folder>, <server data>)`,
+     read from that folder's git, never fetched) that is not done (not `not found`), and the ticket is
+     not `next` (`next` counts one waiting for the merge of the same feature as met) → say which, its
+     state there and as of when (a fetch in that folder brings it up to date), and ask: take the next
+     ticket / wait for it / start anyway;
+   - a `depends:` ticket `not checked` (its folder is not in the repos map, not on this machine, or not a
+     git repository) →
+     say which and why, and that `plans.js settings set --repo <PREFIX>=<folder>` makes it checked;
+     ask: start anyway / take another ticket;
    - a `depends:` ticket of the same feature `to do` or `in progress`, or any `not found` → say which,
-     and ask: start anyway / take the next ticket. A `not found` may be a finished feature merged
+     and ask: take the next ticket / start anyway. A `not found` may be a finished feature merged
      with squash after its tickets were removed (no ticket file ever reached `merge_into`): say so;
      the user checks its code there;
    - `done` → say so; start it again only on a yes.
@@ -257,17 +276,7 @@ from git (0 tokens). Each call is `node "<keel>/scripts/plans.js" "<project>" ti
    = the feature branch.
 
 ## Task to planning
-Offered when the task is too big (step 3): "Plan this as a feature instead? This conversation then
-plans it, with no code." Lanes never mix: the task ends completely before planning starts. The user
-asking to plan it as a feature is the yes to this question: do not ask it then.
-- No `task new` yet (step 7 item 2) → on yes, ask the user to type `/keel:start-planning` (keel cannot
-  start it for them); the plan in this chat is its source.
-- After `task new`, only while no code changed: `git diff --name-only <started>` (the task file's
-  `started:`) and `git ls-files --others --exclude-standard` list nothing outside `.keel/`. On yes, say "<id> goes to keel's trash" and run
-  `node "<keel>/scripts/notes.js" "<project>" task drop <id>`. A branch of
-  its own (`branch` differs from `base`) is deleted only on its own yes:
-  `node "<keel>/scripts/git-flow.js" "<project>" switch --name <base>`, then
-  `node "<keel>/scripts/git-flow.js" "<project>" delete-branch --name <branch>` (Claude Code confirms).
-  Then ask the user to type `/keel:start-planning`; the plan in this chat is its source.
-- Code changed → hand off first (`/keel:end-task hand off`), then `/keel:start-planning` in a new
-  conversation.
+**Task to planning** (the task is too big, step 3: the user asks to split it or plan it as a feature,
+or `plan-steps.js` says `very big:`; the offer, the three ways, the brief for a new chat, what to do
+with the task and its branch when code is already changed) → read
+`<keel>/skills/_shared/task-to-planning.md` and follow it.

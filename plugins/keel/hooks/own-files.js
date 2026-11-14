@@ -4,7 +4,8 @@
 // - reading or searching inside the keel plugin folder;
 // - running one of keel's own scripts listed below with node, as one command with no shell
 //   operators or characters a shell would expand (~ included; inside quotes only $ and ` count), on
-//   the current project: the first argument must be the project folder itself, as an absolute path
+//   the current project (in a linked worktree of the project, that worktree; the main checkout named
+//   for it counts as it): the first argument must be the project folder itself, as an absolute path
 //   (a relative one is resolved from the shell's folder, a sub-folder may hold another project's
 //   .keel), and for Bash no unquoted backslash (bash drops it, so the script would get another path),
 //   no double backslash (the Bash tool folds it into one; a network path is written //server/share)
@@ -14,18 +15,20 @@
 //   and nowhere else; notes.js `task` writes keel's task folders (.keel/tasks/, .keel/local/); the
 //   script touches only `.keel/tasks/<id>/` or `.keel/local/tasks/<id>/` for a validated id and refuses
 //   any link on the way or inside; usage.js takes the project as `--project` (it must be the current
-//   project), its `--out` folder must be under that project's .keel/local/usage/ and its `--keel` file
-//   under .keel/local/;
+//   project), its `--out` folder must be under that project's .keel/local/usage/ and its `--keel`
+//   file and `--page` folder under .keel/local/;
 // - asks, so Claude Code itself shows the confirmation with keel's reason in the conversation language,
 //   also when the user's allow rules would let it run: notes.js `task delete` (a finished task's folder
 //   to keel's trash; denied with the reason while no verification is recorded) and `task drop`,
 //   cleanup.js `empty-trash` (deletes for good), git-flow.js `delete-branch`, `merge` and `trust` (below),
-//   plans.js `commit` and `push` (planning files into git and onto the remote);
+//   plans.js `commit` and `push` (planning files into git and onto the remote; with --repo in another
+//   repository of the feature, whose folder the script takes from the project's repos map: the
+//   confirmation names it);
 // - git-flow.js: `status` always; the other steps only when the project's git mode is autonomous
 //   and the user confirmed these git settings on this machine (`trust`, which itself always prompts;
 //   a changed `git` section needs it again). `merge` asks in every mode, unless the mode is autonomous,
-//   confirmed here, and ask_before_merge is off; `push` on the main line (or where git cannot tell the
-//   branch) is left to Claude Code's prompt; `delete-branch` always asks;
+//   confirmed here, and ask_before_merge is off; `push` and `save` (commit, sync and push in one call) on
+//   the main line (or where git cannot tell the branch) are left to Claude Code's prompt; `delete-branch` always asks;
 // - claude-settings.js: `show` only. `apply` writes the user's Claude Code settings and `move-plans`
 //   moves the user's plan files, so both are left to Claude Code's own permission prompt;
 // - migrate.js: `find`, `refs`, `state` (they only read; `find` writes its result to .keel/local/tmp/).
@@ -33,8 +36,9 @@
 // - cleanup.js: everything but `empty-trash` (moving to keel's trash and back can be undone; deleting
 //   the trash cannot).
 // - plans.js: everything but `commit` and `push`; its other steps write only the planning files (the
-//   drafts, the exported tickets and their status, settings and chat marks), and `drop` moves a feature
-//   folder whose tickets are all done to keel's trash, which can be undone. commit or push anywhere
+//   drafts, the exported tickets and their status, settings and chat marks), `drop` moves a feature
+//   folder whose tickets are all done to keel's trash and `brief` a brief of /keel:start-task, both of
+//   which can be undone. commit or push anywhere
 //   else in its command asks too (the shell may pass that step in another order).
 // Refused with the reason, so the model sends the plain form: a command joined with shell operators
 // (outside quotes) that names keel's folder; a keel script whose arguments the hook cannot read; a step
@@ -47,8 +51,8 @@ const path = require('node:path');
 const SCRIPTS = new Set(['scan.js', 'check-config.js', 'safe-command.js', 'changes.js', 'fingerprint.js', 'votes.js', 'ledger-report.js', 'notes.js', 'plan-steps.js', 'git-flow.js', 'comments.js', 'stack-skills.js', 'claude-settings.js', 'migrate.js', 'cleanup.js', 'usage.js', 'usage-setup.js', 'config-check.js', 'plans.js']);
 // Script steps that change the user's files for good or move them outside keel's own folders: left
 // to Claude Code's permission prompt.
-const ASK = { 'claude-settings.js': ['apply'], 'migrate.js': ['apply'], 'usage-setup.js': ['apply', 'prices-apply', 'install-statusline'] };
-const GIT_STEPS = new Set(['start', 'switch', 'commit', 'sync', 'push']);
+const ASK = { 'claude-settings.js': ['apply'], 'migrate.js': ['apply'], 'usage-setup.js': ['apply', 'prices-apply', 'install-statusline', 'sync'] };
+const GIT_STEPS = new Set(['start', 'switch', 'commit', 'sync', 'push', 'save']);
 // plans.js steps Claude Code confirms each time, even when an allow rule would let node run.
 const PLANS_ASK = new Set(['commit', 'push']);
 
@@ -79,6 +83,20 @@ function taskPath(project, id) {
   let t = null;
   try { t = require('../scripts/lib/tasks.js').findTask(project, id); } catch { /* unreadable: the default */ }
   return t && t.folder ? `${path.relative(project, t.folder).split(path.sep).join('/')}/` : `.keel/tasks/${id}/`;
+}
+
+// The repository a plans.js commit or push works in, for its confirmation: the project, or `--repo`'s
+// folder from the project's repos map (the script takes it from there too).
+function plansRepo(project, repo) {
+  const { clean } = require('../scripts/lib/repo-read.js');
+  if (repo === undefined) return clean(norm(project), 200);
+  const prefix = clean(String(repo).trim().toUpperCase(), 20);
+  let s = null;
+  try { s = require('../scripts/lib/plans-settings.js').settings(project); } catch { /* unreadable: named so */ }
+  // This project's own prefix is the project: the script never looks it up in the map.
+  if (s && prefix === s.ticket_prefix) return clean(norm(project), 200);
+  const folder = (s && s.repos[prefix]) || null;
+  return `${prefix} (${folder ? clean(folder, 200) : 'no folder in the repos map'})`;
 }
 
 // The steps Claude Code confirms each time (or, for merge, unless the user turned that off).
@@ -193,7 +211,7 @@ function gitFlow(pos, opts) {
   // Claude Code's prompt even when a permission rule would allow node commands.
   if (command === 'trust') return decide('ask', say(project, 'confirm.trust'));
   let git = null;
-  try { git = require('../scripts/lib/json.js').readJsonFile(path.join(project, '.keel', 'config.json')).git; } catch { /* no config: nothing is trusted */ }
+  try { git = require('../scripts/lib/json.js').readJsonFile(path.join(require('../scripts/lib/project-dir.js').configHome(project), '.keel', 'config.json')).git; } catch { /* no config: nothing is trusted */ }
   // The mode comes from the committed config; a clone or a branch could set it, so it counts only when
   // the user confirmed these git settings on this machine (git-flow.js trust).
   const trusted = git && git.mode === 'autonomous' && require('../scripts/lib/trust.js').isTrusted(project);
@@ -202,7 +220,7 @@ function gitFlow(pos, opts) {
     return trusted && git.ask_before_merge === false ? allow(`keel git, autonomous mode: merge into ${target}`) : decide('ask', say(project, 'confirm.merge', { target }));
   }
   if (!trusted) return null;
-  if (command === 'push' && onMainLine(project, git)) return null;
+  if ((command === 'push' || command === 'save') && onMainLine(project, git)) return null;
   if (GIT_STEPS.has(command)) return allow(`keel git, autonomous mode: ${command}`);
   return null;
 }
@@ -211,7 +229,7 @@ const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the ste
 
 // The decision for `node <keel>/scripts/<name> <args>`. Arguments are read with the scripts' own
 // parseArgs, so the step the hook judges is the step the script runs.
-function ownScript(name, argText, projectDir, bash) {
+function ownScript(name, argText, projectDir, bash, cwd) {
   const split = splitWords(argText, bash);
   // keel's instructions never need shell expansions; refused, the model sends the plain form, which the
   // steps that always ask can recognise.
@@ -219,6 +237,13 @@ function ownScript(name, argText, projectDir, bash) {
   const argv = split.words;
   // Loaded here, not at the top: this hook runs on every shell command and these pull in the catalog.
   const { opts, pos } = require('../scripts/lib/project.js').parseArgs(argv);
+  // A script given the main checkout works on the linked worktree of it the shell is in, as the scripts
+  // do (lib/project-dir.js); both sides map to one worktree only for one main checkout.
+  const { worktreeOf } = require('../scripts/lib/project-dir.js');
+  const here = (p) => worktreeOf(p, cwd) || p;
+  if (projectDir) projectDir = here(projectDir);
+  if (pos[0] && path.isAbsolute(pos[0])) pos[0] = here(pos[0]);
+  if (typeof opts.project === 'string' && path.isAbsolute(opts.project)) opts.project = here(opts.project);
   // Every listed script but usage.js takes the project folder first; none is called on a sub-folder.
   if (name !== 'usage.js' && !(projectDir && pos[0] && path.isAbsolute(pos[0]) && sameFs(norm(pos[0]), norm(projectDir)))) {
     // A split the hook cannot see may hide the project, so a confirmed step's word anywhere is refused
@@ -235,8 +260,8 @@ function ownScript(name, argText, projectDir, bash) {
     // prepare and report read and write a project's files: without --project they would use the
     // shell's folder, which may be another project.
     if (['prepare', 'report'].includes(pos[0]) && opts.project === undefined) return null;
-    const under = { out: local && path.join(local, 'usage'), keel: local };
-    for (const k of ['out', 'keel']) if (opts[k] !== undefined && !(local && typeof opts[k] === 'string' && inside(opts[k], under[k]))) return null;
+    const under = { out: local && path.join(local, 'usage'), keel: local, page: local };
+    for (const k of Object.keys(under)) if (opts[k] !== undefined && !(local && typeof opts[k] === 'string' && inside(opts[k], under[k]))) return null;
     // No usage.js step is confirmed, and --feature takes a feature name (empty-trash is one), so
     // CONFIRMED_WORDS are not refused here.
     return allow('keel runs its own usage.js');
@@ -246,7 +271,7 @@ function ownScript(name, argText, projectDir, bash) {
   // refused here. commit or push elsewhere in the command may be that step, passed by the shell in
   // another order, so it asks.
   if (name === 'plans.js') {
-    if (alwaysAsks(name, pos)) return decide('ask', say(pos[0], `confirm.plans_${pos[1]}`));
+    if (alwaysAsks(name, pos)) return decide('ask', say(pos[0], `confirm.plans_${pos[1]}`, { repo: plansRepo(pos[0], opts.repo) }));
     return argv.some((w) => PLANS_ASK.has(w)) ? decide('ask', say(pos[0], 'confirm.plans_word')) : allow('keel runs its own plans.js');
   }
   if (name === 'git-flow.js') {
@@ -271,7 +296,7 @@ function main() {
   // keel's QA agents write their helper scripts only under the project's .keel/local/tmp/qa/: a write
   // anywhere else (a gitignored .env, dist/) would not show in the tree check that follows them.
   if (tool === 'Write' && /^(keel:)?qa(-break)?$/.test(String(input.agent_type || ''))) {
-    const project = process.env.CLAUDE_PROJECT_DIR || input.cwd;
+    const project = require('../scripts/lib/project-dir.js').hookProject(input);
     const tmp = project && path.join(project, '.keel', 'local', 'tmp', 'qa');
     if (tmp && typeof args.file_path === 'string' && inside(path.resolve(project, args.file_path), tmp)) return allow('keel\'s QA agent writes in its temporary folder');
     return decide('deny', 'keel: a QA agent writes only under <project>/.keel/local/tmp/qa/. Nothing was written; write the file there.');
@@ -304,7 +329,7 @@ function main() {
       // The script's path reaches node changed in the same ways as its arguments: with keel on a
       // network share, \\srv\plug or //srv\plug would run a script in another folder.
       if (bash && ((m[4] && m[4].includes('\\')) || script.includes('\\\\') || bashRewrites(script))) return decide('deny', PLAIN_FORM);
-      return ownScript(name, m[5] || '', process.env.CLAUDE_PROJECT_DIR || input.cwd, bash);
+      return ownScript(name, m[5] || '', require('../scripts/lib/project-dir.js').hookProject(input), bash, input.cwd);
     }
     if (runsLib(cmd, root)) return decide('deny', LIB);
     // Any other shape that runs a keel script (node flags, env, bash -c, a wrapper) is one the hook
@@ -337,7 +362,7 @@ function stepElsewhere(cmd) {
 // file that loads it. Reading it (grep, cat) runs nothing and is not refused.
 // A runtime in command position: at the start, after a shell operator, or after env, exec, npx...
 const RUNTIME = /(^|[;&|(]\s*|\b(?:env|exec|npx|nohup|time|command)\s+(?:-\S+\s+|\w+=\S*\s+)*)(node|nodejs|bun|deno|tsx|ts-node)(\.exe)?(?![\w.-])/i;
-const KEEL_LIB = /CLAUDE_PLUGIN_ROOT[^\s"']*\/scripts\/lib\/|\/keel\/(?:[^\s"'\/]+\/)?scripts\/lib\/(tasks|trash|trust|finish)\.js(?![\w.-])/i;
+const KEEL_LIB = /CLAUDE_PLUGIN_ROOT[^\s"']*\/scripts\/lib\/|\/keel\/(?:[^\s"'\/]+\/)?scripts\/lib\/(tasks(?:-[\w-]+)?|trash|trust|finish)\.js(?![\w.-])/i;
 const JOINED_LIB = /['"]scripts['"]\s*,\s*['"]lib['"]|['"]lib['"]\s*,\s*['"][\w.-]+\.js['"]/;
 const LIB = 'keel: keel\'s library is not run directly. Run keel\'s scripts in the plain form `node "<keel>/scripts/<name>.js" "<project>" ...` and read its files with the Read tool. Nothing ran.';
 function runsLib(cmd, root) {

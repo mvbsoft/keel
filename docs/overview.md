@@ -1,7 +1,5 @@
 # How keel works
 
-[Українська](overview.uk.md)
-
 keel is a Claude Code plugin that runs your work on a project by a set of rules: at the start it
 understands the task and makes a plan, while you work it writes code to your standards, and at the end
 agents verify the change, keel does git (or gives you the commands, in manual mode) and reports the
@@ -49,8 +47,9 @@ with your yes.
   more?), the check command, a summary and the next action.
 - **A key led by a session:** "this is led by /keel:start-session".
 - **A planned ticket** (`next ticket` or its key): keel shows its state and offers its feature branch;
-  then it goes on as a new task. A task that turns out too big can become planning while no code has
-  changed (after code changes: once it is handed off).
+  then it goes on as a new task. A task that turns out too big becomes planning, here or in a new chat
+  with a brief of what was found (after code changes: once the work done is finished as a task, or
+  with the task's branch as the feature's).
 
 More: [start a task](workflows.md#start-a-task-keelstart-task).
 
@@ -64,7 +63,7 @@ More: [start a task](workflows.md#start-a-task-keelstart-task).
   brings the task back).
   No: the task stays active.
 - **Hand off:** gates only → the task file updated → commit, push, back to the base branch → report. A task
-  without its own branch first asks where the work goes.
+  without its own branch goes to a new branch of its own, committed as work in progress and pushed.
 - Merging into main only on your instruction (or on a finish with `git.ask_before_merge: false`).
 
 More: [end a task](workflows.md#end-a-task-keelend-task); what guarantees each step:
@@ -94,7 +93,7 @@ tomorrow` reviews the changed tickets and saves where planning stands; `/keel:en
 and export` has reviewer agents check the tickets not yet reviewed as they are now, and then the whole
 plan, and exports the tickets into the feature folder with real keys. Then `/keel:start-task next
 ticket` builds them one by one, or `/keel:start-session <feature>` takes them one by one in a session.
-More: [planning](workflows.md#planning), [start-planning](commands.md#keelstart-planning),
+More: [planning](planning.md), [start-planning](commands.md#keelstart-planning),
 [end-planning](commands.md#keelend-planning).
 
 ## 7. The report at the end
@@ -108,7 +107,7 @@ More: [the final report](workflows.md#the-final-report) and [usage dashboard](us
 ## 8. The handoff note
 
 One format for tasks and sessions: goal, next action, state (✅ / ◐ / ⚠ / ⬜), files, decisions and why,
-what did not work, open questions, how to check. At most 150 lines; updated, not rewritten. Planning has
+what did not work, open questions, how to check. At most 150 lines and 12000 characters; updated, not rewritten. Planning has
 no handoff: the plan's Next action says where the next conversation starts.
 More: [what is in a handoff](workflows.md#what-is-in-a-handoff).
 
@@ -119,7 +118,7 @@ More: [what is in a handoff](workflows.md#what-is-in-a-handoff).
 | Gates only | the project's tests, linters, types, scanners | ≈$0.2 |
 | Basic | one reviewer (Haiku) + up to 2 verifiers | ≈$0.25-0.5 |
 | Standard | context map (Haiku), reviewer, bug hunter, architect, QA, test reviewer, up to 4 specialist groups + up to 5 verifiers, a judge | ≈$1.4-4.3 |
-| Maximum | two bug hunters, QA and "try to break it", security always, three verifiers per critical finding, judge; mostly Opus | ≈$2.7-7.6 |
+| Maximum | context map (Haiku), two bug hunters, architect, QA and "try to break it", test reviewer, security always, other triggered groups up to 4 in total, up to 8 verifiers (three per critical finding), judge; mostly Opus | ≈$2.7-7.6 |
 
 Agents run on Sonnet unless named otherwise above. These run on Opus: the security group (Standard and Maximum),
 Standard's architect when the change has architecture signals (new files, files over the size
@@ -137,8 +136,9 @@ More: [verification](verification.md).
 
 ## 10. Delegation
 
-For a large plan, keel offers to hand its steps to implementer agents, one per step, each on the model
-the step needs (Haiku, Sonnet or Opus). The main conversation accepts each step after its tests.
+For a large plan, keel recommends running it in a fresh conversation from the saved plan; it can
+also hand its steps to implementer agents, one per step, each on the model the step needs (Haiku,
+Sonnet or Opus). The main conversation accepts each step after its tests.
 More: [cost optimization](cost-optimization.md#5-delegation-thresholds) and
 [under the hood](under-the-hood.md#delegation).
 
@@ -154,7 +154,8 @@ More: [git in each mode](workflows.md#git-in-each-mode).
 ## 12. Other commands
 
 `/keel:configure` sets up a project (quick or detailed) or this machine; `/keel:cleanup` moves
-leftovers to keel's trash and back; `/keel:help` shows a table of the commands.
+leftovers to keel's trash and back; `/keel:usage` opens your usage page and turns this machine's sync on or off;
+`/keel:feature-page` builds a private page of a planned feature in your claude.ai account; `/keel:help` shows a table of the commands.
 More: [commands](commands.md) and [settings](settings.md).
 
 ## 13. What runs in the background

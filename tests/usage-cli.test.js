@@ -20,11 +20,12 @@ const HOUR = 3600000;
 const tmp = tempDir;
 const iso = (ms) => new Date(ms).toISOString();
 
-// A private world: usage dir, transcripts root, home (no price override), project folder.
+// A private world: usage dir, transcripts root, home (no price override), project folder; the machine has a page,
+// since without one prepare only collects locally.
 function world(usage = {}) {
   const w = { dir: tmp('keel-cli-usage-'), root: tmp('keel-cli-proj-'), home: tmp('keel-cli-home-'), project: tmp('keel-cli-work-') };
   w.out = path.join(w.project, '.keel', 'local', 'usage', 'out');
-  fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ pc: 'testpc', user: 't@x.y', wallet_default: 'subscription', ...usage }));
+  fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ pc: 'testpc', user: 't@x.y', wallet_default: 'subscription', artifact_url: 'https://claude.ai/artifact/test', ...usage }));
   w.run = (args, extraEnv = {}) => {
     const r = spawnSync(process.execPath, [CLI, ...args], {
       encoding: 'utf8',
@@ -58,7 +59,7 @@ test('prepare: writes day documents and the machine document, prints the batch s
   const w = world();
   buildSession(w.root);
   const spec = w.prepare();
-  assert.equal(spec.artifact_url, null);
+  assert.equal(spec.artifact_url, 'https://claude.ai/artifact/test');
   const writes = writesOf(spec);
   assert.deepEqual(writes.map((x) => [x.op, x.collection, x.doc_id]), [['set', 'days', '2026-01-01_testpc'], ['set', 'machines', 'testpc']]);
   for (const x of writes) {
@@ -74,29 +75,24 @@ test('prepare: writes day documents and the machine document, prints the batch s
   assert.equal(fs.existsSync(path.join(w.dir, 'sync-state.json')), true);
 });
 
-// Changed on purpose: the committed project URL used to win without any check, so a cloned repo chose where this
-// machine's usage data went. Now it is used only after the user approved that exact URL on this machine.
-test('prepare: the artifact url comes from the flag, machine config, then an approved project url', () => {
-  const w = world();
+// The committed project URL (an approved one included) takes the data nowhere, as every machine syncs to its own
+// page; the project's old URL is only mentioned once (usage-page-sync.test.js).
+test('prepare: the artifact url comes from the flag, then the machine config; the project url and approvals count for nothing', () => {
+  const w = world({ artifact_url: undefined });
   buildSession(w.root);
   assert.equal(w.prepare().artifact_url, null);
   fs.mkdirSync(path.join(w.project, '.keel'), { recursive: true });
   fs.writeFileSync(path.join(w.project, '.keel', 'config.json'), JSON.stringify({ usage: { artifact_url: 'https://claude.ai/artifact/proj' } }));
-  const open = w.prepare();
-  assert.equal(open.artifact_url, null, 'a repo url nobody approved is not used');
-  assert.equal(open.not_approved, 'https://claude.ai/artifact/proj');
-  assert.match(open.note, /not approved on this machine/);
-  assert.equal(read(path.join(w.dir, 'sync-state.json')).artifact_url, null, 'and not remembered');
-  assert.equal(w.prepare().artifact_url, null, 'still not used on the next run');
   const user = { pc: 'testpc', user: 't@x.y' };
-  fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ ...user, approved_artifact_urls: ['https://claude.ai/artifact/other'] }));
-  assert.equal(w.prepare().artifact_url, null, 'approving a different url does not help');
   fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ ...user, approved_artifact_urls: ['https://claude.ai/artifact/proj'] }));
-  const ok = w.prepare();
-  assert.equal(ok.artifact_url, 'https://claude.ai/artifact/proj');
-  assert.ok(!('not_approved' in ok));
+  const open = w.prepare();
+  assert.equal(open.artifact_url, null, 'an approved project url is not used either');
+  assert.deepEqual([open.action, open.reason], ['skip', 'no_page']);
+  assert.ok(!('batches' in open));
   fs.writeFileSync(path.join(w.dir, 'usage.json'), JSON.stringify({ ...user, artifact_url: 'https://claude.ai/artifact/machine' }));
-  assert.equal(w.prepare().artifact_url, 'https://claude.ai/artifact/machine');
+  const own = w.prepare();
+  assert.equal(own.artifact_url, 'https://claude.ai/artifact/machine');
+  assert.equal(own.action, 'write');
   assert.equal(w.prepare('--artifact', 'https://claude.ai/artifact/flag').artifact_url, 'https://claude.ai/artifact/flag');
 });
 
@@ -381,6 +377,28 @@ test('report: the cross-check line appears only when Claude Code\'s own total di
   assert.doesNotMatch(w.report(), /cross-check/);
 });
 
+test('report --last-turn: one line, the latest user turn and its share of the week', () => {
+  const w = reportWorld();
+  const { now, snap } = w;
+  w.snaps([snap(now - 4 * HOUR, 10, 10), snap(now - HOUR, 30, 12)]);
+  // $20 for the session, 2 % of the week: 1 % = $10; the last turn is $10, 1.0 %.
+  assert.equal(w.report('--last-turn'), 'this command: $10.00 (1 request), about 1.0 % of the weekly limit');
+  assert.equal(w.report('--last-turn', '--lang', 'uk'), 'ця команда: $10.00 (1 запит), приблизно 1.0 % тижневого ліміту');
+});
+
+test('report --last-turn: no calibration, no share', () => {
+  assert.equal(reportWorld().report('--last-turn'), 'this command: $10.00 (1 request)');
+});
+
+test('report --last-turn: before any user turn, the work so far; nothing at all, no session', () => {
+  const w = reportWorld();
+  const only = (id, rows) => writeSession(w.root, { id, cwd: w.project, projDir: store.projectFolderName(w.project), rows });
+  only('rep-2', [{ t: w.start + MIN, model: OPUS, tok: { in: 2e6 } }]);
+  assert.equal(w.report('--last-turn', '--session', 'rep-2'), 'this command: $10.00 (1 request)');
+  only('rep-3', []);
+  assert.equal(w.report('--last-turn', '--session', 'rep-3'), 'usage: no session found');
+});
+
 test('report: Ukrainian text with --lang uk', () => {
   const w = reportWorld();
   const text = w.report('--lang', 'uk');
@@ -494,7 +512,7 @@ test('report: a machine of another user never holds calibration back or adds its
   const remote = (user) => ({ schema: 1, date: iso(hour).slice(0, 10), pc: 'otherpc', user, part: 1, parts: 1, synced_until: iso(now - 5 * HOUR), snapshots: [], sessions: [],
     hours: [{ h: iso(hour), wallet: 'subscription', usd: 10, req: 5, tok: { in: 0, cw5: 0, cw1h: 0, cr: 0, out: 0 }, by_model: { [OPUS]: 10 } }] });
   const file = path.join(inDir, 'days', 'otherpc.json');
-  fs.writeFileSync(file, JSON.stringify({ data: remote('someone@else.org') }));
+  fs.writeFileSync(file, JSON.stringify({ data: remote('someone@example.org') }));
   const text = w.report('--in', inDir);
   assert.doesNotMatch(text, /waits for the sync/);
   assert.match(text, /1 % = about \$10\.00/, 'only our own $20 for the 2 % gained');
