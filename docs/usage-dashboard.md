@@ -245,6 +245,8 @@ shared with.
 `.keel/local/options.json` (see [settings](settings.md#examples)). Then no request text and no task
 title are sent, and step titles are replaced by "step 1", "step 2". Everything else above is still sent.
 A project can only turn previews off: when the machine's value is off, a project's `true` has no effect.
+A project's "off" covers sessions in any folder of it and in its worktrees, and stays with a session
+after its folder is removed.
 
 ## Which accounts get what
 

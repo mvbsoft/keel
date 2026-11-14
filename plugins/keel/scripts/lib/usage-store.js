@@ -4,7 +4,7 @@
 // every transcript again, and tracks which documents were written to the artifact (sync-state.json).
 // Files live in <usageDir> (~/.claude/keel, KEEL_USAGE_DIR in tests):
 //   usage-cache/<session>.json   {v, mtimeMs, size, birthMs, pricesHash, withText, summary, dedup?}   parsed transcript of one session
-//   usage-index.json             {<session>: {days, mtimeMs, size, first}}        which UTC days a session touches
+//   usage-index.json             {<session>: {days, mtimeMs, size, first, no_text?}}  which UTC days a session touches; no_text: its project turned previews off
 // A resumed or forked session's transcript starts with a copy of its parent's assistant messages (same message id, same
 // time). A message id is counted once across all sessions: the session with the earliest time (then the oldest file)
 // owns it. `summary` is the session as its transcript says; `dedup` is the same without the messages others own.
@@ -19,7 +19,7 @@ const { summarizeSession } = require('./transcripts.js');
 const { loadPrices, costOf, costKinds } = require('./prices.js');
 const { readSnapshots } = require('./limits.js');
 const { usageDir: defaultUsageDir, loadMachineConfig, WALLETS } = require('./usage-config.js');
-const { projectOptions } = require('./options.js');
+const { nearestProjectOptions } = require('./options.js');
 
 const SCHEMA = 1;
 const CACHE_VERSION = 4;           // 4: by_model entries carry usd_kind (dollars per token kind); 3: turns carry what was done after them; 2: request rows carry the message id (index 8), summaries carry `first`
@@ -310,7 +310,7 @@ function settle(ctx, entries) {
     if (skip.size) s = e.ref ? getSummary(e.ref, ctx, skip) : viewOf(e.c.dedup ? e.c.dedup.summary : e.c.summary, e.c.withText, ctx);
     out.set(e.id, s);
     const base = e.ref ? { mtimeMs: e.ref.mtimeMs, size: e.ref.size } : ctx.index[e.id] || {};
-    ctx.index[e.id] = { ...base, days: daysOf(s), first: e.raw.first || '' };
+    ctx.index[e.id] = { ...base, days: daysOf(s), first: e.raw.first || '', ...((ctx.index[e.id] || {}).no_text ? { no_text: true } : {}) };
   }
   return out;
 }
@@ -377,12 +377,18 @@ function keelFor(keel, withText) {
   return { ...rest, ...(task !== undefined ? { task: null } : {}), ...(Array.isArray(steps) ? { steps: steps.map((st, i) => ({ title: `step ${i + 1}`, model: st.model === undefined ? null : st.model })) } : {}) };
 }
 
-// A project can turn previews off for itself (.keel/local/options.json) while the machine sends them.
-function previewIn(ctx, cwd) {
-  if (!cwd) return true;
+// A project can turn previews off for itself (.keel/local/options.json) while the machine sends them. The "off" is
+// kept with the session in the index, so a day rebuilt after its folder is gone still sends no text.
+function previewIn(ctx, sum) {
+  const ix = ctx.index[sum.id];
+  if (ix.no_text) return false;
+  if (!sum.cwd) return true;
   ctx.previewByCwd = ctx.previewByCwd || new Map();
-  if (!ctx.previewByCwd.has(cwd)) ctx.previewByCwd.set(cwd, projectOptions(cwd).prompt_preview !== false);
-  return ctx.previewByCwd.get(cwd);
+  if (!ctx.previewByCwd.has(sum.cwd)) ctx.previewByCwd.set(sum.cwd, nearestProjectOptions(sum.cwd).prompt_preview !== false);
+  if (ctx.previewByCwd.get(sum.cwd)) return true;
+  ix.no_text = true;
+  ctx.indexChanged = true;
+  return false;
 }
 
 // Only the folder's own name goes out, never the full path (it can hold user names and client names).
@@ -534,7 +540,7 @@ function buildDays(opts = {}) {
     const touching = [...summaries.values()].filter((s) => ctx.index[s.id].days.includes(date));
     const own = touching.filter((s) => s.start && s.start.slice(0, 10) === date && Date.parse(s.start) >= fromMs && isKeelSession(s, keel))
       .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id < b.id ? -1 : 1))
-      .map((s) => sessionDoc(s, walletFor(s.id), keel.get(s.id) || null, cc.get(s.id), ctx.withText && previewIn(ctx, s.cwd)));
+      .map((s) => sessionDoc(s, walletFor(s.id), keel.get(s.id) || null, cc.get(s.id), previewIn(ctx, s) && ctx.withText));
     const header = { schema: SCHEMA, date, pc, user: ctx.machine.user || null, part: 1, parts: 1, synced_until: nowIso };
     const daySnaps = snapshots.filter((s) => typeof s.t === 'string' && s.t.slice(0, 10) === date && Date.parse(s.t) >= fromMs);
     const hours = hoursFor(date, touching, walletFor, fromMs);
@@ -544,6 +550,7 @@ function buildDays(opts = {}) {
     const id = `${date}_${pc}`;
     built.forEach((doc, i) => docs.push({ id: partId(id, i + 1), key: partId(id, i + 1), doc, hash: hashOf(doc) }));
   }
+  if (ctx.indexChanged) saveIndex(ctx);
   return { docs, days: sorted, stats: ctx.stats, summaries };
 }
 

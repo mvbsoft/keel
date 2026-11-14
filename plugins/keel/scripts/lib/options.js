@@ -5,6 +5,7 @@
 // CLAUDE_PLUGIN_OPTION_*); prompt_preview's is in ~/.claude/keel/usage.json. A project value lives in
 // <project>/.keel/local/options.json (personal, outside git; for a linked worktree, the main checkout's)
 // and wins over the machine value.
+const fs = require('node:fs');
 const path = require('node:path');
 const { readJsonFile } = require('./json.js');
 const { mainOf } = require('./project-dir.js');
@@ -24,6 +25,16 @@ function projectOptions(root) {
     const raw = readJsonFile(file(root));
     return Object.fromEntries(Object.entries(raw || {}).filter(([k, v]) => OPTIONS[k] && OPTIONS[k].valid(v)));
   } catch { return {}; }
+}
+
+// The project values for any folder of a project: the nearest options file at or above `dir`, also when `dir`
+// itself is gone (a removed worktree under .claude/worktrees, a deleted sub-folder).
+function nearestProjectOptions(dir) {
+  if (!dir) return {};
+  for (let d = path.resolve(dir); ; d = path.dirname(d)) {
+    if (fs.existsSync(d) && fs.existsSync(file(d))) return projectOptions(d);
+    if (path.dirname(d) === d) return {};
+  }
 }
 
 // The values that apply in a project, and where each came from.
@@ -51,4 +62,4 @@ function writeProjectOptions(root, changes) {
   return next;
 }
 
-module.exports = { OPTIONS, projectOptions, effectiveOptions, writeProjectOptions, optionsFile: file };
+module.exports = { OPTIONS, projectOptions, nearestProjectOptions, effectiveOptions, writeProjectOptions, optionsFile: file };
