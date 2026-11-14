@@ -14,7 +14,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { validSid } = require('../scripts/lib/ids.js');
 
-const norm = (p) => path.resolve(p).replace(/\\/g, '/').replace(/\/+$/, '');
+// The real path, so a folder named through a link and by its real path (git prints those) is one; a file
+// not written yet takes the real path of its nearest existing folder.
+function real(p) {
+  const full = path.resolve(p);
+  for (let at = full; ; at = path.dirname(at)) {
+    try { return path.join(fs.realpathSync.native(at), path.relative(at, full)); } catch { /* not there yet */ }
+    if (path.dirname(at) === at) return full;
+  }
+}
+const norm = (p) => real(p).replace(/\\/g, '/').replace(/\/+$/, '');
 const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
 const within = (file, place) => fold(norm(file)) === fold(norm(place)) || fold(norm(file)).startsWith(`${fold(norm(place))}/`);
 
