@@ -10,6 +10,11 @@ All notable changes to keel are listed here. The format follows
 - `docs/features.md` (and its Ukrainian source `docs/features.uk.md`): a short, complete list of what
   keel 2.0 does and which questions it asks in which cases, linked from the top of both READMEs. A
   test keeps the two pages in the same shape and checks that every command and advisory skill is on both.
+- `docs/feature-page.md`: the feature page on its own doc page, with screenshots of an invented sample
+  feature and a "How to use it" list; `docs/commands.md` keeps a short summary and links to it. Both
+  READMEs show the usage page and the feature page, each with a screenshot, what it is for and a link.
+  `docs/usage-dashboard.md` adds a "How to use it" list and screenshots of a session page, the light
+  theme and a phone.
 - `/keel:configure usage` asks which page to join when the account has several titled "keel usage", and
   updating the page no longer stops for the page's owner (the read says "owned
   by you", not "writer").
