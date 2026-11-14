@@ -151,7 +151,8 @@ test('the settings branch is checked out in another folder: that folder is named
   assert.equal(spawnSync('git', ['-C', top, 'worktree', 'add', '-q', folder, 'PROJ-1-first-task'], { encoding: 'utf8' }).status, 0);
   const lines = run(project);
   assert.equal(lines[2], 'settings on branch: PROJ-1-first-task');
-  assert.equal(lines[3], `settings in folder: ${folder.replace(/\\/g, '/')}`);
+  // git names the folder by its real path (macOS: /private/var for the temp folder's /var).
+  assert.equal(lines[3], `settings in folder: ${fs.realpathSync.native(folder).replace(/\\/g, '/')}`);
   assert.equal(lines.length, 4);
 });
 

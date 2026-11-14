@@ -17,6 +17,8 @@ const git = (dir, ...args) => {
   return r.stdout;
 };
 const listed = (dir) => git(dir, 'worktree', 'list', '--porcelain').split('\n').filter((l) => l.startsWith('worktree ')).map((l) => l.slice(9));
+// git lists real paths (macOS: /private/var for the temp folder's /var); the folder itself may be gone.
+const realGone = (p) => path.join(fs.realpathSync.native(path.dirname(p)), path.basename(p));
 
 function committedProject() {
   const dir = tempDir('keel-drift-wt-');
@@ -37,7 +39,7 @@ test('a rebuild keeps the registration of the user\'s worktree whose folder was 
   fs.rmSync(moved, { recursive: true, force: true });
   assert.ok(ensureSnapshot(dir), 'the record is rebuilt');
   const entries = listed(dir).map((p) => path.resolve(p));
-  assert.ok(entries.includes(path.resolve(moved)), 'the moved worktree is still registered');
+  assert.ok(entries.includes(realGone(moved)), 'the moved worktree is still registered');
   assert.equal(entries.length, 2, 'the temporary worktree is gone');
 });
 
@@ -47,7 +49,7 @@ test('a rebuild keeps a leftover whose folder is in a temp folder without keel\'
   git(dir, 'worktree', 'add', '-q', '--detach', path.join(base, 'tree'));
   fs.rmSync(path.join(base, 'tree'), { recursive: true, force: true });
   assert.ok(ensureSnapshot(dir));
-  assert.ok(listed(dir).map((p) => path.resolve(p)).includes(path.resolve(path.join(base, 'tree'))), 'the registration is kept');
+  assert.ok(listed(dir).map((p) => path.resolve(p)).includes(realGone(path.join(base, 'tree'))), 'the registration is kept');
 });
 
 test('a rebuild clears the registration a killed rebuild left behind', () => {

@@ -267,7 +267,9 @@ function fromStubExported(root, feature, f, key) {
     try {
       if (madeHere) fs.rmSync(safe(t.root, t.made, t.local), { recursive: true, force: true });
       for (const w of wrote.reverse()) {
-        if (w.old === null) fs.rmSync(safe(t.root, w.target, t.local), { force: true });
+        // A file under something that is not a folder was never made: Linux and macOS throw ENOTDIR on
+        // rmSync for it even with force, which would stop the rest of this undo.
+        if (w.old === null) { const p = safe(t.root, w.target, t.local); if (fs.existsSync(p)) fs.rmSync(p, { force: true }); }
         else plans.writeFile(t.root, { local: t.local }, w.target, w.old);
       }
     } catch { left.push(`left: what this run wrote in ${shown(t.into)}; put it back by hand`); }

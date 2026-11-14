@@ -29,8 +29,9 @@ function repoTop(dir) {
 // The main checkout of the linked worktree whose top is `dir`, or null. A linked worktree's .git is a
 // file "gitdir: <main>/.git/worktrees/<name>"; that folder's commondir leads back to <main>/.git and its
 // gitdir file names this .git, so a .git file copied elsewhere does not count. A submodule's gitdir has
-// no commondir. The path is kept as git names it (a subst drive or a link stays), so it matches the
-// paths it is compared with and keyed by; only the checks compare real paths.
+// no commondir. Git writes real paths there, while `dir` may be named through a link, an 8.3 short name
+// or a subst drive (macOS names its temp folder /var for /private/var), and callers compare and key
+// paths as text: see spelledLike.
 // shortcut: a main checkout whose .git is a file (git init --separate-git-dir) or a bare repository is
 // not recognised, so keel stays on the folder it was given; redo when such a project needs worktrees.
 function linkedMain(dir) {
@@ -41,9 +42,20 @@ function linkedMain(dir) {
   const back = read(path.join(gitDir, 'gitdir'));
   if (!common || !back || !samePath(real(path.resolve(gitDir, back.trim())), real(path.join(dir, '.git')))) return null;
   const commonDir = path.resolve(gitDir, common.trim());
-  if (path.basename(commonDir) === '.git') return path.dirname(commonDir);
+  if (path.basename(commonDir) === '.git') return spelledLike(dir, path.dirname(commonDir));
   // The way to it passes a link that is the .git folder itself: only its real path names the checkout.
-  return path.basename(real(commonDir)) === '.git' ? path.dirname(real(commonDir)) : null;
+  return path.basename(real(commonDir)) === '.git' ? spelledLike(dir, path.dirname(real(commonDir))) : null;
+}
+
+// `main` named the way `dir` is when `dir` lies inside it (the desktop app's worktrees are under
+// .claude/worktrees), so the main checkout keeps the spelling the session gave it.
+// shortcut: a worktree outside its main checkout keeps git's spelling; redo if such a worktree is used
+// through a link.
+function spelledLike(dir, main) {
+  const down = path.relative(real(main), real(dir));
+  if (!down || down.startsWith('..') || path.isAbsolute(down)) return main;
+  const up = path.resolve(dir, ...down.split(path.sep).map(() => '..'));
+  return samePath(real(up), real(main)) ? up : main;
 }
 
 // The folder of the linked worktree of `root`'s repository that `cwd` lies in and that stands for `root`
