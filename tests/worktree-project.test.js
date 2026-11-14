@@ -517,6 +517,46 @@ gitTest('mainOf names the main checkout the way the worktree inside it is named,
   assert.equal(mainOf(wt).toLowerCase(), main.toLowerCase(), 'a .git file through the link: still the worktree\'s spelling');
 });
 
+// The session may name the project one way while a file path (git prints real paths) or the shell's
+// folder uses the other.
+gitTest('the planning guard and git trust take a folder named through a link and by its real path as one', () => {
+  const { tmp, main, wt } = setup({ planning: { ticket_prefix: 'PAY', tickets: 'repo' }, git: { ...CONFIG.git, mode: 'autonomous' } });
+  const link = path.join(tmp, 'link');
+  fs.symlinkSync(main, link, 'junction');
+  const wtByLink = path.join(link, '.claude', 'worktrees', 'wt');
+  assert.match(run('plans.js', [main, 'new', 'pay-later'], main, main).stdout, /^created: /m);
+  assert.match(run('plans.js', [main, 'mark', 'set', 'pay-later', '--session', 's1'], main, main).stdout, /^planning: pay-later$/m);
+  const write = (project, cwd, file) => spawnSync(process.execPath, [path.join(HOOKS, 'planning-guard.js')], { input: JSON.stringify({ cwd, session_id: 's1', tool_name: 'Write', tool_input: { file_path: file, content: 'x' } }), encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: project } }).stdout;
+  for (const [project, cwd] of [[link, wtByLink], [main, wtByLink], [link, wt], [main, wt]]) {
+    for (const file of [path.join(main, 'src', 'a.js'), path.join(link, 'src', 'a.js'), path.join(wt, 'src', 'a.js'), path.join(wtByLink, 'src', 'a.js')]) {
+      assert.match(write(project, cwd, file), /"permissionDecision":"deny"/, `project ${project}, shell in ${cwd}: a write to ${file} is refused`);
+    }
+  }
+  const { trust, trustState } = require(path.join(SCRIPTS, 'lib', 'trust.js'));
+  for (const [given, asked] of [[main, wtByLink], [link, wt]]) {
+    const env = { KEEL_USAGE_DIR: path.join(tempDir('keel-trust-'), 'home') };
+    trust(given, env);
+    assert.equal(trustState(asked, env), 'confirmed', `confirmed for ${given}, asked from ${asked}`);
+  }
+  // An entry keyed by the folder as named, as keel wrote them before, still counts.
+  const env = { KEEL_USAGE_DIR: path.join(tempDir('keel-trust-'), 'home') };
+  trust(main, env);
+  const file = path.join(env.KEEL_USAGE_DIR, 'trusted-git.json');
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  saved.projects[0].path = slash(link).replace(/[A-Z]/g, (c) => (process.platform === 'win32' ? c.toLowerCase() : c));
+  fs.writeFileSync(file, JSON.stringify(saved));
+  assert.equal(trustState(link, env), 'confirmed');
+  assert.equal(trust(link, env), false, 'no second entry');
+});
+
+gitTest('mainOf of a worktree outside its main checkout is the main checkout as git names it', () => {
+  const { tmp, main } = setup();
+  const outside = path.join(tmp, 'outside-wt');
+  git(main, 'worktree', 'add', '-q', '-b', 'outside', outside);
+  const { mainOf } = require(path.join(SCRIPTS, 'lib', 'project-dir.js'));
+  assert.equal(mainOf(outside).toLowerCase(), fs.realpathSync.native(main).toLowerCase());
+});
+
 gitTest('restore refuses an item whose recorded root is not a folder of this project', () => {
   const { tmp, main, wt } = setup();
   const other = path.join(tmp, 'other');

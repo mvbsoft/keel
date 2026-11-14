@@ -110,8 +110,8 @@ exported to this machine, settings and samples, the briefs, local tasks and the 
 the trash (an item that came from a worktree goes back to it; one whose worktree is gone stays in the
 trash), and, keyed by session, which conversation plans which feature (`plans/keel/sessions/`) and which
 works on which task (`active/`), so they hold wherever the chat works. `trusted-git.json` counts a
-worktree as its main checkout. A worktree without its own `.keel/config.json` reads the main
-checkout's `config.json` and `profile.json`.
+worktree as its main checkout, and a folder reached through a link as its real path. A worktree
+without its own `.keel/config.json` reads the main checkout's `config.json` and `profile.json`.
 
 On each machine keel also keeps `~/.claude/keel/`:
 

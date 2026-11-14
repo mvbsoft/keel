@@ -30,8 +30,8 @@ function repoTop(dir) {
 // file "gitdir: <main>/.git/worktrees/<name>"; that folder's commondir leads back to <main>/.git and its
 // gitdir file names this .git, so a .git file copied elsewhere does not count. A submodule's gitdir has
 // no commondir. Git writes real paths there, while `dir` may be named through a link, an 8.3 short name
-// or a subst drive (macOS names its temp folder /var for /private/var), and callers compare and key
-// paths as text: see spelledLike.
+// or a subst drive (macOS names its temp folder /var for /private/var), and callers join and relate
+// paths as text: see spelledLike. Checks that must hold for both spellings compare real paths.
 // shortcut: a main checkout whose .git is a file (git init --separate-git-dir) or a bare repository is
 // not recognised, so keel stays on the folder it was given; redo when such a project needs worktrees.
 function linkedMain(dir) {
@@ -53,7 +53,10 @@ function linkedMain(dir) {
 // through a link.
 function spelledLike(dir, main) {
   const down = path.relative(real(main), real(dir));
+  // dir is main itself, outside it or on another drive.
   if (!down || down.startsWith('..') || path.isAbsolute(down)) return main;
+  // One ".." per real folder between main and dir, climbed from dir's own spelling; kept only if it
+  // lands on main (a link inside the way changes the count).
   const up = path.resolve(dir, ...down.split(path.sep).map(() => '..'));
   return samePath(real(up), real(main)) ? up : main;
 }
