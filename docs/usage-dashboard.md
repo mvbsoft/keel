@@ -245,8 +245,11 @@ shared with.
 `.keel/local/options.json` (see [settings](settings.md#examples)). Then no request text and no task
 title are sent, and step titles are replaced by "step 1", "step 2". Everything else above is still sent.
 A project can only turn previews off: when the machine's value is off, a project's `true` has no effect.
-A project's "off" covers sessions in any folder of it and in its worktrees, and stays with a session
-after its folder is removed.
+A project's "off" covers sessions in any folder of it and in its worktrees. After a session's folder is
+removed it still holds when that folder was inside the project (such as `.claude/worktrees/<name>`), or
+when keel synced while the folder still existed: keel keeps the "off" with the session then. A worktree
+outside the project folder, or a moved project, that is gone before keel's next sync can no longer be
+traced back to its project, and its previews are sent; turn previews off for the machine if that matters.
 
 ## Which accounts get what
 

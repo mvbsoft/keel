@@ -528,6 +528,22 @@ test('previews off stay off for a session once its project folder is gone', () =
   assert.ok(!raw.includes('hushed words'), 'the earlier decision is kept');
 });
 
+test('previews off stay off for a gone project whose transcript changed outside the synced period', () => {
+  const e = env();
+  const quiet = tempDir('keel-quiet-');
+  fs.mkdirSync(path.join(quiet, '.keel', 'local'), { recursive: true });
+  fs.writeFileSync(path.join(quiet, '.keel', 'local', 'options.json'), JSON.stringify({ prompt_preview: false }));
+  const hush = [{ t: DAY, prompt: 'hushed words' }, { t: DAY + MIN, id: 'h1' }];
+  writeIds(e.root, 'hush', hush, { cwd: quiet });
+  assert.ok(!JSON.stringify(e.build().docs).includes('hushed words'));
+  fs.rmSync(quiet, { recursive: true, force: true });
+  writeIds(e.root, 'hush', [...hush, { t: DAY + 4 * MIN, prompt: 'more hushed words' }, { t: DAY + 5 * MIN, id: 'h2' }], { cwd: quiet, old: DAY + 10 * MIN });
+  writeIds(e.root, 'later', [{ t: DAY + 2 * MIN, prompt: 'later words' }, { t: DAY + 3 * MIN, id: 'l1' }]);
+  const raw = JSON.stringify(e.build({ sinceMs: Date.now() - 60000 }).docs);
+  assert.ok(raw.includes('later words'), 'the day was built again');
+  assert.ok(!raw.includes('hushed words'), 'the earlier decision is kept');
+});
+
 test('only keel sessions are listed: a workflow command or an end-step record; every session still counts in the hours', () => {
   const e = env();
   const cmd = (name, args = '') => `<command-message>keel:${name}</command-message>\n<command-name>/keel:${name}</command-name>\n<command-args>${args}</command-args>`;

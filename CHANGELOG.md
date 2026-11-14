@@ -420,7 +420,8 @@ All notable changes to keel are listed here. The format follows
   and what happens to a finished task when verification stays red now match the behaviour.
 - A project's `prompt_preview: false` now holds for sessions started in a sub-folder of the project and
   for worktree sessions after their folder is removed: before, a day rebuilt later sent their request
-  previews and task title. keel keeps the "off" with the session, so it stays off once the folder is gone.
+  previews and task title. This covers worktrees inside the project folder; for one outside it, keel keeps
+  the "off" with the session once it has synced while the folder still existed.
 - A rules or ADR file named like a secret (`.claude/rules/credentials.md`, `docs/adr/secrets.md`) no longer
   stops the project scan: every keel command in such a project said `keel-config: unavailable`. The file
   is listed with the secret files and never opened.
