@@ -29,7 +29,7 @@ the task instead, or merge anyway?". Finish → stop here and run it as a finish
 a branch of its own and pushes it, so another machine goes on from that branch. Uncommitted changes
 or a stash exist on one machine only. The user's own instruction (e.g. "do not commit") wins.
 **A task handoff without its own branch** (the task's `branch:` is the base, the main branch or `-`:
-the work sits in a branch other work shares) and no instruction about git: no question: a new branch `<id>-<short-name>` from here, `start --name <it>` (it carries the
+the work sits in a branch other work shares) and no instruction about git: no question: a new branch `<id>-<short-name>` from here, `start --name <it> --from <current>` (it carries the
 changes), commit and push there, then back on `<current>`. Say it in one line, naming the new branch
 (manual mode: the same steps as commands, git-manual.md).
 A planned ticket on its feature branch, when the feature has 2 or more tickets

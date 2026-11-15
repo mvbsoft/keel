@@ -5,8 +5,9 @@
 // Claude Code asks before it (hooks/own-files.js).
 // Usage: node git-flow.js <projectDir> <command> [options]
 //   status                            branch, remote, ahead/behind, changed files
-//   start --name <b> [--from <base>]  create the task branch: from the updated base when the tree is
-//                                     clean; from HEAD, carrying the changes, when it is not
+//   start --name <b> [--from <base>]  create the task branch: from the updated base (with its local
+//                                     commits not pushed yet) when the tree is clean; from HEAD,
+//                                     carrying the changes, when it is not
 //   switch --name <b>                 switch to an existing branch (clean tree only)
 //   commit --message-file <f> [--tickets "<K1,K2>"]   stage every changed file except secret and planning
 //                                     ones and new files named like a secret, drop AI trailers from the message, commit (never on the main
@@ -203,11 +204,20 @@ const commands = {
         `note: the tree had changes, so the branch starts from the current commit, not from the updated ${base}; sync brings ${base} in later`];
     }
     fetch(ctx);
-    const from = freshRef(ctx, base);
+    let from = freshRef(ctx, base);
     if (!from) throw new Stop(`base branch ${base} not found`);
-    const r = git(ctx.root, ['checkout', '--no-track', '-b', opts.name, from]);
+    const out = [];
+    // Local base commits the remote lacks (a finish whose push stopped, the user's own) belong to the base too.
+    const ahead = from !== base && exists(ctx.root, `refs/heads/${base}`) ? Number(git(ctx.root, ['rev-list', '--count', `${from}..refs/heads/${base}`]).out) || 0 : 0;
+    if (ahead) {
+      if (!gitOk(ctx.root, ['merge-base', '--is-ancestor', from, `refs/heads/${base}`])) throw new Stop(`local ${base} and ${from} have diverged; sort that out by hand first`);
+      out.push(`note: local ${base} has ${ahead} commit${ahead === 1 ? '' : 's'} that ${from} does not have; the branch starts from local ${base} and carries ${ahead === 1 ? 'it' : 'them'}`);
+      from = base;
+    }
+    const startRef = from === base ? `refs/heads/${base}` : from;
+    const r = git(ctx.root, ['checkout', '--no-track', '-b', opts.name, startRef]);
     if (!r.ok) throw new Stop(`could not create ${opts.name}: ${firstLines(r.err)}`);
-    return [`branch: ${opts.name} (new, from ${from} at ${sha(ctx.root, 'HEAD')})`];
+    return [`branch: ${opts.name} (new, from ${from} at ${sha(ctx.root, 'HEAD')})`, ...out];
   },
 
   switch(ctx, opts) {
