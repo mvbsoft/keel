@@ -92,6 +92,24 @@ gitTest('save: a handoff whose push is refused is still ok, says so, and goes on
   assert.equal(git(work, 'log', '-1', '--format=%s', 't-work'), 'Do the work');
 });
 
+gitTest('save: an offline handoff still goes back to the base, which stays as it is on this machine', () => {
+  const { work, tmp } = setup();
+  git(work, 'switch', '-q', '-c', 't-work');
+  write(work, 'src/app.js', 'one\ntwo\n');
+  git(work, 'remote', 'set-url', 'origin', path.join(tmp, 'gone.git'));
+  const out = flow(work, 'save', '--message-file', message(work), '--back-to', 'main');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.ok(out.some((l) => l.startsWith('push: refused (push of t-work was refused (failed))')), out.join('\n'));
+  assert.ok(out.includes('branch: main'), out.join('\n'));
+  assert.ok(out.some((l) => /^warning: fetch from origin failed: .*; main is as it was on this machine, not updated from origin$/.test(l)), out.join('\n'));
+  assert.ok(!out.some((l) => l.startsWith('updated from')), out.join('\n'));
+  assert.equal(git(work, 'symbolic-ref', '--short', 'HEAD'), 'main');
+  assert.equal(git(work, 'log', '-1', '--format=%s', 't-work'), 'Do the work');
+  const gone = flow(work, 'switch', '--name', 'only-on-the-server');
+  assert.equal(gone[0], 'git-flow: stopped', 'a branch not on this machine still needs the fetch');
+  assert.match(gone[1], /^reason: fetch from origin failed: /);
+});
+
 gitTest('save: a finish runs commit, sync and push in order and a completed push ends the finish', () => {
   const { work, server } = setup();
   finishing(work, 'T-1');

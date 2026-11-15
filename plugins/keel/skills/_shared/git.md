@@ -86,7 +86,8 @@ the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<proj
    - **handoff**: a task adds `--back-to <base>`, except when the instruction asks to merge: no
      `--back-to` then, merge in step 3 first, then `switch --name <base>`. A refused push shows as
      `push: refused (...)` and does not stop the handoff: say the work is on this machine only (a
-     refused push: no merge, say so).
+     refused push: no merge, say so). Offline the switch back adds `warning: fetch ... failed`: say
+     the base is as it was on this machine, not updated.
 
    First line `ok` → step 3. The script leaves out secret files and lists them: tell the user.
    `nothing to commit` is fine. In a **finish** the task folder went to keel's trash before this

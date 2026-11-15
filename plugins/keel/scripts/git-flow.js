@@ -8,7 +8,8 @@
 //   start --name <b> [--from <base>]  create the task branch: from the updated base (with its local
 //                                     commits not pushed yet) when the tree is clean; from HEAD,
 //                                     carrying the changes, when it is not
-//   switch --name <b>                 switch to an existing branch (clean tree only)
+//   switch --name <b>                 switch to an existing branch (clean tree only); when the fetch
+//                                     fails, a local branch is switched to as it is, with a warning
 //   commit --message-file <f> [--tickets "<K1,K2>"]   stage every changed file except secret and planning
 //                                     ones and new files named like a secret, drop AI trailers from the message, commit (never on the main
 //                                     branch); the ticket files of the keys --tickets names go in (tickets
@@ -223,13 +224,18 @@ const commands = {
   switch(ctx, opts) {
     requireReady(ctx, { clean: true });
     validName(ctx.root, opts.name);
-    fetch(ctx);
     const local = exists(ctx.root, `refs/heads/${opts.name}`);
-    const remoteRef = ctx.remote && exists(ctx.root, `refs/remotes/${ctx.remote}/${opts.name}`) ? `${ctx.remote}/${opts.name}` : null;
+    let offline = null;
+    try { fetch(ctx); } catch (e) {
+      // A local branch needs no fetch to switch to (an offline handoff ends on its base); a remote-only one does.
+      if (!local) throw e;
+      offline = `warning: ${e.message}; ${opts.name} is as it was on this machine, not updated from ${ctx.remote}`;
+    }
+    const remoteRef = !offline && ctx.remote && exists(ctx.root, `refs/remotes/${ctx.remote}/${opts.name}`) ? `${ctx.remote}/${opts.name}` : null;
     if (!local && !remoteRef) throw new Stop(`branch ${opts.name} not found locally or on the remote`);
     const r = local ? git(ctx.root, ['checkout', opts.name]) : git(ctx.root, ['checkout', '--track', '-b', opts.name, remoteRef]);
     if (!r.ok) throw new Stop(`could not switch to ${opts.name}: ${firstLines(r.err)}`);
-    const out = [`branch: ${opts.name}`];
+    const out = [`branch: ${opts.name}`, ...(offline ? [offline] : [])];
     if (local && remoteRef) {
       const ff = git(ctx.root, ['merge', '--ff-only', remoteRef]);
       out.push(ff.ok ? `updated from ${remoteRef}: ${sha(ctx.root, 'HEAD')}` : `warning: local ${opts.name} and ${remoteRef} have diverged; not changed`);
