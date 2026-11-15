@@ -15,6 +15,7 @@ const { isSecretName: isSecret } = require('./lib/secret-names.js');
 const { findCommands } = require('./lib/commands.js');
 const { safeLocalWrite } = require('./lib/safe-path.js');
 const instructions = require('./lib/instructions.js');
+const { noBom } = require('./lib/json.js');
 
 const MAX_READ = 1024 * 1024;
 
@@ -34,7 +35,7 @@ function makeReader(root) {
       const full = path.join(root, rel);
       if (fs.statSync(full).size > MAX_READ) return null;
       reads.push(rel);
-      return fs.readFileSync(full, 'utf8');
+      return noBom(fs.readFileSync(full, 'utf8'));
     } catch { return null; }
   };
   const readFirstLine = (rel) => {

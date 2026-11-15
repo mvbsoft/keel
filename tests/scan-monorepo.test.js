@@ -85,3 +85,17 @@ test('dotnet: global.json or Directory.Build.props alone does not make a part wh
   assert.deepEqual(here.profile.parts.find((p) => p.path === '.').commands.test, ['dotnet test']);
   assert.ok(r.profile.manifest_fingerprint !== scan(project({ 'src/App.sln': '\n', 'src/App/App.csproj': '<Project Sdk="Microsoft.NET.Sdk" />\n' })).profile.manifest_fingerprint, 'global.json still counts for the re-scan fingerprint');
 });
+
+test('a package.json or composer.json saved with a byte order mark keeps its workspaces and scripts', () => {
+  const bom = '\uFEFF';
+  const r = scan(project({
+    'package.json': bom + pkg({ workspaces: ['packages/*'], scripts: { test: 'jest' } }),
+    'packages/a/package.json': pkg(),
+    'composer.json': bom + JSON.stringify({ name: 'x/y', scripts: { test: 'phpunit' } }),
+  }));
+  assert.equal(r.profile.monorepo_tool, 'npm-workspaces');
+  assert.deepEqual(parts(r), ['.', 'packages/a']);
+  assert.ok(r.findings.command_candidates['.'].some((c) => c.command === 'npm test'), 'the root test script is found');
+  assert.ok(r.findings.command_candidates['.'].some((c) => c.command === 'composer test'), 'the composer test script is found');
+  assert.deepEqual(gap(r, 'no-test-command').map((g) => g.part), ['packages/a'], 'only the member without scripts lacks a test command');
+});

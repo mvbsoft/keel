@@ -85,3 +85,14 @@ test('workspace member named by one folder: matches that folder at the root only
   }));
   assert.deepEqual(parts(gradle), ['.', 'app']);
 });
+
+test('packagesOf: a package.json or composer.json saved with a byte order mark keeps its packages', () => {
+  const bom = '\uFEFF';
+  const dir = project({
+    'package.json': bom + JSON.stringify({ name: 'r', dependencies: { react: '18.0.0', next: '14.0.0' } }),
+    'composer.json': bom + JSON.stringify({ name: 'x/y', require: { 'laravel/framework': '^11.0' } }),
+  });
+  const names = stackSkills.packagesOf(dir, ['.']);
+  assert.ok(names.has('react'), 'the npm dependency is found');
+  assert.ok(names.has('laravel/framework'), 'the composer requirement is found');
+});

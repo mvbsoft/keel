@@ -344,6 +344,11 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- A `package.json` or `composer.json` saved with a byte order mark (as Windows PowerShell 5.1 and
+  some editors save UTF-8) keeps its workspaces and scripts in the project scan, and its framework
+  plugins in `/keel:configure`. Before, it read as no workspaces, no scripts and no packages, so
+  `/keel:configure` proposed no gates, reported no test command and suggested no plugins for the
+  project's frameworks. Such a project's scan record reads as changed once after the update.
 - A stub whose guessed prefix (`ADM`) differs from the one its repository plans with (`ADMIN`) can
   be turned into a ticket: `--from-stub` now says to change the stub's `repo:` to `ADMIN`. Before,
   its advice sent you from mapping `ADM` to mapping `ADMIN` and back, and neither worked.

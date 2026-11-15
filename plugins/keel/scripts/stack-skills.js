@@ -15,6 +15,7 @@ const { scan } = require('./scan.js');
 const { isSecretName: isSecret } = require('./lib/secret-names.js');
 const { onPath } = require('./lib/files.js');
 const { parseArgs, writeLocal } = require('./lib/project.js');
+const { noBom } = require('./lib/json.js');
 const data = require('../data/stack-skills.json');
 
 const MAX_READ = 1024 * 1024;
@@ -25,7 +26,7 @@ function readText(root, rel) {
   try {
     const full = path.join(root, rel);
     if (fs.statSync(full).size > MAX_READ) return null;
-    return fs.readFileSync(full, 'utf8');
+    return noBom(fs.readFileSync(full, 'utf8'));
   } catch { return null; }
 }
 
