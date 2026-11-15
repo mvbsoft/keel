@@ -140,9 +140,11 @@ All notable changes to keel are listed here. The format follows
   in one Sonnet agent (`skills/_shared/feature-page-build.md`), so the page never stays in the
   conversation: about $0.6-0.75 for a new 6-ticket page translated in full.
 - `plans.js check`, and with it the export, reports a path of this machine anywhere in a feature's
-  files: the plan or overview, a ticket, a research report (a drive such as `C:\`, `/home/<user>`,
-  `/Users/<user>`, `/root`, `/mnt/c/`, the project's or a neighbouring repository's folder). Paths
-  in a feature go from the repository's root, so they hold on every machine.
+  files: the plan or overview, a ticket, a research report (a drive such as `C:\`, `/mnt/c/`, this
+  machine's home folder, the project's or a neighbouring repository's folder, each as a whole path
+  part). Another `/home/<name>`, `/Users/<name>` or `/root` is only a note: a web route looks the same.
+  Paths in a feature go from the repository's root, so they hold on every machine. `plans.js commit`
+  refuses a file it would commit that holds a path of this machine, naming the file and the line.
 - Planning draws where a picture explains better than words: In plain words of the plan (and so of
   the feature overview) and of each ticket gets a `mermaid` diagram for steps between people and parts
   of the system, states or branches, or a markdown table for options side by side. It stands right
@@ -425,6 +427,10 @@ All notable changes to keel are listed here. The format follows
 - A rules or ADR file named like a secret (`.claude/rules/credentials.md`, `docs/adr/secrets.md`) no longer
   stops the project scan: every keel command in such a project said `keel-config: unavailable`. The file
   is listed with the secret files and never opened.
+- Planning's check for paths of this machine: on an exported feature it also reads the feature's
+  tickets in the overview's other repositories on this machine (a later `--repo` ticket or an edit
+  there was committed and pushed unchecked); a project at `/app` no longer flags `src/apple.js`; a web
+  route such as `/home/<page>` or `GET /Users/<id>` no longer stops a plan from becoming ready.
 
 ### Removed
 - `approved_artifact_urls` and `page_shared` in `~/.claude/keel/usage.json`.

@@ -253,7 +253,9 @@ being on the plan's branch.
 Branch hints first (`plans.js commit` refuses on the main branch). Then ask "Commit the planning
 files?"; yes → say "Claude Code will now ask you to allow it." (keel's hook asks every time) and run
 `plans.js commit <f>`: its first line is the result, `committed: <sha> <subject>` or
-`commit: nothing to commit`; any `renumbered:` lines after it: say them. Then ask "Push `<branch>`?"
+`commit: nothing to commit`; any `renumbered:` lines after it: say them. `plans: commit refused (<n>
+paths of this machine ...)` with `- <file>: local path ...` lines: show them, fix each from the
+repository's root on a yes, then commit again. Then ask "Push `<branch>`?"
 on its own; yes → the same line, then `plans.js push <f>`: `pushed: <branch> -> <remote>/<branch>` or `push: no remote, nothing pushed`.
 A declined question or "Allow?" window is the user's no: never run it again or another way; say
 what stays uncommitted or unpushed.

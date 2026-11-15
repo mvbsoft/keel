@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const { execFileSync, spawnSync } = require('node:child_process');
 const { tempDir } = require('./fixtures/tmp.js');
 
@@ -237,6 +238,7 @@ test('check: missing sections, empty criteria, TBD and <...> outside code, missi
 });
 
 test('check: a path of this machine in any file of the feature is a problem: Windows, Linux, macOS, WSL, the project folder', () => {
+  const home = os.homedir().replace(/\\/g, '/');
   const dir = project();
   filled(dir, 's3-connection', 2);
   const planFile = `${LOCAL}/s3-connection/plan.md`;
@@ -244,37 +246,55 @@ test('check: a path of this machine in any file of the feature is a problem: Win
   write(dir, planFile, readRel(dir, planFile).replace('Files go to S3.', 'Files go to S3, as D:/work/api/src/s3.js does.'));
   write(dir, t1, readRel(dir, t1).replace('Do one thing.', [
     'Do one thing, like C:\\Users\\ann\\app\\upload.js does.',
-    'Read /home/dev/api/src/s3.js and `/Users/ann/web/app.js`.',
+    `Read ${home}/api/src/s3.js and \`${home}/web/app.js\`.`,
     '```bash\ncd /mnt/c/work/api\n```',
     `See ${path.join(dir, 'src', 'app.js')}.`,
-    'Not paths: <https://example.com/home/page>, http://localhost:3000/x, src/home/x.js, ~/.claude/keel, a:b/c.',
+    'Not paths: <https://example.com/home/page>, http://localhost:3000/x, src/home/x.js, ~/.claude/keel, a:b/c, the route ' + '/home/' + 'feed, `GET ' + '/Users/' + '42`.',
   ].join('\n')));
-  write(dir, `${LOCAL}/s3-connection/research/r1-s3.md`, '# S3\n\nThe SDK cache sits in /root/.npm/_cacache.\n');
+  write(dir, `${LOCAL}/s3-connection/research/r1-s3.md`, `# S3\n\nThe SDK cache sits in ${home}/.npm/_cacache.\n`);
   const out = run(dir, 'check', 's3-connection');
   const expected = [
     'plan.md: local path D:/work/api/src/s3.js (line',
     'T1: local path C:\\Users\\ann\\app\\upload.js (line',
-    'T1: local path /home/dev/api/src/s3.js (line',
-    'T1: local path /Users/ann/web/app.js (line',
+    `T1: local path ${home}/api/src/s3.js (line`,
+    `T1: local path ${home}/web/app.js (line`,
     'T1: local path /mnt/c/work/api (line',
     `T1: local path ${path.join(dir, 'src', 'app.js')} (line`,
-    'research/r1-s3.md: local path /root/.npm/_cacache (line 3)',
+    `research/r1-s3.md: local path ${home}/.npm/_cacache (line 3)`,
   ];
   for (const e of expected) assert.ok(out.some((l) => l.startsWith(`- ${e}`)), `${e}\n${out.join('\n')}`);
   assert.equal(out[0], `check: ${expected.length} problems`, out.join('\n'));
+  assert.deepEqual(out.filter((l) => l.startsWith('note: ')).map((l) => l.replace(/ \(line .*$/, '')), ['note: T1: ' + '/home/' + 'feed', 'note: T1: ' + '/Users/' + '42']);
+});
+
+test('localPaths: a folder of this machine counts only as a whole path part; web routes are only a note', () => {
+  const at = (text, folders) => plans.localPaths(text, folders).map((p) => p.replace(/ \(line \d+\)$/, ''));
+  assert.deepEqual(at('Fix src/apple.js, lib/application.ts and /approot/x.js.', ['/app']), []);
+  assert.deepEqual(at('See /app/page.tsx:3, "/app", file:///app/x.js and /app.', ['/app']), ['/app/page.tsx:3', '/app', '/app/x.js', '/app']);
+  assert.deepEqual(at('Remix keeps app/root.tsx; /root.tsx is a file of the repository.', ['/root']), []);
+  // Joined, so that the repository's own check for home folders does not take these routes for one.
+  const routes = `The news page is ${'/home'}/feed, \`GET ${'/Users'}/42\` returns one, /root redirects.`;
+  assert.deepEqual(at(routes), []);
+  const notes = plans.homeNotes('T1', routes, []);
+  assert.deepEqual(notes.map((n) => n.replace(/ looks like .*$/, '')), [`note: T1: ${'/home'}/feed (line 1)`, `note: T1: ${'/Users'}/42 (line 1)`, 'note: T1: /root (line 1)']);
+  assert.match(notes[0], /looks like a home folder; a file's path goes from its repository's root, a web route stays$/);
+  // This machine's home folder is a problem, never also a note.
+  assert.deepEqual(plans.homeNotes('T1', `Read ${'/home'}/olya/api/x.js.`, [`${'/home'}/olya`]), []);
+  assert.deepEqual(at(`Read ${'/home'}/olya/api/x.js.`, [`${'/home'}/olya`]), [`${'/home'}/olya/api/x.js`]);
 });
 
 test('check: an exported feature with a path of this machine in a ticket, its overview or a report', () => {
+  const home = os.homedir().replace(/\\/g, '/');
   const dir = project();
   const folder = `${LOCAL}/s3-connection/tickets`;
-  write(dir, `${folder}/PROJ-1-client.md`, EXPORTED('PROJ-1').replace('Do one thing.', 'Do it as /home/dev/api/client.js does.'));
+  write(dir, `${folder}/PROJ-1-client.md`, EXPORTED('PROJ-1').replace('Do one thing.', `Do it as ${home}/api/client.js does.`));
   write(dir, `${folder}/README.md`, '---\ntype: feature\n---\n\n# S3\n\nThe old code: D:\\work\\api\\s3.\n');
-  write(dir, `${folder}/research/sdk.md`, '# SDK\n\nSee /Users/ann/notes/sdk.md\n');
+  write(dir, `${folder}/research/sdk.md`, `# SDK\n\nSee ${home}/notes/sdk.md\n`);
   assert.deepEqual(run(dir, 'check', 's3-connection'), [
     'check: 3 problems',
-    `- PROJ-1: local path /home/dev/api/client.js (line ${EXPORTED('PROJ-1').split('\n').indexOf('Do one thing.') + 1})`,
+    `- PROJ-1: local path ${home}/api/client.js (line ${EXPORTED('PROJ-1').split('\n').indexOf('Do one thing.') + 1})`,
     '- README.md: local path D:\\work\\api\\s3 (line 7)',
-    '- research/sdk.md: local path /Users/ann/notes/sdk.md (line 3)',
+    `- research/sdk.md: local path ${home}/notes/sdk.md (line 3)`,
   ]);
 });
 

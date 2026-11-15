@@ -171,8 +171,11 @@ gitTest('--from-stub in an exported feature: the ticket goes to the stub\'s repo
   assert.match(overview, /^---\ntype: feature\nrepos: \[API, ADM\]\n---\n/);
   assert.match(overview, /^- ADM-1 Admin counter \(admin\)$/m);
   assert.doesNotMatch(overview, /ADM-S1/);
-  // API-2 still says ADM-S1: it now waits for ADM-1, which is to do.
-  assert.equal(run(w.api, 'check', FEATURE)[0], `check: clean (2 tickets in ${OUT}/)`, run(w.api, 'check', FEATURE).join('\n'));
+  // API-2 still says ADM-S1: it now waits for ADM-1, which is to do. ADM-1 is still the template, and
+  // the check reads it in its repository.
+  const checked = run(w.api, 'check', FEATURE);
+  assert.match(checked[0], /^check: \d+ problems$/, checked.join('\n'));
+  assert.deepEqual(checked.filter((l) => l.startsWith('- ') && !l.startsWith('- ADM-1: placeholder ')), [], checked.join('\n'));
   write(w.api, `${OUT}/API-1-event.md`, readRel(w.api, `${OUT}/API-1-event.md`).replace('status: todo', 'status: done'));
   git(w.api, 'add', '-A');
   git(w.api, 'commit', '-q', '-m', 'Convert the stub');

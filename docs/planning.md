@@ -186,7 +186,7 @@ a new event in `api` and a badge in `web`; each ticket is for one repository onl
 | `/keel:end-planning` | Open questions or structure problems → hands over, with the reason in one line; otherwise asks "Final review and export, or hand over?". |
 
 **Final.** 1) The gates: no open questions, a clean structure check (the `# [id] title` heading, each section
-once and in its order, headings inside code blocks being text, every code block closed, the three Boundaries labels, acceptance criteria as a `- [ ]` list, no TBD, the named files exist, no path of this machine in the plan, a ticket or a report (`C:\…`, `/home/<user>/…`, `/Users/<user>/…`, `/mnt/c/…`, the project or a neighbouring repository by its folder: paths go from the repository's root),
+once and in its order, headings inside code blocks being text, every code block closed, the three Boundaries labels, acceptance criteria as a `- [ ]` list, no TBD, the named files exist, no path of this machine in the plan, a ticket or a report (`C:\…`, `/mnt/c/…`, this machine's home folder, the project or a neighbouring repository by its folder: paths go from the repository's root; another `/home/<name>/…` or `/Users/<name>/…` is only a note, as a web route such as `/home/<page>` looks the same),
 dependencies without cycles; style is the ticket reviewer's advice and never blocks), and a decision for every finding; else keel
 shows what blocks and offers to hand over. 2) Ticket reviews of the tickets not reviewed as they are
 (`keel:ticket-reviewer`, up to 4 tickets per call), then one review of the whole plan
@@ -234,7 +234,8 @@ export also that `/keel:feature-page <feature>` makes the feature's page), **Cos
   or else the project folder's name; no states, each ticket carries its own), and the research
   reports in `research/`. A draft on this machine goes to keel's trash; one in the repository leaves with the commit of the tickets.
 - **Git**: "Commit the planning files?", then "Push `<branch>`?", each on its own, and Claude Code asks
-  too, every time. Never on the main branch; planning never opens a pull request.
+  too, every time. Never on the main branch; planning never opens a pull request. A file of the
+  commit with a path of this machine stops it: keel names the file and the line.
 
 ## Ticket states
 
@@ -326,8 +327,8 @@ then checked and reviewed; you decide each finding in the chat. A ticket `in pro
 concerns. A new ticket takes the next shared key and a line in the overview's Tickets. A feature on
 several repositories: `--repo WEB` puts it into that repository's feature folder with WEB's next key,
 and every overview of the feature on this machine gets its line (keel names any it could not update).
-`/keel:end-planning` then checks the folder and offers the commit and push of each repository it
-changed; no plan gates, no plan review.
+`/keel:end-planning` then checks the feature's tickets in every repository on this machine and offers
+the commit and push of each repository it changed; no plan gates, no plan review.
 
 ## End of a feature
 
