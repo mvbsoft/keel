@@ -270,6 +270,21 @@ test('the migration text says what source loose files get and that they are list
   says(shared('migrate.md'), ['`system (loose files)`', 'the `source` is `.`', 'one by one', 'never `.`']);
 });
 
+test('migrate find: keel\'s own committed .keel/next-session.md is not a loose note; a HANDOFF.md still is', (t) => {
+  if (!git) { t.skip('git is not installed'); return; }
+  const root = tempDir('keel-own-note-');
+  const g = (...args) => spawnSync('git', ['-C', root, ...args], { stdio: 'ignore' });
+  g('init', '-q');
+  fs.mkdirSync(path.join(root, '.keel'));
+  fs.writeFileSync(path.join(root, '.keel', 'next-session.md'), '# Next session\n');
+  fs.writeFileSync(path.join(root, 'HANDOFF.md'), '# Handoff\n');
+  g('add', '.keel/next-session.md', 'HANDOFF.md');
+  g('-c', 'user.email=dev@shop.test', '-c', 'user.name=Dev', 'commit', '-q', '-m', 'notes');
+  run('migrate.js', root, ['find']);
+  const { systems } = JSON.parse(readRel(root, '.keel/local/tmp/migrate.json'));
+  assert.deepEqual(systems.map((s) => [s.path, s.notes.map((n) => n.path)]), [['.', ['HANDOFF.md']]]);
+});
+
 test('cleanup after a migration of loose notes: the project root is never an old system', () => {
   const { root } = makeOldSystem();
   fs.writeFileSync(path.join(root, 'NEXT-SESSION.md'), '# Next session\n');

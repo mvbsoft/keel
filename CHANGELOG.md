@@ -344,6 +344,10 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- keel's own session note `.keel/next-session.md` is no longer taken for another notes system. Before,
+  in a git repository, `/keel:configure check` and configure's first step offered
+  `/keel:configure migration` ("another notes or memory system: .keel") after the first
+  `/keel:end-session`, a migration of keel's own note into keel.
 - Usage page, Analysis: the model filter takes only the model you pick. Before, "Sonnet 4" also took
   Sonnet 4.5 and "Opus 5" also took Opus 5.5, so the tiles, the chart and the table summed two models
   while grouping by model showed them apart.

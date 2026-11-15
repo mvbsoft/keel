@@ -128,6 +128,16 @@ test('in a git repository, ignored secrets are still found by name', (t) => {
   assert.deepEqual(langs('js-monorepo'), profile.languages.map((l) => l.name));
 });
 
+test('in a git repository, keel\'s own .keel/next-session.md is not another notes system; a HANDOFF.md still is', (t) => {
+  try { execFileSync('git', ['--version'], { stdio: 'ignore' }); } catch { t.skip('git is not installed'); return; }
+  const dir = tempDir('keel-own-note-');
+  try { execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' }); } catch { t.skip('git cannot create a repository here'); return; }
+  fs.mkdirSync(path.join(dir, '.keel'));
+  fs.writeFileSync(path.join(dir, '.keel', 'next-session.md'), '# Next session\n');
+  fs.writeFileSync(path.join(dir, 'HANDOFF.md'), '# Handoff\n');
+  assert.deepEqual(scan(dir).findings.other_systems, [{ path: '.', files: 1, examples: ['HANDOFF.md'] }]);
+});
+
 test('the CLI prints the same JSON and exits 0', () => {
   const dir = makeProject('go');
   const r = spawnSync(process.execPath, [path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'scan.js'), dir], { encoding: 'utf8' });

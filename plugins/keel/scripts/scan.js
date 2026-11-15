@@ -257,7 +257,7 @@ function scan(root) {
     if (hits.length) otherSystems.push({ path: d, files: inside.length, examples: hits.slice(0, 5) });
   }
   const looseNotes = new Map();
-  for (const rel of pick(catalog.other_systems.files)) looseNotes.set(dirOf(rel), [...(looseNotes.get(dirOf(rel)) || []), rel]);
+  for (const rel of pick(catalog.other_systems.files).filter((r) => !r.startsWith('.keel/'))) looseNotes.set(dirOf(rel), [...(looseNotes.get(dirOf(rel)) || []), rel]);
   for (const [dir, notes] of looseNotes) if (!otherSystems.some((o) => o.path === dir)) otherSystems.push({ path: dir, files: notes.length, examples: notes.slice(0, 5) });
   for (const d of ['handoffs', 'handoff']) {
     const inside = list.filter((r) => r.startsWith(`${d}/`));
