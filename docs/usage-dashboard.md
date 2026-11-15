@@ -311,7 +311,8 @@ The same from a shell: `node usage-setup.js <project> sync on|off`; `show` print
 
 There is no shared project page: `usage.artifact_url` in `.keel/config.json` is no longer used. Each
 machine syncs to its owner's own page, and its owner can show it to others with Share on the page. The key
-is still accepted in the config but ignored, and keel says so once per machine.
+is still accepted in the config but ignored, and keel says so once per machine; on a machine without a
+page of its own it adds that `/keel:usage on` sets one up.
 
 ## Updating the page
 

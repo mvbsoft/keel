@@ -6,6 +6,33 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Upgrading from 1.4.0
+- Update keel on every machine that works on a project before anyone runs `/keel:configure` there with
+  this version, also on your own second machine: it writes the new `planning` section (and
+  `docs.adr_style` when you choose one) into the shared `.keel/config.json`, and keel 1.4.0 calls that
+  config invalid (`$.planning: unexpected property`) and stops every keel command. Its repair can only
+  remove the section, which breaks planning for everyone else.
+- Run `/keel:configure planning` before you plan or export: an updated project has no planning
+  settings, and `/keel:configure check` does not ask for them. The prefix, the tickets' place, folder
+  and language saved by 1.4.0 in `.keel/local/plans/keel/settings.json` are not carried over: enter
+  them again (the folder is `tickets` unless you name another).
+- Plans and tickets written by 1.4.0 fail `plans.js check`, a plan already marked ready too, so their
+  export is refused until they are rewritten in the new sections; nothing converts them.
+- Only if you opened a project directly in a linked worktree with 1.4.0: first restore what you need
+  from that worktree's trash (`/keel:cleanup restore`), then move `tasks/`, `closed-tasks.json`,
+  `active/`, `plans/keel/`, `plans/briefs/` and `options.json` from its `.keel/local/` to the main
+  checkout's (keep the main checkout's copy when both have one). keel asks once more to confirm
+  autonomous git there.
+- A task handoff now always commits the unfinished work on a branch as "Work in progress: <title>" and
+  pushes it; the "no commit" and `git stash` options are gone.
+- `/keel:usage-clear` is now `/keel:usage clear`, and it clears only the machine it runs on.
+- The usage page keeps its 1.4.0 look until you update it: `/keel:configure usage` offers the update
+  and keeps the page's data. Accept it once every machine that syncs to the page runs this version: an
+  update from a machine still on 1.4.0 puts the old page back.
+- A machine that synced to the project's shared page (`usage.artifact_url` in `.keel/config.json`) and
+  has no page of its own stops syncing: run `/keel:usage on` there to set up its own page. The first
+  end report after the update says so once.
+
 ### Added
 - `docs/features.md` (and its Ukrainian source `docs/features.uk.md`): a short, complete list of what
   keel 2.0 does and which questions it asks in which cases, linked from the top of both READMEs. A
@@ -250,7 +277,8 @@ All notable changes to keel are listed here. The format follows
   "Work in progress: <title>" (a tracker key comes first: "Work in progress: CAN-123 <title>"). Your own git instruction still wins.
 - `usage.artifact_url` in `.keel/config.json` is no longer used: each machine syncs to its owner's own
   page and Share on the page shows it to others. The key stays valid in the schema and is ignored; keel
-  says so once per machine.
+  says so once per machine, and on a machine without a page of its own adds that `/keel:usage on` sets
+  one up.
 - `/keel:usage-clear` is now `/keel:usage clear`, and it clears only the machine it runs on: its day,
   machine and calibration documents. Other machines' data stays (to clear the whole page, run it on every
   machine) and the dashboard hides nothing by date.
@@ -437,7 +465,7 @@ All notable changes to keel are listed here. The format follows
 - `language`, `export`, `export_dir` and `prefix` in `.keel/local/plans/keel/settings.json`, and their
   `plans.js settings set` options: the project's `planning` section replaces them. Values saved there
   are not carried over: set them again with `/keel:configure planning`.
-- The Ukrainian copies of the documents in `docs/` (`docs/*.uk.md`); only `README.uk.md` stays.
+- The Ukrainian copies of the documents in `docs/` (`docs/*.uk.md`); only `README.uk.md` and the new `docs/features.uk.md` stay.
 
 ## [1.4.0] - 2026-10-27
 
