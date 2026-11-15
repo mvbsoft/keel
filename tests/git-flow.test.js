@@ -193,6 +193,40 @@ gitTest('start: clean tree → from the updated main; changed tree → carries t
   assert.match(fs.readFileSync(path.join(work, 'src/app.js'), 'utf8'), /TWO/);
 });
 
+gitTest('start: a clean tree whose local base has unpushed commits starts from them; a diverged base stops', () => {
+  const { tmp, work, server } = setup();
+  git(work, 'checkout', '-q', '-b', 'dev');
+  git(work, 'push', '-q', '-u', 'origin', 'dev');
+  git(work, 'tag', 'dev');
+  write(work, 'local.txt', 'l\n');
+  git(work, 'add', 'local.txt');
+  git(work, 'commit', '-q', '-m', 'local work');
+  let out = flow(work, 'start', '--name', 'T-1-next', '--from', 'dev');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.match(line(out, 'branch:'), /from dev at/);
+  assert.match(line(out, 'note:'), /local dev has 1 commit that origin\/dev does not have/);
+  assert.ok(fs.existsSync(path.join(work, 'local.txt')), 'the local commit is in the new branch');
+
+  git(work, 'checkout', '-q', 'dev');
+  otherPush(server, tmp, 'other.txt', 'o\n', 'other work', 'dev');
+  out = flow(work, 'start', '--name', 'T-2-next', '--from', 'dev');
+  assert.equal(out[0], 'git-flow: stopped', out.join('\n'));
+  assert.match(line(out, 'reason:'), /local dev and origin\/dev have diverged/);
+  assert.equal(git(work, 'branch', '--show-current'), 'dev');
+  assert.equal(git(work, 'branch', '--list', 'T-2-next'), '');
+
+  const solo = setup({ remote: false }).work;
+  git(solo, 'tag', 'dev');
+  git(solo, 'checkout', '-q', '-b', 'dev');
+  write(solo, 'local.txt', 'l\n');
+  git(solo, 'add', 'local.txt');
+  git(solo, 'commit', '-q', '-m', 'local work');
+  out = flow(solo, 'start', '--name', 'T-3-next', '--from', 'dev');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.match(line(out, 'branch:'), /from dev at/);
+  assert.ok(fs.existsSync(path.join(solo, 'local.txt')), 'the branch starts from the dev branch, not from the dev tag');
+});
+
 gitTest('commit: never on main, secret files stay out, AI lines are dropped, ignored files are not added', () => {
   const { work } = setup();
   write(work, 'src/app.js', 'one\nTWO\nthree\n');

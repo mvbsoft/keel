@@ -344,6 +344,11 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- A new task branch started on a clean tree keeps the commits of its base that are not pushed yet
+  (such as a finish on a shared branch whose push stopped) and says so; before, it started from the
+  remote copy and left them out without a word. When the local base and its remote copy have both
+  moved on, the start stops and asks you to sort it out by hand. A tag with the same name as the
+  base no longer stops the start.
 - The gate dry run of `/keel:configure` and the rerun of a QA finding's command no longer call a
   command safe when what it really runs is not: `cd packages/api && npm test`, an option after the
   script name (`npm test --workspaces`, `pnpm test -r`), turbo, nx, lerna and
