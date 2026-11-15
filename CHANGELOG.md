@@ -344,6 +344,10 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- A usage sync whose batch is refused twice no longer loses the batch's other documents: after
+  `ack --batch <n> --failed <doc>` none of that batch is recorded as written, so the next sync sends
+  it all again. Before, the other documents of the batch counted as written although the page had
+  refused the whole batch, and such a day stayed missing from the page for good.
 - A `package.json` or `composer.json` saved with a byte order mark (as Windows PowerShell 5.1 and
   some editors save UTF-8) keeps its workspaces and scripts in the project scan, and its framework
   plugins in `/keel:configure`. Before, it read as no workspaces, no scripts and no packages, so
