@@ -132,7 +132,9 @@ gitTest('two conversions of one stub at once: one converts, the other writes not
   assert.equal(firsts.filter((l) => l.startsWith('plans: ticket refused (')).length, 1, firsts.join('\n'));
   assert.ok(has(admin, `${OUT}/ADM-1-admin-counter.md`));
   assert.ok(!has(admin, `${OUT}/ADM-2-admin-counter.md`));
-  assert.equal(run(w.api, 'check', FEATURE)[0], `check: clean (2 tickets in ${OUT}/)`, run(w.api, 'check', FEATURE).join('\n'));
+  // ADM-1 is still the template, and the check reads it in its repository.
+  const checked = run(w.api, 'check', FEATURE);
+  assert.deepEqual(checked.filter((l) => l.startsWith('- ') && !l.startsWith('- ADM-1: placeholder ')), [], checked.join('\n'));
 });
 
 gitTest('a plan of stubs only is not exported: an exported feature is found by its tickets', () => {

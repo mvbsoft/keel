@@ -39,5 +39,5 @@ Its tickets live in the feature folder; work there continues while others may al
    → say them and ask as planning.md "Several repositories" item 8 (Export) does (no `--as-is`). Then write its Boundaries, Correct the
    priors and Where to look from that repository, check and review it there; `note: the overview in
    ... still lists <stub>` → run the `plans.js align` it names.
-6. Done → `/keel:end-planning` checks the folder and offers the commit and push of every repository
-   it changed.
+6. Done → `/keel:end-planning` checks the feature's tickets in every repository on this machine and
+   offers the commit and push of every repository it changed.

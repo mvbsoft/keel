@@ -234,7 +234,7 @@ test('exported feature: its tickets\' state first, a switch to the branch that h
   assert.match(ex, /"Reviews" steps 3, 5 and 6 with\s+the feature folder/);
   says(ex, ['A ticket `in progress`, `waiting for ...` or `done` is never changed', 'offer a new ticket, or leave it as it is', 'name whom it concerns']);
   assert.match(ex, /`plans\.js ticket <f> --title "<title>" \[--slug <english-words>\] \[--depends "K1,K2"\]` →\s+`created: <path>` and `ticket: <KEY>`/);
-  says(ex, ['`/keel:end-planning` checks the folder', 'offers the commit and push']);
+  says(ex, ["`/keel:end-planning` checks the feature's tickets in every repository on this machine", 'offers the commit and push']);
   assert.ok(flow().indexOf('## Exported feature') > flow().indexOf('## Work'), 'after the rules and the work it builds on');
 });
 

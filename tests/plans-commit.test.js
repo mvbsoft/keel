@@ -46,6 +46,28 @@ gitTest('commit: refused on main, detached, during a merge, without a draft; a d
   assert.deepEqual(run(work, 'push', 's3-storage'), ['push: no remote, nothing pushed']);
 });
 
+gitTest('commit: a path of this machine in a file it would commit refuses it with the file and the line; nothing is staged or committed', () => {
+  const { work } = setup({ remote: false });
+  planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });
+  run(work, 'settings', 'set', '--draft', 'repo');
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  ready(work, 's3-storage', 2, 'tickets/s3-storage');
+  const plan = 'tickets/s3-storage/plan.md';
+  const at = `${work.split(path.sep).join('/')}/src/app.js`;
+  write(work, plan, readRel(work, plan).replace('Files go to S3.', `Files go to S3, as ${at} does.`));
+  write(work, 'tickets/s3-storage/reviews/plan.md', '# Plan review\n\nNothing to fix.\n');
+  const head = git(work, 'rev-parse', 'HEAD');
+  const lineNo = readRel(work, plan).split('\n').findIndex((l) => l.includes(at)) + 1;
+  assert.deepEqual(run(work, 'commit', 's3-storage'), [
+    'plans: commit refused (1 paths of this machine in the files to commit; write them from the repository\'s root)',
+    `- ${plan}: local path ${at} (line ${lineNo})`,
+  ]);
+  assert.equal(git(work, 'rev-parse', 'HEAD'), head, 'nothing committed');
+  assert.equal(git(work, 'diff', '--cached', '--name-only'), '', 'nothing staged');
+  write(work, plan, readRel(work, plan).replace(at, 'src/app.js'));
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Plan s3-storage$/);
+});
+
 gitTest('commit and push: a key taken on another branch since the export is renumbered (files and references); one already on the remote is refused', () => {
   const { tmp, work, server } = setup();
   planning(work, { tickets: 'repo', ticket_prefix: 'PROJ' });

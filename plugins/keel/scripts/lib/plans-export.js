@@ -284,10 +284,30 @@ function exportedProblems(root, f) {
   }
   for (const c of plans.cycles(every.map((t) => ({ id: t.id, fm: { depends_on: t.deps.join(',') } })))) out.push(`dependency cycle: ${c}`);
   const folders = plans.machineFolders(root);
+  for (const t of every) notes.push(...plans.homeNotes(t.id, t.text, folders));
+  const other = (label, text) => {
+    out.push(...plans.localProblems(label, text, folders));
+    notes.push(...plans.homeNotes(label, text, folders));
+  };
   const overview = read(path.join(f.folder, 'README.md'));
-  if (overview !== null) out.push(...plans.localProblems('README.md', overview, folders));
-  for (const r of plans.researchTexts(f.folder)) out.push(...plans.localProblems(r.name, r.text, folders));
-  notes.push(...stubs().stubNotes(root, f, f.list[0].fm.feature || path.basename(f.folder)));
+  if (overview !== null) other('README.md', overview);
+  for (const r of plans.researchTexts(f.folder)) other(r.name, r.text);
+  // The feature's tickets in the other repositories of its overview on this machine: a later --repo
+  // ticket or an edit there is checked here, as plans.js commit --repo takes it from here.
+  const feature = f.list[0].fm.feature || path.basename(f.folder);
+  for (const r of require('./plans-export-repos.js').repoFor(root, feature, undefined, 'check').repos) {
+    const there = samePath(r.root, root) ? null : featureFolder(r.root, feature);
+    if (!there) continue;
+    for (const t of there.list.map(asEntry)) {
+      if (!['todo', 'done'].includes(t.fm.status)) out.push(`${t.id}: status is "${clean(t.fm.status || '')}"; todo or done`);
+      out.push(...plans.ticketProblems(root, t.id, t.text, r.root));
+      notes.push(...plans.homeNotes(t.id, t.text, folders));
+    }
+    const text = read(path.join(there.folder, 'README.md'));
+    if (text !== null) other(`${r.prefix}: README.md`, text);
+    for (const x of plans.researchTexts(there.folder)) other(`${r.prefix}: ${x.name}`, x.text);
+  }
+  notes.push(...stubs().stubNotes(root, f, feature));
   return { out, count: list.length, notes };
 }
 
@@ -424,6 +444,17 @@ function draftFiles(root, d, folder) {
 // A key of ours another ticket file has, while ours is already on a remote.
 const publishedTaken = (k, taken, published) => `${k} is also ${taken.get(k)}, and this feature's ${k} is already ${published.get(k)}: a published key is not renumbered; settle the duplicate by hand`;
 
+// The paths of this machine in the files under `paths` that differ from HEAD or are new.
+function localInChanges(project, root, paths) {
+  const folders = [...new Set([...plans.machineFolders(project), ...plans.machineFolders(root)])];
+  // --cached too: before the first commit there is no HEAD to compare with.
+  const changed = new Set([['diff', '--name-only', 'HEAD'], ['diff', '--cached', '--name-only'], ['ls-files', '-o', '--exclude-standard']].flatMap((a) => gitPaths(root, [...a, '--', ...paths])));
+  return [...changed].filter((p) => /\.md$/i.test(p)).flatMap((p) => {
+    const text = read(path.join(root, p));
+    return text === null ? [] : plans.localProblems(p, text, folders);
+  });
+}
+
 // `repo`: the prefix of another repository of the feature's overview: the commit runs there, its folder
 // taken from this project's repos map (lib/plans-export-repos.js).
 function commitFeature(project, feature, { repo } = {}) {
@@ -460,6 +491,8 @@ function commitFeature(project, feature, { repo } = {}) {
   const folders = [c.draft && c.draft.folder, ...plans.draftDirs(root).filter((d) => !d.local).map((d) => path.join(d.dir, feature)), c.list.length || c.removed ? c.folder : null];
   const paths = [...new Set(folders.filter(Boolean).map((f) => rel(root, f)))].filter((p) => known(root, p));
   if (!paths.length) return done('commit: nothing to commit');
+  const local = localInChanges(project, root, paths);
+  if (local.length) return done([...refuse(what, `${local.length} paths of this machine in the files to commit; write them from the repository's root`), ...local.map((p) => `- ${p}`)]);
   let r = flow.git(root, ['add', '-A', '--', ...paths]);
   if (!r.ok) return done(refuse(what, `git add failed: ${gitText(r)}`));
   if (!flow.git(root, ['diff', '--cached', '--name-only', '--', ...paths]).out) return done('commit: nothing to commit');

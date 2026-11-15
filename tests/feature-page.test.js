@@ -606,11 +606,12 @@ gitTest('no path of this machine on the page: the script adds none, and a featur
   }
   const ticket = `${T}/API-2-badge.md`;
   write(api, ticket, fs.readFileSync(path.join(api, ticket), 'utf8').replace('## Where to look', 'Як у C:\\Users\\ann\\api\\src\\chat.js.\n\n## Where to look'));
-  write(api, `${T}/research/websocket.md`, '# WebSocket\n\nПриклад у /home/dev/api/ws.js\n');
+  const home = require('node:os').homedir().replace(/\\/g, '/');
+  write(api, `${T}/research/websocket.md`, `# WebSocket\n\nПриклад у ${home}/api/ws.js\n`);
   const out = run(api, FEATURE);
   assert.equal(out[0], 'feature-page: refused (2 paths of this machine in the feature\'s files; write them from the repository\'s root)', out.join('\n'));
   assert.match(out[1], /^- API-2: local path C:\\Users\\ann\\api\\src\\chat\.js \(line \d+\)$/);
-  assert.equal(out[2], '- research/websocket.md: local path /home/dev/api/ws.js (line 3)');
+  assert.equal(out[2], `- research/websocket.md: local path ${home}/api/ws.js (line 3)`);
   assert.ok(!fs.existsSync(file), 'no page is left to publish');
 });
 

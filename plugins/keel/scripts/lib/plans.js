@@ -38,7 +38,7 @@ const {
 } = require('./plans-drafts.js');
 const {
   draftCheck, draftStale, problems, ticketProblems, cycles,
-  mentionedFiles, machineFolders, localPaths, localProblems, researchTexts,
+  mentionedFiles, machineFolders, localPaths, localProblems, homeNotes, researchTexts,
 } = require('./plans-check.js');
 
 const TEMPLATES = path.join(__dirname, '..', '..', 'templates', 'keel', 'planning');
@@ -358,7 +358,7 @@ module.exports = {
   draftSet, draftStale,
   // for lib/plans-export.js
   base, needDraft, settle, stateOf, problems, tickets, ticketIds, writePlan, writeFile,
-  branchesOf, mainBranch, PLAN_FILE, TICKET_FILE, fromTemplate, ticketProblems, cycles,
+  branchesOf, mainBranch, PLAN_FILE, TICKET_FILE, fromTemplate, ticketProblems, cycles, homeNotes,
   // for feature-page.js
   mentionedFiles, pageCode, PAGE_CODE, machineFolders, localPaths, localProblems, researchTexts,
 };

@@ -369,6 +369,29 @@ gitTest('commit checks the keys in every repository: a key taken in web gets a n
   assert.equal(git(w.web, 'status', '--porcelain'), '', 'web\'s other changes: none');
 });
 
+gitTest('check reads the feature\'s tickets in every repository on this machine; commit refuses a path of this machine in what it commits', () => {
+  const w = world();
+  exported(w);
+  run(w.api, 'commit', FEATURE);
+  run(w.api, 'commit', FEATURE, '--repo', 'WEB');
+  assert.match(run(w.api, 'check', FEATURE)[0], /^check: clean/);
+  run(w.api, 'ticket', FEATURE, '--title', 'Count reset', '--repo', 'WEB');
+  let out = run(w.api, 'check', FEATURE);
+  assert.match(out[0], /^check: \d+ problems$/, out.join('\n'));
+  assert.ok(out.some((l) => /^- WEB-11: placeholder /.test(l)), out.join('\n'));
+  fs.rmSync(path.join(w.web, `${OUT}/WEB-11-count-reset.md`));
+  const badge = `${OUT}/WEB-10-badge.md`;
+  write(w.web, badge, readRel(w.web, badge).replace('Do one thing.', `Do it as ${slash(w.web)}/src/badge.js does.`));
+  out = run(w.api, 'check', FEATURE);
+  assert.ok(out.some((l) => l.startsWith(`- WEB-10: local path ${slash(w.web)}/src/badge.js`)), out.join('\n'));
+  const head = git(w.web, 'rev-parse', 'HEAD');
+  out = run(w.api, 'commit', FEATURE, '--repo', 'WEB');
+  assert.equal(out[0], 'plans: commit refused (1 paths of this machine in the files to commit; write them from the repository\'s root)', out.join('\n'));
+  assert.ok(out[1].startsWith(`- ${OUT}/WEB-10-badge.md: local path ${slash(w.web)}/src/badge.js`), out.join('\n'));
+  assert.equal(git(w.web, 'rev-parse', 'HEAD'), head, 'nothing committed');
+  assert.equal(git(w.web, 'diff', '--cached', '--name-only'), '', 'nothing staged');
+});
+
 gitTest('--repo takes another repository only from an untracked repos map and from the feature\'s overview; a failed push names the step to run again', () => {
   const w = world();
   exported(w);

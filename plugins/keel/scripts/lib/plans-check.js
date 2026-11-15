@@ -47,11 +47,18 @@ function placeholders(text) {
   return out;
 }
 
-// A path of this machine: a drive (C:\ or C:/, also in file:///C:/), a UNC share, a home folder of
-// Linux or macOS (/home/<user>, /root, /Users/<user>), a Windows drive in WSL (/mnt/c/), or one of
-// `folders`. Not a path: http://x, src/home/a.js, ~/.claude (no letter, word or dot before it).
-const LOCAL_PATH = /(?<![A-Za-z0-9])[A-Za-z]:[\\/]|(?<![\w\\])\\\\[\w.$-]+\\|(?<![\w.~/-])\/(?:home\/[^/\s]|Users\/[^/\s]|root(?![\w.-])|mnt\/[a-z]\/)/g;
+// A path of this machine: a drive (C:\ or C:/, also in file:///C:/), a UNC share, a Windows drive in WSL
+// (/mnt/c/), or one of `folders` (the home folder among them). Not a path: http://x, src/home/a.js,
+// ~/.claude.
+const LOCAL_PATH = /(?<![A-Za-z0-9])[A-Za-z]:[\\/]|(?<![\w\\])\\\\[\w.$-]+\\|(?<![\w.~/-])\/mnt\/[a-z]\//g;
+// /home/<x>, /Users/<x> or /root outside `folders`: another machine's home folder, or a web route such
+// as /home/<page> or GET /Users/<id>, which looks the same. Only a note.
+const HOME_LIKE = /(?<![\w.~/-])\/(?:home\/[^/\s]|Users\/[^/\s]|root(?![\w.-]))/g;
 const PATH_END = /^[^\s`'"<>()[\]{}|,;]+/;
+// A folder counts as a whole path part: /app is in /app/x.js, "/app" and file:///app/x.js, not in
+// src/apple.js.
+const BEFORE_FOLDER = /[\w.~/-]$/;
+const AFTER_FOLDER = /^(?:$|[/\s'"`)\],;:]|\.(?:\s|$))/;
 
 // The folders of this machine a feature file must not name: the project, the neighbouring
 // repositories of the repos map and the home folder (a project in /srv or /opt matches no pattern).
@@ -60,31 +67,45 @@ function machineFolders(root) {
   return [...new Set(all.filter((f) => typeof f === 'string').map((f) => f.replace(/\\/g, '/').replace(/\/+$/, '')).filter((f) => f.length > 3))];
 }
 
-// Every path of this machine in `text`, with its line: "C:\Users\ann\a.js (line 4)".
-function localPaths(text, folders = []) {
+// Every path of this machine in `text` (`local`) and every other home-like path (`homeLike`), with its
+// line: "C:\Users\ann\a.js (line 4)".
+function pathsIn(text, folders = []) {
   const win = process.platform === 'win32';
-  const out = [];
+  const local = [];
+  const homeLike = [];
   lf(text).split('\n').forEach((line, i) => {
     const slashed = line.replace(/\\/g, '/');
     const look = win ? slashed.toLowerCase() : slashed;
     const starts = [...line.matchAll(LOCAL_PATH)].map((m) => m.index);
     for (const f of folders) {
       const want = win ? f.toLowerCase() : f;
-      for (let j = look.indexOf(want); j >= 0; j = look.indexOf(want, j + 1)) starts.push(j);
+      for (let j = look.indexOf(want); j >= 0; j = look.indexOf(want, j + 1)) {
+        const before = look.slice(0, j);
+        if ((!BEFORE_FOLDER.test(before) || /file:\/\/$/i.test(before)) && AFTER_FOLDER.test(look.slice(j + want.length))) starts.push(j);
+      }
     }
-    let end = -1;
+    const pathAt = (at) => PATH_END.exec(line.slice(at))[0].replace(/[.:]+$/, '');
+    const spans = [];
     for (const at of [...new Set(starts)].sort((a, b) => a - b)) {
-      if (at < end) continue;
-      const p = PATH_END.exec(line.slice(at))[0].replace(/[.:]+$/, '');
-      end = at + p.length;
-      out.push(`${clean(p, 200)} (line ${i + 1})`);
+      if (spans.length && at < spans[spans.length - 1][1]) continue;
+      const p = pathAt(at);
+      spans.push([at, at + p.length]);
+      local.push(`${clean(p, 200)} (line ${i + 1})`);
+    }
+    for (const m of line.matchAll(HOME_LIKE)) {
+      if (!spans.some(([a, b]) => m.index >= a && m.index < b)) homeLike.push(`${clean(pathAt(m.index), 200)} (line ${i + 1})`);
     }
   });
-  return out;
+  return { local, homeLike };
 }
+
+const localPaths = (text, folders = []) => pathsIn(text, folders).local;
 
 // The paths of this machine in a feature's files, one problem each.
 const localProblems = (label, text, folders) => localPaths(text, folders).map((p) => `${label}: local path ${p}`);
+
+// The other home-like paths in a feature's file, one note each: never a problem.
+const homeNotes = (label, text, folders) => pathsIn(text, folders).homeLike.map((p) => `note: ${label}: ${p} looks like a home folder; a file's path goes from its repository's root, a web route stays`);
 
 // The research reports of a feature folder (research/*.md), each as { name, text }.
 function researchTexts(folder) {
@@ -147,8 +168,12 @@ function problems(root, d) {
   for (const p of placeholders(d.text)) out.push(`plan.md: placeholder ${p}`);
   if (unclosedFence(d.text)) out.push(`plan.md: the code block from line ${unclosedFence(d.text)} is never closed`);
   const folders = machineFolders(root);
+  const notes = homeNotes(PLAN_FILE, d.text, folders);
   out.push(...localProblems(PLAN_FILE, d.text, folders));
-  for (const r of researchTexts(d.folder)) out.push(...localProblems(r.name, r.text, folders));
+  for (const r of researchTexts(d.folder)) {
+    out.push(...localProblems(r.name, r.text, folders));
+    notes.push(...homeNotes(r.name, r.text, folders));
+  }
   const s = settings(root);
   out.push(...repos().planReposProblems(d.fm, s.ticket_prefix));
   const planned = repos().planRepos(d.fm);
@@ -159,8 +184,8 @@ function problems(root, d) {
     if (same.length > 1) out.push(`${id}: two files have this number: ${same.map((t) => t.name).sort().join(', ')}`);
   }
   const other = otherRepos(root, list.flatMap((t) => ticketIds(t.fm.depends_on)).filter((x) => !ids.has(x)));
-  const notes = [];
   for (const t of list) {
+    notes.push(...homeNotes(t.id, t.text, folders));
     if (t.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(t.fm.id || '')}", the file name says ${t.id}`);
     if (isStub(t.fm)) {
       // A stub's repository is not on this machine: never in the plan's repos, no Where to look to check.
@@ -256,5 +281,5 @@ function draftStale(root, feature) {
 
 module.exports = {
   draftCheck, draftStale, problems, ticketProblems, cycles,
-  mentionedFiles, machineFolders, localPaths, localProblems, researchTexts,
+  mentionedFiles, machineFolders, localPaths, localProblems, homeNotes, researchTexts,
 };
