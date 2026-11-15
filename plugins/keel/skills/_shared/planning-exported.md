@@ -35,7 +35,9 @@ Its tickets live in the feature folder; work there continues while others may al
    is in that repository's feature folder with its next key and `replaces: <stub>` (tickets that name
    the stub now wait for it; none is edited), the overview there and here lists it, the stub went to
    keel's trash. `plans: ticket refused (...; nothing converted)` → say why; the stub is back and
-   nothing was written there. `plans: ticket refused (--from-stub: <PREFIX> is not ready)` with `not ready:` lines
+   nothing was written there. `--from-stub: <folder> plans with the prefix <P>, not <S>` → the
+   stub's prefix was a guess: say so, and with a yes change its `repo:` to `<P>` (its key stays) and
+   do what the message says. `plans: ticket refused (--from-stub: <PREFIX> is not ready)` with `not ready:` lines
    → say them and ask as planning.md "Several repositories" item 8 (Export) does (no `--as-is`). Then write its Boundaries, Correct the
    priors and Where to look from that repository, check and review it there; `note: the overview in
    ... still lists <stub>` → run the `plans.js align` it names.

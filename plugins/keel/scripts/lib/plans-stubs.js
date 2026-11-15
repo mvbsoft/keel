@@ -21,7 +21,7 @@ const { git, read, frontmatter, clean } = require('./repo-read.js');
 const { setFront } = require('./tasks.js');
 const { moveToTrash, restore } = require('./trash.js');
 const { frontText, bodyOf, TICKET_SECTIONS, CODE_SECTIONS, STUB_KEY, isStub, heading, outsideFences, ticketLine, repoName } = require('./plans-format.js');
-const { planRepos, isFolder } = require('./plans-repos.js');
+const { planRepos, isFolder, plannedPrefix } = require('./plans-repos.js');
 
 const README = 'README.md';
 
@@ -34,6 +34,19 @@ const prefixOfStub = (key) => upper(key.slice(0, key.lastIndexOf('-S')));
 
 // The exported stubs in a feature folder, as lib/plans-export.js folderFiles gives them.
 const stubFiles = (folder) => require('./plans-export.js').folderFiles(folder).filter((t) => isStub(t.fm) && STUB_KEY.test(t.fm.key || ''));
+
+// The refusal for a stub whose repository is here but plans with another prefix than the stub's (a guess
+// made before it was here): no repos map entry fixes that, only the stub's repo:. Else null. `keep`: an
+// exported stub's key is still found through its old map entry.
+function otherPrefix(root, prefix, file, keep = false) {
+  const s = settings(root);
+  const folder = s.repos[prefix];
+  const planned = folder && isFolder(folder) ? plannedPrefix(folder).prefix : null;
+  if (!planned || planned === prefix || planned === s.ticket_prefix) return null;
+  const p = clean(planned, 20);
+  if (!PREFIX.test(planned)) return refuse(`--from-stub: ${clean(folder, 200)}/.keel/config.json has the prefix "${p}", which is not a ticket prefix: fix it there with /keel:configure planning, then --from-stub again`);
+  return refuse(`--from-stub: ${clean(folder, 200)} plans with the prefix ${p}, not ${prefix}: change the stub's repo: to ${p} (${rel(root, file)}), map it (plans.js settings set --repo ${p}=<folder>${keep ? `; keep ${prefix} mapped` : ''}), then --from-stub again`);
+}
 
 // --- a draft ---
 
@@ -86,6 +99,8 @@ function fromStubDraft(root, feature, d, id) {
   const s = settings(root);
   const folder = s.repos[prefix];
   if (!folder || !isFolder(folder)) return refuse(`--from-stub: ${clean(prefix, 20) || 'its repository'} is not on this machine yet: plans.js settings set --repo ${prefix || '<PREFIX>'}=<folder>`);
+  const other = otherPrefix(root, prefix, t.file);
+  if (other) return other;
   const list = planRepos(d.fm);
   const set = list.includes(prefix) ? [] : plans.draftSet(root, feature, { repos: [...list, prefix].join(',') });
   if (set.length && set[0].startsWith('plans: ')) return refuse(`--from-stub: ${set[0].replace(/^plans: set refused \((.*)\)$/, '$1')}`);
@@ -212,6 +227,8 @@ function fromStubExported(root, feature, f, key) {
   const overview = read(readmeFile);
   if (overview === null || frontmatter(overview).type !== 'feature') return refuse(`--from-stub: no overview ${rel(root, readmeFile)} beside the stub`);
   const prefix = given(st.fm.repo) ? st.fm.repo.trim().toUpperCase() : prefixOfStub(ask);
+  const other = otherPrefix(root, prefix, st.file, true);
+  if (other) return other;
   const s = settings(root);
   const sibling = f.list[0];
   const own = s.ticket_prefix || upper(sibling.fm.key.slice(0, sibling.fm.key.lastIndexOf('-')));
