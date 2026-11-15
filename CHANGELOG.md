@@ -344,6 +344,14 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- The gate dry run of `/keel:configure` and the rerun of a QA finding's command no longer call a
+  command safe when what it really runs is not: `cd packages/api && npm test`, an option after the
+  script name (`npm test --workspaces`, `pnpm test -r`), turbo, nx, lerna and
+  `yarn workspaces foreach` with the tasks turbo and nx run first, `npm t`, `sh -c '...'`, a sub-make
+  (`$(MAKE) -C packages/api test`), and a shell script it calls (`./scripts/test.sh`, `script/test`
+  with a `#!/bin/sh` line, also from a Make recipe, where each line runs in its own shell) are now
+  judged by the scripts and files they run. A command with `&&` or a glob is checked
+  when given in quotes; one with `$` or a backtick is skipped, as it cannot be checked.
 - The setup `/keel:configure` writes and you leave uncommitted (`.keel/config.json`, `.keel/profile.json`,
   `.keel/.gitignore`) now goes into the first task's commit. Before, the task start recorded it as
   your own untracked files, so the commit left it out and it stayed uncommitted on the main branch.

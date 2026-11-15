@@ -148,9 +148,10 @@ agent and the first 5b agent; the other 5b agents follow one at a time, each aft
    file path, the diff path, the context map path, `<keel>` and `<project>`.
    While they run, check the "proven by QA" findings yourself: an agent's claim that a command fails
    is not yet proof. First `node "<keel>/scripts/fingerprint.js" "<project>" snapshot before-repro`.
-   For each, `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- <its reproduce command>`;
+   For each, `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- "<its reproduce command>"`
+   (the whole command in double quotes, quotes inside it as single quotes);
    `safe` → run it once; it fails as the finding says → "reproduced", otherwise "not reproduced";
-   `refused` → leave it out. Then `node "<keel>/scripts/fingerprint.js" "<project>" compare before-repro`:
+   `refused`, or a command with `$` or a backtick (it cannot be checked) → leave it out. Then `node "<keel>/scripts/fingerprint.js" "<project>" compare before-repro`:
    anything but `same` → stop as step 5b says. Write the results with the Write tool to
    `<project>/.keel/local/tmp/reproduce.json` as `{ "<finding id>": "reproduced" | "not reproduced" }`.
 3. `node "<keel>/scripts/votes.js" "<project>" tally` (a proven finding that did not reproduce becomes

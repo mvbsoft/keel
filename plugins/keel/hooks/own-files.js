@@ -227,13 +227,16 @@ function gitFlow(pos, opts) {
 
 const PLAIN_FORM = 'keel: run keel\'s scripts as one plain command, with the step words in the order keel\'s instructions give: arguments in "quotes" or plain words, no $, `, ~, --%, empty arguments, unquoted backslashes, a backslash before a quote or a space, curly quotes, control characters, double quotes inside single quotes or a bare word starting with one dash that holds a dot or ends with a colon, a comma only between numbers (quote a list), no double backslash in Bash and no word starting with // that holds a backslash (write a network path as //server/share, the script\'s path too), and only plain spaces between words (retype them plainly). Nothing ran; send it again in that form.';
 
+// safe-command.js judges a command it is given as text; a shell would split or expand it first.
+const SAFE_COMMAND_FORM = 'keel: give safe-command.js the command to judge as one argument in double quotes after -- (-- "cd api && npm test"; quotes inside it as single quotes). A command with $ or a backtick cannot be checked: do not run it; tell the user they can run it themselves. Nothing ran.';
+
 // The decision for `node <keel>/scripts/<name> <args>`. Arguments are read with the scripts' own
 // parseArgs, so the step the hook judges is the step the script runs.
 function ownScript(name, argText, projectDir, bash, cwd) {
   const split = splitWords(argText, bash);
   // keel's instructions never need shell expansions; refused, the model sends the plain form, which the
   // steps that always ask can recognise.
-  if (!split) return decide('deny', PLAIN_FORM);
+  if (!split) return decide('deny', name === 'safe-command.js' && /[$`]/.test(argText) ? SAFE_COMMAND_FORM : PLAIN_FORM);
   const argv = split.words;
   // Loaded here, not at the top: this hook runs on every shell command and these pull in the catalog.
   const { opts, pos } = require('../scripts/lib/project.js').parseArgs(argv);
@@ -319,6 +322,7 @@ function main() {
       const mentionsKeel = process.platform === 'win32' ? flat.toLowerCase().includes(norm(root).toLowerCase()) : flat.includes(norm(root));
       if (!mentionsKeel && runsLib(cmd, root)) return decide('deny', LIB);
       if (!mentionsKeel && stepElsewhere(cmd)) return decide('deny', ELSEWHERE);
+      if (mentionsKeel && /^node(?:\.exe)?\s+(?:"[^"]*|'[^']*|\S*)[\\/]safe-command\.js\b/.test(cmd)) return decide('deny', SAFE_COMMAND_FORM);
       return mentionsKeel ? decide('deny', 'keel: run each keel script as its own plain command (no ;, &&, |, redirection, cd or shell variables) and read keel\'s files with the Read tool. Nothing ran; send the commands one by one.') : null;
     }
     const m = /^node(?:\.exe)?\s+("([^"]+)"|'([^']+)'|(\S+))(\s.*)?$/s.exec(cmd);

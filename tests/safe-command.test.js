@@ -228,3 +228,129 @@ test('a long line of repeated options is judged in linear time', () => {
   }
   assert.ok(Date.now() - started < 2000, `took ${Date.now() - started} ms`);
 });
+
+test('a script is judged where it really runs: after cd, with options after its name, by task runners and in script files', () => {
+  const dir = tempDir('keel-follow-');
+  const write = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  write('package.json', JSON.stringify({ scripts: { test: 'vitest run', lint: 'eslint .', ci: './scripts/ok.sh' } }));
+  write('packages/api/package.json', JSON.stringify({ name: 'api', scripts: { test: 'prisma migrate reset --force && jest' } }));
+  write('apps/web/project.json', JSON.stringify({ targets: { e2e: { executor: 'nx:run-commands', options: { command: 'kubectl apply -f k8s/' } } } }));
+  write('Makefile', 'test:\n\t./scripts/test.sh\nlint:\n\tbash scripts/ok.sh\n');
+  write('scripts/test.sh', '#!/bin/sh\nset -e\nkubectl apply -f k8s/\n');
+  write('scripts/test.ps1', 'Set-StrictMode -Version Latest\nhelm upgrade app ./chart\n');
+  write('scripts/ok.sh', '#!/bin/sh\n# deploy comes later\nvitest run\n');
+  const refused = {
+    'cd packages/api && npm test': /database/,
+    'cd packages/api/src && npm test': /database/,
+    'cd packages && cd api && npm test': /database/,
+    '(cd packages/api && npm test)': /database/,
+    'pushd packages/api && npm test && popd': /database/,
+    'pushd packages/api > /dev/null && npm test && popd > /dev/null': /database/,
+    'cd packages/api >/dev/null && npm test': /database/,
+    'cd packages/api 2>&1 && npm test': /database/,
+    'Set-Location packages/api *> $null; npm test': /database/,
+    'cd -P packages/api && npm test': /cannot follow/,
+    'Set-Location packages/api; npm test': /database/,
+    'npm test --workspaces': /database/,
+    'npm run test -w api': /database/,
+    'pnpm test -r': /database/,
+    'pnpm run test --filter api': /database/,
+    'npx turbo run test': /database/,
+    'pnpm turbo test': /database/,
+    'turbo run lint test': /database/,
+    'lerna run test': /database/,
+    'yarn workspaces foreach -A run test': /database/,
+    'nx run-many -t test': /database/,
+    'nx run-many --targets=lint,e2e': /cluster/,
+    'make test': /cluster \(kubectl apply/,
+    './scripts/test.sh': /cluster/,
+    'sh scripts/test.sh': /cluster/,
+    'bash -e ./scripts/test.sh': /cluster/,
+    'pwsh -File scripts/test.ps1': /cluster \(helm upgrade/,
+    'cd .. && npm test': /leaves the project/,
+    'cd ~ && npm test': /cannot follow/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(dir, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.match(r.reasons.join(' '), why, cmd);
+  }
+  for (const c of [
+    'npm test', 'cd packages/api && npm run lint', '(cd packages/api && cd ..) && npm test', 'pushd packages/api && popd && npm test',
+    'npm test -- --workspaces', 'npm run ci', 'make lint', 'sh scripts/missing.sh', 'nx run-many -t lint',
+  ]) assert.equal(judge(dir, '.', c).safe, true, c);
+});
+
+test('each make recipe line runs in its own shell; quoted shell commands and runner versions are followed', () => {
+  const dir = tempDir('keel-shells-');
+  const write = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  write('package.json', JSON.stringify({ scripts: { test: 'prisma migrate reset --force && jest', check: 'tsc --noEmit', lint: 'eslint .' } }));
+  write('docs/package.json', JSON.stringify({ scripts: { test: 'vitest run' } }));
+  write('packages/api/package.json', JSON.stringify({ name: 'api', scripts: { test: 'jest', check: 'prisma migrate reset --force' } }));
+  write('turbo.json', JSON.stringify({ tasks: { lint: { dependsOn: ['^check'] } } }));
+  write('Makefile', 't2:\n\tcd docs\n\tnpm test\nt3:\n\t@cd packages/api && \\\n\t  npm run check\nt4:\n\tcd packages/api\n\tnpm run check\n');
+  write('one.mk', '.ONESHELL:\nt:\n\tcd packages/api\n\tnpm run check\n');
+  const refused = {
+    'make t2': /database \(prisma/,
+    'make t3': /database \(prisma/,
+    'make -f one.mk t': /database \(prisma/,
+    "sh -c 'cd packages/api && npm run check'": /database \(prisma/,
+    'bash -ec "cd packages/api; npm run check"': /database \(prisma/,
+    'npx turbo@2 run check': /database \(prisma/,
+    'npx nx@latest run-many -t check': /database \(prisma/,
+    'turbo run lint': /database \(prisma/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(dir, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.match(r.reasons.join(' '), why, cmd);
+  }
+  for (const c of ['make t4', "sh -c 'cd packages/api && npm test'", 'cd docs > /dev/null && npm test', 'npm run lint']) {
+    assert.equal(judge(dir, '.', c).safe, true, c);
+  }
+});
+
+test('sub-makes, shell scripts without an extension, nx dependsOn and npm t are followed; build wrappers are not read', () => {
+  const dir = tempDir('keel-more-');
+  const write = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  write('package.json', JSON.stringify({ scripts: { test: 'vitest run' } }));
+  write('packages/api/package.json', JSON.stringify({ name: 'api', scripts: { test: 'make test', build: 'prisma migrate reset --force && tsc' } }));
+  write('packages/web/package.json', JSON.stringify({ name: 'web', scripts: { test: 'prisma migrate reset --force && vitest' } }));
+  write('packages/web/project.json', JSON.stringify({ targets: { lint: { dependsOn: [{ target: 'test' }] } } }));
+  write('nx.json', JSON.stringify({ targetDefaults: { test: { dependsOn: ['^build'] } } }));
+  write('packages/api/Makefile', 'test:\n\tnpx prisma migrate reset --force\n');
+  write('Make2', 'test:\n\t$(MAKE) -C packages/api test\n');
+  write('Make3', 'test:\n\tcd packages/api && ${MAKE} test\n');
+  write('script/test', '#!/usr/bin/env bash\nset -e\nkubectl apply -f k8s/\n');
+  write('script/lint', '#!/bin/sh\neslint .\n');
+  write('script/notes', 'kubectl apply -f k8s/\n');
+  write('tools/gen', '#!/usr/bin/env python3\nprint("deploy")\n');
+  write('mvnw', [
+    '#!/bin/sh', 'set -euf', 'clean() { rm -rf -- "$TMP_DOWNLOAD_DIR"; }', 'trap clean HUP INT TERM EXIT',
+    'cd "$(dirname "$0")"', 'mv -- "$TMP_DOWNLOAD_DIR/$distributionUrlNameMain" "$MAVEN_HOME"', 'exec "$MAVEN_HOME/bin/mvn" "$@"', '',
+  ].join('\n'));
+  write('gradlew', '#!/bin/sh\nAPP_HOME=$( cd "${APP_HOME:-./}" && pwd -P ) || exit\nexec "$JAVACMD" "$@"\n');
+  const refused = {
+    'make -f Make2 test': /database \(npx prisma/,
+    'make -f Make3 test': /database \(npx prisma/,
+    './script/test': /cluster \(kubectl apply/,
+    'script/test': /cluster \(kubectl apply/,
+    'nx run-many -t test': /database \(prisma migrate reset --force && tsc/,
+    'npx nx test api': /database \(prisma migrate reset --force && tsc/,
+    'nx run-many -t lint': /database \(prisma migrate reset --force && vitest/,
+    'cd packages/api && npm t': /database \(npx prisma/,
+    'cd packages/web && npm tst': /database/,
+    'cd packages/web && pnpm t': /database/,
+    'cd packages/web && npm cit': /database/,
+    'cd packages/web && pnpm it': /database/,
+    './mvnw deploy': /publishes/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(dir, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.match(r.reasons.join(' '), why, cmd);
+  }
+  for (const c of ['./script/lint', './script/notes', 'tools/gen', './mvnw test', './gradlew test', 'sh gradlew check', 'cd packages/api && npm run t', 'npm test']) {
+    assert.equal(judge(dir, '.', c).safe, true, c);
+  }
+});
