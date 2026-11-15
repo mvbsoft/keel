@@ -271,6 +271,9 @@ test('localPaths: a folder of this machine counts only as a whole path part; web
   const at = (text, folders) => plans.localPaths(text, folders).map((p) => p.replace(/ \(line \d+\)$/, ''));
   assert.deepEqual(at('Fix src/apple.js, lib/application.ts and /approot/x.js.', ['/app']), []);
   assert.deepEqual(at('See /app/page.tsx:3, "/app", file:///app/x.js and /app.', ['/app']), ['/app/page.tsx:3', '/app', '/app/x.js', '/app']);
+  assert.deepEqual(at('Open <file:///app>, /app?x=1, /app#top or /app!', ['/app']), ['/app', '/app?x=1', '/app#top', '/app!']);
+  assert.deepEqual(at('Keep api-old, src/api.v2/x.js and /api_v2.', ['/api']), []);
+  assert.deepEqual(at(`Read ${'/home'}/olya>`, [`${'/home'}/olya`]), [`${'/home'}/olya`]);
   assert.deepEqual(at('Remix keeps app/root.tsx; /root.tsx is a file of the repository.', ['/root']), []);
   // Joined, so that the repository's own check for home folders does not take these routes for one.
   const routes = `The news page is ${'/home'}/feed, \`GET ${'/Users'}/42\` returns one, /root redirects.`;

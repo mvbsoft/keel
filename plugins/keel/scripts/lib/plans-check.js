@@ -55,10 +55,10 @@ const LOCAL_PATH = /(?<![A-Za-z0-9])[A-Za-z]:[\\/]|(?<![\w\\])\\\\[\w.$-]+\\|(?<
 // as /home/<page> or GET /Users/<id>, which looks the same. Only a note.
 const HOME_LIKE = /(?<![\w.~/-])\/(?:home\/[^/\s]|Users\/[^/\s]|root(?![\w.-]))/g;
 const PATH_END = /^[^\s`'"<>()[\]{}|,;]+/;
-// A folder counts as a whole path part: /app is in /app/x.js, "/app" and file:///app/x.js, not in
-// src/apple.js.
+// A folder counts as a whole path part: /app is in /app/x.js, "/app", <file:///app> and /app?x=1, not in
+// src/apple.js, /app-old or /app.v2.
 const BEFORE_FOLDER = /[\w.~/-]$/;
-const AFTER_FOLDER = /^(?:$|[/\s'"`)\],;:]|\.(?:\s|$))/;
+const AFTER_FOLDER = /^(?![\w-]|\.\w)/;
 
 // The folders of this machine a feature file must not name: the project, the neighbouring
 // repositories of the repos map and the home folder (a project in /srv or /opt matches no pattern).
