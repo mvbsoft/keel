@@ -54,7 +54,10 @@ to look (`file:line`), Out of scope, Why, Dependencies. Every section is written
 not seen the feature: short, but in whole sentences, and a D or T number comes with its words. The
 technical part, all but In plain words and Example, stays short: 150-500 words, one goal, no
 implementation steps. The ticket reviewer checks that a newcomer understands each section. In the draft they are
-`T1`, `T2`...; a T-number is never reused. More than about 15 tickets → keel offers to split the
+`T1`, `T2`...; a T-number is never reused. A draft ticket may also depend on a ticket of another
+feature by its key (`depends_on: [PROJ-1]`, or `plans.js ticket --depends PROJ-1`): `plans.js check`
+and `ticket --depends` take a key that a ticket file has on any branch, in the working tree or in this
+machine's feature folders, as for an exported feature; a key no file has is a problem. More than about 15 tickets → keel offers to split the
 feature. keel looks up code facts itself; a pricier model or web research only when you ask or say
 yes to an offer of it.
 

@@ -22,8 +22,6 @@ const given = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '-
 
 const neighbours = () => require('./plans-neighbours.js');
 const repos = () => require('./plans-repos.js');
-// Another repository's keys among a draft's dependencies (lib/plans-neighbours.js).
-const otherRepos = (root, deps) => neighbours().lookUp(root, deps);
 
 // --- the structure check ---
 
@@ -183,7 +181,8 @@ function problems(root, d) {
     const same = list.filter((t) => t.id === id);
     if (same.length > 1) out.push(`${id}: two files have this number: ${same.map((t) => t.name).sort().join(', ')}`);
   }
-  const other = otherRepos(root, list.flatMap((t) => ticketIds(t.fm.depends_on)).filter((x) => !ids.has(x)));
+  const other = require('./plans-export.js').draftMissing(root, d, list.flatMap((t) => ticketIds(t.fm.depends_on)).filter((x) => !ids.has(x)));
+  const missing = new Set(other.missing);
   for (const t of list) {
     notes.push(...homeNotes(t.id, t.text, folders));
     if (t.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(t.fm.id || '')}", the file name says ${t.id}`);
@@ -204,8 +203,7 @@ function problems(root, d) {
       const k = dep.toUpperCase();
       if (dep === t.id) out.push(`${t.id}: depends on itself`);
       else if (ids.has(dep)) continue;
-      else if (!other.foreign(dep)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist`);
-      else if (other.missing.has(k)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist ${other.missing.get(k)}`);
+      else if (missing.has(k)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist${other.where.has(k) ? ` ${other.where.get(k)}` : ''}`);
       else if (other.notes.has(k)) notes.push(neighbours().noteLine(t.id, dep, other.notes.get(k)));
     }
   }
