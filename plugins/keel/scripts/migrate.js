@@ -201,7 +201,7 @@ function find(root, from) {
   }
   if (!from) {
     // Loose notes outside a system folder: NEXT-SESSION*.md, HANDOFF*.md, docs/plans/.
-    const loose = (lists ? [...lists.tracked, ...lists.untracked] : []).filter((r) => !r.endsWith('/') && !systems.some((s) => r.startsWith(`${s.path}/`)) && matchesAny(r, catalog.other_systems.files) && !/(^|\/)(node_modules|vendor)\//.test(r));
+    const loose = (lists ? [...lists.tracked, ...lists.untracked] : []).filter((r) => !r.endsWith('/') && !matchesAny(r, catalog.other_systems.keel_files) && !systems.some((s) => r.startsWith(`${s.path}/`)) && matchesAny(r, catalog.other_systems.files) && !/(^|\/)(node_modules|vendor)\//.test(r));
     if (loose.length) systems.push({ path: '.', git: 'mixed', files: loose.length, bytes: loose.reduce((n, r) => n + sizeOf(path.join(root, r)).bytes, 0), truncated: false, ...classify(root, '.', loose, isSecret) });
   }
 
@@ -388,6 +388,8 @@ function apply(root, planFile) {
     if (a.op !== 'trash' && !keelTarget(a.to)) { fail('the target must be .keel/next-session.md, .keel/memory/, .keel/sessions/ or .keel/local/archive/'); continue; }
     try {
       if (a.op === 'move') {
+        const viaLink = linkOnWay(root, from);
+        if (viaLink) { fail(`${viaLink}: keel does not move files out of a link; copy what the project needs by hand`); continue; }
         const st = fs.statSync(from);
         const listed = st.isDirectory() ? walk(root, strip(a.from)) : null;
         if (listed && listed.truncated) { fail(`more than ${MAX_WALK} files; move it by hand`); continue; }
@@ -471,7 +473,7 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const root = require('./lib/project-dir.js').scriptProject(pos[0]);
     const command = pos[1] || 'find';
     if (command === 'find') lines = find(root, typeof opts.from === 'string' ? opts.from : null);
     else if (command === 'refs') lines = refs(root, typeof opts.folder === 'string' ? opts.folder : null, typeof opts.prefix === 'string' ? `/${opts.prefix.replace(/^\/+/, '')}` : null);

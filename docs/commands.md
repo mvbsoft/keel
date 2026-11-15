@@ -1,13 +1,11 @@
 # Commands
 
-[Українська](commands.uk.md)
-
 Every keel command, how to call it and what happens in each case. Only you start these commands; the
 model never runs them on its own.
 
 **How instructions work.** After the task, session and planning commands you write what you want in plain
 words; there are no keyword arguments. `/keel:tasks` (`drop`), `/keel:cleanup` (`restore`,
-`empty-trash`) and `/keel:configure` (`machine`, a section name) take the words shown below. keel works out what you mean, asks when it is not sure, and says in one line what
+`empty-trash`) and `/keel:configure` (`check`, `machine`, a section name) take the words shown below. keel works out what you mean, asks when it is not sure, and says in one line what
 each action will do before it runs. A level word (`gates`, `basic`, `standard`, `maximum`,
 `none`; `quick` means `basic`) picks the verification level when it stands alone or after "level" (`level standard`); the
 levels: [verification](verification.md).
@@ -22,14 +20,14 @@ levels: [verification](verification.md).
 | [`/keel:end-session`](#keelend-session) | end a session: verify, write the note, git |
 | [`/keel:start-planning`](#keelstart-planning) | plan a feature: questions, decisions and short tickets, no code |
 | [`/keel:end-planning`](#keelend-planning) | hand the plan over, or review it and export the tickets |
+| [`/keel:feature-page`](#keelfeature-page) | a private page of a planned feature in your claude.ai account, to read |
 | [`/keel:cleanup`](#keelcleanup) | move leftovers to keel's trash, put them back, empty old trash |
-| [`/keel:usage`](#keelusage) | the link to your private usage page, opened |
-| [`/keel:usage-clear`](#keelusage-clear) | deletes all data on the usage page, after a warning and your yes |
+| [`/keel:usage`](#keelusage) | the link to your private usage page, opened; `on` / `off` switch this machine's sync; `clear` deletes this machine's data on the page, after a warning and your yes |
 | [`/keel:help`](#keelhelp) | a short table of the commands |
 
 ## `/keel:configure`
 
-`/keel:configure [section | machine]`
+`/keel:configure [check | section | machine]`
 
 Without `machine`, every run first asks: this project, or only this machine? keel needs a git
 repository: in a folder without one, `/keel:configure` and every other command offer `git init` and a
@@ -37,12 +35,12 @@ first commit of the current state, and stop on a no.
 
 | You type | keel does |
 |---|---|
-| `/keel:configure` in a new project | Asks: quick setup (recommended, about six questions) or detailed. Scans the project (languages, package managers, monorepo parts, test, lint and type commands, CI, existing AI rules, security scanners). **Quick** asks the two languages, the gate commands with one dry run, the git mode and main branch, the recommended Claude Code settings (all, one by one, or none), and the usage settings when this machine has none; every other value is the recommendation, and the summary names the section that changes it. **Detailed** goes through every section: languages, gates, git, verification thresholds, file sizes and comments, stack plugins, documentation, moving from another notes system, Claude Code settings, usage and costs. Each group of questions starts with a plain explanation (what the setting is, what it changes, an example); each decision is its own question with every option, the recommended one first. Quick keeps your existing docs as they are; detailed setup, when the docs pattern you pick differs from the one your docs follow, offers to prepare their move as a task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)). |
+| `/keel:configure` in a new project | Asks: quick setup (recommended, 11 to 18 questions depending on the project) or detailed. Scans the project (languages, package managers, monorepo parts, test, lint and type commands, CI, existing AI rules, security scanners). **Quick** asks the two languages, the gate commands with one dry run, the run command of a part that serves something, the git mode and main branch, the planning ticket prefix and where the tickets live, the recommended Claude Code settings (all, one by one, or none), the ADR style when the project has or will write decision records, and the usage settings when this machine has none; every other value is the recommendation, and the summary names the section that changes it. **Detailed** goes through every section: languages, gates, git, verification thresholds, file sizes and comments, planning tickets, stack plugins, documentation, moving from another notes system, Claude Code settings, usage and costs. Each group of questions starts with a plain explanation (what the setting is, what it changes, an example); each decision is its own question with every option, the recommended one first. Quick keeps your existing docs as they are; detailed setup, when the docs pattern you pick differs from the one your docs follow, offers to prepare their move as a task ([your existing docs](getting-started.md#3-set-up-a-project-keelconfigure)). |
 | `/keel:configure` in a configured project | Asks what to change: a section, a new scan, or everything. |
-| `/keel:configure` when the config is out of date or broken | Repairs it: asks only about fields a newer keel added, or lists each problem with a proposed fix, and keeps everything else. |
+| `/keel:configure` when the config is out of date or broken | Repairs it: asks only about fields a newer config format requires, or lists each problem with a proposed fix, and keeps everything else. A whole new settings section (such as `planning`) is not asked here: set it with `/keel:configure <section>`. |
 | `/keel:configure machine` | Only this machine's settings, for every project: the conversation language, the machine values of the Claude Code settings, usage and costs. Writes no `.keel/` files. |
 | `/keel:configure check` | Says, without changing any setting, whether the project changed since the last configure in ways its settings depend on, which sections to run again and why (each with the fact, for example a new `npm run test:e2e` keel does not run, or a main branch that is gone), and the command that runs only those. Package versions alone never count. One script does the comparison, so the answer costs about one reply. On a machine without a record of the last configure it rebuilds one from the commit of `.keel/` (a few seconds, once). [More](#keelconfigure-check). |
-| `/keel:configure <section>[,<section>...]` | Only those sections again, in a configured project, in section order, and the files are written once at the end: `/keel:configure gates,git` (or `3,4`). Sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`. `prices` has an agent read the official pricing page and shows the differences; `migration` moves another notes system into keel. |
+| `/keel:configure <section>[,<section>...]` | Only those sections again, in a configured project, in section order, and the files are written once at the end: `/keel:configure gates,git` (or `3,4`). Sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`; `planning` asks only the planning settings (ticket prefix, where the tickets live, their language). `prices` has an agent read the official pricing page and shows the differences; `migration` moves another notes system into keel. |
 
 Nothing is written without your yes. A project setup writes `.keel/config.json`, `.keel/profile.json`
 and `.keel/.gitignore`; with your yes also the Claude Code settings it recommends (each file backed up
@@ -50,7 +48,9 @@ first), a short "Working with Claude Code" section in your README, a status line
 At the end keel says how to commit the setup (on the main branch now, or with the first task:
 [the setup commit](getting-started.md#3-set-up-a-project-keelconfigure)) and to start the first task
 in a fresh conversation (`/clear`). When you agreed to move your docs, the summary names that task
-first: `/keel:start-task .keel/local/docs-migration.md`. Every other command but `/keel:help` and `/keel:usage` checks this setup first and
+first: `/keel:start-task .keel/local/docs-migration.md`; when you agreed to the one-time clean-up of
+your ADRs ([ADR styles](settings.md#adr-styles)), `/keel:start-task .keel/local/adr-cleanup.md` comes
+before it. Every other command but `/keel:help` and `/keel:usage` checks this setup first and
 offers to run it. Every setting: [settings](settings.md).
 
 ### `/keel:configure check`
@@ -95,7 +95,8 @@ Then one combined question (the retell, "continuation of X?" or "new, right?", a
 questions or a brainstorm offer, a plan with the branch to work in (a new branch from the current one,
 recommended; the current branch; or your own git steps, which keel runs in both git modes), the task
 folder, and the code. A task that turns out too big: keel offers to plan it as a feature instead,
-while no code changed. Every case, including continuing a task and a planned ticket:
+in a new chat with a brief of what was found, or here; with code already changed it advises by what
+is done. Every case, including continuing a task and a planned ticket:
 [ways of working](workflows.md#start-a-task-keelstart-task).
 
 ## `/keel:end-task`
@@ -106,7 +107,7 @@ while no code changed. Every case, including continuing a task and a planned tic
 |---|---|
 | `/keel:end-task` | a menu: finish fully / hand off / your own instruction |
 | `/keel:end-task finish` | verification (you pick the level), fixes, Claude Code's own confirmation "task <id> is done?" (every time; yes moves the folder to keel's trash, no keeps the task active), git, report |
-| `/keel:end-task hand off` (any words: "park it", "prepare for the next conversation") | gates only, the task file updated, git, report. A task without its own branch and no git instruction: keel first asks where the work goes (a new branch, the current branch, no commit, or your instruction) and runs the answer |
+| `/keel:end-task hand off` (any words: "park it", "prepare for the next conversation") | gates only, the task file updated, git, report. A task without its own branch and no git instruction: the work goes to a new branch of its own, committed as work in progress and pushed (your git instruction wins) |
 | `/keel:end-task finish and merge into main` | as finish, then the [merge](workflows.md#merging-into-the-main-branch) (Claude Code asks first, unless you confirmed autonomous git on this machine and set `git.ask_before_merge: false`) |
 | `/keel:end-task push` | asks: finish or hand off? |
 
@@ -118,7 +119,7 @@ Every case: [ways of working](workflows.md#end-a-task-keelend-task).
 
 | You type | keel does |
 |---|---|
-| `/keel:tasks` | Lists the unfinished tasks of this working tree and of every branch (as of the last fetch): `<id> · <title>`, then Source, State (active or handed off, how long ago, steps done of total, branch), Next and Files; a "Base moved" line when the base branch got new commits since the handoff. A task handed off 30 days ago or more: keel offers to finish it or drop it. It ends with "Continue one with `/keel:start-task <id>`". Then a "Planned" block: each feature with planned tickets not done, every ticket's state, when the server data was fetched, and "Start the next one with `/keel:start-task <KEY>`"; a feature whose every ticket is `done` or `waiting for the feature merge` gets the offer of its [end](workflows.md#end-of-a-feature). |
+| `/keel:tasks` | Lists the unfinished tasks of this working tree and of every branch (as of the last fetch): `<id> · <title>`, then Source, State (active or handed off, how long ago, steps done of total, branch), Next and Files; a "Base moved" line when the base branch got new commits since the handoff. A task handed off 30 days ago or more: keel offers to finish it or drop it. It ends with "Continue one with `/keel:start-task <id>`". Then a "Planned" block: each feature with planned tickets not done, every ticket's state, when the server data was fetched, and "Start the next one with `/keel:start-task <KEY>`"; a feature whose every ticket is `done` or `waiting for the feature merge` gets the offer of its [end](planning.md#end-of-a-feature). A feature on several repositories then gets an "Other repositories" block: its tickets there with their states, or, for a repository not on this machine, the overview's list with the state unknown; when the feature's overview differs between repositories, keel says so in one line and offers to align it ([tickets of linked repositories](planning.md#ticket-states)). |
 | `/keel:tasks CAN-123` | Shows that task: goal, state, open questions and the next action, in 3-6 lines. It reads the task file also from another branch. |
 | `/keel:tasks drop CAN-123` | Explains everything the task left: its folder, its branch (local, pushed), the commits not in the base branch, the changed files and the docs among them. Asks what to remove: everything or which parts. Then each removal on its own, the folder first, and Claude Code itself asks you to confirm the folder and the branch. The folder goes to keel's trash (`/keel:cleanup restore` brings it back); when its branch stays, the removal is committed on that branch. The branch is deleted locally (`git branch -D`) and, if it was pushed, on the remote; after a local delete keel prints the `git branch <name> <commit>` command that brings it back, and after a remote delete the remote branch's last commit and `git push <remote> <commit>:refs/heads/<name>`, which brings it back while that commit is still in your repository. The main branch and the current one are refused (switch away first). Changes already in the base branch are only reverted (`git revert`), never rewritten. In manual git keel gives the commit, branch and revert commands instead of running them. |
 
@@ -158,12 +159,13 @@ Every case: [ways of working](workflows.md#end-a-session-keelend-session).
 | You type | keel does |
 |---|---|
 | `/keel:start-planning` | lists the drafts (feature, state, open questions, tickets, last change, where) and asks which to continue or what the new feature is |
-| `/keel:start-planning CSV export of invoices` (or a link, or a file) | a new feature: the retell, its size, a name, where its tasks merge, then one question at a time |
+| `/keel:start-planning CSV export of invoices` (or a link, or a file) | a new feature: the retell, its size, a name, where its tasks merge; told in a line or two or large, an offer to gather first (the project map, with its price); then one question at a time |
+| `/keel:start-planning .keel/local/plans/briefs/<name>-brief.md` | a new feature from the brief `/keel:start-task` wrote for a task too big for one: its content goes into the plan, the brief to keel's trash, and planning starts from its open questions without asking again what it settles |
 | `/keel:start-planning csv-export` (or "continue the CSV export") | continues that draft from its Next action; an exported feature reopens its tickets for editing |
 
-The first run in a project asks the tickets' language and where the draft lives (this machine or the
-repository). No code: the conversation writes only the draft. Every case:
-[ways of working](workflows.md#planning).
+Without the project's planning settings (`/keel:configure planning`) the first run stops before any
+question; then it asks where the draft lives (this machine or the repository). No code: the conversation writes only the draft. Every case:
+[planning](planning.md).
 
 ## `/keel:end-planning`
 
@@ -176,7 +178,22 @@ repository). No code: the conversation writes only the draft. Every case:
 | `/keel:end-planning` | open questions or structure problems → hand over, with the reason; otherwise asks "Final review and export, or hand over?" |
 
 Planning files are committed and pushed only after your yes and Claude Code's own prompt. The report:
-Done, Reviews, Git, What next, Costs. Every case: [ways of working](workflows.md#end-keelend-planning).
+Done, Reviews, Git, What next, Costs. Every case: [planning](planning.md#end-keelend-planning).
+
+## `/keel:feature-page`
+
+`/keel:feature-page [feature] [--lang <code>]`
+
+| You type | keel does |
+|---|---|
+| `/keel:feature-page csv-export` | makes the page of the feature `csv-export`, or updates the one made before, and gives its link |
+| `/keel:feature-page` | the same for the feature of the current branch (the feature branch or a branch of one of its tickets); none or several → asks which, offering the features this working tree holds and naming those that live only on other branches |
+| `/keel:feature-page csv-export --lang en` | the same page in English from now on |
+
+A private page in your claude.ai account: the feature's overview, decisions, terms and research,
+what is in progress, and every ticket with its state and dependencies, in your language. It shows git as
+it was when it was built: run the command again to update it. What is on the page, how to use it, how it
+is built and what it costs, with screenshots: [The feature page](feature-page.md).
 
 ## `/keel:cleanup`
 
@@ -185,7 +202,7 @@ Done, Reviews, Git, What next, Costs. Every case: [ways of working](workflows.md
 | You type | keel does |
 |---|---|
 | `/keel:cleanup` | Finds temporary files, backups, caches and what an old notes system left, and shows them in three groups: **safe** (preselected), **check** and **do not touch** (both only by number; a do-not-touch item gets a second question about what may break). Moves only what you pick to `.keel/local/trash/<batch>/`. If the project's tests are affected, it runs them; red → it puts the batch back by itself and runs them again. Reports what moved, its size, and how to undo. Nothing found → says so. |
-| `/keel:cleanup restore` | Puts the newest batch back. |
+| `/keel:cleanup restore` | Puts back the newest batch this folder moved. |
 | `/keel:cleanup restore <batch>` | Puts that batch back (also a dropped task's folder). |
 | `/keel:cleanup empty-trash` | Says what would be deleted for good (by default batches 30 days old or more, `cleanup.trash_max_age_days`; or one batch you name per run; or all); Claude Code itself asks you to confirm, naming which (the batches of that age, the one batch, or all), then it deletes. |
 
@@ -198,20 +215,23 @@ a task or session keel reminds you of `/keel:cleanup` only when enough leftovers
 
 `/keel:usage` gives the link to this machine's private ["keel usage" page](usage-dashboard.md) and
 opens it. It works in any project, set up or not. No page on this machine yet → it says so and points
-to `/keel:configure usage`. A page made by an older keel → it also says that `/keel:configure usage`
-[updates it](usage-dashboard.md#updating-the-page) and keeps its data (a team page or one shared
-from another account: that its owner can update it).
+to `/keel:usage on`, which sets one up. A page made by an older keel → it also says that `/keel:configure usage`
+[updates it](usage-dashboard.md#updating-the-page) and keeps its data.
 
-## `/keel:usage-clear`
+`/keel:usage off` stops this machine's sync to the page: the page and its data stay, and the end reports
+still show the costs. `/keel:usage on` sends what Claude Code's logs still hold of the time it was off (30 days by
+default), or sets the page up if there is none. With an API key only there is no usage page (it lives in a claude.ai account), and the command says
+so. [More](usage-dashboard.md#turning-the-sync-on-and-off).
 
-`/keel:usage-clear` deletes all data on the usage page: every machine's day documents (hours and
-sessions), the machine documents and the calibration. Before anything is deleted it shows a warning: the
-period (first and last day), how many sessions and dollars, the machines, the size, and what it affects
-(the page is empty until the next end step; it is gone for everyone the page is shared with; it cannot be
-undone). Only after your explicit yes it deletes, then says what was deleted. This machine's local logs,
-limit records and calibration stay, and so do the page itself and its language; the next sync sends only
-what happens after the clear. Document contents never pass through the conversation: a clear is three
-reads and one write per 50 documents. [More](usage-dashboard.md#clearing-the-page).
+`/keel:usage clear` deletes **this machine's** data on the usage page: its day, machine and calibration
+documents; other machines' data stays. To clear the whole page, run it on every machine. Before anything
+is deleted it shows a warning: its days (first to last), sessions and their dollars, all usage, the size
+in KB and the number of delete calls in the chat (each needs your approval; the end report shows the real
+cost). It also says what it affects: this machine starts over from the next end step; it cannot be
+undone. Only after your explicit yes it deletes, then says what was deleted. This machine's local logs,
+limit records and calibration stay, and so do the page itself and its language; the machine then sends
+only what happens from the clear on. Document contents never pass through the conversation
+([clearing the page](usage-dashboard.md#clearing-the-page)).
 
 ## `/keel:help`
 

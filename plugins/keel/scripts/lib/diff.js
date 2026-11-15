@@ -145,11 +145,16 @@ function untrackedSnapshot(root) {
   return Object.fromEntries(list.map((rel) => [rel, fileStamp(root, rel)]));
 }
 
+// What /keel:configure writes. Left uncommitted, it goes into the first task's commit, so the record
+// never holds it, also one written by an older keel (kept while a line of work is open).
+const SETUP_FILES = new Set(['.keel/config.json', '.keel/profile.json', '.keel/.gitignore']);
+
 // The untracked files recorded at the task start (.keel/local/session-start.json), or null.
 function untrackedRecord(root) {
   try {
     const start = JSON.parse(fs.readFileSync(path.join(root, '.keel', 'local', 'session-start.json'), 'utf8'));
-    return start.untracked && typeof start.untracked === 'object' ? start.untracked : null;
+    if (!start.untracked || typeof start.untracked !== 'object') return null;
+    return Object.fromEntries(Object.entries(start.untracked).filter(([rel]) => !SETUP_FILES.has(rel)));
   } catch { return null; }
 }
 

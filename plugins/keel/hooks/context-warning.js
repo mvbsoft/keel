@@ -2,7 +2,6 @@
 // UserPromptSubmit hook: warns before Claude Code auto-compacts the conversation, so the user can run
 // /compact with a focus or start a new session first. Only in a project keel is set up in. Fails soft: never blocks a prompt.
 const fs = require('node:fs');
-const path = require('node:path');
 const { pickLanguage, translator } = require('../scripts/lib/i18n.js');
 const { readJsonFile } = require('../scripts/lib/json.js');
 
@@ -81,12 +80,9 @@ function threshold(info, project) {
 function customWindow({ model }, project) {
   const fromEnv = process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
   if (/^\d+$/.test(fromEnv || '') && Number(fromEnv) > 0) return Number(fromEnv);
-  const files = [
-    path.join(project, '.claude', 'settings.local.json'),
-    path.join(project, '.claude', 'settings.json'),
-    // Required here, not at the top, so a broken import still ends in the silent catch below.
-    require('../scripts/claude-settings.js').userFile(),
-  ];
+  // Required here, not at the top, so a broken import still ends in the silent catch below.
+  const settings = require('../scripts/claude-settings.js');
+  const files = [...settings.projectFiles(project), settings.userFile()];
   for (const file of files) {
     const value = windowIn(readJson(file), model);
     if (value === 'auto') break;
@@ -103,9 +99,9 @@ function modelWindow({ model, peak }) {
   return standard && peak <= WINDOW_STANDARD ? WINDOW_STANDARD : WINDOW_1M;
 }
 
-function warning(used, limit) {
+function warning(used, limit, project) {
   const [usedK, limitK] = [used, limit].map((n) => `${Math.round(n / 1000)}k`);
-  return translator(pickLanguage())('context.warning', { used: usedK, limit: limitK, percent: Math.round((used / limit) * 100) });
+  return translator(pickLanguage(require('../scripts/lib/options.js').effectiveOptions(project).conversation_language))('context.warning', { used: usedK, limit: limitK, percent: Math.round((used / limit) * 100) });
 }
 
 function main() {
@@ -113,11 +109,11 @@ function main() {
   if (!input.transcript_path) return null;
   const usage = latestUsage(tailLines(input.transcript_path));
   if (!usage) return null;
-  const project = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
+  const project = require('../scripts/lib/project-dir.js').hookProject(input);
   if (!require('../scripts/lib/active.js').configured(project)) return null;
   const limit = threshold(usage, project);
   if (usage.used < limit * WARN_AT) return null;
-  const line = warning(usage.used, limit);
+  const line = warning(usage.used, limit, project);
   // systemMessage is for the user, but whether UserPromptSubmit shows it is not documented; the model is
   // asked to repeat the line, so the user sees it either way.
   return {

@@ -104,6 +104,18 @@ test('secret files are listed by path and never opened', () => {
   assert.ok(!output.includes(CANARY));
 });
 
+test('a rules or ADR file named like a secret is listed, never opened, and the scan goes on', () => {
+  const dir = makeProject('go');
+  for (const rel of ['.claude/rules/credentials.md', '.claude/rules/secrets.md', 'docs/adr/secrets.md']) {
+    fs.mkdirSync(path.join(dir, path.dirname(rel)), { recursive: true });
+    fs.writeFileSync(path.join(dir, rel), `${CANARY}
+`);
+  }
+  const result = scan(dir);
+  assert.ok(result.profile.secret_paths.includes('.claude/rules/credentials.md'));
+  assert.ok(!JSON.stringify(result).includes(CANARY));
+});
+
 test('in a git repository, ignored secrets are still found by name', (t) => {
   try { execFileSync('git', ['--version'], { stdio: 'ignore' }); } catch { t.skip('git is not installed'); return; }
   const dir = makeProject('js-monorepo');
@@ -114,6 +126,24 @@ test('in a git repository, ignored secrets are still found by name', (t) => {
   assert.equal(findings.git, true);
   assert.deepEqual(profile.secret_paths, ['.env']);
   assert.deepEqual(langs('js-monorepo'), profile.languages.map((l) => l.name));
+});
+
+test('in a git repository, keel\'s own .keel/next-session.md is not another notes system; a HANDOFF.md still is', (t) => {
+  try { execFileSync('git', ['--version'], { stdio: 'ignore' }); } catch { t.skip('git is not installed'); return; }
+  const dir = tempDir('keel-own-note-');
+  try { execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' }); } catch { t.skip('git cannot create a repository here'); return; }
+  fs.mkdirSync(path.join(dir, '.keel'));
+  fs.writeFileSync(path.join(dir, '.keel', 'next-session.md'), '# Next session\n');
+  fs.writeFileSync(path.join(dir, 'HANDOFF.md'), '# Handoff\n');
+  assert.deepEqual(scan(dir).findings.other_systems, [{ path: '.', files: 1, examples: ['HANDOFF.md'] }]);
+});
+
+test('docs: a README or a changelog is a doc; code named like one is not', (t) => {
+  try { execFileSync('git', ['--version'], { stdio: 'ignore' }); } catch { t.skip('git is not installed'); return; }
+  const dir = tempDir('keel-doc-names-');
+  try { execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' }); } catch { t.skip('git cannot create a repository here'); return; }
+  for (const f of ['README', 'README.md', 'CHANGELOG', 'CHANGELOG.md', 'CHANGELOG-1.x.md', 'readme.py', 'changelog_service.py', 'changelog.py']) fs.writeFileSync(path.join(dir, f), 'x\n');
+  assert.deepEqual(scan(dir).findings.docs.files.sort(), ['CHANGELOG', 'CHANGELOG-1.x.md', 'CHANGELOG.md', 'README', 'README.md']);
 });
 
 test('the CLI prints the same JSON and exits 0', () => {
@@ -137,6 +167,44 @@ test('--out writes the full result only inside .keel/local/tmp and prints a shor
   const outside = spawnSync(process.execPath, [script, dir, '--out', path.join(dir, 'scan.json')], { encoding: 'utf8' });
   assert.match(outside.stdout, /--out must be a file inside/);
   assert.ok(!fs.existsSync(path.join(dir, 'scan.json')));
+});
+
+test('a part without a lock file is marked, so configure proposes no audit that needs one', () => {
+  const dir = tempDir('keel-scan-nolock-');
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'lib', scripts: { test: 'node --test' } }));
+  const { findings } = scan(dir);
+  assert.deepEqual(findings.no_lock_file, [{ part: '.', ecosystems: ['npm'] }]);
+  const script = path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'scan.js');
+  const r = spawnSync(process.execPath, [script, dir, '--out', path.join(dir, '.keel', 'local', 'tmp', 'scan.json')], { encoding: 'utf8' });
+  assert.match(r.stdout, /part \.: npm:npm \(no lock file: npm\) \| test: npm test/);
+  assert.deepEqual(results['js-monorepo'].findings.no_lock_file, [], 'parts under the root pnpm lock have one');
+});
+
+test('the lock-file mark names the ecosystem: a locked npm next to an unlocked one keeps its lock', () => {
+  const project = (files) => {
+    const dir = tempDir('keel-scan-locks-');
+    for (const [rel, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+      fs.writeFileSync(path.join(dir, rel), text);
+    }
+    return dir;
+  };
+  const pkg = JSON.stringify({ name: 'app', scripts: { test: 'node --test' } });
+  const mixed = project({ 'package.json': pkg, 'package-lock.json': '{}', 'requirements.txt': 'flask\n' });
+  assert.deepEqual(scan(mixed).findings.no_lock_file, [{ part: '.', ecosystems: ['python'] }]);
+  const script = path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'scan.js');
+  const r = spawnSync(process.execPath, [script, mixed, '--out', path.join(mixed, '.keel', 'local', 'tmp', 'scan.json')], { encoding: 'utf8' });
+  assert.match(r.stdout, /part \.: npm:npm, python \(no lock file: python\)/);
+  assert.deepEqual(scan(project({ 'composer.json': '{}' })).findings.no_lock_file, [{ part: '.', ecosystems: ['composer'] }]);
+  assert.deepEqual(scan(project({ 'composer.json': '{}', 'composer.lock': '{}' })).findings.no_lock_file, []);
+  const workspace = project({ 'Cargo.toml': '[workspace]\nmembers = ["crates/a"]\n', 'Cargo.lock': '', 'crates/a/Cargo.toml': '[package]\nname = "a"\n' });
+  assert.deepEqual(scan(workspace).findings.no_lock_file, [], "a workspace member uses the root's Cargo.lock");
+  const ignoredLock = project({ 'package.json': pkg, 'package-lock.json': '{}', '.gitignore': 'package-lock.json\n' });
+  execFileSync('git', ['init', '-q'], { cwd: ignoredLock });
+  assert.deepEqual(scan(ignoredLock).findings.no_lock_file, [], 'a git-ignored lock file is still on disk for the audit');
+  const ignoredPnpm = project({ 'package.json': pkg, 'pnpm-lock.yaml': '', '.gitignore': 'pnpm-lock.yaml\n' });
+  execFileSync('git', ['init', '-q'], { cwd: ignoredPnpm });
+  assert.deepEqual(scan(ignoredPnpm).profile.parts[0].ecosystems, ['npm:pnpm'], 'the ignored lock also names the package manager');
 });
 
 test('installed scanners are found on PATH without running anything', () => {

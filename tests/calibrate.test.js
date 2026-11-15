@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const { periodKey, spendBetween, findPoints, rateFrom, calibrate, share, forecast } = require(path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'lib', 'calibrate.js'));
+const { periodKey, spendBetween, findPoints, rateFrom, calibrate, share } = require(path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'lib', 'calibrate.js'));
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
 const WEEK = '2026-10-15T00:00:00Z';
@@ -147,13 +147,9 @@ test('no points: rate is null', () => {
   assert.deepEqual([c.weekly.rate, c.five_hour.rate, c.waiting], [null, null, []]);
 });
 
-test('share and forecast: null when the rate is null', () => {
+test('share: null when the rate is null', () => {
   assert.equal(share(36, 18), 2);
   assert.equal(share(36, null), null);
-  assert.equal(forecast({ current: 40, usdLast48h: 144, rate: 18, hoursToReset: 60 }), 40 + 10);
-  assert.equal(forecast({ current: 40, usdLast48h: 96, rate: null, hoursToReset: 60 }), null);
-  assert.equal(forecast({ current: null, usdLast48h: 96, rate: 18, hoursToReset: 60 }), null);
-  assert.equal(forecast({ current: 40.04, usdLast48h: 0, rate: 18, hoursToReset: 60 }), 40);
 });
 
 test('reset times in epoch seconds and ISO with milliseconds fall into one period', () => {

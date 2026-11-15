@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { tempDir } = require('./fixtures/tmp.js');
+const { says } = require('./fixtures/texts.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
@@ -106,6 +107,29 @@ test('scan: documentation shape, files loaded every session with line counts, su
   assert.equal(scan(project({ 'a.js': '1' })).findings.docs.suggested_profile, 1);
 });
 
+test('scan: how the existing ADRs are kept, counted from their text', () => {
+  const dir = project({
+    'docs/adr/README.md': '# Decisions\nSuperseded records stay.\n',
+    'docs/adr/0001-db.md': '# Postgres\nStatus: Superseded by 0003\n',
+    'docs/adr/0002-queue.md': '# Queue\nStatus: Accepted\nAmended 2026-01-02: retries 5.\n',
+    'docs/adr/0003-db.md': '# SQLite\nStatus: Accepted\nSupersedes 0001.\n',
+    'docs/adr/0004-cache.md': '# Cache\nStatus: Accepted\n',
+  });
+  // one supersede is one superseded record: the newer record's "Supersedes 0001" is not a second one
+  assert.deepEqual(scan(dir).findings.docs.adr_records, { records: 4, superseded: 1, amended: 1 });
+  const plain = project({
+    'docs/decisions/0001-cache.md': '# Cache\nStatus: Accepted\n\nThe cache is partially warmed at start; a clock-skew correction of 5 s applies.\n',
+    'docs/decisions/0002-api.md': '# API\nStatus: Accepted\n\nHandlers return void. This supersedes nothing; it refines the error model.\n',
+  });
+  assert.deepEqual(scan(plain).findings.docs.adr_records, { records: 2, superseded: 0, amended: 0 }, 'ordinary words in a record are not history marks');
+  const marks = project({
+    'docs/adr/0001-a.md': '# A\n**Status:** Partly superseded by 0002\n',
+    'docs/adr/0002-b.md': '# B\nStatus: Accepted\n\n> Was: 3 retries.\n',
+  });
+  assert.deepEqual(scan(marks).findings.docs.adr_records, { records: 2, superseded: 1, amended: 2 }, 'a bold status line, a partial supersede and a quoted note count');
+  assert.deepEqual(scan(project({ 'a.js': '1' })).findings.docs.adr_records, { records: 0, superseded: 0, amended: 0 });
+});
+
 function withUserFile(content, fn) {
   const dir = tempDir('keel-user-');
   const file = path.join(dir, 'settings.json');
@@ -165,12 +189,12 @@ test('catalog: gitleaks is two scanners (branch commits and uncommitted changes)
 test('configure flow section 3: <main> is substituted from section 4, Docker is an option the user decides', () => {
   const text = flow();
   const three = text.slice(text.indexOf('## 3. Gates'), text.indexOf('## 4. Git'));
-  assert.match(three, /--log-opts=<main>\.\.HEAD/);
-  assert.match(three, /gitleaks protect --no-banner --redact/);
+  says(three, ['--log-opts=<main>..HEAD']);
+  says(three, ['gitleaks protect --no-banner --redact']);
   assert.match(three, /`<main>` is the main branch confirmed in\s+section 4/);
-  assert.match(three, /docker run --rm -v \.\/:\/repo zricethezav\/gitleaks:<pinned version> detect --source \/repo/);
-  assert.match(three, /MSYS_NO_PATHCONV=1/);
-  assert.match(three, /the user decides/);
+  says(three, ['docker run --rm -v ./:/repo zricethezav/gitleaks:<pinned version> detect --source /repo']);
+  says(three, ['MSYS_NO_PATHCONV=1']);
+  says(three, ['the user decides']);
 });
 
 test('configure flow section 12: the manual setup is proposed for the README, written only after a yes', () => {
@@ -178,16 +202,16 @@ test('configure flow section 12: the manual setup is proposed for the README, wr
   const twelve = text.slice(text.indexOf('## 12. Write and summary'));
   assert.ok(twelve.indexOf('Write the manual setup down') > twelve.indexOf('config-check.js'), 'after the files are written and checked');
   assert.match(twelve, /README \(or\s+its existing setup or getting-started doc/);
-  assert.match(twelve, /"Working with Claude Code"/);
-  assert.match(twelve, /`repo_language`/);
-  assert.match(twelve, /only after the user's yes/);
-  assert.match(twelve, /about 10 lines/);
-  assert.match(twelve, /claude plugin install <plugin>@<marketplace> --scope project/);
+  says(twelve, ['"Working with Claude Code"']);
+  says(twelve, ['`repo_language`']);
+  says(twelve, ['only after the user\'s yes']);
+  says(twelve, ['about 10 lines']);
+  says(twelve, ['claude plugin install <plugin>@<marketplace> --scope project']);
   assert.match(twelve, /does not fetch or\s+offer a plugin/);
-  assert.match(twelve, /extraKnownMarketplaces/);
+  says(twelve, ['extraKnownMarketplaces']);
   assert.doesNotMatch(text, /gets it offered|Claude Code offers them/);
-  assert.match(twelve, /each program a picked plugin needs/);
-  assert.match(twelve, /security scanners/);
+  says(twelve, ['each program a picked plugin needs']);
+  says(twelve, ['security scanners']);
 });
 
 test('claude-settings apply: merges only allowed keys, keeps the rest, backs the file up', () => {
@@ -275,22 +299,73 @@ test('claude-settings: a new machine gets the settings file and keel@keel as the
 
 test('configure flow section 5: turn caps are stated, not asked (they live in the agent files)', () => {
   const five = flow().slice(flow().indexOf('## 5. Verification'), flow().indexOf('## 6.'));
-  assert.match(five, /Turn caps are not asked: state them in one line \(60 for review\s+agents, 350 for implementers, fixed in each agent's own file, not in the config\)/);
+  says(five, ['Turn caps are not asked', 'state them in one line', '60 for review agents', '350 for implementers', "fixed in each agent's own file, not in the config"]);
   assert.ok(five.indexOf('ask whether to keep them') < five.indexOf('Turn caps'), 'the question covers only the configurable values');
 });
 
+test('configure flow section 6: the planning settings, quick setup too, alone with `planning`; the planning prefix never goes into ticket_prefixes', () => {
+  const text = flow();
+  const six = text.slice(text.indexOf('## 6. Code'), text.indexOf('## 7.'));
+  says(six, ['**Planning tickets**', '`planning`; alone: `/keel:configure planning`']);
+  for (const field of ['planning.ticket_prefix', 'planning.tickets', 'planning.tickets_dir', 'planning.language']) assert.ok(six.includes(`\`${field}\``), field);
+  says(six, ['else 3-4 capital letters', "from the repository's name"]);
+  says(six, ['in the repository (recommended', "together with the reports of keel's researcher", '`research/`', 'only on this machine']);
+  says(six, ['**Ticket language** (`planning.language`)', 'detailed setup only', 'Quick setup takes `repo_language`']);
+  assert.ok(six.indexOf('**Planning tickets**') < six.indexOf('**Ids in comments and docs**'), 'the prefix is known before the ids question shows it');
+  says(six, ['The planning ticket prefix is always checked too', 'list it as "added on its own"', 'never write it into `ticket_prefixes`']);
+  says(text, ['| 6 Code |', 'planning tickets asked', 'the prefix and where they live', 'two questions in one call', 'the language is `repo_language`']);
+  says(text, ['`planning` runs only', 'the "Planning tickets" block of section 6']);
+});
+
 test('configure flow section 7: stack plugins are never preselected, also on "accept all"', () => {
-  const seven = flow().slice(flow().indexOf('## 7. Stack plugins'), flow().indexOf('## 8.'));
-  assert.match(seven, /Also on "accept all" or "your\s+recommendation": list the plugins by name, none marked recommended or preselected/);
+  const seven = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'configure-plugins.md'), 'utf8');
+  says(seven, ['Also on "accept all" or "your recommendation"', 'list the plugins by name', 'none marked recommended or preselected']);
+});
+
+test('configure-flow.md hands each rare part to its own file, naming the case; the common parts stay', () => {
+  const text = flow();
+  const sevenPointer = text.slice(text.indexOf('## 7. Stack plugins'), text.indexOf('## 8.'));
+  says(sevenPointer, ['**Stack plugins**', 'the user picks plugins', '`<keel>/skills/_shared/configure-plugins.md`', 'read', 'follow it']);
+  says(text.slice(text.indexOf('## 9.'), text.indexOf('## 10.')), ['No other system → skip this section without a question', '`<keel>/skills/_shared/configure-migration.md`', 'read', 'follow it']);
+  says(text.slice(text.indexOf('6. **Price update**'), text.indexOf('7. **Write**')), ['**Price update**', '`<keel>/skills/_shared/configure-prices.md`', 'read', 'follow it']);
+  says(text.slice(text.indexOf('**Instruction check, only when it is worth it**')), ['Advise', '`<keel>/skills/_shared/configure-instruction-check.md`', 'read', 'follow it']);
+  assert.ok(text.includes('**ADR style** (`docs.adr_style`)'), 'the ADR style question stays');
+  assert.ok(text.includes('4. **Write the manual setup down for the next developer.**'), 'the README step stays');
+  for (const f of ['configure-plugins.md', 'configure-migration.md', 'configure-prices.md', 'configure-instruction-check.md']) assert.ok(fs.existsSync(path.join(PLUGIN, 'skills', '_shared', f)), f);
+});
+
+test('configure-flow.md: the scripts every setup needs run once, in one message, and the sections use their output', () => {
+  const text = flow();
+  const batch = text.slice(text.indexOf('**The setup\'s scripts run once, together.**'), text.indexOf('Existing AI instruction files'));
+  assert.ok(batch.length > 200, 'the batch paragraph exists');
+  says(batch, ['ONE message', 'separate tool calls', 'each its own plain `node` command']);
+  says(batch, ['project mode, all five', 'scan.js', 'comments.js', 'migrate.js', 'claude-settings.js', 'usage-setup.js']);
+  says(batch, ['machine mode, the last two only']);
+  says(batch, ['`migrate.js find` is always in the batch', 'the scan does not see what it sees']);
+  says(batch, ['Each section below uses the output already in the conversation']);
+  says(text.slice(text.indexOf('## 3. Gates'), text.indexOf('## 4.')), ['several commands: all in one message as separate tool calls', 'it writes nothing']);
+  says(text.slice(text.indexOf('## 10.'), text.indexOf('## 11.')), ['output of `node "<keel>/scripts/claude-settings.js" "<project>" show` from section 0\'s batch']);
+  says(text.slice(text.indexOf('## 11.'), text.indexOf('## 12.')), ['output of `node "<keel>/scripts/usage-setup.js" "<project>" show` from section 0\'s batch']);
+  says(text.slice(text.indexOf('## 9.'), text.indexOf('## 10.')), ['output of `node "<keel>/scripts/migrate.js" "<project>" find` from the batch of section 0']);
+  says(text.slice(text.indexOf('## 6.'), text.indexOf('## 7.')), ['use the output of `node "<keel>/scripts/comments.js" "<project>" --project` from section 0\'s batch']);
+  says(text.slice(text.indexOf('## 2.'), text.indexOf('## 3.')), ['ran in section 0\'s batch', 'use its output']);
+  // Without AskUserQuestion the scripts still run first.
+  says(text, ['first run the scripts of every section', 'the batch of section 0', 'then ask all questions in one message']);
 });
 
 test('configure flow section 11: keel\'s status line on macOS or Linux checks for jq', () => {
   const eleven = flow().slice(flow().indexOf('## 11. Usage and costs'), flow().indexOf('## 12.'));
-  assert.match(eleven, /`install` on macOS or Linux: run `command -v jq`; nothing found → say that keel's line then shows\s+less \(the limit recording still works\) and give the install hint/);
+  says(eleven, ['`install` on macOS or Linux', 'run `command -v jq`', "say that keel's line then shows less", 'give the install hint']);
 });
 
 test('configure flow section 10: the personal settings file is offered to .gitignore when git does not ignore it', () => {
   const ten = flow().slice(flow().indexOf('## 10. Claude Code settings'), flow().indexOf('## 11.'));
-  assert.match(ten, /`git check-ignore \.claude\/settings\.local\.json`[\s\S]*offer to add the line `\.claude\/settings\.local\.json` to the project's `\.gitignore`/);
-  assert.match(flow().slice(flow().indexOf('## 12.')), /README, CLAUDE\.md, `\.gitignore`\s+or `\.claude\/settings\.json` when this setup changed them/);
+  says(ten, ['`git check-ignore .claude/settings.local.json`', 'offer to add the line `.claude/settings.local.json`', "project's `.gitignore`"]);
+  says(flow().slice(flow().indexOf('## 12.')), ['README, CLAUDE.md, `.gitignore` or `.claude/settings.json`', 'when this setup changed them']);
+});
+
+test('configure flow: the quick setup states its real number of questions', () => {
+  const zero = flow().slice(flow().indexOf('**Quick or detailed**'), flow().indexOf('| Section | Quick |'));
+  says(zero, ['quick (recommended: 11 to 18 questions', 'depending on the project']);
+  assert.doesNotMatch(zero, /about six/);
 });

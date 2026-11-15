@@ -8,6 +8,7 @@ const { tempDir } = require('./fixtures/tmp.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const store = require(path.join(PLUGIN, 'scripts', 'lib', 'usage-store.js'));
+const syncState = require(path.join(PLUGIN, 'scripts', 'lib', 'usage-sync-state.js'));
 const { validate, checkSchema } = require(path.join(PLUGIN, 'scripts', 'lib', 'schema.js'));
 const SCHEMA = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'schemas', 'usage-day.schema.json'), 'utf8'));
 const { buildSession, price, REQ, SESSION_ID } = require('./fixtures/transcripts.js');
@@ -70,6 +71,23 @@ test('day document: shape validates against the schema, hours and sessions match
   assert.equal(s.participants.length, 3);
   assert.ok(s.turns.every((t) => t.t === null || /^\d{4}-\d\d-\d\dT/.test(t.t)));
   assert.ok(!('requests' in s), 'the per-request list is not stored');
+});
+
+test('day document: every priced by_model entry carries usd_kind adding up to its usd; unpriced models have none', () => {
+  const e = env();
+  buildSession(e.root);
+  const doc = e.build().docs[0].doc;
+  assert.deepEqual(validate(doc, SCHEMA), []);
+  let seen = 0;
+  for (const p of doc.sessions[0].participants) {
+    for (const [model, v] of Object.entries(p.by_model)) {
+      if (model === 'test-mystery-1') { assert.ok(!('usd_kind' in v)); continue; }
+      near(sum(Object.values(v.usd_kind)), v.usd);
+      assert.deepEqual(Object.keys(v.usd_kind).sort(), ['cr', 'cw1h', 'cw5', 'in', 'out']);
+      seen++;
+    }
+  }
+  assert.equal(seen, 2);
 });
 
 test('a session across midnight: hours in two documents, the session in the day it started', () => {
@@ -191,6 +209,21 @@ test('summary cache: the second build does not parse again, a changed file does'
   assert.equal(dearer.stats.parsed, 1);
 });
 
+test('summary cache: a summary cached by the keel before dollars by token kind is parsed again', () => {
+  const e = env();
+  buildSession(e.root);
+  e.build();
+  const file = path.join(e.dir, 'usage-cache', `${SESSION_ID}.json`);
+  const cache = JSON.parse(fs.readFileSync(file, 'utf8'));
+  // version 3 is the cache of the keel before this detail: its summaries have no usd_kind
+  cache.v = 3;
+  fs.writeFileSync(file, JSON.stringify(cache, (key, value) => (key === 'usd_kind' ? undefined : value)));
+  const again = e.build();
+  assert.deepEqual(again.stats, { parsed: 1, reused: 0 });
+  const kinds = again.docs[0].doc.sessions[0].participants.flatMap((p) => Object.values(p.by_model)).filter((v) => v.usd_kind);
+  assert.equal(kinds.length, 2, 'both priced models have the dollars by kind again');
+});
+
 test('rebuilding a day takes in sessions that did not change; sessions long before the day do not matter', () => {
   const e = env();
   const old = Date.UTC(2026, 2, 3, 13, 0, 0);
@@ -242,53 +275,53 @@ test('limit snapshots of the day go into the document; cost_cc is the last cost 
 const fake = (key, v, extra = {}) => ({ id: key, key, hash: `h-${key}-${v}`, doc: { date: key, pc: 'p', part: 1, parts: 1, hours: [], snapshots: [], sessions: [], ...extra } });
 
 test('stage and ack: only changed documents are written; versions go up by one and become if_version', () => {
-  const state = store.readState(tempDir('keel-state-'));
+  const state = syncState.readState(tempDir('keel-state-'));
   assert.equal(state.synced_until, null);
-  const w1 = store.stage(state, [fake('d1', 1), fake('d2', 1)], { nowIso: '2026-03-03T10:00:00Z' });
+  const w1 = syncState.stage(state, [fake('d1', 1), fake('d2', 1)], { nowIso: '2026-03-03T10:00:00Z' });
   assert.deepEqual(w1.map((w) => [w.key, w.if_version]), [['d1', null], ['d2', null]]);
-  const r1 = store.ack(state);
+  const r1 = syncState.ack(state);
   assert.equal(r1.committed, 2);
   assert.equal(state.synced_until, '2026-03-03T10:00:00Z');
   assert.deepEqual(state.docs.d1, { version: 1, hash: 'h-d1-1' });
   // d1 unchanged, d2 changed
-  const w2 = store.stage(state, [fake('d1', 1), fake('d2', 2)], { nowIso: '2026-03-03T11:00:00Z' });
+  const w2 = syncState.stage(state, [fake('d1', 1), fake('d2', 2)], { nowIso: '2026-03-03T11:00:00Z' });
   assert.deepEqual(w2.map((w) => [w.key, w.if_version]), [['d2', 1]]);
-  store.ack(state);
+  syncState.ack(state);
   assert.deepEqual(state.docs.d2, { version: 2, hash: 'h-d2-2' });
   assert.equal(state.synced_until, '2026-03-03T11:00:00Z');
   // an explicit version (after a conflict) replaces the known one
-  const w3 = store.stage(state, [fake('d2', 2)], { nowIso: '2026-03-03T12:00:00Z', versions: { d2: 7 } });
+  const w3 = syncState.stage(state, [fake('d2', 2)], { nowIso: '2026-03-03T12:00:00Z', versions: { d2: 7 } });
   assert.deepEqual(w3.map((w) => [w.key, w.if_version]), [['d2', 7]]);
-  store.ack(state);
+  syncState.ack(state);
   assert.equal(state.docs.d2.version, 8);
 });
 
 test('ack with failed documents keeps them pending and does not move synced_until', () => {
-  const state = store.readState(tempDir('keel-state-'));
-  store.stage(state, [fake('d1', 1), fake('d2', 1), fake('machines/pc', 1)], { nowIso: '2026-03-03T10:00:00Z' });
-  const r = store.ack(state, { failed: ['d2', 'pc', 'nope'] });
+  const state = syncState.readState(tempDir('keel-state-'));
+  syncState.stage(state, [fake('d1', 1), fake('d2', 1), fake('machines/pc', 1)], { nowIso: '2026-03-03T10:00:00Z' });
+  const r = syncState.ack(state, { failed: ['d2', 'pc', 'nope'] });
   assert.equal(r.committed, 1);
   assert.deepEqual(r.left.sort(), ['d2', 'machines/pc']);
   assert.deepEqual(r.unknown, ['nope']);
   assert.equal(state.synced_until, null);
   assert.ok(state.docs.d1 && !state.docs.d2);
   // the next stage writes the pending ones again
-  const w = store.stage(state, [fake('d1', 1), fake('d2', 1), fake('machines/pc', 1)], { nowIso: '2026-03-03T11:00:00Z', versions: { d2: 4 } });
+  const w = syncState.stage(state, [fake('d1', 1), fake('d2', 1), fake('machines/pc', 1)], { nowIso: '2026-03-03T11:00:00Z', versions: { d2: 4 } });
   assert.deepEqual(w.map((x) => [x.key, x.if_version]), [['d2', 4], ['machines/pc', null]]);
 });
 
 test('a day that shrinks from three parts to two gets an empty replacement for the missing part', () => {
-  const state = store.readState(tempDir('keel-state-'));
+  const state = syncState.readState(tempDir('keel-state-'));
   const three = [fake('2026-03-03_pc', 1), fake('2026-03-03_pc_p2', 1), fake('2026-03-03_pc_p3', 1)];
-  store.stage(state, three, { nowIso: 'a' });
-  store.ack(state);
+  syncState.stage(state, three, { nowIso: 'a' });
+  syncState.ack(state);
   const two = [fake('2026-03-03_pc', 2), fake('2026-03-03_pc_p2', 1)];
-  const w = store.stage(state, two, { nowIso: 'b', rebuiltIds: ['2026-03-03_pc'] });
+  const w = syncState.stage(state, two, { nowIso: 'b', rebuiltIds: ['2026-03-03_pc'] });
   assert.deepEqual(w.map((x) => x.key), ['2026-03-03_pc', '2026-03-03_pc_p3']);
   const blank = w[1].doc;
   assert.deepEqual([blank.part, blank.parts, blank.hours, blank.sessions], [3, 2, [], []]);
-  store.ack(state);
-  assert.deepEqual(store.stage(state, two, { nowIso: 'c', rebuiltIds: ['2026-03-03_pc'] }), []);
+  syncState.ack(state);
+  assert.deepEqual(syncState.stage(state, two, { nowIso: 'c', rebuiltIds: ['2026-03-03_pc'] }), []);
 });
 
 test('unchanged documents keep their hash across builds, a new request changes only its day', () => {
@@ -297,14 +330,14 @@ test('unchanged documents keep their hash across builds, a new request changes o
   writeSession(e.root, { id: 'u2', rows: [{ t: DAY + 24 * 60 * MIN, prompt: 'y' }, req(DAY + 24 * 60 * MIN + MIN)] });
   const first = e.build();
   assert.equal(first.docs.length, 2);
-  const state = store.readState(e.dir);
-  store.stage(state, first.docs.map((d) => ({ ...d, collection: 'days' })), { nowIso: 'a' });
-  store.ack(state);
+  const state = syncState.readState(e.dir);
+  syncState.stage(state, first.docs.map((d) => ({ ...d, collection: 'days' })), { nowIso: 'a' });
+  syncState.ack(state);
   const again = e.build({ nowMs: Date.now() + 5000 });
-  assert.deepEqual(store.stage(state, again.docs, { nowIso: 'b' }), [], 'synced_until alone does not rewrite a document');
+  assert.deepEqual(syncState.stage(state, again.docs, { nowIso: 'b' }), [], 'synced_until alone does not rewrite a document');
   appendRequest(path.join(e.root, 'proj-test', 'u2.jsonl'), 'u2', { t: DAY + 24 * 60 * MIN + 2 * MIN, model: 'm1', tok: { in: 1 } });
   const changed = e.build({ sinceMs: Date.now() - 1000 });
-  assert.deepEqual(store.stage(state, changed.docs, { nowIso: 'c' }).map((w) => w.key), ['2026-03-04_pc_1']);
+  assert.deepEqual(syncState.stage(state, changed.docs, { nowIso: 'c' }).map((w) => w.key), ['2026-03-04_pc_1']);
 });
 
 test('machine document is rewritten every time', () => {
@@ -443,18 +476,27 @@ test('privacy: only the folder name of the cwd goes out; with previews off no ta
 });
 
 test('ack of one batch records only that batch and keeps synced_until back', () => {
-  const state = store.readState(tempDir('keel-state-'));
-  store.stage(state, [fake('d1', 1), fake('d2', 1), fake('d3', 1)], { nowIso: '2026-03-03T10:00:00Z' });
+  const state = syncState.readState(tempDir('keel-state-'));
+  syncState.stage(state, [fake('d1', 1), fake('d2', 1), fake('d3', 1)], { nowIso: '2026-03-03T10:00:00Z' });
   state.pending.d1.batch = 1; state.pending.d2.batch = 1; state.pending.d3.batch = 2;
-  const r = store.ack(state, { batch: 1 });
+  const r = syncState.ack(state, { batch: 1 });
   assert.deepEqual([r.committed, r.left], [2, ['d3']]);
   assert.equal(state.synced_until, null);
   assert.ok(state.docs.d1 && state.docs.d2 && !state.docs.d3);
-  assert.equal(store.ack(state, { batch: 2, failed: ['d3'] }).committed, 0);
-  store.stage(state, [fake('d1', 1), fake('d2', 1), fake('d3', 1)], { nowIso: '2026-03-03T11:00:00Z' });
+  assert.equal(syncState.ack(state, { batch: 2, failed: ['d3'] }).committed, 0);
+  syncState.stage(state, [fake('d1', 1), fake('d2', 1), fake('d3', 1)], { nowIso: '2026-03-03T11:00:00Z' });
   state.pending.d3.batch = 1;
-  store.ack(state, { batch: 1 });
+  syncState.ack(state, { batch: 1 });
   assert.equal(state.synced_until, '2026-03-03T11:00:00Z');
+});
+
+test('a failed id that is not in the acked batch does not hold the batch back', () => {
+  const state = syncState.readState(tempDir('keel-state-'));
+  syncState.stage(state, [fake('d1', 1), fake('d2', 1), fake('d3', 1)], { nowIso: '2026-03-03T10:00:00Z' });
+  state.pending.d1.batch = 1; state.pending.d2.batch = 1; state.pending.d3.batch = 2;
+  const r = syncState.ack(state, { batch: 1, failed: ['d3', 'typo'] });
+  assert.deepEqual([r.committed, r.left, r.unknown], [2, ['d3'], ['d3', 'typo']]);
+  assert.ok(state.docs.d1 && state.docs.d2 && !state.docs.d3);
 });
 
 test('a project can turn prompt previews off for itself while the machine sends them', () => {
@@ -467,6 +509,49 @@ test('a project can turn prompt previews off for itself while the machine sends 
   const raw = JSON.stringify(e.build().docs);
   assert.ok(raw.includes('loud words'), 'the machine setting still sends other projects');
   assert.ok(!raw.includes('hushed words'), 'the project setting wins');
+});
+
+test('a project with previews off sends no text from a sub-folder or a removed worktree folder of it', () => {
+  const e = env();
+  const quiet = tempDir('keel-quiet-');
+  fs.mkdirSync(path.join(quiet, '.keel', 'local'), { recursive: true });
+  fs.mkdirSync(path.join(quiet, 'src'));
+  fs.writeFileSync(path.join(quiet, '.keel', 'local', 'options.json'), JSON.stringify({ prompt_preview: false }));
+  writeIds(e.root, 'sub', [{ t: DAY, prompt: 'words from src' }, { t: DAY + MIN, id: 's1' }], { cwd: path.join(quiet, 'src') });
+  writeIds(e.root, 'gone', [{ t: DAY + 2 * MIN, prompt: 'words from a worktree' }, { t: DAY + 3 * MIN, id: 'g1' }], { cwd: path.join(quiet, '.claude', 'worktrees', 'x') });
+  const raw = JSON.stringify(e.build().docs);
+  assert.ok(!raw.includes('words from src'), 'a session started in a sub-folder');
+  assert.ok(!raw.includes('words from a worktree'), 'a worktree folder that no longer exists');
+});
+
+test('previews off stay off for a session once its project folder is gone', () => {
+  const e = env();
+  const quiet = tempDir('keel-quiet-');
+  fs.mkdirSync(path.join(quiet, '.keel', 'local'), { recursive: true });
+  fs.writeFileSync(path.join(quiet, '.keel', 'local', 'options.json'), JSON.stringify({ prompt_preview: false }));
+  writeIds(e.root, 'hush', [{ t: DAY, prompt: 'hushed words' }, { t: DAY + MIN, id: 'h1' }], { cwd: quiet });
+  assert.ok(!JSON.stringify(e.build().docs).includes('hushed words'));
+  fs.rmSync(quiet, { recursive: true, force: true });
+  writeIds(e.root, 'later', [{ t: DAY + 2 * MIN, prompt: 'later words' }, { t: DAY + 3 * MIN, id: 'l1' }]);
+  const raw = JSON.stringify(e.build().docs);
+  assert.ok(raw.includes('later words'), 'the day was built again');
+  assert.ok(!raw.includes('hushed words'), 'the earlier decision is kept');
+});
+
+test('previews off stay off for a gone project whose transcript changed outside the synced period', () => {
+  const e = env();
+  const quiet = tempDir('keel-quiet-');
+  fs.mkdirSync(path.join(quiet, '.keel', 'local'), { recursive: true });
+  fs.writeFileSync(path.join(quiet, '.keel', 'local', 'options.json'), JSON.stringify({ prompt_preview: false }));
+  const hush = [{ t: DAY, prompt: 'hushed words' }, { t: DAY + MIN, id: 'h1' }];
+  writeIds(e.root, 'hush', hush, { cwd: quiet });
+  assert.ok(!JSON.stringify(e.build().docs).includes('hushed words'));
+  fs.rmSync(quiet, { recursive: true, force: true });
+  writeIds(e.root, 'hush', [...hush, { t: DAY + 4 * MIN, prompt: 'more hushed words' }, { t: DAY + 5 * MIN, id: 'h2' }], { cwd: quiet, old: DAY + 10 * MIN });
+  writeIds(e.root, 'later', [{ t: DAY + 2 * MIN, prompt: 'later words' }, { t: DAY + 3 * MIN, id: 'l1' }]);
+  const raw = JSON.stringify(e.build({ sinceMs: Date.now() - 60000 }).docs);
+  assert.ok(raw.includes('later words'), 'the day was built again');
+  assert.ok(!raw.includes('hushed words'), 'the earlier decision is kept');
 });
 
 test('only keel sessions are listed: a workflow command or an end-step record; every session still counts in the hours', () => {

@@ -29,16 +29,16 @@ Paths used below (all under `<project>/.keel/local/tmp/`): `changes.json`, `chan
 `verify-plan.json`, `verify-tasks/`, `verify-result.json`.
 
 ## 1. Overview of the change (script)
-`<base>` = the commit or branch the calling command names, else none. Both scripts below take
+`<base>` = the commit or branch the calling command names, else none. The script below takes
 `--base <base>` when there is one; git takes the merge base, so a branch name covers its whole work.
 
-First the comment notes, so that the overview, the diff and every agent see the final code. Run
-`node "<keel>/scripts/comments.js" "<project>"`. Act on each note now, as the comment rules say: add
-the missing comment, shorten, or keep a long comment that explains tricky code and note
-"file:line + reason" for it; an id of a ticket, record or commit is always rewritten into the reason in
-plain words, never kept. Notes are not a red gate.
-
-Then run `node "<keel>/scripts/changes.js" "<project>" --start`. Read its summary.
+Run `node "<keel>/scripts/changes.js" "<project>" --start`. Its first lines are the comment check, and
+it always goes on to the overview. Act on each note now, as the comment rules say: add the missing
+comment, shorten, or keep a long comment that explains tricky code and note "file:line + reason" for
+it; an id of a ticket, record or commit is always rewritten into the reason in plain words, never
+kept. After any code change for a note, run `changes.js --start` again, so that the overview, the
+diff and every agent see the final code; when you only kept comments on purpose, go on with this
+output. Notes are not a red gate. Then read the summary.
 - `changes: unavailable (...)` → tell the user why in plain words and stop. Not a git repository:
   verification needs git to see what changed; offer `git init` with a first commit of the state
   before the task, if the user can tell which state that is. Not configured: the command's preflight
@@ -63,7 +63,8 @@ Then run `node "<keel>/scripts/changes.js" "<project>" --start`. Read its summar
 1. From `.keel/config.json` `gates.checks`, run the checks of the parts the change touches (`part`
    `.` always; a monorepo part when a changed file is under it), then every `gates.security_scanners`
    entry.
-2. Run each command once; keep only the result line, failing test names and the first lines of each
+2. Lint, format and type checks may run in one message as separate calls; test and build commands
+   one at a time (they may share a database, a port or a build folder). Run each command once; keep only the result line, failing test names and the first lines of each
    error in this conversation (redirect long output to `<project>/.keel/local/tmp/gates/<n>.log`
    and read only what you need). Run the configured command as it stands, alone or with only that
    redirect (`<command> > <log> 2>&1`): no `$?` or other shell variables and nothing joined to it,
@@ -91,6 +92,9 @@ the user asks ("cheaper", "deeper"): then propose a level per agent, and pass it
 - **Gates only** → skip to step 12.
 - **No verification** → skip to step 12 and mark the report "not verified".
 A level given in the user's instruction counts as the user's choice; still show the team in one line.
+A level found anywhere else (a brief, the start prompt, the session note, memory, an earlier message,
+the level used last time) is not the user's choice: it is only advice. The proposal stays the
+recommended option; say in one line which level that source names, and you still ask.
 
 Read `levels.<chosen level>` in `changes.json` for the exact team: agent, model, phase, topics, focus.
 
@@ -144,9 +148,10 @@ agent and the first 5b agent; the other 5b agents follow one at a time, each aft
    file path, the diff path, the context map path, `<keel>` and `<project>`.
    While they run, check the "proven by QA" findings yourself: an agent's claim that a command fails
    is not yet proof. First `node "<keel>/scripts/fingerprint.js" "<project>" snapshot before-repro`.
-   For each, `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- <its reproduce command>`;
+   For each, `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- "<its reproduce command>"`
+   (the whole command in double quotes, quotes inside it as single quotes);
    `safe` → run it once; it fails as the finding says → "reproduced", otherwise "not reproduced";
-   `refused` → leave it out. Then `node "<keel>/scripts/fingerprint.js" "<project>" compare before-repro`:
+   `refused`, or a command with `$` or a backtick (it cannot be checked) → leave it out. Then `node "<keel>/scripts/fingerprint.js" "<project>" compare before-repro`:
    anything but `same` → stop as step 5b says. Write the results with the Write tool to
    `<project>/.keel/local/tmp/reproduce.json` as `{ "<finding id>": "reproduced" | "not reproduced" }`.
 3. `node "<keel>/scripts/votes.js" "<project>" tally` (a proven finding that did not reproduce becomes

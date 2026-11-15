@@ -1,5 +1,5 @@
 {
-  "about": "What /keel:cleanup looks for and the thresholds it uses. Numbers come from a read-only measurement of ten real projects on 2026-10-11 (names and sizes only): a clean project has 0 safe items; an old tool folder collected about 140 one-off files in 3 months (about 10 a week, 1.2 MB in total); real data folders were 125 MB to 11 GB, the largest folder that was neither data nor dependencies 32 MB.",
+  "about": "What /keel:cleanup looks for and the thresholds it uses. The numbers describe real projects: a clean project has 0 safe items; an old tool folder collects about 140 one-off files in 3 months (about 10 a week, 1.2 MB in total); data folders run from 125 MB to 11 GB, and the largest folder that is neither data nor dependencies is about 32 MB.",
   "reminder": {
     "files": 20,
     "mb": 100,

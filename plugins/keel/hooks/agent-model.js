@@ -33,7 +33,7 @@ function main() {
   const toolInput = input.tool_input || {};
   const type = String(toolInput.subagent_type || '');
   if (!type.startsWith('keel:')) return null;
-  const project = process.env.CLAUDE_PROJECT_DIR || input.cwd;
+  const project = require('../scripts/lib/project-dir.js').hookProject(input);
   if (!require('../scripts/lib/active.js').started(project)) {
     return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `keel is not set up in this project, so its agents do not run here. Use another agent (for example general-purpose); the user can set keel up with /keel:configure.` } };
   }

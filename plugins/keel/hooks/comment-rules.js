@@ -10,7 +10,7 @@ const DEFAULT_LEVEL = 'short';
 
 function projectLevel(project) {
   try {
-    const config = readJsonFile(path.join(project, '.keel', 'config.json'));
+    const config = readJsonFile(path.join(require('../scripts/lib/project-dir.js').configHome(project), '.keel', 'config.json'));
     const level = config && config.comments && config.comments.level;
     return LEVELS.includes(level) ? level : DEFAULT_LEVEL;
   } catch {

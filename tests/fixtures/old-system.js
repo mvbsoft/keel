@@ -1,6 +1,6 @@
 'use strict';
 // A project that used another notes system: the product is called Orbit and the old tool kept its
-// state in a git-ignored `.orbit/` folder, like the real projects keel's migration was designed on.
+// state in a git-ignored `.orbit/` folder, as an old notes system typically does.
 // It has a note, memory over the 150-line limit, session logs, a config, a secret, project data,
 // one-off scripts, and leftovers for cleanup. Written to a temporary folder on demand.
 const fs = require('node:fs');

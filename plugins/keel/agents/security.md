@@ -1,6 +1,6 @@
 ---
 name: security
-description: Read-only specialist group for security and business rules - traces input to dangerous operations and tries to bypass the rules of the business in a code change.
+description: Read-only specialist group: traces input to dangerous operations; tries to bypass business rules.
 model: opus
 effort: high
 maxTurns: 60

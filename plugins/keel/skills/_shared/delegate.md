@@ -1,6 +1,7 @@
 # keel delegation (a plan's steps done by implementers)
 
-The calling flow gives you `<keel>`, `<project>`, the plan file and the language to talk in. You are
+The calling flow gives you `<keel>`, `<project>`, the plan file (a task's `plan.md`, else its
+`task.md`) and the language to talk in. You are
 the main session: you brief, accept and report; the `keel:implementer` agents write the code. Do not
 do a step's work yourself while its implementer runs.
 

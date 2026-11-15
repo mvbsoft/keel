@@ -23,6 +23,7 @@ const limits = require('../data/comments.json');
 const { projectLevel } = require('../hooks/comment-rules.js');
 const { readJsonFile } = require('./lib/json.js');
 const { planningFiles } = require('./lib/planning.js');
+const { ticketPrefixes } = require('./lib/config.js');
 
 const MAX_READ = 1024 * 1024;
 // Comment syntax per extension. data/change-signals.json lists only line markers; measuring needs block
@@ -97,8 +98,12 @@ function classify(lines, syntax) {
   return { kinds, trailing };
 }
 
+// The comments section; its ticket prefixes include the planning ticket prefix, joined on every read
+// so a changed planning prefix is never missed.
 function commentsConfig(root) {
-  try { return readJsonFile(path.join(root, '.keel', 'config.json')).comments || {}; } catch { return {}; }
+  let config;
+  try { config = readJsonFile(path.join(require('./lib/project-dir.js').configHome(root), '.keel', 'config.json')) || {}; } catch { return {}; }
+  return { ...(config.comments || {}), ticket_prefixes: ticketPrefixes(config) };
 }
 
 // Commit hashes: 7-40 lowercase hex with a digit and a letter, not part of a word, a #colour or a dashed id.
@@ -308,7 +313,7 @@ if (require.main === module) {
   const argv = process.argv.slice(2);
   const { opts, pos } = parseArgs(argv);
   opts.skip = argv.flatMap((a, i) => (a === '--skip' && argv[i + 1] && !argv[i + 1].startsWith('--') ? [argv[i + 1]] : []));
-  const root = path.resolve(pos[0] || '.');
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   try {
     if (opts.project) {
       const m = measureProject(root);

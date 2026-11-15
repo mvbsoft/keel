@@ -1,7 +1,7 @@
 # Protocol: database changes
 
 Topic of the `data` specialist group. Question: will the schema change, migration or new query lock,
-lose or corrupt data, or break the running application during deploy?
+lose or corrupt data, or break the running application?
 
 First find the engine and version (compose file, CI service, `database.yml`, settings, connection
 string templates). PostgreSQL, MySQL and SQLite behave differently; say which one a finding assumes.
@@ -29,9 +29,9 @@ string templates). PostgreSQL, MySQL and SQLite behave differently; say which on
    index concurrently and attach it with `USING INDEX`.
 8. `DROP INDEX`, `REINDEX`, `TRUNCATE`, `VACUUM FULL` on a large table without the concurrent form.
 
-**Deploy order and data safety**
-9. Does it drop or rename a column, table or enum value that code still running during the rollout
-   uses? Expand, deploy, then contract: stop using, deploy, then drop.
+**Data safety and the chosen variant**
+9. Does it drop or rename a column, table or enum value that code in the repository still uses after
+   this change? Does new code need a column before the migration that adds it has run?
 10. Does a generated migration drop and re-add what was meant as a rename (losing the data)? Does a
     drop destroy data with no backup or export step?
 11. Is a backfill inside the same transaction as DDL (holding the lock for the whole backfill)? Is a
@@ -45,13 +45,19 @@ string templates). PostgreSQL, MySQL and SQLite behave differently; say which on
 16. Does a new query filter or sort on columns no index covers, on a table large enough to matter? Is
     a new composite index in a useful column order, or redundant with an existing one?
 17. Was an already applied migration edited instead of adding a new one?
+18. A risky change (`<keel>/skills/_shared/risky-changes.md`, "When to ask"; read only that section
+    and "Fool-proof check"): does it follow the variant chosen for it (a Decision in the plan, the
+    ticket, the task's acceptance criteria in your prompt, the PR, a rule in the project's rules)? No choice recorded → a finding that the choice
+    was not made; one of the fool-proof cases with no recorded "despite the warning" → a finding.
+19. Cascade deletes (`ON DELETE CASCADE`, `TRUNCATE ... CASCADE`) added that reach rows in other
+    tables; a data transformation that cannot be undone (merging fields, rounding, hashing).
 
 **Transactions and concurrency**
-18. Read-check-then-write under Read Committed (the PostgreSQL default) with no lock, unique
+20. Read-check-then-write under Read Committed (the PostgreSQL default) with no lock, unique
     constraint or atomic `UPDATE ... WHERE`: two concurrent runs both pass the check.
-19. Repeatable Read or Serializable without a retry on serialization failures (SQLSTATE 40001).
-20. External calls (HTTP, queue publish) inside an open transaction, holding locks.
-21. Bulk operations (`update_all`, QuerySet `update()`, `bulk_*`) that skip callbacks or validation the
+21. Repeatable Read or Serializable without a retry on serialization failures (SQLSTATE 40001).
+22. External calls (HTTP, queue publish) inside an open transaction, holding locks.
+23. Bulk operations (`update_all`, QuerySet `update()`, `bulk_*`) that skip callbacks or validation the
     code relies on.
 
 ## Evidence
@@ -61,7 +67,8 @@ string templates). PostgreSQL, MySQL and SQLite behave differently; say which on
   events, earlier migrations that used the safe pattern on it). Nothing shown → "size unknown" and at
   most important.
 - The concrete effect ("inserts into orders block for the whole index build").
-- Deploy-order findings: the `file:line` of code that still uses the dropped or renamed thing.
+- Drop or rename findings: the `file:line` of code that still uses the dropped or renamed thing.
+- Chosen-variant findings: where the choice is recorded, or that no recorded choice was found.
 
 ## Do not flag
 - DDL on a table created in the same migration or change.
@@ -70,19 +77,22 @@ string templates). PostgreSQL, MySQL and SQLite behave differently; say which on
 - Non-concurrent index creation on SQLite or MySQL InnoDB (online there).
 - A constant default on `ADD COLUMN` in PostgreSQL 11+; MySQL 8 instant `ADD COLUMN`.
 - A missing down migration where the project rolls forward only, or the tool has no down step.
+- A one-release change, no multi-release steps or no maintenance mode, when that is the recorded
+  pick or the project's rules say; a risk recorded as accepted "despite the warning".
 - Style rules without a failure case (prefer `text`, prefer `timestamptz`).
 - N+1 over a bounded handful of rows (performance protocol covers loops).
 
 ## Severity
 - **critical**: data loss with no recovery path; a long blocking lock on a table known to be large or
-  hot; a deploy-order break that errors in production; lost updates or double spending in money or
-  inventory code.
+  hot; code that still uses a dropped column, erroring in production; lost updates or double
+  spending in money or inventory code.
 - **important**: a locking statement with size unknown; a migration that fails on existing rows; a
-  missing index on a probably large table; a missing retry on serialization failures.
+  missing index on a probably large table; a missing retry on serialization failures; a risky change
+  with no recorded choice, or one that does not follow the chosen variant.
 - **minor**: missing or empty down migration; a missing index on a small table; `int` ids on a
   low-volume table.
 
 ## Principles
 - Check how the project's own engine locks on each DDL statement; engines differ.
-- Expand, migrate, contract: old and new code both run against every step.
+- No deploy style is right by default: check the change against the variant the project chose.
 - No size makes a table "large" everywhere; use evidence from the repository.

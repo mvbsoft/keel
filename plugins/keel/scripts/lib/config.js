@@ -14,7 +14,7 @@ function loadSchema() {
 }
 
 function checkConfig(projectDir) {
-  const file = path.join(projectDir, '.keel', 'config.json');
+  const file = path.join(require('./project-dir.js').configHome(projectDir), '.keel', 'config.json');
   let text;
   try {
     text = fs.readFileSync(file, 'utf8');
@@ -37,4 +37,12 @@ function checkConfig(projectDir) {
   return { state: errors.length ? 'invalid' : 'ok', errors, config };
 }
 
-module.exports = { checkConfig, loadSchema };
+// The ticket prefixes keel knows: comments.ticket_prefixes plus the planning ticket prefix. Reads a raw
+// config too, so a value of the wrong type is skipped.
+function ticketPrefixes(config) {
+  const listed = config && config.comments && config.comments.ticket_prefixes;
+  const own = config && config.planning && config.planning.ticket_prefix;
+  return [...new Set([...(Array.isArray(listed) ? listed : []), ...(typeof own === 'string' ? [own] : [])])];
+}
+
+module.exports = { checkConfig, loadSchema, ticketPrefixes };

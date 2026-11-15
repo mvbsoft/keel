@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: review-adr-journal-breach
+context:
+  scaffold_script: fixture.sh

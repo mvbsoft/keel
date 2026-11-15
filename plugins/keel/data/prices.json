@@ -1,7 +1,10 @@
 {
   "about": "List prices in USD per million tokens, used only to show an estimated cost in reports. On a subscription the same tokens count against plan limits instead of money.",
-  "source": "Claude prompt-caching pricing table (docs snapshot 2026-10-08, pc-platform.md)",
+  "source": "Claude API pricing page, platform.claude.com/docs/en/about-claude/pricing (Fable rows 2026-11-13, other rows docs snapshot 2026-10-08)",
   "models": [
+    { "match": "claude-fable-5-2", "input": 8, "cache_write_5m": 10, "cache_write_1h": 16, "cache_read": 0.2, "output": 40 },
+    { "match": "claude-fable-5-1", "input": 10, "cache_write_5m": 12.5, "cache_write_1h": 20, "cache_read": 0.25, "output": 50 },
+    { "match": "claude-fable-5", "input": 10, "cache_write_5m": 12.5, "cache_write_1h": 20, "cache_read": 1, "output": 50 },
     { "match": "claude-opus-5-5", "input": 4, "cache_write_5m": 5, "cache_write_1h": 8, "cache_read": 0.2, "output": 20 },
     { "match": "claude-opus-5", "input": 5, "cache_write_5m": 6.25, "cache_write_1h": 10, "cache_read": 0.5, "output": 25 },
     { "match": "claude-opus-4", "input": 5, "cache_write_5m": 6.25, "cache_write_1h": 10, "cache_read": 0.5, "output": 25, "note": "Opus 4.5 and later; Opus 4 and 4.1 have their own rows" },

@@ -188,6 +188,8 @@ test('comments.js: ids of tickets, records and commits in new comments and docs 
     'docs/decisions/0003-x.md': 'Decided in ABC-7 at a1b2c3d.\n',
     'tasks/ABC-8.md': 'ABC-8\n',
     'CHANGELOG.md': '- ABC-9\n',
+    'HISTORY.rst': '- ABC-11\n',
+    'src/changelog_service.py': '# retried, see ABC-13\n',
     'docs/debt.md': '- D-10 open\n',
   };
   const config = { comments: { level: 'short', ticket_prefixes: ['ABC', 'D'], refs_exempt: ['docs/debt.md'] } };
@@ -196,6 +198,7 @@ test('comments.js: ids of tickets, records and commits in new comments and docs 
   assert.deepEqual(refs(allowed), [
     ['src/a.js', 2, ['ABC-12', 'ABC-A-7']],
     ['src/a.js', 3, ['D-4', '01071c1b']],
+    ['src/changelog_service.py', 1, ['ABC-13']],
     ['docs/guide.md', 2, ['ABC-5']],
   ], 'a string in code, UTF-8, mod-10, colours, hex literals, fenced blocks and exempt files are not ids');
   assert.match(comments.report(allowed), /src\/a\.js:2: ABC-12, ABC-A-7 points at a ticket, record or commit .* Fix it; do not keep it\./);
@@ -208,6 +211,20 @@ test('comments.js: ids of tickets, records and commits in new comments and docs 
 
   const unset = comments.run(repo(files), {});
   assert.deepEqual(refs(unset), [['src/a.js', 3, ['01071c1b']]], 'no prefixes configured: only commit hashes');
+});
+
+test('comments.js: the planning ticket prefix is checked together with comments.ticket_prefixes', (t) => {
+  if (!hasGit) { t.skip('git is not installed'); return; }
+  const files = { 'src/a.js': ["'use strict';", '// fix API-12', '// see SHOP-3', ''].join('\n') };
+  const refs = (r) => r.notes.filter((n) => n.kind === 'ref').map((n) => [n.line, n.refs]);
+  const planning = { ticket_prefix: 'API', tickets: 'repo' };
+  assert.deepEqual(refs(comments.run(repo(files, { planning }), {})), [[2, ['API-12']]], 'the planning prefix alone');
+  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: ['SHOP'] }, planning }), {})), [[2, ['API-12']], [3, ['SHOP-3']]], 'both lists');
+  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: ['SHOP', 'API'] }, planning }), {})), [[2, ['API-12']], [3, ['SHOP-3']]], 'a prefix in both lists counts once');
+  // A hand-edited config: a prefix that is not one, a list that is not a list.
+  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: ['SHOP'] }, planning: { ticket_prefix: 'api', tickets: 'repo' } }), {})), [[3, ['SHOP-3']]], 'a lowercase planning prefix is not one');
+  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: 'SHOP' }, planning }), {})), [[2, ['API-12']]], 'ticket_prefixes as a string is no list');
+  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: 'SHOP' } }), {})), [], 'also without planning');
 });
 
 test('comments.js --project: ticket prefixes seen in commit subjects and branch names', (t) => {

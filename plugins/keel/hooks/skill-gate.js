@@ -17,7 +17,7 @@ function main() {
   // A bare name (start-task) may run keel's skill, as a typed one does: the lanes count it as keel's.
   const bare = lanes.COMMANDS.has(name);
   if (!name.startsWith('keel:') && !bare) return null;
-  const project = process.env.CLAUDE_PROJECT_DIR || input.cwd;
+  const project = require('../scripts/lib/project-dir.js').hookProject(input);
   // The reason goes to the model, which tells the user: English.
   const lane = lanes.refusalText(project, input.session_id, bare ? name : name.slice(5), 'en');
   if (lane) return deny(lane);

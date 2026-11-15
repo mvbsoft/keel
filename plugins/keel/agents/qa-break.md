@@ -1,6 +1,6 @@
 ---
 name: qa-break
-description: Search agent that methodically tries to break the changed functionality - boundaries, empty input, zero/one/many, permissions, interruptions, concurrency - and reports failures with a reproduce command.
+description: Search agent: tries to break the changed functionality; reports failures with a reproduce command.
 model: sonnet
 effort: high
 maxTurns: 60

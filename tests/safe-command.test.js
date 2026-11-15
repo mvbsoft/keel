@@ -158,3 +158,276 @@ test('the CLI prints one line and always exits 0', () => {
   const usage = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8' });
   assert.match(usage.stdout, /^refused: usage/);
 });
+
+test('database wipes and schema changes are refused in the common tools', () => {
+  for (const c of [
+    'prisma db push --force-reset', 'npx prisma db push', 'prisma db execute --file x.sql', 'prisma migrate reset',
+    'alembic upgrade head', 'alembic downgrade -1', 'alembic stamp head', 'flask db upgrade',
+    'python manage.py flush --noinput', 'django-admin flush', 'python manage.py loaddata users.json',
+    'rails db:drop', 'rake db:reset', 'bin/rails db:setup', 'rails db:schema:load',
+    'knex migrate:latest', 'sequelize db:migrate:undo', 'typeorm schema:drop', 'typeorm schema:sync', 'drizzle-kit push', 'drizzle-kit drop',
+    'redis-cli flushall', 'redis-cli -h cache FLUSHDB', 'valkey-cli flushall',
+    'mongosh --eval "db.dropDatabase()"', 'mongosh --eval "db.users.drop()"', 'mongorestore --drop dump/',
+    'psql -c "DROP TABLE users"', 'psql -c "TRUNCATE users"', 'mysql -e "truncate orders"', 'sqlite3 x.db "drop index i"',
+  ]) assert.equal(judge(js, '.', c).safe, false, c);
+  assert.match(judge(js, '.', 'redis-cli flushall').reasons.join(' '), /deletes data/);
+});
+
+test('a database word in a test file name, a search or a message is not a database command', () => {
+  for (const c of [
+    'node --test migrate.test.js', 'vitest run src/db/migrate.test.ts', 'jest drop-table.spec.js', 'go test ./db_migrate_test.go',
+    'pytest tests/test_migrations.py', 'truncate -s 0 out.log', 'grep -r flushall src', 'cat drop-table-notes.txt', 'echo dropDatabase',
+    'prisma db pull', 'prisma generate', 'alembic history', 'alembic current', 'rails db:test:prepare', 'drizzle-kit generate', 'redis-cli ping',
+  ]) assert.equal(judge(js, '.', c).safe, true, c);
+  assert.equal(judge(js, '.', 'node deploy-to-prod.test.js').safe, false);
+});
+
+test('only a real test file name is blanked: a hyphen name or a call is still judged', () => {
+  for (const c of ['node --test migrate.test.js', 'go test ./db_migrate_test.go', 'npm test -- migrate.test.js', 'pytest tests/seed_test.py', 'vitest run seed.spec.ts']) {
+    assert.equal(judge(js, '.', c).safe, true, c);
+  }
+  for (const c of [
+    'bash scripts/deploy-test.sh', './release-test.sh', 'psql -f db/seed-test.sql', 'node scripts/deploy-test.js',
+    'mongosh --eval "db.users_test.drop()"', 'mongosh --eval "db.test.drop()"',
+  ]) assert.equal(judge(js, '.', c).safe, false, c);
+});
+
+test('options may stand between a database tool and its action', () => {
+  for (const c of [
+    'alembic -c alembic.ini upgrade head', 'alembic --config alembic.ini downgrade base', 'alembic -x env=test upgrade head',
+    'flask --app app db upgrade', 'flask --app app db -d migrations upgrade',
+    'npx prisma@latest db push --force-reset', 'npx drizzle-kit@latest push',
+    'echo flushall | redis-cli', 'redis-cli -h cache -n 2 flushdb',
+    'python manage.py reset_db --noinput', 'dropdb mydb', 'cd x && dropdb mydb', 'mysqladmin drop mydb', 'mysqladmin -u root -p drop mydb',
+    'PGPASSWORD=x dropdb mydb', 'env PGHOST=db dropdb mydb', 'time dropdb mydb', 'bash -c "dropdb mydb"', 'docker compose exec db dropdb mydb',
+    'php artisan db:wipe', 'supabase db reset', 'diesel database reset', 'sqlx database drop', 'flyway clean',
+    'flyway -url=jdbc:postgresql://localhost/app -user=x clean', 'flyway -configFiles=conf/flyway.conf clean',
+  ]) assert.equal(judge(js, '.', c).safe, false, c);
+  for (const c of ['grep -r flushall src', 'select truncate(1.5)', 'pytest tests/test_migrate.py', 'flask --app app routes', 'mysqladmin status', 'flyway info']) {
+    assert.equal(judge(js, '.', c).safe, true, c);
+  }
+});
+
+test('drop index, view and column are database commands only next to an SQL client', () => {
+  for (const c of ['psql -c "drop index i"', 'mysql -e "DROP VIEW v"', 'sqlite3 x.db "drop column c"', 'psql -c "drop table t"']) {
+    assert.equal(judge(js, '.', c).safe, false, c);
+  }
+  for (const c of ['grep -r "drop column" db/', 'echo drop view', 'rg "drop index" db']) assert.equal(judge(js, '.', c).safe, true, c);
+  // A bare "drop table" has always been refused, even inside a search.
+  assert.equal(judge(js, '.', 'git log --grep="drop table"').safe, false);
+});
+
+test('a truncate word inside a quoted value next to an SQL client is still refused', () => {
+  assert.equal(judge(js, '.', `psql -c "select 'truncate foo'"`).safe, false);
+});
+
+test('a long line of repeated options is judged in linear time', () => {
+  const started = Date.now();
+  for (const unit of ['-c a ', '-c ', '-x y -z ', '--app app db ']) {
+    for (const head of ['alembic', 'flask', 'mysqladmin', 'redis-cli']) judge(js, '.', `${head} ${unit.repeat(Math.ceil(5000 / unit.length))}!`);
+  }
+  assert.ok(Date.now() - started < 2000, `took ${Date.now() - started} ms`);
+});
+
+test('a script is judged where it really runs: after cd, with options after its name, by task runners and in script files', () => {
+  const dir = tempDir('keel-follow-');
+  const write = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  write('package.json', JSON.stringify({ scripts: { test: 'vitest run', lint: 'eslint .', ci: './scripts/ok.sh' } }));
+  write('packages/api/package.json', JSON.stringify({ name: 'api', scripts: { test: 'prisma migrate reset --force && jest' } }));
+  write('apps/web/project.json', JSON.stringify({ targets: { e2e: { executor: 'nx:run-commands', options: { command: 'kubectl apply -f k8s/' } } } }));
+  write('Makefile', 'test:\n\t./scripts/test.sh\nlint:\n\tbash scripts/ok.sh\n');
+  write('scripts/test.sh', '#!/bin/sh\nset -e\nkubectl apply -f k8s/\n');
+  write('scripts/test.ps1', 'Set-StrictMode -Version Latest\nhelm upgrade app ./chart\n');
+  write('scripts/ok.sh', '#!/bin/sh\n# deploy comes later\nvitest run\n');
+  const refused = {
+    'cd packages/api && npm test': /database/,
+    'cd packages/api/src && npm test': /database/,
+    'cd packages && cd api && npm test': /database/,
+    '(cd packages/api && npm test)': /database/,
+    'pushd packages/api && npm test && popd': /database/,
+    'pushd packages/api > /dev/null && npm test && popd > /dev/null': /database/,
+    'cd packages/api >/dev/null && npm test': /database/,
+    'cd packages/api 2>&1 && npm test': /database/,
+    'Set-Location packages/api *> $null; npm test': /database/,
+    'cd -P packages/api && npm test': /cannot follow/,
+    'Set-Location packages/api; npm test': /database/,
+    'npm test --workspaces': /database/,
+    'npm run test -w api': /database/,
+    'pnpm test -r': /database/,
+    'pnpm run test --filter api': /database/,
+    'npx turbo run test': /database/,
+    'pnpm turbo test': /database/,
+    'turbo run lint test': /database/,
+    'lerna run test': /database/,
+    'yarn workspaces foreach -A run test': /database/,
+    'nx run-many -t test': /database/,
+    'nx run-many --targets=lint,e2e': /cluster/,
+    'make test': /cluster \(in scripts\/test\.sh\)/,
+    './scripts/test.sh': /cluster/,
+    'sh scripts/test.sh': /cluster/,
+    'bash -e ./scripts/test.sh': /cluster/,
+    'pwsh -File scripts/test.ps1': /cluster \(in scripts\/test\.ps1\)/,
+    'cd .. && npm test': /leaves the project/,
+    'cd ~ && npm test': /cannot follow/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(dir, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.match(r.reasons.join(' '), why, cmd);
+  }
+  for (const c of [
+    'npm test', 'cd packages/api && npm run lint', '(cd packages/api && cd ..) && npm test', 'pushd packages/api && popd && npm test',
+    'npm test -- --workspaces', 'npm run ci', 'make lint', 'sh scripts/missing.sh', 'nx run-many -t lint',
+  ]) assert.equal(judge(dir, '.', c).safe, true, c);
+});
+
+test('each make recipe line runs in its own shell; quoted shell commands and runner versions are followed', () => {
+  const dir = tempDir('keel-shells-');
+  const write = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  write('package.json', JSON.stringify({ scripts: { test: 'prisma migrate reset --force && jest', check: 'tsc --noEmit', lint: 'eslint .' } }));
+  write('docs/package.json', JSON.stringify({ scripts: { test: 'vitest run' } }));
+  write('packages/api/package.json', JSON.stringify({ name: 'api', scripts: { test: 'jest', check: 'prisma migrate reset --force' } }));
+  write('turbo.json', JSON.stringify({ tasks: { lint: { dependsOn: ['^check'] } } }));
+  write('Makefile', 't2:\n\tcd docs\n\tnpm test\nt3:\n\t@cd packages/api && \\\n\t  npm run check\nt4:\n\tcd packages/api\n\tnpm run check\n');
+  write('one.mk', '.ONESHELL:\nt:\n\tcd packages/api\n\tnpm run check\n');
+  const refused = {
+    'make t2': /database \(prisma/,
+    'make t3': /database \(prisma/,
+    'make -f one.mk t': /database \(prisma/,
+    "sh -c 'cd packages/api && npm run check'": /database \(prisma/,
+    'bash -ec "cd packages/api; npm run check"': /database \(prisma/,
+    'npx turbo@2 run check': /database \(prisma/,
+    'npx nx@latest run-many -t check': /database \(prisma/,
+    'turbo run lint': /database \(prisma/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(dir, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.match(r.reasons.join(' '), why, cmd);
+  }
+  for (const c of ['make t4', "sh -c 'cd packages/api && npm test'", 'cd docs > /dev/null && npm test', 'npm run lint']) {
+    assert.equal(judge(dir, '.', c).safe, true, c);
+  }
+});
+
+test('sub-makes, shell scripts without an extension, nx dependsOn and npm t are followed; build wrappers are not read', () => {
+  const dir = tempDir('keel-more-');
+  const write = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  write('package.json', JSON.stringify({ scripts: { test: 'vitest run' } }));
+  write('packages/api/package.json', JSON.stringify({ name: 'api', scripts: { test: 'make test', build: 'prisma migrate reset --force && tsc' } }));
+  write('packages/web/package.json', JSON.stringify({ name: 'web', scripts: { test: 'prisma migrate reset --force && vitest' } }));
+  write('packages/web/project.json', JSON.stringify({ targets: { lint: { dependsOn: [{ target: 'test' }] } } }));
+  write('nx.json', JSON.stringify({ targetDefaults: { test: { dependsOn: ['^build'] } } }));
+  write('packages/api/Makefile', 'test:\n\tnpx prisma migrate reset --force\n');
+  write('Make2', 'test:\n\t$(MAKE) -C packages/api test\n');
+  write('Make3', 'test:\n\tcd packages/api && ${MAKE} test\n');
+  write('script/test', '#!/usr/bin/env bash\nset -e\nkubectl apply -f k8s/\n');
+  write('script/lint', '#!/bin/sh\neslint .\n');
+  write('script/notes', 'kubectl apply -f k8s/\n');
+  write('tools/gen', '#!/usr/bin/env python3\nprint("deploy")\n');
+  write('mvnw', [
+    '#!/bin/sh', 'set -euf', 'clean() { rm -rf -- "$TMP_DOWNLOAD_DIR"; }', 'trap clean HUP INT TERM EXIT',
+    'cd "$(dirname "$0")"', 'mv -- "$TMP_DOWNLOAD_DIR/$distributionUrlNameMain" "$MAVEN_HOME"', 'exec "$MAVEN_HOME/bin/mvn" "$@"', '',
+  ].join('\n'));
+  write('gradlew', '#!/bin/sh\nAPP_HOME=$( cd "${APP_HOME:-./}" && pwd -P ) || exit\nexec "$JAVACMD" "$@"\n');
+  const refused = {
+    'make -f Make2 test': /database \(npx prisma/,
+    'make -f Make3 test': /database \(npx prisma/,
+    './script/test': /cluster \(in script\/test\)/,
+    'script/test': /cluster \(in script\/test\)/,
+    'nx run-many -t test': /database \(prisma migrate reset --force && tsc/,
+    'npx nx test api': /database \(prisma migrate reset --force && tsc/,
+    'nx run-many -t lint': /database \(prisma migrate reset --force && vitest/,
+    'cd packages/api && npm t': /database \(npx prisma/,
+    'cd packages/web && npm tst': /database/,
+    'cd packages/web && pnpm t': /database/,
+    'cd packages/web && npm cit': /database/,
+    'cd packages/web && pnpm it': /database/,
+    './mvnw deploy': /publishes/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(dir, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.match(r.reasons.join(' '), why, cmd);
+  }
+  for (const c of ['./script/lint', './script/notes', 'tools/gen', './mvnw test', './gradlew test', 'sh gradlew check', 'cd packages/api && npm run t', 'npm test']) {
+    assert.equal(judge(dir, '.', c).safe, true, c);
+  }
+});
+
+test('a followed file is inside the project, not secret-named, a real script for source; a refusal names it, not its line', () => {
+  const outside = tempDir('keel-followed-');
+  const dir = path.join(outside, 'proj');
+  const write = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  write('package.json', JSON.stringify({ scripts: { test: 'vitest run' } }));
+  write('.env', 'DATABASE_URL=postgres://admin:hunter2pass@db.production.internal:5432/app\n');
+  write('config.txt', 'kubectl apply -f k8s/\n');
+  write('scripts/env.sh', 'export DB_HOST=hunter2-production-db\n');
+  write('scripts/load', '#!/bin/sh\nhelm upgrade app ./chart\n');
+  write('scripts/ci.sh', '#!/bin/sh\nset -e\nrm -f db.sqlite\nvitest run\n');
+  write('scripts/move.ps1', 'Set-StrictMode -Version Latest\nRemove-Item cache.json\n');
+  write('scripts/away.sh', 'cd /tmp/hunter2\nvitest run\n');
+  write('one.mk', '.ONESHELL:\nt:\n\tset -e\n\trm x\n');
+  fs.writeFileSync(path.join(outside, 'outside.sh'), 'AWS_SECRET=hunter2 # production account\n');
+  const refused = {
+    'source scripts/env.sh && npm test': /^targets a shared environment \(in scripts\/env\.sh\)$/,
+    '. scripts/load': /^changes a cluster \(in scripts\/load\)$/,
+    './scripts/ci.sh': /^moves or deletes files \(in scripts\/ci\.sh\)$/,
+    'pwsh -File scripts/move.ps1': /^moves or deletes files \(in scripts\/move\.ps1\)$/,
+    'bash scripts/away.sh': /^leaves the project folder \(in scripts\/away\.sh\)$/,
+    'make -f one.mk t': /^moves or deletes files \(rm x\)$/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(dir, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.equal(r.reasons.length, 1, `${cmd}: ${r.reasons}`);
+    assert.match(r.reasons[0], why, cmd);
+  }
+  for (const c of ['source .env && npm test', '. ./.env', 'bash .env', 'source config.txt', '. ./config.txt', 'source ../outside.sh', 'bash ../outside.sh']) {
+    const r = judge(dir, '.', c);
+    assert.equal(r.safe, true, `${c}: ${r.reasons}`);
+  }
+});
+
+test('a release build configuration of dotnet, msbuild, cargo and swift is not a release', () => {
+  const safe = [
+    'dotnet test -c Release',
+    'dotnet test --configuration Release --no-build',
+    'dotnet build -c Release',
+    'dotnet test -p:Configuration=Release',
+    'msbuild /p:Configuration=Release',
+    'MSBuild.exe App.sln /m /p:Configuration=Release',
+    'cargo test --release',
+    'cargo clippy --release -- -D warnings',
+    'cargo build --release',
+    'swift test -c release',
+    'swift build --configuration=release',
+    'bash -c "dotnet test -c Release"',
+    'dotnet test -c "Release"',
+    "dotnet test -c 'Release'",
+    "dotnet test -p:Configuration='Release'",
+    'swift build --configuration="release"',
+  ];
+  for (const c of safe) assert.equal(judge(js, '.', c).safe, true, c);
+
+  const refused = {
+    'bash -c deploy.sh': /deploys or publishes/,
+    'sh -c release.sh': /deploys or publishes/,
+    'sh -c "npm publish"': /publish/,
+    'dotnet test -c Release && ./release.sh': /deploys or publishes \(dotnet test -c Release && \.\/release\.sh\)/,
+    'cargo test --release && cargo publish': /publishes a package/,
+    'dotnet nuget push -c Release': /publishes a package/,
+    'dotnet test -c Production': /shared environment/,
+    'dotnet test -- -c Release': /deploys or publishes/,
+    'cargo run --release -- deploy': /deploys or publishes/,
+    'dotnet publish -c Release': /deploys or publishes/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(js, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.match(r.reasons.join(' '), why, cmd);
+  }
+  const started = Date.now();
+  for (const unit of ['cargo ', 'dotnet -c ', 'msbuild ']) judge(js, '.', unit.repeat(5000));
+  assert.ok(Date.now() - started < 2000, `took ${Date.now() - started} ms`);
+});

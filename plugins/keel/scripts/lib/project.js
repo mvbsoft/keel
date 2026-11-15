@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const catalog = require('../../data/catalog.json');
 const { checkConfig } = require('./config.js');
-const { matchesAny } = require('./patterns.js');
+const { isSecretName } = require('./secret-names.js');
 const { safeLocalWrite } = require('./safe-path.js');
 const { readJsonFile } = require('./json.js');
 
@@ -18,9 +18,10 @@ function loadProject(root) {
 // The secret test without requiring a config: catalog patterns plus the profile's secret_paths.
 function secretCheck(root) {
   let profile = null;
-  try { profile = readJsonFile(path.join(root, '.keel', 'profile.json')); } catch { /* optional */ }
+  try { profile = readJsonFile(path.join(require('./project-dir.js').configHome(root), '.keel', 'profile.json')); } catch { /* optional */ }
   const extra = new Set(profile && Array.isArray(profile.secret_paths) ? profile.secret_paths : []);
-  const isSecret = (rel) => extra.has(rel) || (matchesAny(rel, catalog.secrets.patterns) && !matchesAny(rel, catalog.secrets.allowed));
+  // A profile may list source files that are only named like a secret (src/secrets.py): those are code.
+  const isSecret = (rel) => isSecretName(rel) || (extra.has(rel) && !isSecretName(rel, { strict: true }));
   return { profile, isSecret };
 }
 

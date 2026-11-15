@@ -21,7 +21,8 @@ Profile 1, plus an ADR for an architecturally significant decision only: a new d
 service, a new module boundary, a data model or storage choice, a public API or protocol change, a
 security approach, a decision that is costly to reverse. One to two pages (context, decision,
 consequences, alternatives), in the project's ADR folder and format; the short MADR layout when the
-project has none (`docs/adr/NNNN-title.md`). Small decisions stay in the commit message.
+project has none (`docs/adr/NNNN-title.md`). How a changed or dead decision is handled follows
+`docs.adr_style` (the `adr-required` skill). Small decisions stay in the commit message.
 
 ## 3. Spec per feature
 Profile 2, plus a short spec for a non-trivial feature: a new user-visible capability, a change that

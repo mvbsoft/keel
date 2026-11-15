@@ -1,6 +1,6 @@
 # Project memory
 
-Short, about 150 lines at most. The why, not what the code already shows. Resolved items move to
+Short, about 150 lines and 12000 characters at most. The why, not what the code already shows. Resolved items move to
 `project-memory-archive.md`.
 
 ## Active context

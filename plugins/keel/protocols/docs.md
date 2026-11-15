@@ -22,6 +22,11 @@ made stale still match the code?
    sections, docs layout, ADR folder, the documentation profile in the project config).
 8. Links and references: relative links, anchors, referenced files, environment variables, commands
    and config keys exist.
+9. ADR style, when the change adds, edits or deletes a decision record or a link to one: read
+   `docs.adr_style` in the project config (not set = `journal`) and check the change against the
+   "Reviewers check" list of `<keel>/skills/_shared/adr-journal.md` or `adr-living.md` (read only
+   the chosen one); `custom` → against the project's rule in the ADR folder's README. Evidence: the
+   record or link at `file:line` and the rule it breaks.
 
 ## Evidence
 - Both sides: the doc text with `file:line`, and the code with `file:line` that contradicts it, plus
@@ -46,6 +51,6 @@ made stale still match the code?
   order).
 - **important**: a user-facing claim (README, API reference, CLI help, public docstring) contradicted
   by the code; a breaking change without a CHANGELOG or migration note; a documented example that
-  fails.
+  fails; a decision record change that breaks the project's ADR style (item 9).
 - **minor**: a stale internal comment or TODO, a broken anchor, an entry in the wrong CHANGELOG
   section, a doc in a slightly odd place.

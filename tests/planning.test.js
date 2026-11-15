@@ -75,6 +75,13 @@ gitTest('planning files are told by their front matter; a stray plan.md or type 
   for (const rel of ['src/app.js', 'README.md', 'docs/old/notes.md', 'docs/feature.md', 'docs/no-key.md', 'missing/file.md']) assert.equal(check(rel), null, rel);
   fs.rmSync(path.join(dir, 'tickets/s3-storage/PROJ-102-download.md'));
   assert.deepEqual(planningFiles(dir)('tickets/s3-storage/PROJ-102-download.md'), { kind: 'ticket', key: 'PROJ-102' }, 'a deleted ticket is read from HEAD');
+  // An exported stub (another repository's ticket not planned in full yet), also once it left.
+  write(dir, 'tickets/s3-storage/WEB-S1-admin.md', '---\ntype: stub\nkey: WEB-S1\nrepo: WEB\n---\n# [WEB-S1] Admin\n');
+  assert.deepEqual(planningFiles(dir)('tickets/s3-storage/WEB-S1-admin.md'), { kind: 'stub', key: 'WEB-S1' });
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '-q', '-m', 'stub');
+  fs.rmSync(path.join(dir, 'tickets/s3-storage/WEB-S1-admin.md'));
+  assert.deepEqual(planningFiles(dir)('tickets/s3-storage/WEB-S1-admin.md'), { kind: 'stub', key: 'WEB-S1' }, 'a deleted stub is read from HEAD');
 });
 
 gitTest('commit: planning files stay out, the finished task\'s own ticket goes in with the code; they never block a step', () => {

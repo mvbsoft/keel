@@ -1,0 +1,5 @@
+schema_version: "1.1"
+name: start-task-big-plan-offers-fresh
+context:
+  scaffold_script: fixture.sh
+  history_file: history.jsonl

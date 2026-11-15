@@ -35,8 +35,16 @@
     "**/adrs/**",
     "**/tasks/**/*.md",
     "**/tickets/**/*.md",
-    "CHANGELOG*",
-    "HISTORY*",
+    "CHANGELOG*.md",
+    "CHANGELOG*.mdx",
+    "CHANGELOG*.markdown",
+    "CHANGELOG*.rst",
+    "CHANGELOG*.adoc",
+    "HISTORY*.md",
+    "HISTORY*.mdx",
+    "HISTORY*.markdown",
+    "HISTORY*.rst",
+    "HISTORY*.adoc",
     ".keel/**"
   ]
 }

@@ -16,7 +16,7 @@ const { matches, matchesAny } = require(path.join(SCRIPTS, 'lib', 'patterns.js')
 const { analyze, changesBehavior, isBulk } = require(path.join(SCRIPTS, 'lib', 'tier.js'));
 const { fanIn, pointsAt } = require(path.join(SCRIPTS, 'lib', 'fanin.js'));
 const { secretCheck } = require(path.join(SCRIPTS, 'lib', 'project.js'));
-const { isSecret: scanIsSecret } = require(path.join(SCRIPTS, 'scan.js'));
+const { isSecretName } = require(path.join(SCRIPTS, 'lib', 'secret-names.js'));
 const changes = require(path.join(SCRIPTS, 'changes.js'));
 
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
@@ -65,7 +65,7 @@ test('secret files are found whatever their case', () => {
   const { isSecret } = secretCheck(dir);
   for (const name of ['.ENV', '.Env.Local', 'Credentials.json', 'server.PEM', 'id_RSA', 'Secrets.yml', 'config/Prod.TFVARS']) {
     assert.equal(isSecret(name), true, name);
-    assert.equal(scanIsSecret(name), true, `scan: ${name}`);
+    assert.equal(isSecretName(name), true, `name rule: ${name}`);
   }
   for (const name of ['.ENV.EXAMPLE', 'Key.PUB', 'src/Environment.ts']) assert.equal(isSecret(name), false, name);
 });
@@ -101,6 +101,12 @@ test('secret patterns: every pattern has a name that matches it; public and exam
   for (const name of ['.env.example', '.env.sample', 'prod.env.example', 'key.pub', 'id_rsa.pub', 'README.md', 'package.json', 'src/kubeconfig.go', 'src/env.js', 'config.json', 'secret-santa.js']) {
     assert.equal(isSecret(name), false, name);
   }
+});
+
+test('secret patterns: a source file named like a secret is code; an env file with a code extension is still a secret', () => {
+  const { isSecret } = secretCheck(tempDir('keel-secret-'));
+  for (const name of ['secrets.py', 'src/credentials.ts', 'app/credentials_service.rb', 'lib/secrets.test.js']) assert.equal(isSecret(name), false, name);
+  for (const name of ['.env.js', '.env.production.ts', 'credentials.json', 'secrets.yml', 'credentials', 'deploy/secrets.sh']) assert.equal(isSecret(name), true, name);
 });
 
 // A positive and a negative line for each pattern of change-signals.json, in file order.
@@ -164,6 +170,23 @@ test('text files: only doc-like .txt names are docs; requirements.txt and CMakeL
   for (const p of ['requirements.txt', 'CMakeLists.txt', 'robots.txt', 'data/words.txt']) assert.equal(changesBehavior(file(p, ['words'])), true, p);
   assert.equal(run([file('CMakeLists.txt', ['add_library(a a.c)'])]).groups.docs, undefined);
   assert.deepEqual(run([file('requirements.txt', ['flask==3.0'])]).groups.env.topics, ['dependencies']);
+});
+
+test('text files: code named like a README, a changelog or a license is code', () => {
+  for (const p of ['README', 'readme.txt', 'README-dev.txt', 'CHANGELOG', 'docs/CHANGELOG.md', 'changelog.txt', 'LICENSE', 'LICENSE.txt', 'license-MIT.txt', 'LICENSE.md', 'LICENSE.MIT', 'LICENSE.APACHE', 'LICENSE.BSD']) assert.equal(changesBehavior(file(p, ['words'])), false, p);
+  for (const p of ['README.rdoc', 'README.org', 'README.textile', 'README.pod', 'README.asciidoc', 'CHANGELOG.rdoc']) {
+    const a = run([file(p, ['Set the API token in config before you start.'])]);
+    assert.equal(a.proposal.tier, 'gates-only', p);
+    assert.ok(a.groups.docs, p);
+    assert.equal(a.groups.security, undefined, p);
+  }
+  const risky = ['import os', 'def f(password): os.system(password)'];
+  for (const p of ['src/changelog_service.py', 'src/readme_parser.py', 'src/ChangelogController.py', 'scripts/changelog.js', 'src/Readme.tsx', 'src/license.py', 'src/License.java', 'lib/license.ts']) {
+    const a = run([file(p, risky)]);
+    assert.equal(a.proposal.tier, 'standard', p);
+    assert.ok(a.groups.security, p);
+    assert.equal(a.groups.docs, undefined, p);
+  }
 });
 
 test('every migration folder and API file of the catalog calls its topic', () => {

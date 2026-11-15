@@ -113,9 +113,9 @@ function prune(value, schema, root = schema, at = '$') {
   } else if (typeOf(value) === 'object' && schema.properties) {
     const required = new Set(schema.required || []);
     for (const k of Object.keys(value)) {
-      // An optional field sent empty ("reproduce": "") means "none": a Haiku reviewer did this and lost
-      // every finding of its report.
-      if (Object.hasOwn(schema.properties, k) && value[k] === '' && !required.has(k)) { delete value[k]; removed.push(`${at}.${k}`); }
+      // An optional field sent empty or null ("reproduce": "") means "none"; rejecting it would drop the
+      // whole report.
+      if (Object.hasOwn(schema.properties, k) && (value[k] === '' || value[k] === null) && !required.has(k)) { delete value[k]; removed.push(`${at}.${k}`); }
       else if (Object.hasOwn(schema.properties, k)) removed.push(...prune(value[k], schema.properties[k], root, `${at}.${k}`));
       else if (schema.additionalProperties === false) { delete value[k]; removed.push(`${at}.${k}`); }
     }

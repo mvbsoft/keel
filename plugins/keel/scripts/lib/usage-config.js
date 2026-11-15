@@ -1,6 +1,6 @@
 'use strict';
 // Machine-level usage settings and the wallet a session pays from (subscription, api or credit).
-// Files live in ~/.claude/keel/ (KEEL_USAGE_DIR overrides it in tests). Never throws.
+// Files live in usageDir() (KEEL_USAGE_DIR overrides it in tests). Never throws.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -11,8 +11,14 @@ const WALLETS = ['subscription', 'api', 'credit'];
 const API_ENV = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX',
   'CLAUDE_CODE_USE_FOUNDRY', 'CLAUDE_CODE_USE_MANTLE'];
 
+// <Claude dir>/keel, the Claude dir being CLAUDE_CONFIG_DIR or ~/.claude. A profile without its own folder
+// keeps using an existing ~/.claude/keel, so nothing written before goes missing.
 function usageDir(env = process.env) {
-  return env.KEEL_USAGE_DIR || path.join(os.homedir(), '.claude', 'keel');
+  if (env.KEEL_USAGE_DIR) return env.KEEL_USAGE_DIR;
+  const legacy = path.join(os.homedir(), '.claude', 'keel');
+  if (!env.CLAUDE_CONFIG_DIR) return legacy;
+  const own = path.join(env.CLAUDE_CONFIG_DIR, 'keel');
+  return !fs.existsSync(own) && fs.existsSync(legacy) ? legacy : own;
 }
 
 function readJson(file) {
@@ -23,27 +29,27 @@ function gitEmail() {
   try { return execFileSync('git', ['config', 'user.email'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null; } catch { return null; }
 }
 
-// ~/.claude/keel/usage.json with defaults filled in. `configured` is false until configure wrote it.
+// usage.json with defaults filled in. `configured` is false until configure wrote it.
 // statusline: { mode: 'keel' | 'wrap' | 'none', original: <the user's previous statusLine object> }.
 function loadMachineConfig(env = process.env) {
   const raw = readJson(path.join(usageDir(env), 'usage.json'));
   const c = raw && typeof raw === 'object' ? raw : {};
   return {
-    configured: !!raw,
+    // Keys keel writes on its own (sync on/off, the page's template) do not make a machine configured.
+    configured: Object.keys(c).some((k) => !['sync', 'sync_off_since', 'page_template'].includes(k)),
     pc: typeof c.pc === 'string' && c.pc ? c.pc : os.hostname(),
     user: typeof c.user === 'string' && c.user ? c.user : gitEmail(),
     wallet_default: WALLETS.includes(c.wallet_default) ? c.wallet_default : 'subscription',
     cloud_wallet: WALLETS.includes(c.cloud_wallet) ? c.cloud_wallet : 'credit',
     also_api: c.also_api === true,
     prompt_preview: c.prompt_preview !== false,
-    history_days: Number.isInteger(c.history_days) && c.history_days >= 0 ? c.history_days : 30,
+    history_days: Number.isInteger(c.history_days) && c.history_days >= 1 ? c.history_days : 30,
     artifact_url: typeof c.artifact_url === 'string' && c.artifact_url ? c.artifact_url : null,
-    // project artifact URLs (from the committed .keel/config.json) the user approved on this machine
-    approved_artifact_urls: Array.isArray(c.approved_artifact_urls) ? c.approved_artifact_urls.filter((u) => typeof u === 'string' && u) : [],
     // the page's template fingerprint (its meta/settings `template`), as this machine last saw it
     page_template: typeof c.page_template === 'string' && c.page_template ? c.page_template : null,
-    // artifact_url is a page shared from another account: its owner updates it
-    page_shared: c.page_shared === true,
+    // false: nothing is sent to the page from this machine
+    sync: c.sync !== false,
+    sync_off_since: typeof c.sync_off_since === 'string' && c.sync_off_since ? c.sync_off_since : null,
     statusline: c.statusline && typeof c.statusline === 'object' ? c.statusline : { mode: 'none' },
   };
 }
@@ -61,7 +67,9 @@ function writeMachineConfig(values, env = process.env) {
 function hasApiKeyHelper(projectDir, env = process.env) {
   const home = env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
   const files = [path.join(home, 'settings.json')];
-  if (projectDir) files.push(path.join(projectDir, '.claude', 'settings.json'), path.join(projectDir, '.claude', 'settings.local.json'));
+  // The project settings Claude Code applies: in a desktop worktree session, the main checkout's.
+  const dir = projectDir && require('./project-dir.js').settingsHome(projectDir, env);
+  if (dir) files.push(path.join(dir, '.claude', 'settings.json'), path.join(dir, '.claude', 'settings.local.json'));
   return files.some((f) => { const s = readJson(f); return !!(s && s.apiKeyHelper); });
 }
 

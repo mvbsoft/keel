@@ -15,7 +15,7 @@ function main() {
   if (!m) return null;
   const lanes = require('../scripts/lib/lanes.js');
   if (!lanes.COMMANDS.has(m[1])) return null;
-  const project = process.env.CLAUDE_PROJECT_DIR || input.cwd;
+  const project = require('../scripts/lib/project-dir.js').hookProject(input);
   if (!require('../scripts/lib/active.js').configured(project)) return null;
   const language = require('../scripts/lib/options.js').effectiveOptions(project).conversation_language;
   const reason = lanes.refusalText(project, input.session_id, m[1], language);

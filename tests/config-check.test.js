@@ -80,6 +80,30 @@ test('no configure record on this machine: rebuilt from the commit of the settin
   assert.equal(git(p.dir, 'worktree', 'list').split('\n').length, 1, 'the temporary worktree is gone');
 });
 
+test('a project in a subfolder of its repository: the rebuilt record is of that folder, not of the whole repository', () => {
+  const repo = tmp('keel-cc-mono-');
+  const dir = path.join(repo, 'app');
+  write(path.join(dir, 'package.json'), JSON.stringify({ name: 'app', private: true, scripts: { test: 'node --test', lint: 'node --check a.js' } }, null, 2));
+  write(path.join(dir, 'a.js'), 'module.exports = 1;\n');
+  write(path.join(repo, 'other', 'pyproject.toml'), '[project]\nname = "other"\n');
+  write(path.join(dir, '.keel', 'config.json'), JSON.stringify({ ...CONFIG, gates: { checks: [CONFIG.gates.checks[0]], security_scanners: [] } }));
+  write(path.join(dir, '.keel', 'profile.json'), JSON.stringify(scan(dir).profile));
+  write(path.join(dir, '.gitignore'), '.keel/local/\n');
+  git(repo, 'init', '-q', '-b', 'main');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'set up keel');
+  const usageDir = tmp('keel-cc-usage-');
+  write(path.join(usageDir, 'usage.json'), JSON.stringify({ pc: 'pc', wallet_default: 'subscription' }));
+  const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_'))), KEEL_USAGE_DIR: usageDir };
+  const run = (script, ...args) => spawnSync(process.execPath, [script, dir, ...args], { encoding: 'utf8', env }).stdout.trim().split('\n');
+  assert.deepEqual(block(run(SCRIPT)).slice(1, 2), ['result: nothing to reconfigure'], 'the lint script left out of the gates on purpose is not new');
+  const snap = JSON.parse(fs.readFileSync(path.join(dir, '.keel', 'local', 'configure-snapshot.json'), 'utf8'));
+  assert.deepEqual(snap.sections.scan.parts.map((p) => p.path), ['.']);
+  pkg(dir, (x) => { x.dependencies = { 'left-pad': '1.3.0' }; });
+  git(repo, 'commit', '-qam', 'bump');
+  assert.equal(run(CHECK_CONFIG, '--profile').find((l) => l.startsWith('profile: ')), 'profile: ok');
+});
+
 test('settings never committed: compared with the profile, and the checks that need a record are named', () => {
   const dir = tmp('keel-cc-new-');
   write(path.join(dir, 'package.json'), JSON.stringify({ name: 'x', scripts: { test: 'node --test' } }));
@@ -174,6 +198,47 @@ test('worth a look: ticket ids, a checked plugin, a grown CLAUDE.md, another not
     '- usage [worth]: this machine has no usage settings',
   ]);
   assert.equal(lines.at(-1), 'run: /keel:configure code,plugins,docs,migration,settings,usage');
+});
+
+test('docs worth a look: no ADR style chosen while the project keeps ADRs; nothing once it is chosen', () => {
+  const p = project();
+  write(path.join(p.dir, 'docs', 'adr', '0001-db.md'), '# Postgres\nStatus: Accepted\n');
+  p.commit('first decision');
+  p.save();
+  const reason = (lines) => lines.find((l) => l.startsWith('- docs [worth]: no ADR style chosen'));
+  assert.ok(reason(block(p.check())), block(p.check()).join('\n'));
+  assert.match(reason(block(p.check())), /ADR folder docs\/adr/);
+  write(path.join(p.dir, '.keel', 'config.json'), JSON.stringify({ ...CONFIG, docs: { profile: 2, pattern: 'none', adr_style: 'living' } }));
+  assert.equal(reason(block(p.check())), undefined);
+  const q = project();
+  write(path.join(q.dir, '.keel', 'config.json'), JSON.stringify({ ...CONFIG, docs: { profile: 2, pattern: 'none' } }));
+  q.save();
+  assert.ok(reason(block(q.check())), 'profile 2 writes ADRs, so the style matters before the first one');
+  const r = project();
+  r.save();
+  assert.equal(reason(block(r.check())), undefined, 'profile 1 and no ADRs: no question');
+  // keel's settings never committed: no record and none to rebuild, the check still says it
+  const dir = tmp('keel-cc-adr-');
+  write(path.join(dir, '.keel', 'config.json'), JSON.stringify(CONFIG));
+  write(path.join(dir, 'docs', 'adr', '0001-db.md'), '# Postgres\nStatus: Accepted\n');
+  write(path.join(dir, '.keel', 'profile.json'), JSON.stringify(scan(dir).profile));
+  git(dir, 'init', '-q', '-b', 'main');
+  const lines = block(spawnSync(process.execPath, [SCRIPT, dir], { encoding: 'utf8', env: { ...process.env, KEEL_USAGE_DIR: dir } }).stdout.trim().split('\n'));
+  assert.match(lines[0], /no configure record on this machine/);
+  assert.ok(reason(lines), lines.join('\n'));
+});
+
+test('ticket ids of the planning ticket prefix are not proposed as tracker prefixes: comments.js checks them already', () => {
+  const p = project();
+  write(path.join(p.dir, '.keel', 'config.json'), JSON.stringify({ ...CONFIG, planning: { ticket_prefix: 'SHOP', tickets: 'repo' } }));
+  p.commit('planning settings');
+  p.save();
+  write(path.join(p.dir, 'a.js'), 'module.exports = 2;\n');
+  p.commit('SHOP-1 cart');
+  write(path.join(p.dir, 'a.js'), 'module.exports = 3;\n');
+  p.commit('SHOP-2 totals');
+  const lines = block(p.check());
+  assert.ok(!lines.some((l) => l.startsWith('- code [worth]: ticket ids')), lines.join('\n'));
 });
 
 test('a recommended value that changed is worth a look once: a record from an older keel counts as its old value', () => {

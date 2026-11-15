@@ -43,7 +43,7 @@ test('skill-hints: project files are judged against CLAUDE_PROJECT_DIR when the 
   const call = (tool_input, tool_name = 'Write') => runHook('skill-hints.js',
     { session_id: session(), cwd: path.join(dir, 'app'), tool_name, tool_input }, { CLAUDE_PROJECT_DIR: dir }).raw;
   assert.match(call({ file_path: path.join(dir, 'db', 'migrations', '002_x.sql') }), /migration-safety/);
-  assert.match(call({ command: 'cat ../db/migrations/002_x.sql' }, 'Bash'), /migration-safety/, 'relative paths start at the shell folder');
+  assert.match(call({ command: "sed -i 's/a/b/' ../db/migrations/002_x.sql" }, 'Bash'), /migration-safety/, 'relative paths start at the shell folder');
   assert.equal(call({ file_path: path.join(os.tmpdir(), 'elsewhere', 'a.py') }), '', 'outside the project: silent');
 });
 
@@ -51,10 +51,10 @@ test('skill-hints: cd flags and the cmd /d switch are not folders', () => {
   const dir = tempProject('keel-hint-');
   fs.mkdirSync(path.join(dir, 'db', 'migrations'), { recursive: true });
   const call = (command, cwd = os.tmpdir()) => runHook('skill-hints.js', { session_id: session(), cwd, tool_name: 'Bash', tool_input: { command } }, { CLAUDE_PROJECT_DIR: dir }).raw;
-  assert.match(call(`cd /d "${dir}" && cat db/migrations/001.sql`), /migration-safety/);
-  assert.match(call(`cd -P "${dir}" && cat db/migrations/001.sql`), /migration-safety/);
-  assert.match(call(`Set-Location -Path "${dir}"; Get-Content db/migrations/001.sql`), /migration-safety/);
-  assert.match(call('cd db && cat migrations/001.sql', dir), /migration-safety/, 'a plain relative cd still works');
+  assert.match(call(`cd /d "${dir}" && echo x >> db/migrations/001.sql`), /migration-safety/);
+  assert.match(call(`cd -P "${dir}" && echo x >> db/migrations/001.sql`), /migration-safety/);
+  assert.match(call(`Set-Location -Path "${dir}"; Set-Content -Path db/migrations/001.sql -Value x`), /migration-safety/);
+  assert.match(call('cd db && echo x >> migrations/001.sql', dir), /migration-safety/, 'a plain relative cd still works');
 });
 
 test('skill-hints: quoted text is not a redirection', () => {

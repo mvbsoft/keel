@@ -45,4 +45,11 @@ function clean(value, max = 160) {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
-module.exports = { git, read, noBom, frontmatter, count, freshRef, clean };
+// The one branch-name rule: git accepts it as written (a leading -, "@" and "@{-1}" would be read as an
+// option or expanded to another name, so they never count).
+function validBranchName(root, name) {
+  return typeof name === 'string' && !name.startsWith('-') && name !== '@' && !name.includes('@{')
+    && git(root, ['check-ref-format', '--branch', name]) === name;
+}
+
+module.exports = { git, read, noBom, frontmatter, count, freshRef, clean, validBranchName };

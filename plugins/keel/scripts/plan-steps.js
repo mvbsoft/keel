@@ -10,7 +10,10 @@
 // Usage: node plan-steps.js <projectDir> <planFile> [--remaining]
 //   planFile     a plan (templates/keel/plan.md format), a task file (.keel/tasks/<id>/task.md) or the note
 //   --remaining  count only the steps that are not done (start-session: the work that is left)
-// Above a threshold it also prints `ask:`, the here-or-delegate question in its only wording.
+// Above a threshold it also prints `ask:`, the question how to run the plan, in its only wordings:
+// for a plan just written (fresh conversation, delegate or here) and, with --remaining, for a
+// conversation that starts from the saved plan (delegate or here). A very big plan also gets
+// `very big:`: too big for one task even in a fresh conversation, so it is planned as a feature.
 const fs = require('node:fs');
 const path = require('node:path');
 const { checkConfig, loadSchema } = require('./lib/config.js');
@@ -23,6 +26,8 @@ const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 const ORDER = ['files', 'model', 'effort', 'do', 'done when'];
 // Advice only: past this a Haiku or Sonnet step is probably several steps (or one piece that belongs on Opus).
 const BIG_STEP = { files: 6, criteria: 6 };
+// Not a setting: from about 10 steps (or 40 files) the work and its review outgrow even a fresh conversation.
+const VERY_BIG = { steps: 10, files: 40 };
 
 const STEP = /^###\s+(?:([\p{L}<>]+)\s+)?(\d+)\s*[:.)]\s*(.*)$/u;
 const HEADING = /^#{1,6}\s/;
@@ -138,7 +143,7 @@ function planAllowed(root, file) {
   // A missing file is checked as written, so reading it reports ENOENT.
   const f = real(file) || path.resolve(file);
   const claude = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
-  const dirs = [root, path.join(claude, 'plans')];
+  const dirs = [root, require('./lib/project-dir.js').mainOf(root), path.join(claude, 'plans')];
   return [...dirs, ...dirs.map(real)].some((dir) => {
     if (!dir) return false;
     const r = path.relative(dir, f);
@@ -158,6 +163,13 @@ function summary(root, planFile, remaining) {
   const reasons = [];
   if (counted.length >= t.min_plan_steps) reasons.push(`${counted.length} steps >= ${t.min_plan_steps}`);
   if (files.size >= t.min_plan_files) reasons.push(`${files.size} files >= ${t.min_plan_files}`);
+  const veryBig = [];
+  if (counted.length >= VERY_BIG.steps) veryBig.push(`${counted.length} steps >= ${VERY_BIG.steps}`);
+  if (files.size >= VERY_BIG.files) veryBig.push(`${files.size} files >= ${VERY_BIG.files}`);
+  const size = `${counted.length} steps, ~${files.size} files, at or over ${t.min_plan_steps} steps or ${t.min_plan_files} files: with the review it may not fit one conversation.`;
+  const ask = remaining
+    ? `Left: ${size} This conversation starts from the saved plan: delegate to implementers, or here? Or say how else.`
+    : `Plan: ${size} Run it in a fresh conversation (recommended; the plan is saved), delegate to implementers, or here? Or say how else.`;
   const done = steps.filter((s) => s.done).length;
   const out = [
     `plan: ${clean(planFile, 400)}`,
@@ -165,7 +177,8 @@ function summary(root, planFile, remaining) {
     `files: ${files.size} distinct in the counted steps`,
     `thresholds: ${t.min_plan_steps} steps or ${t.min_plan_files} files (${t.from})`,
     `suggest: ${reasons.length ? `delegate (${reasons.join(', ')})` : 'here (below both thresholds)'}`,
-    ...(reasons.length ? [`ask: ${remaining ? 'Left' : 'Plan'}: ${counted.length} steps, ~${files.size} files. Do it here or delegate to implementers (each step to a fresh implementer on its model)?`] : []),
+    ...(reasons.length ? [`ask: ${ask}`] : []),
+    ...(veryBig.length ? [`very big: ${veryBig.join(', ')} (too big for one task: plan it as a feature)`] : []),
     `models: ${MODELS.map((m) => [m, counted.filter((s) => s.model === m).length]).filter(([m, n]) => n || m !== 'haiku').map(([m, n]) => `${m} ${n}`).join(', ')}`,
   ];
   if (steps.length) {
@@ -181,9 +194,14 @@ if (require.main === module) {
   let lines;
   try {
     const { opts, pos } = parseArgs(process.argv.slice(2));
-    const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const { scriptProject, sameIn } = require('./lib/project-dir.js');
+    const given = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || process.cwd());
+    const root = scriptProject(given);
     if (!pos[1]) throw new Error('usage: plan-steps.js <projectDir> <planFile> [--remaining]');
-    lines = summary(root, path.resolve(root, pos[1]), !!opts.remaining);
+    // A file of this machine's stores (a local task's plan) is only in the main checkout.
+    const named = path.resolve(root, pos[1]);
+    const here = sameIn(given, root, named);
+    lines = summary(root, fs.existsSync(here) ? here : named, !!opts.remaining);
   } catch (e) {
     lines = [`plan-steps: unavailable (${e.message})`];
   }

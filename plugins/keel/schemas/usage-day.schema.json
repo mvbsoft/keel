@@ -64,7 +64,20 @@
             "properties": {
               "requests": { "type": "integer", "minimum": 0 },
               "tok": { "$ref": "#/$defs/tok" },
-              "usd": { "type": "number", "minimum": 0 }
+              "usd": { "type": "number", "minimum": 0 },
+              "usd_kind": {
+                "description": "The dollars split by token kind; absent when no request of the model was priced.",
+                "type": "object",
+                "required": ["in", "cw5", "cw1h", "cr", "out"],
+                "additionalProperties": false,
+                "properties": {
+                  "in": { "type": "number", "minimum": 0 },
+                  "cw5": { "type": "number", "minimum": 0 },
+                  "cw1h": { "type": "number", "minimum": 0 },
+                  "cr": { "type": "number", "minimum": 0 },
+                  "out": { "type": "number", "minimum": 0 }
+                }
+              }
             }
           }
         },
@@ -89,7 +102,12 @@
         "text": { "description": "Redacted start of the prompt (length set in transcripts.js); absent when prompt previews are off.", "type": "string" },
         "usd": { "type": "number", "minimum": 0 },
         "requests": { "type": "integer", "minimum": 0 },
-        "agents": { "type": "integer", "minimum": 0 }
+        "agents": { "type": "integer", "minimum": 0 },
+        "tools": { "description": "Tool calls after this prompt, main conversation and agents together, like a participant's tools: the 6 most used first, then the rest summed under \"other\". Absent when none, and in a day synced before this field existed.", "type": "object", "additionalProperties": { "type": "integer", "minimum": 1 } },
+        "agent_types": { "description": "Agents started in this turn by type: the 4 most used first, then the rest summed under \"other\".", "type": "object", "additionalProperties": { "type": "integer", "minimum": 1 } },
+        "usd_agents": { "description": "The part of usd spent by the agents of this turn.", "type": "number", "minimum": 0 },
+        "tok": { "description": "Tokens of the turn's requests, agents included.", "$ref": "#/$defs/tok" },
+        "ctx_max": { "description": "The largest context one main-conversation request of the turn read: in + cw5 + cw1h + cr.", "type": "integer", "minimum": 0 }
       }
     },
     "keel": {
@@ -149,7 +167,7 @@
         "keel": { "$ref": "#/$defs/keel" },
         "participants": { "type": "array", "items": { "$ref": "#/$defs/participant" } },
         "turns": { "type": "array", "items": { "$ref": "#/$defs/turn" } },
-        "truncated": { "description": "true when the session was too big for one document and turn texts, turns or participants were dropped.", "type": "boolean" }
+        "truncated": { "description": "true when the session was too big for one document and turn details, turn texts, turns or participants were dropped.", "type": "boolean" }
       }
     }
   }

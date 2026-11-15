@@ -1,28 +1,31 @@
 'use strict';
 // Storage and sync layer of the usage calculator. Turns local Claude Code transcripts into "day documents" for the
 // dashboard artifact (collection `days`), keeps a per-session summary cache so a day can be rebuilt without parsing
-// every transcript again, and tracks which documents were written to the artifact (sync-state.json).
-// Files live in <usageDir> (~/.claude/keel, KEEL_USAGE_DIR in tests):
+// every transcript again. Which documents were written to the artifact is kept by usage-sync-state.js.
+// Files live in <usageDir> (~/.claude/keel or <CLAUDE_CONFIG_DIR>/keel, KEEL_USAGE_DIR in tests):
 //   usage-cache/<session>.json   {v, mtimeMs, size, birthMs, pricesHash, withText, summary, dedup?}   parsed transcript of one session
-//   usage-index.json             {<session>: {days, mtimeMs, size, first}}        which UTC days a session touches
+//   usage-index.json             {<session>: {days, mtimeMs, size, first, no_text?}}  which UTC days a session touches; no_text: its project turned previews off
 // A resumed or forked session's transcript starts with a copy of its parent's assistant messages (same message id, same
 // time). A message id is counted once across all sessions: the session with the earliest time (then the oldest file)
 // owns it. `summary` is the session as its transcript says; `dedup` is the same without the messages others own.
 // A session whose transcript Claude Code deleted stays in the cache, so rebuilding a day keeps its history.
 //   keel-tasks.jsonl             keel fields (task, level, findings...) per session, appended by `usage.js prepare`
-//   sync-state.json              {artifact_url, synced_until, docs, pending, pending_until}
+//   sync-state.json              written by usage-sync-state.js
 // Days are UTC dates, hours are UTC hour starts. Never writes outside <usageDir>; read-only on the transcripts.
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { summarizeSession } = require('./transcripts.js');
-const { loadPrices, costOf } = require('./prices.js');
+const { loadPrices, costOf, costKinds } = require('./prices.js');
 const { readSnapshots } = require('./limits.js');
 const { usageDir: defaultUsageDir, loadMachineConfig, WALLETS } = require('./usage-config.js');
-const { projectOptions } = require('./options.js');
+const { nearestProjectOptions } = require('./options.js');
 
 const SCHEMA = 1;
-const CACHE_VERSION = 2;           // 2: request rows carry the message id (index 8), summaries carry `first`
+const CACHE_VERSION = 4;           // 4: by_model entries carry usd_kind (dollars per token kind); 3: turns carry what was done after them; 2: request rows carry the message id (index 8), summaries carry `first`
+const GHOST_MIN_VERSION = 2;       // an older cache of a session without a transcript still holds its message ids
+// What a turn says about the work after its message; the first thing a too big session gives up.
+const TURN_DETAIL = ['tools', 'agent_types', 'usd_agents', 'tok', 'ctx_max'];
 const MAX_DOC_BYTES = 240000;      // a bit under ArtifactData's 262 144 byte limit
 const DAY_MS = 86400000;
 const HOUR_MS = 3600000;
@@ -34,7 +37,6 @@ const GHOST_KEEP_DAYS = 180;       // cached sessions without a transcript are d
 const CACHE = 'usage-cache';
 const INDEX = 'usage-index.json';
 const KEEL_TASKS = 'keel-tasks.jsonl';
-const STATE = 'sync-state.json';
 const SESSIONS = 'sessions.jsonl';
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -214,6 +216,7 @@ function parse(ref, ctx, skip) {
   ctx.stats.parsed++;
   return compact(summarizeSession(ref.file, {
     cost: (model, tok) => costOf(model, tok, ctx.table),
+    costKinds: (model, tok) => costKinds(model, tok, ctx.table),
     prompts: ctx.withText,
     ...(ctx.previewChars ? { previewChars: ctx.previewChars } : {}),
     ...(skip ? { skip } : {}),
@@ -251,7 +254,7 @@ function entryOf(ref, ctx) {
 // A session whose transcript is gone, from its cache file alone (null when there is none or it predates message ids).
 function ghostOf(id, ctx) {
   const c = readJson(cacheFile(ctx, id));
-  if (!c || c.v !== CACHE_VERSION || !c.summary || !Array.isArray(c.summary.reqs)) return null;
+  if (!c || !(c.v >= GHOST_MIN_VERSION) || !c.summary || !Array.isArray(c.summary.reqs)) return null;
   ctx.cache.set(id, c);
   return { id, ref: null, raw: viewOf(c.summary, c.withText, ctx), birth: c.birthMs || 0, c };
 }
@@ -275,7 +278,7 @@ function addFamily(ctx, refs, entries) {
       if (ix.first && firsts.has(ix.first)) entries.set(ref.id, entryOf(ref, ctx));
     } else if (ref.mtimeMs >= floor) {
       const e = entryOf(ref, ctx);
-      ctx.index[ref.id] = { days: daysOf(e.raw), mtimeMs: ref.mtimeMs, size: ref.size, first: e.raw.first || '' };
+      ctx.index[ref.id] = indexEntry(ix, { days: daysOf(e.raw), mtimeMs: ref.mtimeMs, size: ref.size, first: e.raw.first || '' });
       if (e.raw.first && firsts.has(e.raw.first)) entries.set(ref.id, e);
     }
   }
@@ -306,9 +309,15 @@ function settle(ctx, entries) {
     if (skip.size) s = e.ref ? getSummary(e.ref, ctx, skip) : viewOf(e.c.dedup ? e.c.dedup.summary : e.c.summary, e.c.withText, ctx);
     out.set(e.id, s);
     const base = e.ref ? { mtimeMs: e.ref.mtimeMs, size: e.ref.size } : ctx.index[e.id] || {};
-    ctx.index[e.id] = { ...base, days: daysOf(s), first: e.raw.first || '' };
+    ctx.index[e.id] = indexEntry(ctx.index[e.id], { ...base, days: daysOf(s), first: e.raw.first || '' });
   }
   return out;
+}
+
+// A session's index entry; its no_text mark (previewIn) is never dropped, so a session synced with previews off
+// stays without text.
+function indexEntry(prev, fields) {
+  return { ...fields, ...(prev && prev.no_text ? { no_text: true } : {}) };
 }
 
 function saveIndex(ctx) {
@@ -340,6 +349,10 @@ function prune(ctx, refs, nowMs) {
 function shrinkSession(sess, budget) {
   if (bytes(sess) <= budget) return sess;
   const s = { ...sess, truncated: true };
+  if (s.turns.some((t) => TURN_DETAIL.some((k) => k in t))) {
+    s.turns = s.turns.map((t) => Object.fromEntries(Object.entries(t).filter(([k]) => !TURN_DETAIL.includes(k))));
+    if (bytes(s) <= budget) return s;
+  }
   if (s.turns.some((t) => 'text' in t)) {
     s.turns = s.turns.map(({ text, ...t }) => t);
     if (bytes(s) <= budget) return s;
@@ -369,12 +382,18 @@ function keelFor(keel, withText) {
   return { ...rest, ...(task !== undefined ? { task: null } : {}), ...(Array.isArray(steps) ? { steps: steps.map((st, i) => ({ title: `step ${i + 1}`, model: st.model === undefined ? null : st.model })) } : {}) };
 }
 
-// A project can turn previews off for itself (.keel/local/options.json) while the machine sends them.
-function previewIn(ctx, cwd) {
-  if (!cwd) return true;
+// A project can turn previews off for itself (.keel/local/options.json) while the machine sends them. The "off" is
+// kept with the session in the index, so a day rebuilt after its folder is gone still sends no text.
+function previewIn(ctx, sum) {
+  const ix = ctx.index[sum.id];
+  if (ix.no_text) return false;
+  if (!sum.cwd) return true;
   ctx.previewByCwd = ctx.previewByCwd || new Map();
-  if (!ctx.previewByCwd.has(cwd)) ctx.previewByCwd.set(cwd, projectOptions(cwd).prompt_preview !== false);
-  return ctx.previewByCwd.get(cwd);
+  if (!ctx.previewByCwd.has(sum.cwd)) ctx.previewByCwd.set(sum.cwd, nearestProjectOptions(sum.cwd).prompt_preview !== false);
+  if (ctx.previewByCwd.get(sum.cwd)) return true;
+  ix.no_text = true;
+  ctx.indexChanged = true;
+  return false;
 }
 
 // Only the folder's own name goes out, never the full path (it can hold user names and client names).
@@ -383,7 +402,9 @@ const baseName = (cwd) => String(cwd || '').split(/[\\/]/).filter(Boolean).pop()
 function sessionDoc(sum, wallet, keel, ccCost, withText = true) {
   const parts = sum.participants.map((p) => {
     const out = { ...p, usd: r6(p.usd) };
-    out.by_model = Object.fromEntries(Object.entries(p.by_model).map(([m, v]) => [m, { ...v, usd: r6(v.usd) }]));
+    out.by_model = Object.fromEntries(Object.entries(p.by_model).map(([m, v]) => [m, {
+      ...v, usd: r6(v.usd), ...(v.usd_kind ? { usd_kind: Object.fromEntries(Object.entries(v.usd_kind).map(([k, x]) => [k, r6(x)])) } : {}),
+    }]));
     return out;
   });
   return {
@@ -404,7 +425,10 @@ function sessionDoc(sum, wallet, keel, ccCost, withText = true) {
     turns: sum.turns.map((t) => {
       const out = { t: t.t == null ? null : new Date(t.t).toISOString() };
       if (withText && typeof t.text === 'string') out.text = t.text;
-      return Object.assign(out, { usd: r6(t.usd), requests: t.requests, agents: t.agents });
+      Object.assign(out, { usd: r6(t.usd), requests: t.requests, agents: t.agents });
+      for (const k of TURN_DETAIL) if (t[k] !== undefined) out[k] = t[k];
+      if (out.usd_agents !== undefined) out.usd_agents = r6(out.usd_agents);
+      return out;
     }),
   };
 }
@@ -521,16 +545,18 @@ function buildDays(opts = {}) {
     const touching = [...summaries.values()].filter((s) => ctx.index[s.id].days.includes(date));
     const own = touching.filter((s) => s.start && s.start.slice(0, 10) === date && Date.parse(s.start) >= fromMs && isKeelSession(s, keel))
       .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id < b.id ? -1 : 1))
-      .map((s) => sessionDoc(s, walletFor(s.id), keel.get(s.id) || null, cc.get(s.id), ctx.withText && previewIn(ctx, s.cwd)));
+      // previewIn goes first: it also records the project's "off" in the index when the machine sends no text.
+      .map((s) => sessionDoc(s, walletFor(s.id), keel.get(s.id) || null, cc.get(s.id), previewIn(ctx, s) && ctx.withText));
     const header = { schema: SCHEMA, date, pc, user: ctx.machine.user || null, part: 1, parts: 1, synced_until: nowIso };
     const daySnaps = snapshots.filter((s) => typeof s.t === 'string' && s.t.slice(0, 10) === date && Date.parse(s.t) >= fromMs);
     const hours = hoursFor(date, touching, walletFor, fromMs);
     // The day of the clear holds nothing yet: no empty document goes back to the cleared page.
     if (fromMs > -Infinity && !hours.length && !daySnaps.length && !own.length) continue;
-    const built = packDay(header, hours, daySnaps, own);
+    const built = packDay(header, hours, daySnaps, own, opts.maxDocBytes);
     const id = `${date}_${pc}`;
     built.forEach((doc, i) => docs.push({ id: partId(id, i + 1), key: partId(id, i + 1), doc, hash: hashOf(doc) }));
   }
+  if (ctx.indexChanged) saveIndex(ctx);
   return { docs, days: sorted, stats: ctx.stats, summaries };
 }
 
@@ -583,88 +609,15 @@ function sessionSummary(ref, opts = {}) {
   return { summary, ctx, wallet: walletOf(ref.id, wallets, ctx.machine), keel: keel.get(ref.id) || null };
 }
 
-// --- sync state ---
+// The later of two ISO times; a missing one gives the other.
+const later = (a, b) => (!a ? b : !b ? a : Date.parse(a) >= Date.parse(b) ? a : b);
 
-function readState(dir) {
-  const s = readJson(path.join(dir, STATE));
-  const ok = s && typeof s === 'object' && !Array.isArray(s);
-  return {
-    artifact_url: ok && typeof s.artifact_url === 'string' ? s.artifact_url : null,
-    synced_until: ok && typeof s.synced_until === 'string' ? s.synced_until : null,
-    docs: ok && s.docs && typeof s.docs === 'object' ? s.docs : {},
-    pending: ok && s.pending && typeof s.pending === 'object' ? s.pending : {},
-    pending_until: ok && typeof s.pending_until === 'string' ? s.pending_until : null,
-    sessions_rule: ok && typeof s.sessions_rule === 'string' ? s.sessions_rule : null,
-    pending_rule: ok && typeof s.pending_rule === 'string' ? s.pending_rule : null,
-    cleared_at: ok && typeof s.cleared_at === 'string' ? s.cleared_at : null,
-  };
-}
-
-// The first day this machine has sent a day document for (state.docs keys are "<date>_<pc>" or "..._p<n>").
-function earliestDay(state) {
-  const days = Object.keys(state.docs).map((k) => (/^(\d{4}-\d{2}-\d{2})_/.exec(k) || [])[1]).filter(Boolean).sort();
-  return days.length ? days[0] : null;
-}
-
-function writeState(dir, state) {
-  writeJson(path.join(dir, STATE), state);
-}
-
-// Decides which documents to write. `versions` overrides known versions ({key: n}). Replaces the pending set.
-// Documents of a day that used to have more parts get an empty replacement for each part now missing.
-function stage(state, built, { versions = {}, nowIso, rebuiltIds = [] } = {}) {
-  const items = [...built];
-  const have = new Set(built.map((d) => d.key));
-  for (const base of rebuiltIds) {
-    const prefix = `${base}_p`;
-    const parts = built.filter((d) => d.key === base || d.key.startsWith(prefix)).length;
-    for (const key of Object.keys(state.docs)) {
-      if (!key.startsWith(prefix) || have.has(key) || !/^\d+$/.test(key.slice(prefix.length))) continue;
-      const first = built.find((d) => d.key === base);
-      if (!first) continue;
-      const { hours, snapshots, sessions, ...head } = first.doc;
-      const doc = { ...head, part: Number(key.slice(prefix.length)), parts, hours: [], snapshots: [], sessions: [] };
-      items.push({ id: key, key, doc, hash: hashOf(doc) });
-    }
-  }
-  const writes = [];
-  const pending = {};
-  for (const d of items) {
-    const known = state.docs[d.key];
-    if (known && known.hash === d.hash && !(d.key in versions)) continue;
-    const v = d.key in versions ? versions[d.key] : known ? known.version : null;
-    pending[d.key] = { hash: d.hash, if_version: v };
-    writes.push({ ...d, if_version: v });
-  }
-  state.pending = pending;
-  state.pending_until = nowIso;
-  return writes;
-}
-
-// Marks pending writes as written (only those of `batch` when given). `failed` keys stay pending and synced_until
-// does not move past them.
-function ack(state, { failed = [], batch = null } = {}) {
-  const keys = Object.keys(state.pending).filter((k) => batch === null || state.pending[k].batch === batch);
-  const matches = (key) => failed.some((f) => f === key || key.endsWith(`/${f}`));
-  const unknown = failed.filter((f) => !keys.some((k) => k === f || k.endsWith(`/${f}`)));
-  let committed = 0;
-  for (const key of keys) {
-    if (matches(key)) continue;
-    const p = state.pending[key];
-    state.docs[key] = { version: (p.if_version || 0) + 1, hash: p.hash };
-    delete state.pending[key];
-    committed++;
-  }
-  const left = Object.keys(state.pending);   // every key still pending, in any batch
-  if (!left.length && state.pending_until) {
-    state.synced_until = state.pending_until; state.pending_until = null;
-    if (state.pending_rule) { state.sessions_rule = state.pending_rule; state.pending_rule = null; }
-  }
-  return { committed, left, unknown };
-}
+// Whether another machine's user counts as this machine's for calibration: limits and plans belong to one account.
+// A machine whose user is unknown (no git e-mail) is counted, and so is everyone when the local user is unknown.
+const sameUser = (localUser) => (u) => !localUser || typeof u !== 'string' || !u || u.toLowerCase() === String(localUser).toLowerCase();
 
 module.exports = {
-  MAX_DOC_BYTES, sanitizePc, listSessions, projectFolderName, newestSessionIn, readWallets, walletOf, readKeel, readLines,
-  buildDays, buildMachineDoc, localRequests, sessionSummary, readState, writeState, stage, ack, packDay, hashOf, sha1, SAFETY_MS,
-  DAY_MS, readJson, dayOf, SESSIONS_RULE, earliestDay,
+  MAX_DOC_BYTES, sanitizePc, listSessions, projectFolderName, newestSessionIn, readWallets, walletOf, readKeel, recordKeel, readLines,
+  buildDays, buildMachineDoc, localRequests, sessionSummary, packDay, hashOf, sha1, SAFETY_MS,
+  DAY_MS, readJson, writeJson, dayOf, SESSIONS_RULE, later, sameUser,
 };

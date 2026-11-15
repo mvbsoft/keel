@@ -28,7 +28,7 @@ description: Use when branching, committing, writing a commit message, comment o
   trailer off; keel's configure offers it.
 - No ticket keys, plan, phase or step codes in code comments or docs; they become dangling
   references once the plan is gone. They belong in the PR description or the issue tracker. Ticket
-  files themselves (front matter `type: ticket` or `type: feature`) may hold keys.
+  files themselves (front matter `type: ticket`, `type: stub` or `type: feature`) may hold keys.
 - Code comments follow the project's comment level (`comments.level`, rules injected at session start).
 
 ## Push, merge, PR

@@ -39,7 +39,13 @@ checked at the boundary?
 18. PUT replaces, DELETE repeated ends in the same state, PATCH does not reset omitted fields.
 19. The OpenAPI, proto or GraphQL schema (and generated clients) updated with the handler, including
     new error responses.
-20. Something deprecated with a path to removal rather than removed in one step.
+20. A breaking change for clients outside this app (`<keel>/skills/_shared/risky-changes.md`, "When
+    to ask"; read only that section and "Fool-proof check"): does it follow the variant chosen for it
+    (a Decision in the plan, the ticket, the task's acceptance criteria in your prompt, the PR, a
+    rule in the project's rules)? No choice recorded → a finding that the choice was not made; one of
+    the fool-proof cases with no recorded "despite the warning" → a finding.
+21. An outgoing webhook's payload changed shape; access tightened on an existing endpoint (a new
+    role or scope) so working integrations get 403.
 
 ## Evidence
 - Old and new contract side by side at `file:line` (old handler or spec vs new).
@@ -61,6 +67,8 @@ checked at the boundary?
 - Versioning or pagination style opinions on endpoints the change does not touch.
 - Endpoints introduced in this same change, or marked beta.
 - Missing idempotency on naturally idempotent operations or without a retry path.
+- A breaking change made the way the recorded pick says (changed at once and clients told, both fields for a
+  while, a deprecation date); a risk recorded as accepted "despite the warning".
 
 ## Severity
 - **critical**: removal, rename or type change in a proven public contract with known consumers;
@@ -68,6 +76,6 @@ checked at the boundary?
   handling; a non-idempotent money or inventory operation on a demonstrated retry path.
 - **important**: a new required field on an existing endpoint; a default or status-code change with
   plausible consumers; tightened validation; no maximum page size or length on public input; a changed
-  error code; paging added to a list.
+  error code; paging added to a list; a breaking change with no recorded choice.
 - **minor**: spec not updated (when not generated), inconsistent error shape on a new endpoint,
   missing deprecation marker.

@@ -146,9 +146,12 @@ test('plan-steps: proposes delegation at either threshold of .keel/config.json',
   assert.match(below, /^thresholds: 3 steps or 5 files \(\.keel\/config\.json delegation\)$/m);
   const over = run(root, plan(step(1), step(2), step(3)));
   assert.match(over, /^suggest: delegate \(3 steps >= 3, 6 files >= 5\)$/m);
-  // the here-or-delegate question has one wording: the script's
-  assert.match(over, /^ask: Plan: 3 steps, ~6 files\. Do it here or delegate to implementers \(each step to a fresh implementer on its model\)\?$/m);
+  // the question how to run a plan has one wording per moment, the script's: a plan just written
+  // offers a fresh conversation first; a conversation started from the saved plan is that one
+  assert.match(over, /^ask: Plan: 3 steps, ~6 files, at or over 3 steps or 5 files: with the review it may not fit one conversation\. Run it in a fresh conversation \(recommended; the plan is saved\), delegate to implementers, or here\? Or say how else\.$/m);
+  assert.match(run(root, plan(step(1), step(2), step(3)), '--remaining'), /^ask: Left: 3 steps, ~6 files, at or over 3 steps or 5 files: with the review it may not fit one conversation\. This conversation starts from the saved plan: delegate to implementers, or here\? Or say how else\.$/m);
   assert.doesNotMatch(below, /^ask:/m);
+  assert.doesNotMatch(over, /^very big:/m);
   assert.match(run(root, plan(step(1, { files: ['a', 'b', 'c', 'd', 'e'] }))), /^suggest: delegate \(5 files >= 5\)$/m);
   const table = run(root, plan(step(1, { model: 'opus' }), step(2)));
   assert.match(table, /^\| 1 \| module 1 \| opus \| high \| 2 \| 2 \| not done \|$/m);
@@ -156,11 +159,25 @@ test('plan-steps: proposes delegation at either threshold of .keel/config.json',
   assert.match(table, /^problems: none$/m);
 });
 
+test('plan-steps: a very big plan (10 steps or 40 files, not a setting) is too big for one task', () => {
+  const root = project({ ...CONFIG, delegation: { min_plan_steps: 50, min_plan_files: 500 } });
+  const steps = (n, opts) => Array.from({ length: n }, (_, i) => step(i + 1, opts && opts(i)));
+  assert.doesNotMatch(run(root, plan(...steps(9))), /^very big:/m);
+  assert.match(run(root, plan(...steps(10))), /^very big: 10 steps >= 10 \(too big for one task: plan it as a feature\)$/m);
+  const wide = (i) => ({ files: Array.from({ length: i < 3 ? 13 : 1 }, (_, k) => `src/s${i}/f${k}.js`) });
+  assert.doesNotMatch(run(root, plan(...steps(3, wide))), /^very big:/m, '39 files');
+  assert.match(run(root, plan(...steps(4, wide))), /^very big: 40 files >= 40 /m);
+  assert.doesNotMatch(run(root, plan(...steps(10))), /^ask:/m, 'independent of the delegation thresholds');
+  const half = plan(...steps(12, (i) => ({ status: i < 3 ? 'done' : 'not done' })));
+  assert.match(run(root, half), /^very big: 12 steps >= 10 /m);
+  assert.doesNotMatch(run(root, half, '--remaining'), /^very big:/m, 'counts the steps left');
+});
+
 test('plan-steps --remaining counts only the work that is left', () => {
   const root = project({ ...CONFIG, delegation: { min_plan_steps: 3, min_plan_files: 50 } });
   const text = plan(step(1, { status: 'done' }), step(2, { status: 'done' }), step(3, { status: 'partial 60%' }), step(4));
   assert.match(run(root, text), /^suggest: delegate \(4 steps >= 3\)$/m);
-  assert.match(run(root, text), /^ask: Plan: 4 steps, ~\d+ files\./m);
+  assert.match(run(root, text), /^ask: Plan: 4 steps, ~\d+ files, at or over 3 steps or 50 files:/m);
   const left = run(root, text, '--remaining');
   assert.match(left, /^steps: 4 \(2 done, 2 left\); counted: the 2 left$/m);
   assert.match(left, /^files: 4 distinct/m);

@@ -148,7 +148,7 @@ const EXAMPLES = {
       keel: { task: 'KEY-1: thing', level: 'standard', findings: { must: 0, should: 1, nice: 2 }, gates: 'pass', lines: { add: 10, del: 2 }, files: 3, steps: [{ title: 'one', model: 'sonnet' }] },
       participants: [{
         kind: 'main', type: 'main', model: 'claude-opus-5',
-        by_model: { 'claude-opus-5': { requests: 3, tok: { in: 10, cw5: 100, cw1h: 0, cr: 5000, out: 200 }, usd: 1.5 } },
+        by_model: { 'claude-opus-5': { requests: 3, tok: { in: 10, cw5: 100, cw1h: 0, cr: 5000, out: 200 }, usd: 1.5, usd_kind: { in: 0.1, cw5: 0.2, cw1h: 0, cr: 0.5, out: 0.7 } } },
         start: '2026-10-11T10:00:00.000Z', end: '2026-10-11T10:30:00.000Z', active_min: 20, requests: 3, tools: { Bash: 2 }, agents_launched: 0,
         tok: { in: 10, cw5: 100, cw1h: 0, cr: 5000, out: 200 }, usd: 1.5, output_estimated: false, resumed: 0,
       }],
@@ -179,6 +179,8 @@ test('config.schema.json rejects broken configs', () => {
   expectInvalid(s, ok, (d) => { d.gates.checks[0].command = ''; }, /command: shorter than 1/);
   expectInvalid(s, ok, (d) => { d.docs.profile = 5; }, /profile: above 4/);
   expectInvalid(s, ok, (d) => { d.docs.pattern = 'c4'; }, /pattern: must be one of/);
+  for (const style of ['journal', 'living', 'custom']) assert.deepEqual(validate({ ...ok, docs: { ...ok.docs, adr_style: style } }, s), [], `ADR style ${style} is valid`);
+  expectInvalid(s, ok, (d) => { d.docs.adr_style = 'mixed'; }, /adr_style: must be one of/);
   expectInvalid(s, ok, (d) => { d.verification.verifier_caps.basic = 2.5; }, /expected integer/);
   expectInvalid(s, ok, (d) => { d.verification.verifier_caps.basic = -1; }, /basic: below 0/);
   expectInvalid(s, ok, (d) => { d.verification.verifier_caps.quick = 2; }, /quick: unexpected property/);
@@ -221,12 +223,21 @@ test('plan-findings.schema.json: a finding names a ticket or part of the plan, w
   for (const part of ['place', 'check', 'severity', 'what', 'problem', 'fix', 'evidence']) {
     expectInvalid(s, ok, (d) => { delete d.findings[0][part]; }, new RegExp(`missing "${part}"`));
   }
-  for (const place of ['src/export/csv.js:42', 'T0', 'proj-101', 'ticket 2', 'decisions']) {
+  for (const place of ['src/export/csv.js:42', 'T0', 'proj-101', 'ticket 2', 'decisions', 'Summary', 'Problem / Goal', 'Stubs']) {
     expectInvalid(s, ok, (d) => { d.findings[0].place = place; }, /place: does not match/);
+  }
+  // A section of plan.md is named by its heading.
+  for (const place of ['In plain words', 'Level', 'Contract', 'What was gathered']) {
+    const section = structuredClone(ok);
+    section.findings[0].place = place;
+    assert.deepEqual(validate(section, s), [], place);
   }
   // An exported ticket, reviewed when its feature is reopened, is named by its key.
   const exported = structuredClone(ok);
   exported.findings[0].place = 'PROJ-101';
+  assert.deepEqual(validate(exported, s), []);
+  // An exported stub by its key.
+  exported.findings[0].place = 'WEB-S1';
   assert.deepEqual(validate(exported, s), []);
   expectInvalid(s, ok, (d) => { d.findings[0].evidence = ''; }, /evidence/);
   expectInvalid(s, ok, (d) => { d.findings[0].code = ['src/export/csv.js']; }, /does not match/);
@@ -270,4 +281,13 @@ test('ledger-entry.schema.json rejects bad timestamps and negative tokens', () =
   expectInvalid(s, ok, (d) => { d.usage.output_tokens = -1; }, /below 0/);
   expectInvalid(s, ok, (d) => { d.effort = 'ultra'; }, /effort: must be one of/);
   assert.deepEqual(validate({ ...clone(ok), effort: null, model: null }, s), []);
+});
+
+test('usage-day.schema.json: the dollars by token kind have all five kinds and no other', () => {
+  const s = load('usage-day.schema.json');
+  const ok = EXAMPLES['usage-day.schema.json'];
+  const kinds = (d) => d.sessions[0].participants[0].by_model['claude-opus-5'].usd_kind;
+  expectInvalid(s, ok, (d) => { delete kinds(d).cw1h; }, /usd_kind: missing "cw1h"/);
+  expectInvalid(s, ok, (d) => { kinds(d).cache = 0.1; }, /usd_kind\.cache: unexpected property/);
+  expectInvalid(s, ok, (d) => { kinds(d).out = -1; }, /usd_kind\.out: below 0/);
 });

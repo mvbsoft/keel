@@ -3,7 +3,7 @@ status: <active | blocked | done>
 branch: <the line's branch, or ->
 base: <branch the line started from; default: the main branch>
 merge_into: <branch the work goes into; default: the main branch>
-execution: <here | delegate>
+execution: <here | delegate | fresh>
 keys: <tracker keys this line owns, comma-separated, or ->
 after_commit: <git rev-parse --short HEAD while writing; the note's own commit follows it>
 date: <YYYY-MM-DD>

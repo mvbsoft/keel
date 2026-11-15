@@ -56,15 +56,24 @@ session's id (keel's session-start line):
    <the current branch `<branch>`> No git step.
    <the user's steps: ...> One at a time as `<keel>/skills/_shared/intake.md` "7. Execution" item 1 says.
    The task file or note comes after the branch.
-2. <task> Run `node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source <source> [--link <link>] --session <sid>`
-   (`task activate <id> --session <sid>` when the task exists already). Save this plan as `plan.md`
-   in the task folder it names, then fill its `task.md` as `<keel>/skills/_shared/intake.md` "7. Execution" item 2
-   lists (every front-matter field and section), with `plan: plan.md` and `execution:` as below.
+2. <task> Run `node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source <source> [--link <link>] --branch <branch> --base <base> --merge-into <target> --execution <as in step 3> [--plan-file <this plan's file>] --session <sid>`
+   (the flags as `<keel>/skills/_shared/intake.md` "7. Execution" item 2 says; `task activate <id> --session <sid>`
+   when the task exists already). The plan goes into the task folder it names as `plan.md`: by
+   `--plan-file`, else write it there yourself and set `plan: plan.md` (after `task activate` also
+   `branch`, `base`, `merge_into` and `execution`) in its `task.md`. Then fill the sections of that
+   `task.md` as that item lists.
    <session> Write `.keel/next-session.md` from `<keel>/templates/keel/next-session.md` with these steps
    as its Plan (handoff.md "Resume"), `execution:` as below; never a task file.
-3. Execution: <here | delegate>. Here: work through the steps yourself, in order; run the touched
-   tests as you go; mark each step done (✅). Delegate: follow
-   `<keel>/skills/_shared/delegate.md` with this plan file.
-4. User's changes: <branch, base, where to merge, anything else the user said; or "none">.
+3. Execution: <here | delegate | fresh>. <Above the thresholds: the choice in words and the `ask:`
+   line of `plan-steps.js`, so that approving the plan answers it.> Here: work through the steps
+   yourself, in order; run the touched tests as you go; mark each step done (✅). Delegate: follow
+   `<keel>/skills/_shared/delegate.md` with this plan file. Fresh: a fresh conversation runs this
+   saved plan, as <task> `<keel>/skills/_shared/intake.md` "Fresh conversation" / <session>
+   `<keel>/skills/_shared/handoff.md` "The plan and its size" says. <With fresh, say how the user gets
+   there: <task> approve with "Yes, clear context", or approve as usual, then type `/clear` and
+   `/keel:start-task <id>` / <session> type `/clear`, then `/keel:start-session`.>
+4. User's changes: <branch, base, where to merge, anything else the user said; or "none">. <With
+   Execution fresh also what the discussion settled that the sections above do not say: decisions
+   with why, open questions, a "do not split"; a fresh conversation knows only this plan.>
 5. When the work is done, tell the user to run <task> `/keel:end-task` (to finish, or to hand the task
    off for another session) / <session> `/keel:end-session` (to verify and prepare the next session).

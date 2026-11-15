@@ -237,11 +237,20 @@
             "arc42-c4"
           ],
           "default": "none"
+        },
+        "adr_style": {
+          "description": "How decision records are kept. journal: an accepted record is history, a change is a new record that supersedes it; living: one record per topic, rewritten in place; custom: the project's own rule in the ADR folder's README. Not set reads as journal. Details: skills/_shared/adr-journal.md, adr-living.md.",
+          "enum": [
+            "journal",
+            "living",
+            "custom"
+          ],
+          "default": "journal"
         }
       }
     },
     "delegation": {
-      "description": "Above either threshold keel asks: here or delegate to implementers? Starting estimate, to be replaced by measurements.",
+      "description": "Above either threshold keel recommends running the saved plan in a fresh conversation, or delegating to implementers, or doing it here. The default thresholds are estimates, not measured limits.",
       "type": "object",
       "required": [
         "min_plan_steps",
@@ -288,6 +297,40 @@
         }
       }
     },
+    "planning": {
+      "description": "Optional. The team's planning settings (/keel:start-planning). Without them planning does not start and export is refused: /keel:configure planning asks them.",
+      "type": "object",
+      "required": [
+        "ticket_prefix",
+        "tickets"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ticket_prefix": {
+          "description": "The start of every ticket key (PROJ in PROJ-12). comments.js also reports it in new comments and docs, besides comments.ticket_prefixes.",
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]{1,9}$"
+        },
+        "tickets": {
+          "description": "Where exported tickets live, with the researcher's reports: repo (tickets_dir, committed on the feature branch) or pc (this machine only).",
+          "enum": [
+            "repo",
+            "pc"
+          ]
+        },
+        "tickets_dir": {
+          "description": "The repository folder for exported tickets (repo). Never a hidden folder, handoff/, handoffs/, docs/plans or a place outside the project. Configs without it use tickets.",
+          "type": "string",
+          "minLength": 1,
+          "default": "tickets"
+        },
+        "language": {
+          "description": "The language of plan.md and the tickets. Configs without it use repo_language.",
+          "type": "string",
+          "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$"
+        }
+      }
+    },
     "stack_skills": {
       "description": "Stack skills the user chose during configure (informational).",
       "type": "array",
@@ -299,7 +342,7 @@
     },
     "usage": {
       "type": "object",
-      "description": "Optional. Usage dashboard shared by a team: the URL of the \"keel usage\" artifact every member syncs to (otherwise each machine finds its own).",
+      "description": "No longer used: every machine syncs to its owner's own \"keel usage\" page. An older keel's team page URL stays valid here, so existing configs do not turn invalid; keel says once that it is ignored.",
       "additionalProperties": false,
       "properties": {
         "artifact_url": {

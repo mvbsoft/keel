@@ -116,6 +116,68 @@ test('session-start: the language line and the comment rules, silent about the p
   }
 });
 
+test('session-start: Ukrainian gets a guard against drifting into Russian; other languages do not', () => {
+  for (const language of ['uk', 'Ukrainian', 'ukr']) {
+    const r = runHook('session-start.js', { source: 'resume' }, { CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: language });
+    assert.match(r.out.hookSpecificOutput.additionalContext, /stay as they are\. Ukrainian is never mixed with Russian: not one word, also in a reply after long English tool output, and not even when the user asks for Russian\./, language);
+  }
+  const en = runHook('session-start.js', { source: 'startup' }, { CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: 'en' });
+  assert.doesNotMatch(en.out.hookSpecificOutput.additionalContext, /Russian/);
+});
+
+test('language-guard Stop: a reply with Russian in a Ukrainian conversation is sent back once to be rewritten', () => {
+  const env = (language) => ({ CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: language });
+  const stop = (message, extra = {}, language = 'uk') => runHook('language-guard.js', { hook_event_name: 'Stop', session_id: 's1', last_assistant_message: message, ...extra }, env(language)).out;
+  const russian = 'Второй раунд ревʼю нашёл 3 новые проблемы, две из них важные. Это был последний раунд.';
+  const blocked = stop(russian);
+  assert.equal(blocked.decision, 'block');
+  assert.match(blocked.reason, /Russian/);
+  assert.match(blocked.reason, /Rewrite the whole reply without Russian: in Ukrainian, or in the language the user asked for if it is not Russian/);
+  assert.equal(stop('Документація: профіль 1, бо в проєкті немає ни ADR.').decision, 'block', 'one Russian word is enough');
+  assert.equal(stop('Я исправил ошибку в функции расчёта. Теперь файл сохраняется правильно.').decision, 'block', 'one Russian letter is enough');
+  assert.equal(stop('План готов: сначала правим конфигурацию, затем запускаем проверку и после коммитим.').decision, 'block', 'Russian without its own letters');
+  assert.equal(stop('Задачу завершено: зміни закомічено в гілці й запушено. Тести пройшли, 8 з 8.'), null, 'Ukrainian passes');
+  assert.equal(stop('Ні, також можна ще раз: що тільки або інтернет, уже готово для всіх, при цьому так і є, де вони його мене бачили. Eval-и й PR-и зелені.'), null, 'Ukrainian words close to Russian ones pass');
+  assert.equal(stop('Ось лог:\n```\nОшибка: это не работает, нужно ещё\n```\nПомилка в `код это`, далі все гаразд.'), null, 'code is not counted');
+  assert.equal(stop('Лог:\n~~~\nОшибка: это не работает\n~~~\nДалі гаразд.'), null, 'a ~~~ fence is code too');
+  assert.equal(stop('Лог:\n````\n```\nЭто пример, что-то там\n```\n````\nДалі гаразд.'), null, 'a longer fence holds a shorter one');
+  assert.equal(stop('Ось ``это`` та ``что`` у коді.'), null, 'an inline span of two backticks is code');
+  assert.equal(stop('- пункт\n    ```\n    Ошибка: это не работает\n    ```\n- далі'), null, 'a fence indented in a list is code too');
+  assert.equal(stop('```x``` не огорожа, а далі что-то пішло не так.').decision, 'block', 'backticks in the opening line make no fence; что-то counts');
+  assert.equal(stop('Ви попросили російською, тож ось:\n\n> Файл хранит список книг. Ещё можно отметить книгу.').decision, 'block', 'a quote is no way around it');
+  assert.equal(stop(russian, {}, 'en'), null, 'other languages: nothing');
+  assert.equal(stop(russian, {}, 'Ukrainian').decision, 'block', 'the language may be given by name');
+  assert.equal(stop(russian, {}, 'ukr').decision, 'block', 'the three-letter code');
+  assert.equal(runHook('language-guard.js', { hook_event_name: 'Stop', session_id: 's1' }, env('uk')).out, null, 'no reply text: nothing');
+  assert.equal(runHook('language-guard.js', { hook_event_name: 'Stop', session_id: 's1', last_assistant_message: russian }, { CLAUDE_PROJECT_DIR: tempProject(), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: 'uk' }).out, null, 'a project keel is not set up in: nothing');
+});
+
+test('language-guard Stop: skips only the reply right after its own block, not one after another hook blocked', () => {
+  const env = { CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: 'uk' };
+  const stop = (active) => runHook('language-guard.js', { hook_event_name: 'Stop', session_id: 's2', last_assistant_message: 'Это готово.', stop_hook_active: active }, env).out;
+  // finish-check blocked the last stop: this reply is still checked.
+  assert.equal(stop(true).decision, 'block');
+  // The guard's own block: the rewrite passes, so a reply never loops.
+  assert.equal(stop(true), null);
+  assert.equal(stop(false).decision, 'block', 'a new turn is checked again');
+});
+
+test('hooks.json: language-guard runs on Stop and after every Agent call, in exec form', () => {
+  const cfg = JSON.parse(fs.readFileSync(path.join(HOOKS, 'hooks.json'), 'utf8')).hooks;
+  const guard = (h) => h.command === 'node' && h.args.length === 1 && h.args[0] === '${CLAUDE_PLUGIN_ROOT}/hooks/language-guard.js';
+  assert.ok(cfg.Stop.some((e) => e.hooks.some(guard)), 'Stop');
+  assert.ok(cfg.PostToolUse.some((e) => e.matcher === 'Agent' && e.hooks.some(guard)), 'PostToolUse, matcher Agent');
+});
+
+test('language-guard PostToolUse: after an agent report a Ukrainian conversation is reminded of its language', () => {
+  const env = (language) => ({ CLAUDE_PROJECT_DIR: tempProject(VALID_CONFIG), CLAUDE_PLUGIN_OPTION_CONVERSATION_LANGUAGE: language });
+  const after = (language) => runHook('language-guard.js', { hook_event_name: 'PostToolUse', tool_name: 'Agent', session_id: 's1' }, env(language)).out;
+  const uk = after('uk');
+  assert.equal(uk.hookSpecificOutput.hookEventName, 'PostToolUse');
+  assert.match(uk.hookSpecificOutput.additionalContext, /reply in the conversation's language \(Ukrainian unless the user asked for another one\), never Russian/);
+  assert.equal(after('en'), null);
+});
+
 test('session-start: language defaults to en; garbage stdin never breaks the session', () => {
   const r = runHook('session-start.js', 'not json', { CLAUDE_PROJECT_DIR: tempProject({}) });
   assert.equal(r.code, 0);
@@ -335,9 +397,10 @@ test('skill-hints: a matching file or command names its skill once per session; 
   const mig = call('Write', { file_path: path.join(dir, 'db', 'migrations', '002_x.sql') });
   assert.equal(mig.out.hookSpecificOutput.hookEventName, 'PreToolUse');
   assert.equal(mig.out.hookSpecificOutput.permissionDecision, undefined, 'never decides permissions');
-  assert.match(mig.out.hookSpecificOutput.additionalContext, /database migration\. Load the keel:migration-safety skill/);
+  assert.match(mig.out.hookSpecificOutput.additionalContext, /database migration\. The rules of the keel:migration-safety skill apply/);
   assert.equal(call('Edit', { file_path: path.join(dir, 'db', 'migrations', '003_y.sql') }).raw, '', 'once per session');
-  assert.match(call('Read', { file_path: 'db/migrations/002_x.sql' }, `${sid}-2`).raw, /migration-safety/, 'a new session hears it again');
+  assert.match(call('Edit', { file_path: 'db/migrations/002_x.sql' }, `${sid}-2`).raw, /migration-safety/, 'a new session hears it again');
+  assert.equal(call('Read', { file_path: 'db/migrations/002_x.sql' }, `${sid}-10`).raw, '', 'reading a migration does not load the skill');
 
   assert.match(call('Write', { file_path: path.join(dir, 'src', 'report.js') }).raw, /keel:architecture/, 'a new source file');
   fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
@@ -347,6 +410,10 @@ test('skill-hints: a matching file or command names its skill once per session; 
   assert.match(call('Edit', { file_path: path.join(dir, 'README.md') }).raw, /documentation-philosophy/);
   assert.equal(call('Edit', { file_path: path.join(dir, '.keel', 'next-session.md') }, `${sid}-5`).raw, '', "keel's own notes are not project docs");
   assert.match(call('Edit', { file_path: path.join(dir, 'package.json') }).raw, /adr-required/);
+  assert.match(call('Write', { file_path: path.join(dir, 'docs', 'adr', '0004-jobs.md') }, `${sid}-11`).raw, /adr-required/, 'a decision record follows the ADR style');
+  for (const [i, d] of require('../plugins/keel/data/catalog.json').docs.adr_dirs.entries()) {
+    assert.match(call('Edit', { file_path: path.join(dir, ...d.split('/'), '0002-queue.md') }, `${sid}-adr${i}`).raw, /adr-required/, `every ADR folder the scan knows: ${d}`);
+  }
   assert.match(call('Bash', { command: 'git commit -m "x"' }).raw, /keel:git/);
   assert.match(call('Bash', { command: 'GIT_AUTHOR_DATE="2026-01-01 10:00" git commit -m "x"' }, `${sid}-9`).raw, /keel:git/, 'after an env prefix');
 
@@ -365,9 +432,11 @@ test('skill-hints: shell commands count as the file tool they stand for, after a
   let n = 0;
   const call = (command, cwd = dir) => runHook('skill-hints.js', { session_id: `t-${process.pid}-${Date.now()}-sh${n++}`, cwd, tool_name: 'Bash', tool_input: { command } }, { CLAUDE_PROJECT_DIR: dir }).raw;
 
-  assert.match(call('cat db/migrations/001_init.sql'), /migration-safety/, 'cat reads a migration');
-  assert.match(call(`cd "${dir}" && sed -n '1,40p' db/migrations/001_init.sql`, os.tmpdir()), /migration-safety/, 'a leading cd is followed');
-  assert.match(call('cd db && cat migrations/001_init.sql'), /migration-safety/, 'a relative cd too');
+  assert.equal(call('cat db/migrations/001_init.sql'), '', 'reading a migration does not load the skill');
+  assert.equal(call("sed -n '1,40p' db/migrations/001_init.sql"), '', 'sed -n only reads');
+  assert.equal(call('Get-Content db/migrations/001_init.sql'), '', 'Get-Content only reads');
+  assert.match(call(`cd "${dir}" && sed -i 's/a/b/' db/migrations/001_init.sql`, os.tmpdir()), /migration-safety/, 'a leading cd is followed');
+  assert.match(call("cd db && sed -i 's/a/b/' migrations/001_init.sql"), /migration-safety/, 'a relative cd too');
   assert.match(call("cat > db/migrations/002_x.sql <<'EOF'\nALTER TABLE t ADD c INT;\nEOF"), /migration-safety/, 'a heredoc writes a migration');
   assert.match(call("cat > src/report.js <<'EOF'\nmodule.exports = {};\nEOF"), /keel:architecture/, '> to a new source file is Write');
   assert.equal(call("cat > src/old.js <<'EOF'\nx\nEOF"), '', '> to an existing file is not a new file');
@@ -400,7 +469,7 @@ test('no-ai-attribution: refuses a commit or PR that names an AI as author, with
 test('hooks.json registers skill-hints on file and shell tools, in exec form', () => {
   const cfg = JSON.parse(fs.readFileSync(path.join(HOOKS, 'hooks.json'), 'utf8')).hooks;
   const h = cfg.PreToolUse.find((x) => x.hooks[0].args && x.hooks[0].args[0].endsWith('skill-hints.js'));
-  assert.deepEqual(h.matcher.split('|').sort(), ['Bash', 'Edit', 'PowerShell', 'Read', 'Write']);
+  assert.deepEqual(h.matcher.split('|').sort(), ['Bash', 'Edit', 'PowerShell', 'Write'], 'no rule lists Read, so reads do not start the hook');
 });
 
 test('own-files: usage.js and usage-setup.js read-only steps run silently; apply, prices-apply and install-statusline ask', () => {

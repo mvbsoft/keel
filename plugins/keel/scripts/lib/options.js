@@ -2,10 +2,13 @@
 // keel's own options that have a machine value and may have a value for one project. The machine
 // value of conversation_language and allow_opus is the plugin option (Claude Code keeps plugin options
 // for the whole machine only, even for a plugin installed in one project; it passes them as
-// CLAUDE_PLUGIN_OPTION_*); prompt_preview's is in ~/.claude/keel/usage.json. A project value lives in
-// <project>/.keel/local/options.json (personal, outside git) and wins over the machine value.
+// CLAUDE_PLUGIN_OPTION_*); prompt_preview's is in usage.json in usageDir(). A project value lives in
+// <project>/.keel/local/options.json (personal, outside git; for a linked worktree, the main checkout's)
+// and wins over the machine value.
+const fs = require('node:fs');
 const path = require('node:path');
 const { readJsonFile } = require('./json.js');
+const { mainOf } = require('./project-dir.js');
 
 const OPTIONS = {
   conversation_language: { valid: (v) => typeof v === 'string' && /^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})?$/.test(v) },
@@ -14,7 +17,7 @@ const OPTIONS = {
 };
 const OFF = new Set(['false', '0', 'no', 'off']);
 
-const file = (root) => path.join(root, '.keel', 'local', 'options.json');
+const file = (root) => path.join(mainOf(root), '.keel', 'local', 'options.json');
 
 function projectOptions(root) {
   if (!root) return {};
@@ -22,6 +25,16 @@ function projectOptions(root) {
     const raw = readJsonFile(file(root));
     return Object.fromEntries(Object.entries(raw || {}).filter(([k, v]) => OPTIONS[k] && OPTIONS[k].valid(v)));
   } catch { return {}; }
+}
+
+// The project values for any folder of a project: the nearest options file at or above `dir`, also when `dir`
+// itself is gone (a removed worktree under .claude/worktrees, a deleted sub-folder).
+function nearestProjectOptions(dir) {
+  if (!dir) return {};
+  for (let d = path.resolve(dir); ; d = path.dirname(d)) {
+    if (fs.existsSync(d) && fs.existsSync(file(d))) return projectOptions(d);
+    if (path.dirname(d) === d) return {};
+  }
 }
 
 // The values that apply in a project, and where each came from.
@@ -45,8 +58,8 @@ function writeProjectOptions(root, changes) {
   if (bad.length) throw new Error(`keel does not write these project options (unknown key or bad value): ${bad.join(', ')}`);
   const next = { ...projectOptions(root) };
   for (const [k, v] of Object.entries(changes)) if (v === null) delete next[k]; else next[k] = v;
-  require('./safe-path.js').safeLocalWrite(root, 'options.json', `${JSON.stringify(next, null, 2)}\n`);
+  require('./safe-path.js').safeLocalWrite(mainOf(root), 'options.json', `${JSON.stringify(next, null, 2)}\n`);
   return next;
 }
 
-module.exports = { OPTIONS, projectOptions, effectiveOptions, writeProjectOptions, optionsFile: file };
+module.exports = { OPTIONS, projectOptions, nearestProjectOptions, effectiveOptions, writeProjectOptions, optionsFile: file };

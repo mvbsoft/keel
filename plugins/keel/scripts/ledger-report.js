@@ -6,7 +6,7 @@
 //   --session: only agents of that Claude Code session (other sessions in the same project are left out)
 // A resumed agent (repair by message) adds a ledger line per run over the same transcript; only its
 // last line counts.
-// Cost is an estimate at list price (data/prices.json plus the machine override ~/.claude/keel/prices.json, through
+// Cost is an estimate at list price (data/prices.json plus the machine override prices.json in usageDir(), through
 // lib/prices.js); on a subscription it counts against limits.
 // Each agent's transcript is summed again here: when the ledger hook ran, the transcript could still
 // miss the agent's last response.
@@ -75,7 +75,7 @@ function lastPerAgent(entries) {
 
 function main(argv) {
   const { opts, pos } = parseArgs(argv);
-  const root = path.resolve(pos[0] || process.env.CLAUDE_PROJECT_DIR || '.');
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   let since = typeof opts.since === 'string' ? opts.since : null;
   if (!since) { const run = readJson(localDir(root, 'tmp', 'verify-run.json')); since = run ? run.started : null; }
   let lines = [];

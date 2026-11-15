@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Read-only generalist search agent that makes one broad pass over a code change against its task and reports every real defect of any kind.
+description: Read-only generalist search agent: one broad pass over a code change; reports every real defect.
 model: sonnet
 effort: high
 maxTurns: 60

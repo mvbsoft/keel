@@ -9,7 +9,7 @@ allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/config-check.js" *), Pow
 # keel: configure
 
 - `<keel>` (the plugin folder): `${CLAUDE_PLUGIN_ROOT}`
-- `<project>` (the project folder): `${CLAUDE_PROJECT_DIR}`
+- `<project>` (the project folder): `${CLAUDE_PROJECT_DIR}`; a keel script's `project: <folder>` line (this session works in a worktree of it) replaces it from then on
 - Current conversation language (section 1 confirms or changes it): the language in keel's session-start line (this project's own, else the machine's: ${user_config.conversation_language}; a language the user explicitly asks for in this session wins, for this session only)
 - Arguments: `$ARGUMENTS` (`check`: only say what to reconfigure; one or more sections to change in a
   configured project, separated by commas; `machine`: only this machine's settings, for every project;
@@ -24,7 +24,9 @@ configure flow, run nothing, write nothing. No output above (a policy can turn o
 skills) → run `node "<keel>/scripts/config-check.js" "<project>"` once. Then, in the conversation
 language and plain words, at most about 15 lines:
 - `keel-config:` is not `ok`, or a `git:` line → what it says, and that `/keel:configure` sets keel up
-  or repairs it; stop.
+  or repairs it; stop. With a `settings on branch: <name>` line, say instead that keel is already set
+  up on that branch and its settings reach this branch when that branch is merged; a fresh setup here
+  only when the user insists.
 - `result: nothing to reconfigure` → say so in one line and why: nothing keel's settings depend on
   changed since that date (package versions alone do not count).
 - otherwise: first the answer (which sections need it, which are only worth a look); then one line per

@@ -24,9 +24,13 @@ only where this file says so.
      answer updates the note).
    The `cleanup.js reminder` line goes here as it is, only when it names `/keel:cleanup`; any other
    reminder output is left out.
-5. **Costs**: the text of `usage.js report` (`<keel>/skills/_shared/usage-sync.md` step 5, run as the
+5. **Costs**: the text of `usage.js report` (`<keel>/skills/_shared/usage-sync.md` step 4, run as the
    last action before this message). The user does not see tool output: paste its text into this
    message as it is: every column, row and line, as a table (not inside a code block), translated
    only when it came out in English for another conversation language (keel has no catalog for that
    language yet). Never "see above" and never leave it out. These are the only cost numbers in the
-   report: no other total (no ledger `total:`, no estimate).
+   report: no other total (no ledger `total:`, no estimate). What it holds depends on how the session
+   pays: an API key only → exact dollars, no share of the plan limits and no usage page; a
+   subscription → dollars and the share of the weekly and 5-hour limits; both → the same, with API
+   sessions marked. The lines at its end (for example that the page sync waits, and why) belong to
+   it too.

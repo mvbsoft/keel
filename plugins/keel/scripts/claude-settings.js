@@ -27,7 +27,7 @@ const { readJsonFile } = require('./lib/json.js');
 const { safeLocalPath } = require('./lib/safe-path.js');
 
 // Keys a project may set for itself over the machine value (sources: settings-reference.md in the
-// Claude Code docs, where each of these has the scope "any file"; numbers: the owner's choices).
+// Claude Code docs, where each of these has the scope "any file"; the numbers are the values keel recommends).
 // `was`: what older keel versions recommended, so configure check can name a recommendation that changed.
 const BOTH = {
   showClearContextOnPlanAccept: { recommended: true, why: 'approving a plan can clear the planning context and start from the plan alone' },
@@ -57,7 +57,11 @@ function userFile() {
   if (process.env.KEEL_USER_SETTINGS) return process.env.KEEL_USER_SETTINGS;
   return path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'settings.json');
 }
-const projectFile = (root) => path.join(root, '.claude', 'settings.local.json');
+// The project settings Claude Code applies (lib/project-dir.js settingsHome): in a desktop worktree
+// session the main checkout's, not the copy in the worktree.
+const settingsDir = (root) => require('./lib/project-dir.js').settingsHome(root);
+const projectFiles = (root) => ['settings.local.json', 'settings.json'].map((name) => path.join(settingsDir(root), '.claude', name));
+const projectFile = (root) => projectFiles(root)[0];
 
 function readJson(file) {
   if (!fs.existsSync(file)) return { exists: false, value: {} };
@@ -84,13 +88,13 @@ function current(settings, key) {
 // Plan Mode files in .keel/local/plans/ itself: Claude Code wrote them there while plansDirectory was
 // keel's older ./.keel/local/plans. keel's own planning files live in subfolders, never at this level.
 function oldPlans(root) {
-  try { return fs.readdirSync(safeLocalPath(root, 'plans'), { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.md')).map((e) => e.name).sort(); } catch { return []; }
+  try { return fs.readdirSync(safeLocalPath(settingsDir(root), 'plans'), { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.md')).map((e) => e.name).sort(); } catch { return []; }
 }
 
 // Moves them into claude/; a name already there stays where it is.
 function movePlans(root) {
-  const from = safeLocalPath(root, 'plans');
-  const to = safeLocalPath(root, 'plans', 'claude');
+  const from = safeLocalPath(settingsDir(root), 'plans');
+  const to = safeLocalPath(settingsDir(root), 'plans', 'claude');
   const moved = [];
   const kept = [];
   const names = oldPlans(root);
@@ -189,8 +193,9 @@ function apply(root, changesFile) {
       let backup = null;
       if (exists) {
         // A project file's backup goes to .keel/local/backups (git-ignored), not beside it, where git
-        // would list it as untracked. The machine file is outside any repository: its backup stays beside it.
-        const backupDir = scope === 'user' ? path.dirname(file) : path.join(root, '.keel', 'local', 'backups');
+        // would list it as untracked; the checkout the file is in keeps it. The machine file is outside any
+        // repository: its backup stays beside it.
+        const backupDir = scope === 'user' ? path.dirname(file) : safeLocalPath(settingsDir(root), 'backups');
         fs.mkdirSync(backupDir, { recursive: true });
         backup = path.join(backupDir, `${path.basename(file)}.keel-backup-${new Date().toISOString().replace(/[-:]/g, '').replace(/\..*$/, '')}`);
         fs.copyFileSync(file, backup);
@@ -208,7 +213,7 @@ function apply(root, changesFile) {
 
 if (require.main === module) {
   const { pos } = parseArgs(process.argv.slice(2));
-  const root = path.resolve(pos[0] || '.');
+  const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   const say = (w) => process.stdout.write(`written ${w.file}: ${w.keys.join(', ')}${w.backup ? `; previous file kept as ${w.backup}` : ''}\n`);
   try {
     if (pos[1] === 'show') process.stdout.write(`${report(show(root))}\n`);
@@ -225,4 +230,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { KEYS, show, apply, report, userFile, keelId, homeOf, movePlans };
+module.exports = { KEYS, show, apply, report, userFile, projectFiles, keelId, homeOf, movePlans };

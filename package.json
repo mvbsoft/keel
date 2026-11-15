@@ -7,6 +7,6 @@
   "scripts": {
     "test": "node --test \"tests/**/*.test.js\"",
     "test:docker": "node tests/docker.js",
-    "eval": "claude plugin eval plugins/keel --scaffold --trust-plugin --allow-tools Bash Write Edit --ablation none --no-publish --max-cost-usd 15"
+    "eval": "claude plugin eval plugins/keel --scaffold --trust-plugin --allow-tools Bash Write Edit WebFetch WebSearch --ablation none --no-publish --max-cost-usd 30"
   }
 }
