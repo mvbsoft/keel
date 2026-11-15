@@ -487,6 +487,11 @@ All notable changes to keel are listed here. The format follows
   tickets in the overview's other repositories on this machine (a later `--repo` ticket or an edit
   there was committed and pushed unchecked); a project at `/app` no longer flags `src/apple.js`; a web
   route such as `/home/<page>` or `GET /Users/<id>` no longer stops a plan from becoming ready.
+- `/keel:configure check` on a machine without a configure record, for a project in a subfolder of its
+  repository, rebuilds the record from that folder, not from the whole repository: it said a command
+  left out of the gates was new, and after a dependency bump every keel command said `profile: stale`.
+  A record rebuilt that way earlier stays until the next full `/keel:configure`; deleting
+  `.keel/local/configure-snapshot.json` makes the next `/keel:configure check` rebuild it.
 
 ### Removed
 - `approved_artifact_urls` and `page_shared` in `~/.claude/keel/usage.json`.
