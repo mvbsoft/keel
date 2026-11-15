@@ -66,6 +66,11 @@ lerna) reaches. A program in another language, and the Maven and Gradle wrappers
 `./gradlew`), are judged by the words of the command only. A command with `$` or a backtick cannot
 be checked, so the dry run skips it too.
 
+This check is a hint, not a guarantee: it follows `cd`, package scripts, script files and simple
+Makefiles, and it can misread a complex Makefile or script. It runs only before this dry run and
+before keel re-runs a command a QA agent names; the gate commands you confirm here are the ones keel
+runs at every verification without it, so confirm only commands you would run yourself.
+
 **Your existing docs.** Quick setup keeps them as they are (the suggested documentation profile and
 pattern). In detailed setup (documentation profiles 3 and 4 pick a pattern such as Diátaxis or
 arc42), when the pattern you pick is not the one your docs follow now, keel says what would move

@@ -457,8 +457,10 @@ Then, in one question group:
    percentages; `now: keel` without an offer → nothing to ask; `now: keel (...), not the shim in the
    usage folder | offer: install` → keel's line runs a file that is gone or sits in a folder keel no
    longer updates (the usage folder moved, say to `CLAUDE_CONFIG_DIR`): offer to point it at the
-   usage folder; the `statusline` setting stays as it is, so leave it out of the write. Options: the
-   offer (recommended) / skip (no percentages in the terminal).
+   usage folder. On a yes keep the `statusline` key out of `usage-setup.json` in step 7 (usage.json's
+   value stays as it is), and still write the `statusLine` object that `install-statusline` prints
+   with `claude-settings.js apply`, as step 7 says for `install`. Options: the offer (recommended) /
+   skip (no percentages in the terminal).
 5. **Usage page** ("Keep a usage page?" Yes (recommended) / No). Explain in plain words before the
    question: a private page "keel usage" in the user's claude.ai account collects the costs of every
    machine of the account (charts, filters, every keel session with its agents and the cost of each

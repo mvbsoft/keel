@@ -184,7 +184,7 @@ test('start-task, start-session and planning texts: another repository\'s depend
   // No "start from that ticket's branch" for another repository: its branch is not in this one.
   assert.doesNotMatch(intake.slice(intake.indexOf('of another repository (its state')).split('\n   - ')[0], /that ticket's branch/);
   assert.match(shared('handoff-resume.md'), /A dependency in another repository \(its state followed by `\(<folder>, \.\.\.\)`, or `not checked`\) is no step of its own: the ticket's step names it with that state/);
-  assert.match(shared('planning.md'), /`--depends` may also name another repository's ticket by its key, `API-121`, checked in that\s+repository's folder from the repos map: a `note: \.\.\. not checked` line → say it and how to add the\s+folder/);
+  assert.match(shared('planning.md'), /`--depends` may also name an existing ticket of another feature of this repository by its key,\s+`PROJ-1`, or another repository's ticket by its key, `API-121`, checked in that\s+repository's folder from the repos map: a `note: \.\.\. not checked` line → say it and how to add the\s+folder/);
 });
 
 gitTest('which keys are another repository\'s: an older own prefix stays here; a long prefix, a file named like the key and lower case change nothing', () => {
