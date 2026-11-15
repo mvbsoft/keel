@@ -74,6 +74,7 @@ test('release notes: CHANGELOG.md has one line per list item for the plugin vers
   const out = notes(version, path.join(ROOT, 'CHANGELOG.md'));
   const lines = out.split('\n');
   assert.ok(lines.some((l) => l.startsWith('- ')), `no list items for ${version}`);
-  assert.deepEqual(lines.filter((l) => /^ {2}\S/.test(l)), [], 'wrapped continuation lines remain');
+  // A nested item ("  - ...") stays on its own line, as the test above expects; any other indented line is a wrap.
+  assert.deepEqual(lines.filter((l) => /^ +(?!- )\S/.test(l)), [], 'wrapped continuation lines remain');
   assert.deepEqual(lines.filter((l) => /^\[[^\]]+\]: /.test(l) || l.startsWith('## [')), []);
 });
