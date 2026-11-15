@@ -254,6 +254,66 @@ gitTest('a ready plan whose stub is converted is a draft again; check: a stub of
   assert.ok(admin);
 });
 
+gitTest('a stub whose repository plans with another prefix than the one guessed says to change its repo:, and converts after that', () => {
+  const w = world();
+  draft(w);
+  const admin = repo(w.projects, 'admin', 'ADMIN');
+  run(w.api, 'settings', 'set', '--repo', `ADM=${slash(admin)}`);
+  const stubFile = `${PLAN}/tickets/T2-admin-counter.md`;
+  const advice = (file, keep = '') => `plans with the prefix ADMIN, not ADM: change the stub's repo: to ADMIN (${file}), map it (plans.js settings set --repo ADMIN=<folder>${keep}), then --from-stub again`;
+  assert.equal(run(w.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], `plans: ticket refused (--from-stub: ${slash(admin)} ${advice(stubFile)})`);
+  // Mapping ADMIN alone changes nothing: the stub still says ADM.
+  run(w.api, 'settings', 'set', '--repo', `ADMIN=${slash(admin)}`);
+  assert.equal(run(w.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], `plans: ticket refused (--from-stub: ${slash(admin)} ${advice(stubFile)})`);
+  write(w.api, stubFile, readRel(w.api, stubFile).replace('repo: ADM', 'repo: ADMIN'));
+  assert.equal(run(w.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], 'converted: T2 (stub -> ticket for ADMIN)');
+
+  // The same when that repository's config does not pass the schema (a key a newer keel added): its
+  // prefix is still read.
+  const u = world();
+  draft(u);
+  const newer = repo(u.projects, 'admin', 'ADMIN');
+  const config = JSON.parse(readRel(newer, '.keel/config.json'));
+  write(newer, '.keel/config.json', JSON.stringify({ ...config, new_key: 1 }));
+  run(u.api, 'settings', 'set', '--repo', `ADM=${slash(newer)}`);
+  assert.equal(run(u.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], `plans: ticket refused (--from-stub: ${slash(newer)} ${advice(stubFile)})`);
+  run(u.api, 'settings', 'set', '--repo', `ADMIN=${slash(newer)}`);
+  assert.equal(run(u.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], `plans: ticket refused (--from-stub: ${slash(newer)} ${advice(stubFile)})`);
+  write(u.api, stubFile, readRel(u.api, stubFile).replace('repo: ADM', 'repo: ADMIN'));
+  assert.equal(run(u.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], 'converted: T2 (stub -> ticket for ADMIN)');
+
+  // A prefix in that config that is not a ticket prefix is fixed there: a repo: never matches it.
+  const x = world();
+  draft(x);
+  const lower = repo(x.projects, 'admin', 'ADMIN');
+  const good = readRel(lower, '.keel/config.json');
+  const bad = JSON.parse(good);
+  bad.planning.ticket_prefix = 'admin';
+  write(lower, '.keel/config.json', JSON.stringify(bad));
+  run(x.api, 'settings', 'set', '--repo', `ADM=${slash(lower)}`);
+  const fixThere = `plans: ticket refused (--from-stub: ${slash(lower)}/.keel/config.json has the prefix "admin", which is not a ticket prefix: fix it there with /keel:configure planning, then --from-stub again)`;
+  assert.equal(run(x.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], fixThere);
+  write(x.api, stubFile, readRel(x.api, stubFile).replace('repo: ADM', 'repo: ADMIN'));
+  run(x.api, 'settings', 'set', '--repo', `ADMIN=${slash(lower)}`);
+  assert.equal(run(x.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], fixThere);
+  write(lower, '.keel/config.json', good);
+  assert.equal(run(x.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], 'converted: T2 (stub -> ticket for ADMIN)');
+
+  const v = world();
+  exported(v);
+  commit(v.api, 'Add the tickets');
+  const there = repo(v.projects, 'admin', 'ADMIN');
+  git(there, 'switch', '-q', '-c', FEATURE);
+  run(v.api, 'settings', 'set', '--repo', `ADM=${slash(there)}`);
+  const exportedStub = `${OUT}/ADM-S1-admin-counter.md`;
+  assert.deepEqual(run(v.api, 'ticket', FEATURE, '--from-stub', 'ADM-S1'), [`plans: ticket refused (--from-stub: ${slash(there)} ${advice(exportedStub, '; keep ADM mapped')})`]);
+  assert.ok(has(v.api, exportedStub) && !has(there, OUT));
+  write(v.api, exportedStub, readRel(v.api, exportedStub).replace('repo: ADM', 'repo: ADMIN'));
+  run(v.api, 'settings', 'set', '--repo', `ADMIN=${slash(there)}`);
+  assert.equal(run(v.api, 'ticket', FEATURE, '--from-stub', 'ADM-S1')[0], 'converted: ADM-S1 -> ADMIN-1');
+  assert.match(readRel(there, `${OUT}/ADMIN-1-admin-counter.md`), /^replaces: ADM-S1$/m);
+});
+
 gitTest('the page template draws a stub\'s mark and note', () => {
   // The page's script lives in page.js beside index.html.
   const script = fs.readFileSync(path.join(SCRIPTS, '..', 'templates', 'feature-page', 'page.js'), 'utf8');

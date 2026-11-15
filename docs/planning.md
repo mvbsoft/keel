@@ -155,7 +155,11 @@ a new event in `api` and a badge in `web`; each ticket is for one repository onl
   (another feature's or project's `ADM-S1` is not it). Once the stub has left and that repository's
   clone has no such ticket yet (not pulled since), the dependency is not found and holds the ticket
   back. keel then studies that repository, with the stub as the start, for the sections
-  it lacked; until they are written they are placeholders and the check stops on them.
+  it lacked; until they are written they are placeholders and the check stops on them. When the
+  stub's prefix was a guess and that repository plans with another one (`ADMIN`, not `ADM`),
+  `--from-stub` says so: the stub's `repo:` is changed to `ADMIN` first, its key `ADM-S1` stays
+  (and so does the `ADM` entry of the repos map, through which it is found), and the ticket gets
+  `ADMIN-1`.
 - **Export** puts each repository's tickets into that repository, by its own planning settings: its
   prefix and its own next number after its own `git fetch` (`API-1` here, `WEB-10` there), its ticket
   place, and its main branch as `merge_into` (the plan's `merge_into` when you changed it). All or

@@ -190,7 +190,9 @@ others read). This one conversation plans all of it; each ticket is for one repo
    **A stub's repository is here now** (`plans.js check` says `note: <T>: <PREFIX> is on this machine
    now`, or `plans.js repos` lists it): offer to turn the stub into a full ticket; yes →
    `plans.js ticket <f> --from-stub <T>`: the same T becomes a ticket for that repository (added to
-   the plan's repos; `--from-stub: ... not on this machine yet` → map its folder first, item 2). Then
+   the plan's repos; `--from-stub: ... not on this machine yet` → map its folder first, item 2;
+   `--from-stub: <folder> plans with the prefix <P>, not <S>` → the stub's prefix was a guess: say
+   so, and with a yes change its `repo:` to `<P>` and do what the message says). Then
    study that repository with the stub as the start and write Boundaries, Correct the priors and Where
    to look (placeholders until then; check stops on them), then check and a review of that ticket.
 8. **Export.** `plans.js repos` once more first: a stub's repository is listed now → offer item 7's

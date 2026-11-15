@@ -344,6 +344,9 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- A stub whose guessed prefix (`ADM`) differs from the one its repository plans with (`ADMIN`) can
+  be turned into a ticket: `--from-stub` now says to change the stub's `repo:` to `ADMIN`. Before,
+  its advice sent you from mapping `ADM` to mapping `ADMIN` and back, and neither worked.
 - A task handoff without a network (or with failing access to the remote) now ends on the base
   branch, as it is on this machine, with a warning that it was not updated; before, after the work
   was committed and the push failed, it stopped on the task branch at the switch back.
