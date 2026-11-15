@@ -344,6 +344,9 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- Usage page, Analysis: the model filter takes only the model you pick. Before, "Sonnet 4" also took
+  Sonnet 4.5 and "Opus 5" also took Opus 5.5, so the tiles, the chart and the table summed two models
+  while grouping by model showed them apart.
 - A usage sync whose batch is refused twice no longer loses the batch's other documents: after
   `ack --batch <n> --failed <doc>` none of that batch is recorded as written, so the next sync sends
   it all again. Before, the other documents of the batch counted as written although the page had

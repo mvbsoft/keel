@@ -225,7 +225,8 @@
   function modelMatches(list, model) {
     if (!list || !list.length) return true;
     const m = String(model || '');
-    return list.some((f) => m === f || m.includes(f) || family(m) === f);
+    // 'opus-4' is one family and does not take 'opus-4-1'; a bare stem like 'opus' takes every opus.
+    return list.some((f) => m === f || family(m) === f || (/^[a-z]+$/.test(f) && family(m).split('-')[0] === f));
   }
 
   function filter(rows, f) {

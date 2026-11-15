@@ -162,6 +162,23 @@ test('filter: all agents + sonnet gives only agent rows on sonnet', () => {
   near(rows.reduce((a, r) => a + r.usd, 0), 4);
 });
 
+test('filter: a model family does not take its point releases', () => {
+  const M = ['claude-sonnet-4-20250514', 'claude-sonnet-4-5-20250929', 'claude-opus-4-20250514', 'claude-opus-4-1-20250805', 'claude-opus-5', 'claude-opus-5-5', 'claude-3-5-haiku-20241022'];
+  const rows = M.map((model, i) => ({ id: `r${i}`, date: '2026-10-09', model }));
+  const pick = (model) => P.filter(rows, { model }).map((r) => r.model);
+  assert.deepEqual(pick(['sonnet-4']), ['claude-sonnet-4-20250514']);
+  assert.deepEqual(pick(['opus-4']), ['claude-opus-4-20250514']);
+  assert.deepEqual(pick(['opus-4-1']), ['claude-opus-4-1-20250805']);
+  assert.deepEqual(pick(['opus-5']), ['claude-opus-5']);
+  assert.deepEqual(pick(['haiku-3-5']), ['claude-3-5-haiku-20241022']);
+  assert.deepEqual(pick(['opus']), ['claude-opus-4-20250514', 'claude-opus-4-1-20250805', 'claude-opus-5', 'claude-opus-5-5']);
+  assert.deepEqual(pick(['haiku']), ['claude-3-5-haiku-20241022']);
+  assert.deepEqual(pick(['claude-opus-5-5']), ['claude-opus-5-5']);
+  const sess = (id, model) => ({ id, date: '2026-10-09', pc: 'office', start: '2026-10-09T10:00:00Z', usd: 1, active_min: 1, participants: [part({ kind: 'main', model, usd: 1, requests: 1 })], turns: [] });
+  const t = P.sessionsTable([sess('a', 'claude-opus-5'), sess('b', 'claude-opus-5-5')], { filters: { model: ['opus-5'] } });
+  assert.equal(t.rows.length, 1);
+});
+
 // ---- group / share ---------------------------------------------------------------------------------------
 test('group: by day, week, project, pc, user, participant, model, hour', () => {
   const R = flat.rows;
