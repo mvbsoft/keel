@@ -202,7 +202,9 @@ check, but only when the page is opened without its data connection (outside cla
 
 keel reads Claude Code's local logs (the transcripts under `~/.claude/projects`). Nothing is measured by
 the model. On each machine keel keeps its own files in `~/.claude/keel/`: session wallets, limit
-snapshots, a summary cache, sync state and settings.
+snapshots, a summary cache, sync state and settings. With `CLAUDE_CONFIG_DIR` set, both folders are in
+it instead (keel's in `<CLAUDE_CONFIG_DIR>/keel/` once that exists), so each Claude profile has its own
+page.
 
 ## What goes to the page, and what never does
 

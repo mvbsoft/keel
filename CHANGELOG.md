@@ -32,6 +32,10 @@ All notable changes to keel are listed here. The format follows
 - A machine that synced to the project's shared page (`usage.artifact_url` in `.keel/config.json`) and
   has no page of its own stops syncing: run `/keel:usage on` there to set up its own page. The first
   end report after the update says so once.
+- Only if you set `CLAUDE_CONFIG_DIR`: keel's machine files now belong in `<CLAUDE_CONFIG_DIR>/keel`.
+  Until that folder exists keel keeps using `~/.claude/keel`. To give the profile its own usage page,
+  settings and git trust list, move `~/.claude/keel` there (or copy it, for each profile that should
+  start from the same files).
 
 ### Added
 - `docs/features.md` (and its Ukrainian source `docs/features.uk.md`): a short, complete list of what
@@ -344,6 +348,10 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- keel's machine files (usage settings and page address, usage data, `trusted-git.json`) follow
+  `CLAUDE_CONFIG_DIR` like Claude Code's own: they are in `<CLAUDE_CONFIG_DIR>/keel` when it is set.
+  Before, every Claude profile on a computer shared `~/.claude/keel`, so two profiles synced to one
+  usage page and shared one list of projects trusted with autonomous git.
 - keel's own session note `.keel/next-session.md` is no longer taken for another notes system. Before,
   in a git repository, `/keel:configure check` and configure's first step offered
   `/keel:configure migration` ("another notes or memory system: .keel") after the first

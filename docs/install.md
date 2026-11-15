@@ -96,7 +96,9 @@ status line, if you installed it. Installed for your user, keel's commands, agen
 listed by Claude Code in every project (their short descriptions). For no trace at all in other
 projects, install with `--scope project` or `--scope local`.
 
-**On this machine**, keel writes:
+**On this machine**, keel writes (with `CLAUDE_CONFIG_DIR` set, read that folder for `~/.claude`;
+keel's own files stay in `~/.claude/keel/` while `<CLAUDE_CONFIG_DIR>/keel/` does not exist and the old
+folder does):
 
 - `~/.claude/keel/`: the machine's usage settings (`usage.json`), plan-limit snapshots
   (`limits.jsonl`, its previous part `limits.1.jsonl`, `limits-last.json`), the usage data read from
