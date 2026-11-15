@@ -35,7 +35,9 @@ All notable changes to keel are listed here. The format follows
 - Only if you set `CLAUDE_CONFIG_DIR`: keel's machine files now belong in `<CLAUDE_CONFIG_DIR>/keel`.
   Until that folder exists keel keeps using `~/.claude/keel`. To give the profile its own usage page,
   settings and git trust list, move `~/.claude/keel` there (or copy it, for each profile that should
-  start from the same files).
+  start from the same files). If keel set up your status line, then run `/keel:configure usage` in that
+  profile: it offers the status line again and points it at the new folder (the old command fails after
+  a move and stops following keel's updates after a copy).
 
 ### Added
 - `docs/features.md` (and its Ukrainian source `docs/features.uk.md`): a short, complete list of what

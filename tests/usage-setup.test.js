@@ -76,18 +76,58 @@ test('show: another status line → offer wrap and the setting to keep as status
   assert.ok(out.includes(`status line setting to keep as statusline.original when wrapping: ${JSON.stringify(sl)}`), out);
 });
 
-test("show: keel's runner or its shim → now: keel, nothing to offer", () => {
+test("show: keel's runner or the shim in the usage folder → now: keel, nothing to offer", () => {
   for (const command of [
     `node "${PLUGIN}/statusline/run.js"`,
     'node "C:\\Users\\x\\.claude\\plugins\\keel\\statusline\\run.js"',
-    'node "/home/x/.claude/keel/statusline.js"',
-    'node "C:\\Users\\x\\.claude\\keel\\statusline.js"',
   ]) {
     const out = world({ usage: { pc: 'p' }, settings: { statusLine: { type: 'command', command } } }).run('show').out;
     assert.match(out, /status line now: keel \(/, command);
     assert.doesNotMatch(out, /offer:/, command);
     assert.doesNotMatch(out, /statusline\.original/, command);
   }
+  const w = world({ usage: { pc: 'p' }, settings: {} });
+  const installed = JSON.parse(w.run('install-statusline').out);
+  for (const command of [installed.command, `node ${path.join(w.dir, 'statusline.js')}`]) {
+    fs.writeFileSync(w.settingsFile, JSON.stringify({ statusLine: { ...installed, command } }));
+    const out = w.run('show').out;
+    assert.match(out, /status line now: keel \(/, command);
+    assert.doesNotMatch(out, /offer:/, command);
+  }
+});
+
+test("show: keel's shim that is gone or sits in another folder → offer install, the usage settings untouched", () => {
+  const other = world({ settings: {} });
+  other.run('install-statusline');
+  for (const command of [
+    'node "/home/x/.claude/keel/statusline.js"',
+    'node "C:\\Users\\x\\.claude\\keel\\statusline.js"',
+    `node "${path.join(other.dir, 'statusline.js')}"`,
+  ]) {
+    const w = world({ usage: { pc: 'p', statusline: { mode: 'keel' } }, settings: { statusLine: { type: 'command', command } } });
+    w.run('install-statusline');
+    const out = w.run('show').out;
+    assert.ok(out.includes(`status line now: keel (${command}), not the shim in the usage folder | offer: install`), out);
+    assert.doesNotMatch(out, /statusline\.original/, command);
+  }
+});
+
+test('show: after ~/.claude/keel moved to CLAUDE_CONFIG_DIR, the old status line is offered again and install-statusline fixes it', () => {
+  const w = world({ settings: {} });
+  const profile = tmp('keel-us-profile-');
+  delete w.env.KEEL_USAGE_DIR;
+  delete w.env.CLAUDE_CONFIG_DIR;
+  const old = JSON.parse(w.run('install-statusline').out);
+  assert.ok(old.command.includes(path.join(w.home, '.claude', 'keel', 'statusline.js')), old.command);
+  fs.writeFileSync(w.settingsFile, JSON.stringify({ statusLine: old }));
+  assert.doesNotMatch(w.run('show').out, /offer:/);
+  fs.renameSync(path.join(w.home, '.claude', 'keel'), path.join(profile, 'keel'));
+  w.env.CLAUDE_CONFIG_DIR = profile;
+  assert.match(w.run('show').out, /status line now: keel \(.*\), not the shim in the usage folder \| offer: install/);
+  const next = JSON.parse(w.run('install-statusline').out);
+  assert.equal(next.command, `node "${path.join(profile, 'keel', 'statusline.js')}"`);
+  fs.writeFileSync(w.settingsFile, JSON.stringify({ statusLine: next }));
+  assert.doesNotMatch(w.run('show').out, /offer:/);
 });
 
 // --- apply ---

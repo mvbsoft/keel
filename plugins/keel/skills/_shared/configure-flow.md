@@ -454,8 +454,11 @@ Then, in one question group:
    records them there (the desktop app has no status line; there keel asks the app at the end of a
    task). From `show`: `offer: install` → keel's line (folder, branch, model, context, session $,
    limits); `offer: wrap` → the user's line stays exactly as it is and keel only records the
-   percentages; `now: keel` → nothing to ask. Options: the offer (recommended) / skip (no percentages
-   in the terminal).
+   percentages; `now: keel` without an offer → nothing to ask; `now: keel (...), not the shim in the
+   usage folder | offer: install` → keel's line runs a file that is gone or sits in a folder keel no
+   longer updates (the usage folder moved, say to `CLAUDE_CONFIG_DIR`): offer to point it at the
+   usage folder; the `statusline` setting stays as it is, so leave it out of the write. Options: the
+   offer (recommended) / skip (no percentages in the terminal).
 5. **Usage page** ("Keep a usage page?" Yes (recommended) / No). Explain in plain words before the
    question: a private page "keel usage" in the user's claude.ai account collects the costs of every
    machine of the account (charts, filters, every keel session with its agents and the cost of each

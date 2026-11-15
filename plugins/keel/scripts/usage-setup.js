@@ -10,7 +10,8 @@
 //        node usage-setup.js <projectDir> page                      copies the dashboard page and the design system files to .keel/local/tmp/usage-page
 //          (the Artifact tool publishes only files under the project or the scratchpad) and prints the
 //          template fingerprint that configure writes to the page (meta/settings `template`) and to page_template
-// `show` also says what the status line is now: keel's runner, a command keel could wrap, or none,
+// `show` also says what the status line is now: keel's runner, a command keel could wrap, or none
+// (keel's shim outside the current usage folder is offered again),
 // and whether the published page still runs an older template than this keel's.
 // The status line itself is written by claude-settings.js (key statusLine), which keeps a backup.
 const crypto = require('node:crypto');
@@ -66,13 +67,25 @@ function userSettings() {
 
 // keel's runner or its shim in the usage folder.
 const KEEL_LINE = /statusline[\\/]+run\.js|keel[\\/]+statusline\.js/;
+const SHIM_PATH = /"([^"]*keel[\\/]+statusline\.js)"|(\S*keel[\\/]+statusline\.js)/;
+
+// A shim left in a folder keel no longer uses (moved to CLAUDE_CONFIG_DIR, or a copy) gets no plugin-root.txt
+// updates, so it is offered again like a missing one.
+function currentShim(command) {
+  const m = command.match(SHIM_PATH);
+  if (!m) return true;
+  const file = path.resolve(m[1] || m[2]);
+  const want = path.resolve(usageDir(), 'statusline.js');
+  const same = process.platform === 'win32' ? file.toLowerCase() === want.toLowerCase() : file === want;
+  return same && fs.existsSync(file);
+}
 
 // What the statusLine setting runs now, and what configure can offer.
 function statusLineState(settings = userSettings()) {
   const s = settings.statusLine;
   const command = s && typeof s.command === 'string' ? s.command : null;
   if (!command) return { now: 'none', command: null, offer: 'install' };
-  if (KEEL_LINE.test(command)) return { now: 'keel', command, offer: null };
+  if (KEEL_LINE.test(command)) return currentShim(command) ? { now: 'keel', command, offer: null } : { now: 'keel', command, stale: true, offer: 'install' };
   return { now: 'other', command, original: s, offer: 'wrap' };
 }
 
@@ -87,7 +100,7 @@ function show(root = process.cwd()) {
     `artifact_url: ${m.artifact_url || 'not set'}`,
     `sync: ${m.sync ? 'on' : `off${m.sync_off_since ? ` since ${m.sync_off_since}` : ''}`}`,
     ...(m.artifact_url ? [pageTemplateLine(m)] : []),
-    `status line now: ${sl.now}${sl.command ? ` (${sl.command})` : ''}${sl.offer ? ` | offer: ${sl.offer}` : ''}`,
+    `status line now: ${sl.now}${sl.command ? ` (${sl.command})` : ''}${sl.stale ? ', not the shim in the usage folder' : ''}${sl.offer ? ` | offer: ${sl.offer}` : ''}`,
     ...(sl.original ? [`status line setting to keep as statusline.original when wrapping: ${JSON.stringify(sl.original)}`] : []),
     `prices: ${table.source}, ${table.models.length} models${prices.validate(table).length ? ` | notes: ${prices.validate(table).join('; ')}` : ''}`,
   ].join('\n');
