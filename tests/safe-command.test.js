@@ -354,3 +354,42 @@ test('sub-makes, shell scripts without an extension, nx dependsOn and npm t are 
     assert.equal(judge(dir, '.', c).safe, true, c);
   }
 });
+
+test('a release build configuration of dotnet, msbuild, cargo and swift is not a release', () => {
+  const safe = [
+    'dotnet test -c Release',
+    'dotnet test --configuration Release --no-build',
+    'dotnet build -c Release',
+    'dotnet test -p:Configuration=Release',
+    'msbuild /p:Configuration=Release',
+    'MSBuild.exe App.sln /m /p:Configuration=Release',
+    'cargo test --release',
+    'cargo clippy --release -- -D warnings',
+    'cargo build --release',
+    'swift test -c release',
+    'swift build --configuration=release',
+    'bash -c "dotnet test -c Release"',
+  ];
+  for (const c of safe) assert.equal(judge(js, '.', c).safe, true, c);
+
+  const refused = {
+    'bash -c deploy.sh': /deploys or publishes/,
+    'sh -c release.sh': /deploys or publishes/,
+    'sh -c "npm publish"': /publish/,
+    'dotnet test -c Release && ./release.sh': /deploys or publishes \(dotnet test -c Release && \.\/release\.sh\)/,
+    'cargo test --release && cargo publish': /publishes a package/,
+    'dotnet nuget push -c Release': /publishes a package/,
+    'dotnet test -c Production': /shared environment/,
+    'dotnet test -- -c Release': /deploys or publishes/,
+    'cargo run --release -- deploy': /deploys or publishes/,
+    'dotnet publish -c Release': /deploys or publishes/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(js, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.match(r.reasons.join(' '), why, cmd);
+  }
+  const started = Date.now();
+  for (const unit of ['cargo ', 'dotnet -c ', 'msbuild ']) judge(js, '.', unit.repeat(5000));
+  assert.ok(Date.now() - started < 2000, `took ${Date.now() - started} ms`);
+});

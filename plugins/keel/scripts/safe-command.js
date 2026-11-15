@@ -83,9 +83,37 @@ const SCOPED_PACKAGE = /@[\w.-]+\/[\w.-]+/g;
 // extension of a language that names its tests that way. `deploy-test.sh` is a script, not a test.
 const TEST_FILE = /(?<![\w@.-])(?![\w.-]*\b(?:prod|production|staging)\b)[\w.-]+(?:\.(?:test|spec)\.(?:[cm]?[jt]sx?)|_(?:test|spec)\.(?:go|py|rb|dart|exs|rs|php))(?!\w)/gi;
 const READ_ONLY_FILE = new RegExp(`(?<![\\w@.-])(?:${READ_ONLY_VERBS})[-_](?![\\w.-]*\\b(?:prod|production|staging)\\b)[\\w.-]*`, 'gi');
+// The Release build configuration is a name too, but only as the option of the build tool itself:
+// `dotnet test -c Release`, `msbuild /p:Configuration=Release`, `cargo test --release`,
+// `swift test -c release`. A `-c` elsewhere (`bash -c release.sh`) and words after `--` stay visible.
+const BUILD_TOOL = /(?<![\w./\\-])(dotnet|swift|msbuild|cargo)(?:\.exe)?(?=\s)/i;
+const RELEASE = String.raw`(?=release["')]*$)`;
+const RELEASE_OPTION = {
+  dotnet: new RegExp(String.raw`^(?:--configuration=|[-/](?:p|property):Configuration=)${RELEASE}`, 'i'),
+  swift: new RegExp(String.raw`^--configuration=${RELEASE}`, 'i'),
+  msbuild: new RegExp(String.raw`^[-/](?:p|property):Configuration=${RELEASE}`, 'i'),
+  cargo: new RegExp(String.raw`^--${RELEASE}`, 'i'),
+};
+const RELEASE_VALUE = new RegExp(`^${RELEASE}`, 'i');
+function withoutReleaseConfig(text) {
+  return text.replace(/[^;&|\n]+/g, (piece) => {
+    const m = BUILD_TOOL.exec(piece);
+    if (!m) return piece;
+    const tool = m[1].toLowerCase();
+    const at = m.index + m[0].length;
+    const parts = piece.slice(at).split(/(\s+)/);
+    for (let i = 0; i < parts.length && parts[i] !== '--'; i += 2) {
+      const value = /^(dotnet|swift)$/.test(tool) && /^(-c|--configuration)$/i.test(parts[i]) ? i + 2 : -1;
+      if (value > 0 && RELEASE_VALUE.test(parts[value] || '')) parts[value] = `<name>${parts[value].slice(7)}`;
+      const head = RELEASE_OPTION[tool].exec(parts[i]);
+      if (head) parts[i] = `${head[0]}<name>${parts[i].slice(head[0].length + 7)}`;
+    }
+    return piece.slice(0, at) + parts.join('');
+  });
+}
 
 function withoutNames(text) {
-  return text
+  return withoutReleaseConfig(text)
     .replace(FILTER_VALUE, '$1$2<name>')
     .replace(NPM_WORKSPACE_VALUE, '$1$2<name>')
     .replace(SCOPED_PACKAGE, '<name>')

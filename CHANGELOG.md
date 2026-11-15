@@ -352,6 +352,9 @@ All notable changes to keel are listed here. The format follows
   with a `#!/bin/sh` line, also from a Make recipe, where each line runs in its own shell) are now
   judged by the scripts and files they run. A command with `&&` or a glob is checked
   when given in quotes; one with `$` or a backtick is skipped, as it cannot be checked.
+- The same dry run and rerun no longer skip a test or build in the Release configuration as one that
+  "deploys or publishes": `dotnet test -c Release`, `msbuild /p:Configuration=Release`,
+  `cargo test --release` and `swift test -c release` are checked like the plain commands.
 - The setup `/keel:configure` writes and you leave uncommitted (`.keel/config.json`, `.keel/profile.json`,
   `.keel/.gitignore`) now goes into the first task's commit. Before, the task start recorded it as
   your own untracked files, so the commit left it out and it stayed uncommitted on the main branch.
