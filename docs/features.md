@@ -114,8 +114,9 @@ Questions shared by the start of a task and of a session:
   line. Claude Code gives out plan limit percentages only through the status line; you can keep your
   own line, keel wraps it and changes nothing in it.
 - Recommends proven plugins for your stack and can move notes from another note system.
-- Repairs incomplete or broken settings: asks only about new fields, or about each problem
-  separately.
+- Repairs outdated or broken settings: asks only about fields a newer config format requires, or
+  about each problem separately; a whole new settings section is set with
+  `/keel:configure <section>`.
 
 **What it asks** ("detailed" means quick setup does not ask but takes the recommended value):
 

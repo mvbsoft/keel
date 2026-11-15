@@ -127,7 +127,8 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   user decides each; a proposal taken goes into the plan.
 - **Tickets** at once from the template: `plans.js ticket <f> --title "<title>" [--slug <english-words>] [--depends "T1,T2"] [--repo <PREFIX>]`
   (`--repo` for a ticket of another repository of `repos:`: "Several repositories";
-  `--depends` may also name another repository's ticket by its key, `API-121`, checked in that
+  `--depends` may also name an existing ticket of another feature of this repository by its key,
+  `PROJ-1`, or another repository's ticket by its key, `API-121`, checked in that
   repository's folder from the repos map: a `note: ... not checked` line → say it and how to add the
   folder; a plain title: double or curly quotes, `$`, a backquote or a backslash before a quote or a
   space are refused; `--slug` in English when the title is not), then fill the file it names (Edit).
