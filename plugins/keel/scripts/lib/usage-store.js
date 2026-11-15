@@ -2,7 +2,7 @@
 // Storage and sync layer of the usage calculator. Turns local Claude Code transcripts into "day documents" for the
 // dashboard artifact (collection `days`), keeps a per-session summary cache so a day can be rebuilt without parsing
 // every transcript again, and tracks which documents were written to the artifact (sync-state.json).
-// Files live in <usageDir> (~/.claude/keel, KEEL_USAGE_DIR in tests):
+// Files live in <usageDir> (~/.claude/keel or <CLAUDE_CONFIG_DIR>/keel, KEEL_USAGE_DIR in tests):
 //   usage-cache/<session>.json   {v, mtimeMs, size, birthMs, pricesHash, withText, summary, dedup?}   parsed transcript of one session
 //   usage-index.json             {<session>: {days, mtimeMs, size, first, no_text?}}  which UTC days a session touches; no_text: its project turned previews off
 // A resumed or forked session's transcript starts with a copy of its parent's assistant messages (same message id, same
@@ -279,7 +279,7 @@ function addFamily(ctx, refs, entries) {
       if (ix.first && firsts.has(ix.first)) entries.set(ref.id, entryOf(ref, ctx));
     } else if (ref.mtimeMs >= floor) {
       const e = entryOf(ref, ctx);
-      ctx.index[ref.id] = { days: daysOf(e.raw), mtimeMs: ref.mtimeMs, size: ref.size, first: e.raw.first || '', ...(ix && ix.no_text ? { no_text: true } : {}) };
+      ctx.index[ref.id] = indexEntry(ix, { days: daysOf(e.raw), mtimeMs: ref.mtimeMs, size: ref.size, first: e.raw.first || '' });
       if (e.raw.first && firsts.has(e.raw.first)) entries.set(ref.id, e);
     }
   }
@@ -310,9 +310,15 @@ function settle(ctx, entries) {
     if (skip.size) s = e.ref ? getSummary(e.ref, ctx, skip) : viewOf(e.c.dedup ? e.c.dedup.summary : e.c.summary, e.c.withText, ctx);
     out.set(e.id, s);
     const base = e.ref ? { mtimeMs: e.ref.mtimeMs, size: e.ref.size } : ctx.index[e.id] || {};
-    ctx.index[e.id] = { ...base, days: daysOf(s), first: e.raw.first || '', ...((ctx.index[e.id] || {}).no_text ? { no_text: true } : {}) };
+    ctx.index[e.id] = indexEntry(ctx.index[e.id], { ...base, days: daysOf(s), first: e.raw.first || '' });
   }
   return out;
+}
+
+// A session's index entry; its no_text mark (previewIn) is never dropped, so a session synced with previews off
+// stays without text.
+function indexEntry(prev, fields) {
+  return { ...fields, ...(prev && prev.no_text ? { no_text: true } : {}) };
 }
 
 function saveIndex(ctx) {
@@ -540,6 +546,7 @@ function buildDays(opts = {}) {
     const touching = [...summaries.values()].filter((s) => ctx.index[s.id].days.includes(date));
     const own = touching.filter((s) => s.start && s.start.slice(0, 10) === date && Date.parse(s.start) >= fromMs && isKeelSession(s, keel))
       .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.id < b.id ? -1 : 1))
+      // previewIn goes first: it also records the project's "off" in the index when the machine sends no text.
       .map((s) => sessionDoc(s, walletFor(s.id), keel.get(s.id) || null, cc.get(s.id), previewIn(ctx, s) && ctx.withText));
     const header = { schema: SCHEMA, date, pc, user: ctx.machine.user || null, part: 1, parts: 1, synced_until: nowIso };
     const daySnaps = snapshots.filter((s) => typeof s.t === 'string' && s.t.slice(0, 10) === date && Date.parse(s.t) >= fromMs);
@@ -673,7 +680,7 @@ function ack(state, { failed = [], batch = null } = {}) {
   const keys = Object.keys(state.pending).filter((k) => batch === null || state.pending[k].batch === batch);
   const matches = (key) => failed.some((f) => f === key || key.endsWith(`/${f}`));
   const unknown = failed.filter((f) => !keys.some((k) => k === f || k.endsWith(`/${f}`)));
-  const refused = batch !== null && failed.length > 0;
+  const refused = batch !== null && failed.length > unknown.length;
   let committed = 0;
   for (const key of keys) {
     if (refused || matches(key)) continue;

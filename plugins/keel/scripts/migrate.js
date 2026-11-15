@@ -201,7 +201,7 @@ function find(root, from) {
   }
   if (!from) {
     // Loose notes outside a system folder: NEXT-SESSION*.md, HANDOFF*.md, docs/plans/.
-    const loose = (lists ? [...lists.tracked, ...lists.untracked] : []).filter((r) => !r.endsWith('/') && !r.startsWith('.keel/') && !systems.some((s) => r.startsWith(`${s.path}/`)) && matchesAny(r, catalog.other_systems.files) && !/(^|\/)(node_modules|vendor)\//.test(r));
+    const loose = (lists ? [...lists.tracked, ...lists.untracked] : []).filter((r) => !r.endsWith('/') && !matchesAny(r, catalog.other_systems.keel_files) && !systems.some((s) => r.startsWith(`${s.path}/`)) && matchesAny(r, catalog.other_systems.files) && !/(^|\/)(node_modules|vendor)\//.test(r));
     if (loose.length) systems.push({ path: '.', git: 'mixed', files: loose.length, bytes: loose.reduce((n, r) => n + sizeOf(path.join(root, r)).bytes, 0), truncated: false, ...classify(root, '.', loose, isSecret) });
   }
 

@@ -160,7 +160,7 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
   `commit` and `push`), is refused instead, so no allow rule can run it unconfirmed.
   `usage.js` takes no project folder first: its `--project`, when given, must be the current project,
   and its `--out`, `--keel` and `--page` must be under that project's `.keel/local/` (this machine's own
-  files stay in `~/.claude/keel`); its `prepare` and `report` run without a
+  files stay in keel's machine folder, `~/.claude/keel` or `<CLAUDE_CONFIG_DIR>/keel`); its `prepare` and `report` run without a
   prompt only with `--project`. Refused, with the plain form to use:
   - a command joined with shell operators (`;`, `&&`, `|`, redirection, `$(...)`, a line break) that
     names keel's folder;

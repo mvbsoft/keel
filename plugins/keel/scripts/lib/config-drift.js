@@ -146,6 +146,7 @@ function rebuildSnapshot(root, commit) {
     clearLeftovers(root, run);
     run(['worktree', 'add', '--quiet', '--detach', tree, commit]);
     const { scan } = require('../scan.js');
+    // tree is the repository's root; --show-prefix gives the project's folder inside the repository
     const project = path.join(tree, (git(root, ['rev-parse', '--show-prefix']) || '').trim());
     const at = Number((git(root, ['log', '-1', '--format=%ct', commit]) || '').trim());
     const snapshot = {

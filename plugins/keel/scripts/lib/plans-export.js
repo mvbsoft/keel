@@ -269,11 +269,14 @@ function exportedProblems(root, f) {
   const twins = new Map();
   for (const t of list) twins.set(t.id, [...(twins.get(t.id) || []), t.name]);
   for (const [id, names] of twins) if (names.length > 1) out.push(`${id}: duplicate key (${names.length} files: ${names.sort().map((n) => clean(n)).join(', ')})`);
+  const ticketChecks = (t, filesRoot) => [
+    ...(['todo', 'done'].includes(t.fm.status) ? [] : [`${t.id}: status is "${clean(t.fm.status || '')}"; todo or done`]),
+    ...plans.ticketProblems(root, t.id, t.text, filesRoot),
+  ];
   for (const t of list) {
     const upper = t.name.toUpperCase();
     if (!upper.startsWith(`${t.id}-`) && upper !== `${t.id}.MD`) out.push(`${t.id}: the file name ${clean(t.name)} does not start with the key`);
-    if (!['todo', 'done'].includes(t.fm.status)) out.push(`${t.id}: status is "${clean(t.fm.status || '')}"; todo or done`);
-    out.push(...plans.ticketProblems(root, t.id, t.text));
+    out.push(...ticketChecks(t));
   }
   for (const t of stubList) {
     if (!t.name.toUpperCase().startsWith(`${t.id}-`)) out.push(`${t.id}: the file name ${clean(t.name)} does not start with the key`);
@@ -303,8 +306,7 @@ function exportedProblems(root, f) {
     const there = samePath(r.root, root) ? null : featureFolder(r.root, feature);
     if (!there) continue;
     for (const t of there.list.map(asEntry)) {
-      if (!['todo', 'done'].includes(t.fm.status)) out.push(`${t.id}: status is "${clean(t.fm.status || '')}"; todo or done`);
-      out.push(...plans.ticketProblems(root, t.id, t.text, r.root));
+      out.push(...ticketChecks(t, r.root));
       notes.push(...plans.homeNotes(t.id, t.text, folders));
     }
     const text = read(path.join(there.folder, 'README.md'));

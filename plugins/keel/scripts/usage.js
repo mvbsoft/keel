@@ -15,7 +15,7 @@
 //   calibrate [--in <dir>]   the calibration table (points, rates, machines still to sync)
 //   audit     --page <dir> [--project <dir>]   this machine's dollars and tokens per session on the page (day documents
 //             saved into <dir>, summed as the dashboard sums them) against the local transcripts
-// Files: <usageDir> = ~/.claude/keel (KEEL_USAGE_DIR); transcripts: ~/.claude/projects (KEEL_PROJECTS_DIR).
+// Files: <usageDir> = ~/.claude/keel or <CLAUDE_CONFIG_DIR>/keel (KEEL_USAGE_DIR); transcripts: <Claude dir>/projects (KEEL_PROJECTS_DIR).
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -227,7 +227,11 @@ function prepare(opts) {
   }
   // Without a page the last one is kept: the state still describes it, so the next page resets it above.
   if (url) state.artifact_url = url;
-  if (projectArtifactUrl(root) && !state.team_page_noted) { addNote(state, url ? 'team_page' : 'team_page_no_own'); state.team_page_noted = true; }
+  if (projectArtifactUrl(root) && !state.team_page_noted) {
+    addNote(state, 'team_page');
+    if (!url) addNote(state, 'no_own_page');
+    state.team_page_noted = true;
+  }
 
   const root_ = projectsRoot();
   const sessionRef = typeof opts.session === 'string' ? store.listSessions(root_).find((r) => r.id === opts.session) : store.newestSessionIn(root_, root);

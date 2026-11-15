@@ -6,7 +6,7 @@
 //   --session: only agents of that Claude Code session (other sessions in the same project are left out)
 // A resumed agent (repair by message) adds a ledger line per run over the same transcript; only its
 // last line counts.
-// Cost is an estimate at list price (data/prices.json plus the machine override ~/.claude/keel/prices.json, through
+// Cost is an estimate at list price (data/prices.json plus the machine override prices.json in usageDir(), through
 // lib/prices.js); on a subscription it counts against limits.
 // Each agent's transcript is summed again here: when the ledger hook ran, the transcript could still
 // miss the agent's last response.

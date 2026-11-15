@@ -238,6 +238,7 @@ test('check: missing sections, empty criteria, TBD and <...> outside code, missi
 });
 
 test('check: a path of this machine in any file of the feature is a problem: Windows, Linux, macOS, WSL, the project folder', () => {
+  // On Windows this is a C:/Users folder; the localPaths test below passes a Linux home folder itself.
   const home = os.homedir().replace(/\\/g, '/');
   const dir = project();
   filled(dir, 's3-connection', 2);

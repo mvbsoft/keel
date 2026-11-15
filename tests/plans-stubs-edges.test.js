@@ -134,7 +134,8 @@ gitTest('two conversions of one stub at once: one converts, the other writes not
   assert.ok(!has(admin, `${OUT}/ADM-2-admin-counter.md`));
   // ADM-1 is still the template, and the check reads it in its repository.
   const checked = run(w.api, 'check', FEATURE);
-  assert.deepEqual(checked.filter((l) => l.startsWith('- ') && !l.startsWith('- ADM-1: placeholder ')), [], checked.join('\n'));
+  const problems = checked.filter((l) => l.startsWith('- '));
+  assert.ok(problems.length > 0 && problems.every((l) => l.startsWith('- ADM-1: placeholder ')), checked.join('\n'));
 });
 
 gitTest('a plan of stubs only is not exported: an exported feature is found by its tickets', () => {

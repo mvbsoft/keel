@@ -188,6 +188,8 @@ test('comments.js: ids of tickets, records and commits in new comments and docs 
     'docs/decisions/0003-x.md': 'Decided in ABC-7 at a1b2c3d.\n',
     'tasks/ABC-8.md': 'ABC-8\n',
     'CHANGELOG.md': '- ABC-9\n',
+    'HISTORY.rst': '- ABC-11\n',
+    'src/changelog_service.py': '# retried, see ABC-13\n',
     'docs/debt.md': '- D-10 open\n',
   };
   const config = { comments: { level: 'short', ticket_prefixes: ['ABC', 'D'], refs_exempt: ['docs/debt.md'] } };
@@ -196,6 +198,7 @@ test('comments.js: ids of tickets, records and commits in new comments and docs 
   assert.deepEqual(refs(allowed), [
     ['src/a.js', 2, ['ABC-12', 'ABC-A-7']],
     ['src/a.js', 3, ['D-4', '01071c1b']],
+    ['src/changelog_service.py', 1, ['ABC-13']],
     ['docs/guide.md', 2, ['ABC-5']],
   ], 'a string in code, UTF-8, mod-10, colours, hex literals, fenced blocks and exempt files are not ids');
   assert.match(comments.report(allowed), /src\/a\.js:2: ABC-12, ABC-A-7 points at a ticket, record or commit .* Fix it; do not keep it\./);

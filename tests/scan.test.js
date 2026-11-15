@@ -138,6 +138,14 @@ test('in a git repository, keel\'s own .keel/next-session.md is not another note
   assert.deepEqual(scan(dir).findings.other_systems, [{ path: '.', files: 1, examples: ['HANDOFF.md'] }]);
 });
 
+test('docs: a README or a changelog is a doc; code named like one is not', (t) => {
+  try { execFileSync('git', ['--version'], { stdio: 'ignore' }); } catch { t.skip('git is not installed'); return; }
+  const dir = tempDir('keel-doc-names-');
+  try { execFileSync('git', ['-C', dir, 'init', '-q'], { stdio: 'ignore' }); } catch { t.skip('git cannot create a repository here'); return; }
+  for (const f of ['README', 'README.md', 'CHANGELOG', 'CHANGELOG.md', 'CHANGELOG-1.x.md', 'readme.py', 'changelog_service.py', 'changelog.py']) fs.writeFileSync(path.join(dir, f), 'x\n');
+  assert.deepEqual(scan(dir).findings.docs.files.sort(), ['CHANGELOG', 'CHANGELOG-1.x.md', 'CHANGELOG.md', 'README', 'README.md']);
+});
+
 test('the CLI prints the same JSON and exits 0', () => {
   const dir = makeProject('go');
   const r = spawnSync(process.execPath, [path.join(__dirname, '..', 'plugins', 'keel', 'scripts', 'scan.js'), dir], { encoding: 'utf8' });

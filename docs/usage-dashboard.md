@@ -252,6 +252,8 @@ removed it still holds when that folder was inside the project (such as `.claude
 when keel synced while the folder still existed: keel keeps the "off" with the session then. A worktree
 outside the project folder, or a moved project, that is gone before keel's next sync can no longer be
 traced back to its project, and its previews are sent; turn previews off for the machine if that matters.
+Turning a project's previews back on applies to sessions keel has not synced yet: a session synced while
+the project's previews were off stays without request text and task title.
 
 ## Which accounts get what
 
@@ -307,7 +309,7 @@ requests cost about half (computed from the price table, not measured).
 the costs. `/keel:usage on` sends what Claude Code's logs still hold of the time it was off (they keep 30 days by
 default, so a longer break leaves a gap on the page), or sets the page up if there is none.
 The same from a shell: `node usage-setup.js <project> sync on|off`; `show` prints `sync: on` or
-`sync: off since <date>`. The settings are in `~/.claude/keel/usage.json` ([settings](settings.md#this-machine)).
+`sync: off since <date>`. The settings are in `usage.json` in keel's machine folder ([settings](settings.md#this-machine)).
 
 ### One page per account
 

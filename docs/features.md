@@ -593,7 +593,7 @@ you turn off all hooks there are no confirmations at all, but the safeguards in 
 | `.keel/next-session.md`, `.keel/memory/`, `.keel/sessions/` | session note, project memory, log | yes (can be turned off) |
 | `tickets/<feature>/` | planned tickets and the feature overview | yes, in the feature branch, after your "yes" |
 | `.keel/local/` | the trash, plan drafts, temporary files | no, only this computer |
-| `~/.claude/keel/` | computer settings, usage data, prices | no |
+| `~/.claude/keel/` (`<CLAUDE_CONFIG_DIR>/keel/` when that variable is set) | computer settings, usage data, prices | no |
 
 What leaves the computer:
 - usage data to your private page: names of the computer, projects and branches, the email from git;

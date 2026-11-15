@@ -252,7 +252,7 @@
   },
   "api": ["openapi.json", "openapi.yaml", "openapi.yml", "swagger.json", "swagger.yaml", "swagger.yml", "asyncapi.yaml", "asyncapi.yml", "asyncapi.json", "*.proto", "*.graphql", "*.graphqls", "*.gql"],
   "docs": {
-    "files": ["README", "README.*", "CHANGELOG*", "CONTRIBUTING*", "mkdocs.yml", "docusaurus.config.js", "docusaurus.config.ts", "conf.py#sphinx"],
+    "files": ["README", "README*.md", "README*.markdown", "README*.rst", "README*.adoc", "README*.txt", "README*.rdoc", "README*.org", "CHANGELOG", "CHANGELOG*.md", "CHANGELOG*.markdown", "CHANGELOG*.rst", "CHANGELOG*.adoc", "CHANGELOG*.txt", "CHANGELOG*.rdoc", "CHANGELOG*.org", "CONTRIBUTING*", "mkdocs.yml", "docusaurus.config.js", "docusaurus.config.ts", "conf.py#sphinx"],
     "adr_dirs": ["docs/adr", "doc/adr", "adr", "docs/decisions", "docs/architecture/decisions"],
     "spec_dirs": ["specs", "docs/specs", ".kiro/specs", "docs/rfcs", "rfcs"],
     "diataxis": { "tutorials": ["tutorials", "tutorial"], "how-to": ["how-to", "howto", "how-to-guides", "guides"], "reference": ["reference"], "explanation": ["explanation", "explanations", "concepts", "background"] },
@@ -288,8 +288,10 @@
     "hidden_as_code": [".env.*"]
   },
   "other_systems": {
+    "about": "Folders and files of another notes or memory system. keel_files are keel's own notes (.keel/next-session.md): never another system.",
     "names": ["handoff", "handoffs", "next-session", "next_session", "nextsession", "memory", "sessions", "session-log", "session_log", "journal", "state", "notes", "decisions", "scratchpad"],
     "files": ["NEXT-SESSION*.md", "HANDOFF*.md", "docs/plans/*"],
+    "keel_files": [".keel/**"],
     "known_tool_dirs": [".git", ".github", ".gitlab", ".vscode", ".idea", ".claude", ".cursor", ".windsurf", ".junie", ".devin", ".husky", ".circleci", ".buildkite", ".devcontainer", ".yarn", ".pnpm-store", ".venv", ".tox", ".nox", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".gradle", ".mvn", ".dart_tool", ".next", ".nuxt", ".svelte-kit", ".turbo", ".nx", ".cache", ".keel", ".semgrep", ".changeset", ".storybook", ".vs", ".terraform", ".serverless", ".expo", ".angular", ".parcel-cache"]
   },
   "skip_dirs": [".git", "node_modules", "vendor", "bower_components", ".venv", "venv", "__pycache__", ".tox", ".nox", ".mypy_cache", ".pytest_cache", ".ruff_cache", "target", "build", "dist", "out", ".next", ".nuxt", ".gradle", ".dart_tool", "Pods", ".terraform", ".cache", ".turbo", ".nx", "coverage", "obj", "bin", ".keel"]

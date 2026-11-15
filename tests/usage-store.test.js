@@ -489,6 +489,15 @@ test('ack of one batch records only that batch and keeps synced_until back', () 
   assert.equal(state.synced_until, '2026-03-03T11:00:00Z');
 });
 
+test('a failed id that is not in the acked batch does not hold the batch back', () => {
+  const state = store.readState(tempDir('keel-state-'));
+  store.stage(state, [fake('d1', 1), fake('d2', 1), fake('d3', 1)], { nowIso: '2026-03-03T10:00:00Z' });
+  state.pending.d1.batch = 1; state.pending.d2.batch = 1; state.pending.d3.batch = 2;
+  const r = store.ack(state, { batch: 1, failed: ['d3', 'typo'] });
+  assert.deepEqual([r.committed, r.left, r.unknown], [2, ['d3'], ['d3', 'typo']]);
+  assert.ok(state.docs.d1 && state.docs.d2 && !state.docs.d3);
+});
+
 test('a project can turn prompt previews off for itself while the machine sends them', () => {
   const e = env();
   const quiet = tempDir('keel-quiet-');

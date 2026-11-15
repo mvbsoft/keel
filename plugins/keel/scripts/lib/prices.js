@@ -1,6 +1,6 @@
 'use strict';
 // Price table (USD per million tokens): bundled data/prices.json plus an optional machine override
-// in ~/.claude/keel/prices.json. Pure helpers: lookup by longest model prefix, cost, sanity warnings, diff.
+// in prices.json in usageDir(). Pure helpers: lookup by longest model prefix, cost, sanity warnings, diff.
 // A row may carry long_context: {over, mult}: a request whose prompt (input + cache tokens) is larger than `over`
 // costs `mult` times the normal price (all token kinds).
 // Never throws on a bad override: it is ignored and the bundled table is used.

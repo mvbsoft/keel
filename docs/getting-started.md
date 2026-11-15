@@ -62,9 +62,12 @@ The dry run skips any command that deploys, publishes, migrates, deletes, or dis
 work (such as `git restore`, `git stash` or `rm`); keel says why, and you can run it yourself. It
 judges a command by what it really runs: the package script, Make recipe or shell script behind it,
 in the folder a `cd` moves to and in every package a workspace option or a task runner (turbo, nx,
-lerna) reaches. A program in another language, and the Maven and Gradle wrappers (`./mvnw`,
-`./gradlew`), are judged by the words of the command only. A command with `$` or a backtick cannot
-be checked, so the dry run skips it too.
+lerna) reaches. A program in another language, the Maven and Gradle wrappers (`./mvnw`,
+`./gradlew`), a file outside the project, a file named like a secret (`source .env`) and a file that
+`source` or `.` loads but that is not a shell script are judged by the words of the command only.
+When a shell script is the reason to skip, keel names the file, not its lines, so nothing from the
+file reaches the conversation. A command with `$` or a backtick cannot be checked, so the dry run
+skips it too.
 
 This check is a hint, not a guarantee: it follows `cd`, package scripts, script files and simple
 Makefiles, and it can misread a complex Makefile or script. It runs only before this dry run and

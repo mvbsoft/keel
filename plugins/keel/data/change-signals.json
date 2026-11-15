@@ -28,7 +28,7 @@
       "patterns": ["\\brm\\s+-[a-z]*r[a-z]*f?\\b|\\bshutil\\.rmtree\\s*\\(|\\bfs\\.(rmSync|rm)\\s*\\([^)]*recursive\\s*:\\s*true"]
     }
   },
-  "text_files": ["*.md", "*.markdown", "*.rst", "*.adoc", "*.asciidoc", "*.rdoc", "*.org", "*.textile", "*.pod", "README", "README*.txt", "NOTES.txt", "TODO.txt", "HISTORY.txt", "CHANGES.txt", "INSTALL.txt", "docs/**/*.txt", "doc/**/*.txt", "LICENSE", "LICENSE*.txt", "COPYING", "CHANGELOG", "CHANGELOG*.txt", "AUTHORS", "NOTICE"],
+  "text_files": ["*.md", "*.markdown", "*.rst", "*.adoc", "*.asciidoc", "*.rdoc", "*.org", "*.textile", "*.pod", "README", "README*.txt", "NOTES.txt", "TODO.txt", "HISTORY.txt", "CHANGES.txt", "INSTALL.txt", "docs/**/*.txt", "doc/**/*.txt", "LICENSE", "LICENSE*.txt", "LICENSE.MIT", "LICENSE.APACHE", "LICENSE.BSD", "COPYING", "CHANGELOG", "CHANGELOG*.txt", "AUTHORS", "NOTICE"],
   "bulk": {
     "about": "Files besides the lock files of data/catalog.json whose changed lines say nothing about the size of the work: generated and vendored files. They are not counted for the level and their hunks are not shown to agents (a one-line count instead).",
     "generated": ["*.lock", "*.min.js", "*.min.css", "*.map", "*.pb.go", "*.pb.cc", "*.pb.h", "*_pb2.py", "*_pb2_grpc.py", "*.g.dart", "*.freezed.dart", "*.designer.cs", "*.generated.*", "**/generated/**", "**/__generated__/**"],
