@@ -258,6 +258,7 @@ repository (commit messages, the note, task files) follows the project's `repo_l
 
 If `/keel:configure` finds another system of notes, memory or session logs (or you name its folder),
 it proposes a migration plan: what moves, what is converted, which references in your docs change
-(shown as a diff), what stays. Project data and secrets are never moved. Nothing happens without your
-yes, and an interrupted migration continues where it stopped. Run it later with
-`/keel:configure migration`.
+(shown as a diff), what stays. Project data and secrets are never moved, and neither are files reached
+through a link (a symlink or junction, such as a notes folder shared by several projects): keel says
+so and leaves them in place. Nothing happens without your yes, and an interrupted migration continues
+where it stopped. Run it later with `/keel:configure migration`.

@@ -169,3 +169,27 @@ test('the usage page copy refuses a linked tmp folder; safe-command refuses a pa
   const out = spawnSync(process.execPath, [path.join(SCRIPTS, 'safe-command.js'), dir, path.relative(dir, other), '--', 'npm', 'run', 'check'], { encoding: 'utf8' }).stdout;
   assert.match(out, /refused: the part folder is outside the project/);
 });
+
+test('migrate apply: a move never takes files out of a link: a link in the old folder or the old folder itself', () => {
+  const dir = project();
+  const shared = tmp('keel-links-shared-');
+  const notesHome = tmp('keel-links-notes-');
+  write(shared, 'precious.md', 'shared note');
+  write(notesHome, 'memory/notes.md', 'shared memory');
+  link(shared, path.join(dir, '.orbit', 'ext'));
+  link(notesHome, path.join(dir, '.claude-memory'));
+  const linkedFile = fileLink(path.join(shared, 'precious.md'), path.join(dir, '.orbit', 'one.md'));
+  write(dir, '.keel/local/tmp/plan.json', JSON.stringify({ source: '.orbit', actions: [
+    { op: 'move', from: '.orbit/ext', to: '.keel/sessions/' },
+    { op: 'move', from: '.claude-memory/memory', to: '.keel/memory/' },
+    ...(linkedFile ? [{ op: 'move', from: '.orbit/one.md', to: '.keel/memory/' }] : []),
+  ] }));
+  const out = run('migrate.js', dir, 'apply', '.keel/local/tmp/plan.json').join('\n');
+  assert.match(out, /refused: move \.orbit\/ext → \.keel\/sessions\/ \(\.orbit\/ext is a link: /, out);
+  assert.match(out, /refused: move \.claude-memory\/memory → \.keel\/memory\/ \(\.claude-memory is a link: /);
+  if (linkedFile) assert.match(out, /refused: move \.orbit\/one\.md → \.keel\/memory\/ \(\.orbit\/one\.md is a link: /);
+  assert.deepEqual(listed(shared), ['precious.md'], 'the shared files stay where they were');
+  assert.deepEqual(listed(notesHome), ['memory', 'memory/notes.md']);
+  assert.ok(fs.lstatSync(path.join(dir, '.orbit', 'ext')).isSymbolicLink() && fs.lstatSync(path.join(dir, '.claude-memory')).isSymbolicLink(), 'the links stay');
+  assert.ok(!exists(dir, '.keel/sessions') && !exists(dir, '.keel/memory'));
+});
