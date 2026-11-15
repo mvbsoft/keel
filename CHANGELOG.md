@@ -363,8 +363,9 @@ All notable changes to keel are listed here. The format follows
   while grouping by model showed them apart.
 - A usage sync whose batch is refused twice no longer loses the batch's other documents: after
   `ack --batch <n> --failed <doc>` none of that batch is recorded as written, so the next sync sends
-  it all again. Before, the other documents of the batch counted as written although the page had
-  refused the whole batch, and such a day stayed missing from the page for good.
+  it all again; a `--failed` id that is not in that batch does not hold it back. Before, the other
+  documents of the batch counted as written although the page had refused the whole batch, and such a
+  day stayed missing from the page for good.
 - A `package.json` or `composer.json` saved with a byte order mark (as Windows PowerShell 5.1 and
   some editors save UTF-8) keeps its workspaces and scripts in the project scan, and its framework
   plugins in `/keel:configure`. Before, it read as no workspaces, no scripts and no packages, so
@@ -387,11 +388,15 @@ All notable changes to keel are listed here. The format follows
   `yarn workspaces foreach` with the tasks turbo and nx run first, `npm t`, `sh -c '...'`, a sub-make
   (`$(MAKE) -C packages/api test`), and a shell script it calls (`./scripts/test.sh`, `script/test`
   with a `#!/bin/sh` line, also from a Make recipe, where each line runs in its own shell) are now
-  judged by the scripts and files they run. A command with `&&` or a glob is checked
-  when given in quotes; one with `$` or a backtick is skipped, as it cannot be checked.
+  judged by the scripts and files they run, and a plain `rm`, `mv`, `del` or `Remove-Item` on any
+  line of such a script is caught. Only a script inside the project is read, never a file named like
+  a secret (`source .env && npm test` is judged by its words, as before), and for `source` and `.`
+  only a shell script; a refusal names the script file, not its lines. A command with `&&` or a glob
+  is checked when given in quotes; one with `$` or a backtick is skipped, as it cannot be checked.
 - The same dry run and rerun no longer skip a test or build in the Release configuration as one that
-  "deploys or publishes": `dotnet test -c Release`, `msbuild /p:Configuration=Release`,
-  `cargo test --release` and `swift test -c release` are checked like the plain commands.
+  "deploys or publishes": `dotnet test -c Release` (also quoted, `-c 'Release'`),
+  `msbuild /p:Configuration=Release`, `cargo test --release` and `swift test -c release` are checked
+  like the plain commands.
 - The setup `/keel:configure` writes and you leave uncommitted (`.keel/config.json`, `.keel/profile.json`,
   `.keel/.gitignore`) now goes into the first task's commit. Before, the task start recorded it as
   your own untracked files, so the commit left it out and it stayed uncommitted on the main branch.
@@ -500,7 +505,9 @@ All notable changes to keel are listed here. The format follows
 - A project's `prompt_preview: false` now holds for sessions started in a sub-folder of the project and
   for worktree sessions after their folder is removed: before, a day rebuilt later sent their request
   previews and task title. This covers worktrees inside the project folder; for one outside it, keel keeps
-  the "off" with the session once it has synced while the folder still existed.
+  the "off" with the session once it has synced while the folder still existed. Turning the project's
+  previews back on applies to sessions not synced yet: a session synced while they were off stays
+  without request text.
 - A rules or ADR file named like a secret (`.claude/rules/credentials.md`, `docs/adr/secrets.md`) no longer
   stops the project scan: every keel command in such a project said `keel-config: unavailable`. The file
   is listed with the secret files and never opened.
@@ -508,7 +515,9 @@ All notable changes to keel are listed here. The format follows
   `ChangelogController.py`, `scripts/changelog.js`, `src/license.py`) is now read as code, not as a text
   file: a one-file change to it was proposed for gates only, and its security words never called the
   security group. A README, changelog or license counts as text with no extension, a `.txt` one, or in a
-  doc format (Markdown, reST, AsciiDoc, RDoc, Org, Textile, POD).
+  doc format (Markdown, reST, AsciiDoc, RDoc, Org, Textile, POD); `LICENSE.MIT`, `LICENSE.APACHE` and
+  `LICENSE.BSD` are text too. Such a code file is also no longer exempt from the comment check's ticket
+  and commit references, and the project scan no longer lists it among the project's docs.
 - Planning's check for paths of this machine: on an exported feature it also reads the feature's
   tickets in the overview's other repositories on this machine (a later `--repo` ticket or an edit
   there was committed and pushed unchecked); a project at `/app` no longer flags `src/apple.js`; a web

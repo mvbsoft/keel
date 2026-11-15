@@ -1,5 +1,5 @@
 'use strict';
-// keel's status line. The installed command is node "~/.claude/keel/statusline.js", a shim that loads this
+// keel's status line. The installed command is node "<usageDir>/statusline.js", a shim that loads this
 // file from the plugin folder in plugin-root.txt (scripts/usage-setup.js install-statusline).
 // 1. Prints the status line: the user's previous command in 'wrap' mode, otherwise the vendored script.
 //    The child's stdout goes out byte for byte.

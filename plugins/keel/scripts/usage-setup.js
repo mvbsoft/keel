@@ -1,7 +1,7 @@
 'use strict';
 // configure section 12 (usage and costs): this machine's usage settings and the price table.
 // Usage: node usage-setup.js <projectDir> show
-//        node usage-setup.js <projectDir> apply <changes.json>      writes ~/.claude/keel/usage.json (only KEYS below)
+//        node usage-setup.js <projectDir> apply <changes.json>      writes usage.json in usageDir() (only KEYS below)
 //        node usage-setup.js <projectDir> prices-diff <prices.json> old → new diff and multiplier warnings, writes nothing
 //        node usage-setup.js <projectDir> prices-apply <prices.json> writes the machine price override
 //        node usage-setup.js <projectDir> install-statusline        writes the stable shim, prints the statusLine command
@@ -22,6 +22,7 @@ const { parseArgs } = require('./lib/project.js');
 const { WALLETS, usageDir, loadMachineConfig, writeMachineConfig, detectWallet } = require('./lib/usage-config.js');
 const prices = require('./lib/prices.js');
 const { readJsonFile } = require('./lib/json.js');
+const { samePath } = require('./lib/safe-path.js');
 const { DESIGN_DIR: DESIGN, DESIGN_FILES } = require('./lib/design-files.js');
 
 const RUNNER = path.join(__dirname, '..', 'statusline', 'run.js');
@@ -76,8 +77,7 @@ function currentShim(command) {
   if (!m) return true;
   const file = path.resolve(m[1] || m[2]);
   const want = path.resolve(usageDir(), 'statusline.js');
-  const same = process.platform === 'win32' ? file.toLowerCase() === want.toLowerCase() : file === want;
-  return same && fs.existsSync(file);
+  return samePath(file, want) && fs.existsSync(file);
 }
 
 // What the statusLine setting runs now, and what configure can offer.

@@ -2,7 +2,7 @@
 // keel's own options that have a machine value and may have a value for one project. The machine
 // value of conversation_language and allow_opus is the plugin option (Claude Code keeps plugin options
 // for the whole machine only, even for a plugin installed in one project; it passes them as
-// CLAUDE_PLUGIN_OPTION_*); prompt_preview's is in ~/.claude/keel/usage.json. A project value lives in
+// CLAUDE_PLUGIN_OPTION_*); prompt_preview's is in usage.json in usageDir(). A project value lives in
 // <project>/.keel/local/options.json (personal, outside git; for a linked worktree, the main checkout's)
 // and wins over the machine value.
 const fs = require('node:fs');

@@ -91,7 +91,7 @@ values: [settings](settings.md#installing-for-one-project).
 - `/keel:configure`, `/keel:help` and `/keel:usage` still work.
 
 Two things run in every project, because they belong to the machine: the usage recording (one line
-per conversation start in `~/.claude/keel/sessions.jsonl`, nothing for the model to read) and keel's
+per conversation start in `sessions.jsonl` in keel's [machine folder](#what-keel-changes-on-your-machine-and-in-projects), nothing for the model to read) and keel's
 status line, if you installed it. Installed for your user, keel's commands, agents and skills are still
 listed by Claude Code in every project (their short descriptions). For no trace at all in other
 projects, install with `--scope project` or `--scope local`.
@@ -153,13 +153,13 @@ Installed with `--scope project` or `--scope local`: add the same `--scope` to t
 keel also leaves these, which you can remove by hand:
 
 - **The status line.** If keel installed or wrapped it, `statusLine` in `~/.claude/settings.json` still
-  points at `~/.claude/keel/statusline.js`, which then runs your previous command (kept in
-  `~/.claude/keel/usage.json` as `statusline.original`) or prints nothing. Put your old command back,
-  or delete the `statusLine` key.
+  points at `statusline.js` in keel's machine folder (`~/.claude/keel/` or `<CLAUDE_CONFIG_DIR>/keel/`),
+  which then runs your previous command (kept in `usage.json` there as `statusline.original`) or prints
+  nothing. Put your old command back, or delete the `statusLine` key.
 - **`~/.claude/settings.json`**: the Claude Code settings you accepted during `/keel:configure`
   (`showClearContextOnPlanAccept`, `autoCompactWindow`, `bashOutputMaxChars`, `attribution`), keel's
   entry under `pluginConfigs`, and the backup copies `settings.json.keel-backup-*` next to the file.
-- **`~/.claude/keel/`**, with every file listed [above](#what-keel-changes-on-your-machine-and-in-projects).
+- **`~/.claude/keel/` and `<CLAUDE_CONFIG_DIR>/keel/`**, whichever exist, with every file listed [above](#what-keel-changes-on-your-machine-and-in-projects).
 - **In each project**: `.keel/`; in `.claude/settings.local.json` the values keel wrote (`plansDirectory`,
   the gate commands under `permissions.allow`, and any project values of the settings above; the
   backup is in `.keel/local/backups/`); the `.claude/settings.local.json` line keel may have added to

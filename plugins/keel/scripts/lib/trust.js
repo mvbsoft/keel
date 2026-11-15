@@ -1,7 +1,7 @@
 'use strict';
 // Projects whose autonomous git mode the user confirmed on this machine. The mode itself sits in the
 // committed .keel/config.json, so a cloned repository could switch it on for itself; the hook lets
-// git steps run without a prompt only for projects listed here (~/.claude/keel/trusted-git.json).
+// git steps run without a prompt only for projects listed here (trusted-git.json in usageDir()).
 // Each entry keeps a hash of the `git` section the user confirmed: a branch that edits it
 // (ask_before_merge, main_branch) gets no silent step until the user confirms again.
 const fs = require('node:fs');

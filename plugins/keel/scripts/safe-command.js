@@ -1,16 +1,18 @@
 'use strict';
-// Decides whether a gate command may be run once during configure. keel runs only tests, linters and
-// type checks; anything that deploys, publishes, migrates, deletes or reaches remote systems is
-// refused. Script aliases are followed to the commands they really run: `pnpm run check` is judged
-// by the body of the "check" script in package.json, `make test` by its recipe, `./scripts/ci.sh` by
-// the file, `cd api && npm test` by the script of api/package.json. Package names and file names that
-// start with a read-only verb (check-migration-journal.mjs) are names, not actions.
-// Usage: node safe-command.js <projectDir> <partDir> -- <command...>
+// Decides whether a command may be run once: a gate command during configure or a QA finding's
+// reproduce command. keel runs only tests, linters and type checks; anything that deploys, publishes,
+// migrates, deletes or reaches remote systems is refused. Script aliases are followed to the commands
+// they really run: `pnpm run check` is judged by the body of the "check" script in package.json,
+// `make test` by its recipe, `./scripts/ci.sh` by the file, `cd api && npm test` by the script of
+// api/package.json. Package names and file names that start with a read-only verb
+// (check-migration-journal.mjs) are names, not actions.
+// Usage: node safe-command.js <projectDir> <partDir> -- "<command>"
 // Prints "safe" or "refused: <reasons>". Always exits 0.
 const fs = require('node:fs');
 const path = require('node:path');
 const { withoutEnv } = require('./lib/commands.js');
 const { readJsonFile } = require('./lib/json.js');
+const { isSecretName } = require('./lib/secret-names.js');
 
 // Options between a tool and its action: `-x` flags, each with at most one value that does not start
 // with a dash. A value cannot be read as the next option, so a long run of them has one parse and the
@@ -59,7 +61,7 @@ const DENY = [
   [/\b(npm|pnpm|yarn|bun)\s+(publish|unpublish|deprecate|dist-tag)\b|\bcargo\s+(publish|yank)\b|\btwine\s+upload\b|\bgem\s+push\b|\bnuget\s+push\b|\bdotnet\s+nuget\s+push\b|\bpoetry\s+publish\b|\buv\s+publish\b|\bmvn\s+deploy\b|\bgh\s+(release|pr\s+merge|repo\s+(delete|edit))\b/i, 'publishes a package or release'],
   [/\brm\s+(?:\S+\s+)*?(?:-[a-z]*r[a-z]*|--recursive)(?=\s|$)|\brimraf\b|\b(?:rd|rmdir)\s+\/s\b|\bdel\s+(?:\/\w\s+)*\/[sq]\b|\b(?:Remove-Item|ri|rm|del|erase)\b.*\s-r(?:ecurse)?\b/i, 'deletes files recursively'],
   [/\bfind\b.*\s-(?:delete|exec(?:dir)?\s+(?:rm|mv|del)\b)/i, 'deletes files'],
-  [/(?:^|[;&|]\s*)(?:mv|move|rm|del|erase|shred|Move-Item|Remove-Item|ri|mi)\s/i, 'moves or deletes files'],
+  [/(?:^|[;&|\n]\s*)(?:mv|move|rm|del|erase|shred|Move-Item|Remove-Item|ri|mi)\s/i, 'moves or deletes files'],
   [/\bsudo\b|\bdoas\b|\brunas\b/i, 'needs administrator rights'],
   [/\b(curl|wget|iwr|Invoke-WebRequest)\b[^|]*\|\s*(ba|z)?sh\b|\biex\b/i, 'downloads and runs a script'],
   [/\bnpx\s+(?:\S+\s+)*?(?:-y|--yes)(?=\s|$)|\b(?:pnpm|yarn)\s+dlx\b|\bnpm\s+exec\s+(?:\S+\s+)*?(?:-y|--yes)(?=\s|$)|\buvx\b|\bpipx\s+run\b/i, 'downloads and runs a package'],
@@ -87,7 +89,7 @@ const READ_ONLY_FILE = new RegExp(`(?<![\\w@.-])(?:${READ_ONLY_VERBS})[-_](?![\\
 // `dotnet test -c Release`, `msbuild /p:Configuration=Release`, `cargo test --release`,
 // `swift test -c release`. A `-c` elsewhere (`bash -c release.sh`) and words after `--` stay visible.
 const BUILD_TOOL = /(?<![\w./\\-])(dotnet|swift|msbuild|cargo)(?:\.exe)?(?=\s)/i;
-const RELEASE = String.raw`(?=release["')]*$)`;
+const RELEASE = String.raw`(?=["']?release["')]*$)`;
 const RELEASE_OPTION = {
   dotnet: new RegExp(String.raw`^(?:--configuration=|[-/](?:p|property):Configuration=)${RELEASE}`, 'i'),
   swift: new RegExp(String.raw`^--configuration=${RELEASE}`, 'i'),
@@ -101,12 +103,13 @@ function withoutReleaseConfig(text) {
     if (!m) return piece;
     const tool = m[1].toLowerCase();
     const at = m.index + m[0].length;
+    // The split keeps the spaces as every second part: words are at even indexes, the -c value at i + 2.
     const parts = piece.slice(at).split(/(\s+)/);
     for (let i = 0; i < parts.length && parts[i] !== '--'; i += 2) {
       const value = /^(dotnet|swift)$/.test(tool) && /^(-c|--configuration)$/i.test(parts[i]) ? i + 2 : -1;
-      if (value > 0 && RELEASE_VALUE.test(parts[value] || '')) parts[value] = `<name>${parts[value].slice(7)}`;
+      if (value > 0 && RELEASE_VALUE.test(parts[value] || '')) parts[value] = parts[value].replace(/release/i, '<name>');
       const head = RELEASE_OPTION[tool].exec(parts[i]);
-      if (head) parts[i] = `${head[0]}<name>${parts[i].slice(head[0].length + 7)}`;
+      if (head) parts[i] = head[0] + parts[i].slice(head[0].length).replace(/release/i, '<name>');
     }
     return piece.slice(0, at) + parts.join('');
   });
@@ -289,21 +292,28 @@ function makeRecipe(makefile, target, seen = new Set()) {
 // `cd api`, `pushd api`, `Set-Location api`, `cd /d D:\x`: the folder the later pieces run in.
 // Redirects (`> /dev/null`, `2>&1`, `*> $null`) are left out before the match; a cd that still does
 // not match is refused.
-const CD = /^(cd|chdir|pushd|popd|Set-Location|sl|Push-Location|Pop-Location)(?:\s+(?:\/d|-Path|-LiteralPath))?(?:\s+("[^"]*"|'[^']*'|\S+))?$/i;
-const CD_VERB = /^(cd|chdir|pushd|popd|Set-Location|sl|Push-Location|Pop-Location)(?=\s|$)/i;
+const CD_VERBS = 'cd|chdir|pushd|popd|Set-Location|sl|Push-Location|Pop-Location';
+const CD = new RegExp(String.raw`^(${CD_VERBS})(?:\s+(?:\/d|-Path|-LiteralPath))?(?:\s+("[^"]*"|'[^']*'|\S+))?$`, 'i');
+const CD_VERB = new RegExp(String.raw`^(${CD_VERBS})(?=\s|$)`, 'i');
 const REDIRECT = /(?:\s+[\d*])?\s*(?:&>>?|>>?|<)\s*(?:&\d+|"[^"]*"|'[^']*'|[^\s<>]+)?/g;
 
-function changeDir([, verb, arg], dir, pushed, ctx) {
+// What a refusal shows after its reason: the command's own text, or only the name of the followed
+// script file it comes from, as such a file may hold values that must not reach the conversation.
+function shown(line, from) {
+  return from ? `in ${from}` : line.slice(0, 80);
+}
+
+function changeDir([, verb, arg], dir, pushed, ctx, from) {
   if (/^(popd|Pop-Location)$/i.test(verb)) return pushed.length ? pushed.pop() : dir;
   const target = arg ? arg.replace(/^["']|["']$/g, '') : '';
   if (!target || target === '-' || /^~|[$%]/.test(target)) {
-    ctx.refused.add(`changes to a folder keel cannot follow (${[verb, target].join(' ').trim()})`);
+    ctx.refused.add(`changes to a folder keel cannot follow (${shown([verb, target].join(' ').trim(), from)})`);
     return dir;
   }
   const next = path.resolve(dir, target);
   const rel = path.relative(ctx.root, next);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    ctx.refused.add(`leaves the project folder (${verb} ${target})`);
+    ctx.refused.add(`leaves the project folder (${shown(`${verb} ${target}`, from)})`);
     return dir;
   }
   if (/^(pushd|Push-Location)$/i.test(verb)) pushed.push(dir);
@@ -332,42 +342,55 @@ function scriptBodies(file, name) {
   return [name, `pre${name}`, `post${name}`].map((n) => scripts[n]).filter((c) => typeof c === 'string');
 }
 
-// The lines of a shell script file the piece runs: `./scripts/ci.sh`, `bash -e scripts/ci`,
-// `pwsh -File test.ps1`, `script/test` with a `#!/bin/sh` first line. Comment lines are left out. A
-// file that cannot be read is judged by its name. The Maven and Gradle wrappers only download and
-// start the build tool, so `./mvnw test` is judged by its words.
+// The lines of a shell script file the piece runs, and its name in the project: `./scripts/ci.sh`,
+// `bash -e scripts/ci`, `pwsh -File test.ps1`, `script/test` with a `#!/bin/sh` first line. Comment
+// lines are left out. Only a file inside the project and not named like a secret (.env) is read, and
+// for `source`, `.` and a bare path only a real script (a script extension or a shell `#!` line).
+// Any other file, and one that cannot be read, is judged by the command's words. The Maven and
+// Gradle wrappers only download and start the build tool, so `./mvnw test` is judged by its words.
+const SHELLS = 'sh|bash|zsh|dash|ksh';
 const SCRIPT_FILE = /\.(?:sh|bash|zsh|ps1|bat|cmd)$/i;
-const SHELL_SHEBANG = /^#!\s*(?:\S*\/)?(?:env\s+(?:-\S+\s+)*)?(?:sh|bash|zsh|dash|ksh)(?:\s|$)/;
+const SHELL_SHEBANG = new RegExp(String.raw`^#!\s*(?:\S*\/)?(?:env\s+(?:-\S+\s+)*)?(?:${SHELLS})(?:\s|$)`);
+const RUNS_SCRIPT = new RegExp(String.raw`^(?:${SHELLS}|source|\.|pwsh|powershell|cmd)(?:\.exe)?$`, 'i');
+const RUNS_ANY_FILE = new RegExp(String.raw`^(?:${SHELLS}|source|\.)$`);
 const WRAPPER = /^(?:mvnw|gradlew)(?:\.cmd|\.bat)?$/i;
 function scriptFile(piece, dir, root) {
   const t = piece.split(/\s+/).map((w) => w.replace(/^["']|["']$/g, ''));
-  let file = SCRIPT_FILE.test(t[0]) ? t[0] : null;
-  if (!file && t[0].includes('/') && !path.isAbsolute(t[0]) && !path.relative(root, path.resolve(dir, t[0])).startsWith('..')) {
-    try { if (SHELL_SHEBANG.test(fs.readFileSync(path.resolve(dir, t[0]), 'utf8').split(/\r?\n/, 1)[0])) file = t[0]; } catch {}
-  }
-  if (!file && /^(?:sh|bash|zsh|dash|ksh|source|\.|pwsh|powershell|cmd)(?:\.exe)?$/i.test(t[0])) {
+  let file = null;
+  let needsShebang = false;
+  if (SCRIPT_FILE.test(t[0])) file = t[0];
+  else if (t[0].includes('/')) [file, needsShebang] = [t[0], true];
+  else if (RUNS_SCRIPT.test(t[0])) {
     file = t.slice(1).find((w) => SCRIPT_FILE.test(w)) || null;
-    if (!file && /^(?:sh|bash|zsh|dash|ksh|source|\.)$/.test(t[0])) {
+    if (!file && RUNS_ANY_FILE.test(t[0])) {
       const i = t.findIndex((w, k) => k > 0 && !w.startsWith('-'));
-      if (i > 0 && !t.slice(1, i).some((w) => /^-\w*c$/.test(w))) file = t[i];
+      if (i > 0 && !t.slice(1, i).some((w) => /^-\w*c$/.test(w))) [file, needsShebang] = [t[i], /^(?:source|\.)$/.test(t[0])];
     }
   }
   if (!file || WRAPPER.test(path.basename(file))) return null;
-  try {
-    return fs.readFileSync(path.resolve(dir, file), 'utf8').split(/\r?\n/).filter((l) => !/^\s*(?:#|rem\b|::)/i.test(l)).join('\n');
-  } catch { return null; }
+  const full = path.resolve(dir, file);
+  const rel = path.relative(root, full);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  const name = rel.split(path.sep).join('/');
+  if (isSecretName(name)) return null;
+  let lines;
+  try { lines = fs.readFileSync(full, 'utf8').split(/\r?\n/); } catch { return null; }
+  if (needsShebang && !SHELL_SHEBANG.test(lines[0])) return null;
+  return { name, text: lines.filter((l) => !/^\s*(?:#|rem\b|::)/i.test(l)).join('\n') };
 }
 
 // Expands a command into everything it really runs (script bodies, recipes, script files), up to a few
-// levels. A `cd` moves the later pieces to its folder; a `( ... )` subshell and `sh -c '...'` keep
-// their `cd` inside.
-function expand(command, dir, depth = 0, ctx = { root: dir, refused: new Set() }) {
-  if (depth > 5) return [command];
-  const out = [command];
+// levels, each with the name of the followed script file it was reached through (null when none).
+// A `cd` moves the later pieces to its folder; a `( ... )` subshell and `sh -c '...'` keep their
+// `cd` inside.
+const SHELL_C = new RegExp(String.raw`(?<![\w.-])(?:${SHELLS})(?:\.exe)?(?:\s+-[a-z]+)*?\s+-[a-z]*c\s+('[^']*'|"[^"]*")`, 'gi');
+function expand(command, dir, depth, ctx, from = null) {
+  if (depth > 5) return [{ text: command, from }];
+  const out = [{ text: command, from }];
   const subshells = [];
   const pushed = [];
   const quoted = [];
-  const text = command.replace(/(?<![\w.-])(?:sh|bash|zsh|dash|ksh)(?:\.exe)?(?:\s+-[a-z]+)*?\s+-[a-z]*c\s+('[^']*'|"[^"]*")/gi, (m, q) => {
+  const text = command.replace(SHELL_C, (m, q) => {
     quoted.push(q.slice(1, -1));
     return `${m.slice(0, -q.length)}\u0000${quoted.length - 1}`;
   });
@@ -377,28 +400,28 @@ function expand(command, dir, depth = 0, ctx = { root: dir, refused: new Set() }
     const piece = unwrap(raw);
     const bare = piece.replace(REDIRECT, '').trim();
     const cd = CD_VERB.test(bare) && CD.exec(bare);
-    if (cd) dir = changeDir(cd, dir, pushed, ctx);
-    else if (CD_VERB.test(bare)) ctx.refused.add(`changes to a folder keel cannot follow (${bare.slice(0, 80)})`);
+    if (cd) dir = changeDir(cd, dir, pushed, ctx, from);
+    else if (CD_VERB.test(bare)) ctx.refused.add(`changes to a folder keel cannot follow (${shown(bare, from)})`);
     else if (piece) {
-      for (const [, k] of piece.matchAll(/\u0000(\d+)/g)) out.push(...expand(quoted[k], dir, depth + 1, ctx));
+      for (const [, k] of piece.matchAll(/\u0000(\d+)/g)) out.push(...expand(quoted[k], dir, depth + 1, ctx, from));
       const npm = scriptCall(piece);
       if (npm) {
         const own = nearestPackage(dir, ctx.root);
         const names = npm.runner ? dependsOnTasks(npm.names, ctx.root, npm.runner) : npm.names;
         for (const file of npm.wide ? [own, ...packageFiles(dir)] : [own]) {
-          for (const name of names) for (const body of scriptBodies(file, name)) out.push(...expand(body, path.basename(file) === 'project.json' ? dir : path.dirname(file), depth + 1, ctx));
+          for (const name of names) for (const body of scriptBodies(file, name)) out.push(...expand(body, path.basename(file) === 'project.json' ? dir : path.dirname(file), depth + 1, ctx, from));
         }
       }
       const comp = /^composer\s+(?:run-script\s+|run\s+)?([A-Za-z0-9:_.-]+)/.exec(piece);
       if (comp) {
         const json = readJson(path.join(dir, 'composer.json'));
         const body = json && json.scripts && json.scripts[comp[1]];
-        for (const b of [].concat(body || [])) out.push(...expand(String(b).replace(/^@/, ''), dir, depth + 1, ctx));
+        for (const b of [].concat(body || [])) out.push(...expand(String(b).replace(/^@/, ''), dir, depth + 1, ctx, from));
       }
       const make = makeCall(piece, dir);
-      if (make) for (const target of make.targets) for (const line of makeRecipe(make.makefile, target)) out.push(...expand(line, path.dirname(make.makefile), depth + 1, ctx));
+      if (make) for (const target of make.targets) for (const line of makeRecipe(make.makefile, target)) out.push(...expand(line, path.dirname(make.makefile), depth + 1, ctx, from));
       const file = scriptFile(piece, dir, ctx.root);
-      if (file) out.push(...expand(file, dir, depth + 1, ctx));
+      if (file) out.push(...expand(file.text, dir, depth + 1, ctx, file.name));
     }
     for (let n = /[\s)]*$/.exec(raw)[0].split(')').length - 1; n > 0 && subshells.length; n--) dir = subshells.pop();
   }
@@ -412,18 +435,18 @@ function judge(projectDir, partDir, command) {
   if (inside.startsWith('..') || path.isAbsolute(inside)) return { safe: false, reasons: ['the part folder is outside the project'] };
   const ctx = { root, refused: new Set() };
   const reasons = new Set();
-  for (const text of expand(command, dir, 0, ctx)) {
+  for (const { text, from } of expand(command, dir, 0, ctx)) {
     for (const [re, why] of DENY) {
       if (!re.test(withoutNames(text))) continue;
       const lines = text.split('\n');
-      reasons.add(`${why} (${(lines.find((l) => re.test(withoutNames(l))) || lines[0]).slice(0, 80)})`);
+      reasons.add(`${why} (${shown(lines.find((l) => re.test(withoutNames(l))) || lines[0], from)})`);
     }
   }
   for (const why of ctx.refused) reasons.add(why);
   return reasons.size ? { safe: false, reasons: [...reasons] } : { safe: true, reasons: [] };
 }
 
-module.exports = { judge, expand };
+module.exports = { judge };
 
 if (require.main === module) {
   const args = process.argv.slice(2);
@@ -431,7 +454,7 @@ if (require.main === module) {
   // The same reading of the folders as the permission hook (parseArgs), so both judge one project.
   const pos = sep < 0 ? [] : require('./lib/project.js').parseArgs(args.slice(0, sep)).pos;
   let line;
-  if (pos.length < 2) line = 'refused: usage: node safe-command.js <projectDir> <partDir> -- <command>';
+  if (pos.length < 2) line = 'refused: usage: node safe-command.js <projectDir> <partDir> -- "<command>"';
   else {
     const r = judge(require('./lib/project-dir.js').scriptProject(pos[0]), pos[1], args.slice(sep + 1).join(' '));
     line = r.safe ? 'safe' : `refused: ${r.reasons.join('; ')}`;

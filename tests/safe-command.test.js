@@ -262,11 +262,11 @@ test('a script is judged where it really runs: after cd, with options after its 
     'yarn workspaces foreach -A run test': /database/,
     'nx run-many -t test': /database/,
     'nx run-many --targets=lint,e2e': /cluster/,
-    'make test': /cluster \(kubectl apply/,
+    'make test': /cluster \(in scripts\/test\.sh\)/,
     './scripts/test.sh': /cluster/,
     'sh scripts/test.sh': /cluster/,
     'bash -e ./scripts/test.sh': /cluster/,
-    'pwsh -File scripts/test.ps1': /cluster \(helm upgrade/,
+    'pwsh -File scripts/test.ps1': /cluster \(in scripts\/test\.ps1\)/,
     'cd .. && npm test': /leaves the project/,
     'cd ~ && npm test': /cannot follow/,
   };
@@ -333,8 +333,8 @@ test('sub-makes, shell scripts without an extension, nx dependsOn and npm t are 
   const refused = {
     'make -f Make2 test': /database \(npx prisma/,
     'make -f Make3 test': /database \(npx prisma/,
-    './script/test': /cluster \(kubectl apply/,
-    'script/test': /cluster \(kubectl apply/,
+    './script/test': /cluster \(in script\/test\)/,
+    'script/test': /cluster \(in script\/test\)/,
     'nx run-many -t test': /database \(prisma migrate reset --force && tsc/,
     'npx nx test api': /database \(prisma migrate reset --force && tsc/,
     'nx run-many -t lint': /database \(prisma migrate reset --force && vitest/,
@@ -355,6 +355,40 @@ test('sub-makes, shell scripts without an extension, nx dependsOn and npm t are 
   }
 });
 
+test('a followed file is inside the project, not secret-named, a real script for source; a refusal names it, not its line', () => {
+  const outside = tempDir('keel-followed-');
+  const dir = path.join(outside, 'proj');
+  const write = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  write('package.json', JSON.stringify({ scripts: { test: 'vitest run' } }));
+  write('.env', 'DATABASE_URL=postgres://admin:hunter2pass@db.production.internal:5432/app\n');
+  write('config.txt', 'kubectl apply -f k8s/\n');
+  write('scripts/env.sh', 'export DB_HOST=hunter2-production-db\n');
+  write('scripts/load', '#!/bin/sh\nhelm upgrade app ./chart\n');
+  write('scripts/ci.sh', '#!/bin/sh\nset -e\nrm -f db.sqlite\nvitest run\n');
+  write('scripts/move.ps1', 'Set-StrictMode -Version Latest\nRemove-Item cache.json\n');
+  write('scripts/away.sh', 'cd /tmp/hunter2\nvitest run\n');
+  write('one.mk', '.ONESHELL:\nt:\n\tset -e\n\trm x\n');
+  fs.writeFileSync(path.join(outside, 'outside.sh'), 'AWS_SECRET=hunter2 # production account\n');
+  const refused = {
+    'source scripts/env.sh && npm test': /^targets a shared environment \(in scripts\/env\.sh\)$/,
+    '. scripts/load': /^changes a cluster \(in scripts\/load\)$/,
+    './scripts/ci.sh': /^moves or deletes files \(in scripts\/ci\.sh\)$/,
+    'pwsh -File scripts/move.ps1': /^moves or deletes files \(in scripts\/move\.ps1\)$/,
+    'bash scripts/away.sh': /^leaves the project folder \(in scripts\/away\.sh\)$/,
+    'make -f one.mk t': /^moves or deletes files \(rm x\)$/,
+  };
+  for (const [cmd, why] of Object.entries(refused)) {
+    const r = judge(dir, '.', cmd);
+    assert.equal(r.safe, false, cmd);
+    assert.equal(r.reasons.length, 1, `${cmd}: ${r.reasons}`);
+    assert.match(r.reasons[0], why, cmd);
+  }
+  for (const c of ['source .env && npm test', '. ./.env', 'bash .env', 'source config.txt', '. ./config.txt', 'source ../outside.sh', 'bash ../outside.sh']) {
+    const r = judge(dir, '.', c);
+    assert.equal(r.safe, true, `${c}: ${r.reasons}`);
+  }
+});
+
 test('a release build configuration of dotnet, msbuild, cargo and swift is not a release', () => {
   const safe = [
     'dotnet test -c Release',
@@ -369,6 +403,10 @@ test('a release build configuration of dotnet, msbuild, cargo and swift is not a
     'swift test -c release',
     'swift build --configuration=release',
     'bash -c "dotnet test -c Release"',
+    'dotnet test -c "Release"',
+    "dotnet test -c 'Release'",
+    "dotnet test -p:Configuration='Release'",
+    'swift build --configuration="release"',
   ];
   for (const c of safe) assert.equal(judge(js, '.', c).safe, true, c);
 

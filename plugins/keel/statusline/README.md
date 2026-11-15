@@ -4,14 +4,14 @@ A vendored copy of the status line from [mvbsoft/claude-code-statusline](https:/
 
 ## How it runs
 
-`/keel:configure` installs `node "<home>/.claude/keel/statusline.js"` as the Claude Code `statusLine` command, with your home folder written out as an absolute path. That shim stays put while the plugin folder changes with every update: it loads `run.js` from the plugin folder written in `~/.claude/keel/plugin-root.txt` (keel's SessionStart hook keeps it current), and when it cannot find `run.js` there it runs the wrapped command, if any. Claude Code passes the session JSON on stdin; `run.js`:
+`/keel:configure` installs `node "<keel folder>/statusline.js"` as the Claude Code `statusLine` command, with the folder written out as an absolute path. `<keel folder>` is keel's machine folder: `~/.claude/keel`, or `<CLAUDE_CONFIG_DIR>/keel` when `CLAUDE_CONFIG_DIR` is set (once that folder exists). That shim stays put while the plugin folder changes with every update: it loads `run.js` from the plugin folder written in `plugin-root.txt` there (keel's SessionStart hook keeps it current), and when it cannot find `run.js` there it runs the wrapped command, if any. Claude Code passes the session JSON on stdin; `run.js`:
 
 1. prints the status line, byte for byte as the child wrote it. The child gets a 5-second limit: on a timeout, or when it cannot start, nothing is printed; otherwise its output is printed as is, whatever its exit code;
-2. after printing, records the plan-limit percentages (`rate_limits`) to `~/.claude/keel/limits.jsonl` when they changed. A failing recorder never changes the printed line.
+2. after printing, records the plan-limit percentages (`rate_limits`) to `limits.jsonl` in `<keel folder>` when they changed. A failing recorder never changes the printed line.
 
 ## Modes
 
-The mode is `statusline.mode` in `~/.claude/keel/usage.json`:
+The mode is `statusline.mode` in `usage.json` in `<keel folder>`:
 
 - `keel`: the vendored script (`statusline.ps1` on Windows, `statusline.sh` elsewhere; `.sh` needs `jq`).
 - `wrap`: runs your previous status-line command (`statusline.original.command`) with the same input and prints its output, so your own line stays as it was and keel only records the limits.

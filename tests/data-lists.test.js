@@ -173,7 +173,7 @@ test('text files: only doc-like .txt names are docs; requirements.txt and CMakeL
 });
 
 test('text files: code named like a README, a changelog or a license is code', () => {
-  for (const p of ['README', 'readme.txt', 'README-dev.txt', 'CHANGELOG', 'docs/CHANGELOG.md', 'changelog.txt', 'LICENSE', 'LICENSE.txt', 'license-MIT.txt', 'LICENSE.md']) assert.equal(changesBehavior(file(p, ['words'])), false, p);
+  for (const p of ['README', 'readme.txt', 'README-dev.txt', 'CHANGELOG', 'docs/CHANGELOG.md', 'changelog.txt', 'LICENSE', 'LICENSE.txt', 'license-MIT.txt', 'LICENSE.md', 'LICENSE.MIT', 'LICENSE.APACHE', 'LICENSE.BSD']) assert.equal(changesBehavior(file(p, ['words'])), false, p);
   for (const p of ['README.rdoc', 'README.org', 'README.textile', 'README.pod', 'README.asciidoc', 'CHANGELOG.rdoc']) {
     const a = run([file(p, ['Set the API token in config before you start.'])]);
     assert.equal(a.proposal.tier, 'gates-only', p);

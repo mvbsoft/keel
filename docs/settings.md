@@ -12,6 +12,9 @@ Each setting has one of three homes:
 | **This project** | this project, for everyone who works on it | `.keel/config.json` | yes, shared with the team |
 | **Machine or project** | every project on this computer, unless a project sets its own value | machine: as above; project: `.claude/settings.local.json` or `.keel/local/options.json` | no, personal |
 
+With `CLAUDE_CONFIG_DIR` set, `~/.claude` is that folder; keel's own folder is explained under
+[This machine](#this-machine).
+
 Planning keeps a small file of its own, this project on this machine ([planning settings](#planning-settings)).
 
 **Rule:** a project's own value wins over the machine value. Remove the project value and the machine
@@ -79,7 +82,7 @@ tokens costs about $0.12 in cache reads, at 300k about $0.06. The price of a sma
 details from early in the conversation are lost at each compaction more often.
 
 Where the values live: the machine value of the first two is the keel plugin option; of
-`prompt_preview` it is `~/.claude/keel/usage.json`; the rest are in `~/.claude/settings.json`. A
+`prompt_preview` it is `usage.json` in keel's machine folder ([This machine](#this-machine)); the rest are in `~/.claude/settings.json`. A
 project's own value of `conversation_language`, `allow_opus` and `prompt_preview` is in
 `.keel/local/options.json`, of the others in `.claude/settings.local.json`.
 
@@ -328,6 +331,6 @@ and step titles become "step 1", "step 2".
 ```
 
 To turn them off for every project on the machine, set `prompt_preview` to `false` in
-`~/.claude/keel/usage.json`, or answer the question in `/keel:configure usage`. A project cannot turn
+`usage.json` in keel's machine folder ([This machine](#this-machine)), or answer the question in `/keel:configure usage`. A project cannot turn
 them back on while the machine value is off. See the
 [usage dashboard](usage-dashboard.md#what-goes-to-the-page-and-what-never-does) for what is sent.
