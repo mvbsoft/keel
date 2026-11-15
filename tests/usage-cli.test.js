@@ -136,6 +136,21 @@ test('ack --failed keeps the document pending; prepare --version rewrites it wit
   assert.equal(w.run(['ack']), 'ack: nothing was pending');
 });
 
+test('ack --batch --failed: a refused batch wrote nothing, so none of its documents is recorded', () => {
+  const w = world();
+  buildSession(w.root);
+  w.prepare();
+  w.prepare('--version', 'machines/testpc=7');
+  const msg = w.run(['ack', '--batch', '1', '--failed', 'testpc']);
+  assert.match(msg, /ack: 0 documents recorded/);
+  assert.match(msg, /still pending: 2026-01-01_testpc, machines\/testpc/);
+  const state = read(path.join(w.dir, 'sync-state.json'));
+  assert.deepEqual(state.docs, {});
+  assert.equal(state.synced_until, null);
+  const again = writesOf(w.prepare());
+  assert.deepEqual(again.map((x) => [x.collection, x.doc_id]), [['days', '2026-01-01_testpc'], ['machines', 'testpc']]);
+});
+
 test('prepare: more than 50 documents are chunked into batches of at most 50 writes', () => {
   const w = world();
   for (let i = 0; i < 60; i++) {

@@ -7,6 +7,7 @@
 //             sync, written to <out> (under <project>/.keel/local/usage/, default usage/out), and the ArtifactData
 //             `batches`. --tools none: the session has no ArtifactData tool, so the sync waits (skip)
 //   ack       [--batch <n>] [--failed <docId>]...   marks the prepared writes (or those of batch n) as written (versions go up by one)
+//             except the failed ones; with --batch, a failed document keeps its whole batch pending
 //   report    [--session <id>] [--in <dir>] [--lang uk|en] [--project <dir>] [--last-turn]   the end report for a session
 //             (--last-turn: one line, the latest user turn only); keeps page_template in step with the page's
 //             meta/settings read into <in>; says once what the last prepare skipped

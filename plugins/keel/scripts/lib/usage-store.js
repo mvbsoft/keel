@@ -667,14 +667,16 @@ function stage(state, built, { versions = {}, nowIso, rebuiltIds = [] } = {}) {
 }
 
 // Marks pending writes as written (only those of `batch` when given). `failed` keys stay pending and synced_until
-// does not move past them.
+// does not move past them. A batch with a failed document wrote nothing (a batch with a pinned version is refused
+// whole), so none of its documents is recorded.
 function ack(state, { failed = [], batch = null } = {}) {
   const keys = Object.keys(state.pending).filter((k) => batch === null || state.pending[k].batch === batch);
   const matches = (key) => failed.some((f) => f === key || key.endsWith(`/${f}`));
   const unknown = failed.filter((f) => !keys.some((k) => k === f || k.endsWith(`/${f}`)));
+  const refused = batch !== null && failed.length > 0;
   let committed = 0;
   for (const key of keys) {
-    if (matches(key)) continue;
+    if (refused || matches(key)) continue;
     const p = state.pending[key];
     state.docs[key] = { version: (p.if_version || 0) + 1, hash: p.hash };
     delete state.pending[key];
