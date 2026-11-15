@@ -80,6 +80,30 @@ test('no configure record on this machine: rebuilt from the commit of the settin
   assert.equal(git(p.dir, 'worktree', 'list').split('\n').length, 1, 'the temporary worktree is gone');
 });
 
+test('a project in a subfolder of its repository: the rebuilt record is of that folder, not of the whole repository', () => {
+  const repo = tmp('keel-cc-mono-');
+  const dir = path.join(repo, 'app');
+  write(path.join(dir, 'package.json'), JSON.stringify({ name: 'app', private: true, scripts: { test: 'node --test', lint: 'node --check a.js' } }, null, 2));
+  write(path.join(dir, 'a.js'), 'module.exports = 1;\n');
+  write(path.join(repo, 'other', 'pyproject.toml'), '[project]\nname = "other"\n');
+  write(path.join(dir, '.keel', 'config.json'), JSON.stringify({ ...CONFIG, gates: { checks: [CONFIG.gates.checks[0]], security_scanners: [] } }));
+  write(path.join(dir, '.keel', 'profile.json'), JSON.stringify(scan(dir).profile));
+  write(path.join(dir, '.gitignore'), '.keel/local/\n');
+  git(repo, 'init', '-q', '-b', 'main');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'set up keel');
+  const usageDir = tmp('keel-cc-usage-');
+  write(path.join(usageDir, 'usage.json'), JSON.stringify({ pc: 'pc', wallet_default: 'subscription' }));
+  const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_'))), KEEL_USAGE_DIR: usageDir };
+  const run = (script, ...args) => spawnSync(process.execPath, [script, dir, ...args], { encoding: 'utf8', env }).stdout.trim().split('\n');
+  assert.deepEqual(block(run(SCRIPT)).slice(1, 2), ['result: nothing to reconfigure'], 'the lint script left out of the gates on purpose is not new');
+  const snap = JSON.parse(fs.readFileSync(path.join(dir, '.keel', 'local', 'configure-snapshot.json'), 'utf8'));
+  assert.deepEqual(snap.sections.scan.parts.map((p) => p.path), ['.']);
+  pkg(dir, (x) => { x.dependencies = { 'left-pad': '1.3.0' }; });
+  git(repo, 'commit', '-qam', 'bump');
+  assert.equal(run(CHECK_CONFIG, '--profile').find((l) => l.startsWith('profile: ')), 'profile: ok');
+});
+
 test('settings never committed: compared with the profile, and the checks that need a record are named', () => {
   const dir = tmp('keel-cc-new-');
   write(path.join(dir, 'package.json'), JSON.stringify({ name: 'x', scripts: { test: 'node --test' } }));

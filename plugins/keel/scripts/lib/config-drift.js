@@ -146,6 +146,7 @@ function rebuildSnapshot(root, commit) {
     clearLeftovers(root, run);
     run(['worktree', 'add', '--quiet', '--detach', tree, commit]);
     const { scan } = require('../scan.js');
+    const project = path.join(tree, (git(root, ['rev-parse', '--show-prefix']) || '').trim());
     const at = Number((git(root, ['log', '-1', '--format=%ct', commit]) || '').trim());
     const snapshot = {
       schema: 2,
@@ -153,7 +154,7 @@ function rebuildSnapshot(root, commit) {
       commit,
       rebuilt: true,
       keel_version: null,
-      sections: fullBasis(tree, scan(tree), { machine: false }),
+      sections: fullBasis(project, scan(project), { machine: false }),
     };
     writeLocal(root, SNAPSHOT, JSON.stringify(snapshot, null, 2) + '\n');
     return snapshot;
