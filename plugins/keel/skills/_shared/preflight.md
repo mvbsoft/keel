@@ -36,8 +36,9 @@ the check, then on a `git:` line:
   merged. Say so in plain words. A `settings in folder: <path>` line after it → that branch is checked
   out in that folder and cannot be switched to here: tell the user to work in `<path>` and stop;
   never offer to switch the branch here. Otherwise offer (AskUserQuestion): switch to `<name>` and go
-  on there, or stop. Switch → autonomous git: `node "<keel>/scripts/git-flow.js" "<project>" switch --name <name>`;
-  manual git: give `git switch <name>` and wait until the user says it ran. Then run
+  on there, or stop. Switch → run `git switch <name>` yourself, in both git modes (the git mode is in
+  the settings this branch lacks, and `git-flow.js` refuses to run without them; Claude Code may ask);
+  git refuses → show its message and stop. Then run
   `node "<keel>/scripts/check-config.js" "<project>"` again; if it says `ok`, continue **this same
   command with its original arguments**. Stop → say "Not on the settings' branch, so the command did
   not run." and stop. Never offer to configure again and never commit the settings here.

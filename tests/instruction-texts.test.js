@@ -470,9 +470,19 @@ test('planning: the step table is checked inside Plan Mode and approved once; pl
   says(intake, ['Still in Plan Mode', 'check its steps', 'ExitPlanMode once']);
   says(intake, ['No separate question after ExitPlanMode']);
   assert.match(shared('task-resume.md'), /come first, only when step 2 needs\s+a branch switch/);
-  says(read('templates', 'keel', 'plan.md'), ['intake.md` "7. Execution" item 2', 'lists (every front-matter field and section)']);
+  says(read('templates', 'keel', 'plan.md'), ['intake.md` "7. Execution" item 2', 'fill the sections of that `task.md` as that item lists']);
   assert.match(shared('usage-sync.md'), /final-report\.md` block Costs says/);
   assert.doesNotMatch(shared('verify.md'), /\| gates red before the change \|/, 'the trouble table repeats no step');
+});
+
+test('the plan template creates the task with the same notes.js flags as intake.md "7. Execution" item 2', () => {
+  const flags = (line) => [...new Set(line.match(/--[a-z-]+/g))].sort();
+  const command = (text) => text.split('\n').find((l) => l.includes('notes.js" "<project>" task new <id>'));
+  const template = command(read('templates', 'keel', 'plan.md'));
+  const intake = command(shared('intake.md'));
+  assert.ok(template && intake, 'both name the task new command');
+  assert.deepEqual(flags(template), flags(intake));
+  assert.doesNotMatch(read('templates', 'keel', 'plan.md'), /every front-matter field/, 'intake no longer lists front-matter fields to fill');
 });
 
 test('shipped files point to no unshipped plan or decision documents', () => {
