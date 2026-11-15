@@ -14,6 +14,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const store = require('./lib/usage-store.js');
+const syncState = require('./lib/usage-sync-state.js');
 const { usageDir, loadMachineConfig } = require('./lib/usage-config.js');
 const { safeLocalPath } = require('./lib/safe-path.js');
 const { parseArgs, batches, versionOverrides, unwrap } = require('./usage.js');
@@ -35,20 +36,20 @@ function start(opts) {
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
   const usage = usageDir();
-  const state = store.readState(usage);
-  if (state.clear_pending_at) { state.clear_pending_at = null; store.writeState(usage, state); }
+  const state = syncState.readState(usage);
+  if (state.clear_pending_at) { state.clear_pending_at = null; syncState.writeState(usage, state); }
   return `usage-clear: query folder ${dir}`;
 }
 
 function plan(opts) {
   if (typeof opts.in !== 'string') return 'usage-clear: error: give --in <the out_dir of the ArtifactData queries>';
   const dir = usageDir();
-  const state = store.readState(dir);
+  const state = syncState.readState(dir);
   const pc = store.sanitizePc(loadMachineConfig().pc);
   const result = databasePlan(opts, state, pc);
   // The clear time `done` takes: set by the first plan of this run that succeeds (start forgot any older one), so
   // after a failed plan `done` changes nothing; a plan run again for missing versions keeps it.
-  if (!state.clear_pending_at) { state.clear_pending_at = new Date().toISOString(); store.writeState(dir, state); }
+  if (!state.clear_pending_at) { state.clear_pending_at = new Date().toISOString(); syncState.writeState(dir, state); }
   return JSON.stringify(result);
 }
 
@@ -101,14 +102,14 @@ function databasePlan(opts, state, pc) {
 // clear time.
 function done() {
   const dir = usageDir();
-  const state = store.readState(dir);
+  const state = syncState.readState(dir);
   const at = state.clear_pending_at;
   if (!at) return 'usage-clear: nothing to finish: run start and plan first';
   Object.assign(state, {
     docs: {}, pending: {}, pending_until: null, synced_until: at, cleared_at: at, sessions_rule: store.SESSIONS_RULE, pending_rule: null,
     clear_pending_at: null,
   });
-  store.writeState(dir, state);
+  syncState.writeState(dir, state);
   return `usage-clear: this machine sends only data from ${at} on; its Claude Code logs, limit records and calibration are kept`;
 }
 

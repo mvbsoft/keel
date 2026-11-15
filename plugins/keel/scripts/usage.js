@@ -20,6 +20,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const store = require('./lib/usage-store.js');
+const syncState = require('./lib/usage-sync-state.js');
 const { activeTask, planText } = require('./lib/tasks.js');
 const { usageDir, loadMachineConfig, writeMachineConfig, detectWallet } = require('./lib/usage-config.js');
 const { readSnapshots, snapshotFromPercents, dedupeSnapshots } = require('./lib/limits.js');
@@ -219,7 +220,7 @@ function prepare(opts) {
   const raw = readJson(path.join(dir, 'usage.json')) || {};
   const historyDays = Number.isFinite(raw.history_days) && raw.history_days > 0 ? raw.history_days : 30;
   const nowMs = Date.now();
-  const state = store.readState(dir);
+  const state = syncState.readState(dir);
   const tools = TOOLS.includes(opts.tools) ? opts.tools : 'db';
   const url = (typeof opts.artifact === 'string' && opts.artifact) || machine.artifact_url;
   if (url && state.artifact_url && state.artifact_url !== url) {
@@ -239,7 +240,7 @@ function prepare(opts) {
   const keelInfo = sessionRef && Object.keys(fields).length ? { session_id: sessionRef.id, ...fields } : null;
   const ctx = { root, dir, machine, state, nowMs, historyDays, projectsRoot: root_, keelInfo };
 
-  const done = (result) => { store.writeState(dir, state); return JSON.stringify({ tools, artifact_url: url, ...result }); };
+  const done = (result) => { syncState.writeState(dir, state); return JSON.stringify({ tools, artifact_url: url, ...result }); };
   const skip = (reason, note) => {
     // The keel fields exist only now (flags, the task file, changes.json): kept for the sync that sends this session.
     if (keelInfo) store.recordKeel(dir, keelInfo, store.readKeel(dir), new Date(nowMs).toISOString());
@@ -263,7 +264,7 @@ function prepareDb(opts, ctx, out) {
   let sinceMs = state.synced_until ? Date.parse(state.synced_until) - store.SAFETY_MS : nowMs - historyDays * DAY_MS;
   // Documents sent under another rule for which sessions are listed are rebuilt once, back to the first day sent.
   if (state.sessions_rule !== store.SESSIONS_RULE) {
-    const first = store.earliestDay(state);
+    const first = syncState.earliestDay(state);
     sinceMs = Math.min(sinceMs, nowMs - historyDays * DAY_MS, first ? Date.parse(`${first}T00:00:00Z`) : Infinity);
     state.pending_rule = store.SESSIONS_RULE;
   }
@@ -276,7 +277,7 @@ function prepareDb(opts, ctx, out) {
   const pc = store.sanitizePc(machine.pc);
   const calib = calibDoc(dir, pc);
   const items = built.docs.map((d) => ({ ...d, collection: 'days' })).concat([{ ...machineDoc, collection: 'machines' }], calib ? [calib] : []);
-  const staged = store.stage(state, items, {
+  const staged = syncState.stage(state, items, {
     versions: versionOverrides(opts.version), nowIso, rebuiltIds: built.days.map((d) => `${d}_${pc}`),
   });
 
@@ -297,13 +298,13 @@ function prepareDb(opts, ctx, out) {
 
 function ack(opts) {
   const dir = usageDir();
-  const state = store.readState(dir);
+  const state = syncState.readState(dir);
   if (!Object.keys(state.pending).length) return 'ack: nothing was pending';
   const failed = (opts.failed || []).map(String);
   const batch = opts.batch === undefined ? null : Number(opts.batch);
   if (batch !== null && !Object.values(state.pending).some((p) => p.batch === batch)) return `ack: no pending batch ${opts.batch}`;
-  const r = store.ack(state, { failed, batch });
-  store.writeState(dir, state);
+  const r = syncState.ack(state, { failed, batch });
+  syncState.writeState(dir, state);
   const lines = [`ack: ${r.committed} documents recorded${state.synced_until ? `; synced until ${state.synced_until}` : ''}`];
   const mine = batch === null ? r.left : r.left.filter((k) => state.pending[k].batch === batch);
   if (batch !== null && r.left.length > mine.length) lines.push(`${r.left.length - mine.length} documents of other batches are still pending: write and ack them too.`);
@@ -507,10 +508,10 @@ function report(opts) {
   const machine = loadMachineConfig();
   notePageTemplate(inFolder(opts, root), machine);
   const dir = usageDir();
-  const state = store.readState(dir);
+  const state = syncState.readState(dir);
   const t = textsFor(opts);
   const notes = opts['last-turn'] ? [] : noteLines(t, state);
-  if (notes.length) { state.notes = []; store.writeState(dir, state); }
+  if (notes.length) { state.notes = []; syncState.writeState(dir, state); }
   const base = projectsRoot();
   const ref = typeof opts.session === 'string' ? store.listSessions(base).find((r) => r.id === opts.session) : store.newestSessionIn(base, root);
   if (!ref) return [t('report.none'), ...notes].join('\n');
@@ -583,7 +584,7 @@ function audit(opts) {
   const dir = underLocal(root, opts.page);
   if (!dir) return `audit: ${opts.page} must be a folder under the project's .keel/local/`;
   const machine = loadMachineConfig();
-  const state = store.readState(usageDir());
+  const state = syncState.readState(usageDir());
   return require('./lib/usage-audit.js').auditText({
     pageFiles: jsonFiles(dir), machine, usageDir: usageDir(), projectsRoot: projectsRoot(), clearedAt: state.cleared_at, unwrap,
   });
