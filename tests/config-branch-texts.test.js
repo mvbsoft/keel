@@ -6,9 +6,15 @@ const { shared, skill, says, part } = require('./fixtures/texts.js');
 test('preflight: settings on another branch are explained, never configured again or committed here', () => {
   const text = shared('preflight.md');
   says(text, ['`settings on branch: <name>`', 'keel is set up here, not lost', 'reach this branch when that branch is merged']);
-  says(text, ['switch to `<name>` and go on there, or', 'git-flow.js" "<project>" switch --name <name>', 'manual git: give `git switch <name>`']);
+  says(text, ['switch to `<name>` and go on there, or', 'run `git switch <name>` yourself, in both git modes', 'git refuses → show its message and stop']);
   says(text, ['Never offer to configure again', 'never commit the settings here']);
   assert.ok(text.indexOf('`settings on branch: <name>`') < text.indexOf('`keel-config: missing | broken | invalid | outdated`'), 'the branch rule comes before the general one');
+});
+
+test("preflight: the switch to the settings' branch is plain git, since git-flow refuses where the settings are missing", () => {
+  const rule = part(shared('preflight.md'), '`settings on branch: <name>`', '`keel-config: missing | broken | invalid | outdated`');
+  assert.doesNotMatch(rule, /git-flow\.js" "<project>"/, 'git-flow.js answers unavailable without a config here');
+  assert.doesNotMatch(rule, /autonomous git|manual git/, 'the git mode is in the settings this branch does not have');
 });
 
 test('preflight: a branch checked out in another folder is not switched to; the user works in that folder', () => {

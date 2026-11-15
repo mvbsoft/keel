@@ -392,8 +392,9 @@ All notable changes to keel are listed here. The format follows
   shown as advice next to the recommended proposal.
 - After the first task took keel's setup into its branch and was handed off, the main branch looked
   not configured and every command offered `/keel:configure` again. The check now finds the settings
-  on a local branch, keel says which one and offers to switch there (or names the folder, when that
-  branch is checked out in another worktree); it never commits them to the branch you are on, and
+  on a local branch, keel says which one and offers to switch there with a plain `git switch`, in both
+  git modes (or names the folder, when that branch is checked out in another worktree); it never
+  commits them to the branch you are on, and
   `/keel:configure` does not start a fresh setup there unless you insist. Taking the setup into a task
   whose branch already exists no longer stops without a way forward.
 - `/keel:cleanup` after a migration of loose notes no longer lists the whole project as "left in an old

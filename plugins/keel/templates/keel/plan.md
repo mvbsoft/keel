@@ -56,10 +56,12 @@ session's id (keel's session-start line):
    <the current branch `<branch>`> No git step.
    <the user's steps: ...> One at a time as `<keel>/skills/_shared/intake.md` "7. Execution" item 1 says.
    The task file or note comes after the branch.
-2. <task> Run `node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source <source> [--link <link>] --session <sid>`
-   (`task activate <id> --session <sid>` when the task exists already). Save this plan as `plan.md`
-   in the task folder it names, then fill its `task.md` as `<keel>/skills/_shared/intake.md` "7. Execution" item 2
-   lists (every front-matter field and section), with `plan: plan.md` and `execution:` as below.
+2. <task> Run `node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source <source> [--link <link>] --branch <branch> --base <base> --merge-into <target> --execution <as in step 3> [--plan-file <this plan's file>] --session <sid>`
+   (the flags as `<keel>/skills/_shared/intake.md` "7. Execution" item 2 says; `task activate <id> --session <sid>`
+   when the task exists already). The plan goes into the task folder it names as `plan.md`: by
+   `--plan-file`, else write it there yourself and set `plan: plan.md` (after `task activate` also
+   `branch`, `base`, `merge_into` and `execution`) in its `task.md`. Then fill the sections of that
+   `task.md` as that item lists.
    <session> Write `.keel/next-session.md` from `<keel>/templates/keel/next-session.md` with these steps
    as its Plan (handoff.md "Resume"), `execution:` as below; never a task file.
 3. Execution: <here | delegate | fresh>. <Above the thresholds: the choice in words and the `ask:`
