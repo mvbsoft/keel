@@ -344,6 +344,9 @@ All notable changes to keel are listed here. The format follows
 - The context warning is in the conversation language you set (`conversation_language`).
 
 ### Fixed
+- A task handoff without a network (or with failing access to the remote) now ends on the base
+  branch, as it is on this machine, with a warning that it was not updated; before, after the work
+  was committed and the push failed, it stopped on the task branch at the switch back.
 - A new task branch started on a clean tree keeps the commits of its base that are not pushed yet
   (such as a finish on a shared branch whose push stopped) and says so; before, it started from the
   remote copy and left them out without a word. When the local base and its remote copy have both
