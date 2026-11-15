@@ -164,6 +164,18 @@ gitTest('a draft: another repository\'s key in depends_on is checked there; T-nu
   ]);
 });
 
+gitTest('a draft: another feature\'s existing key of this repository is a dependency; a missing one is refused', () => {
+  const { web } = twoRepos();
+  // WEB-14 and WEB-15 are on the branch message-notify only; the draft is planned on main.
+  git(web, 'checkout', '-q', 'main');
+  run(web, 'new', 'show-badges');
+  assert.deepEqual(run(web, 'ticket', 'show-badges', '--title', 'Badge', '--depends', 'WEB-14'), ['created: .keel/local/plans/keel/show-badges/tickets/T1-badge.md', 'ticket: T1']);
+  assert.equal(run(web, 'ticket', 'show-badges', '--title', 'Bad', '--depends', 'WEB-14,WEB-99')[0], 'plans: ticket refused (--depends: no ticket WEB-99)');
+  const draft = path.join(web, '.keel/local/plans/keel/show-badges/tickets/T1-badge.md');
+  fs.writeFileSync(draft, fs.readFileSync(draft, 'utf8').replace('depends_on: [WEB-14]', 'depends_on: [WEB-14, web-15, WEB-99]'));
+  assert.deepEqual(run(web, 'check', 'show-badges').filter((l) => /: depends on/.test(l)), ['- T1: depends on WEB-99, which does not exist']);
+});
+
 test('start-task, start-session and planning texts: another repository\'s dependency, take the next ticket first', () => {
   const shared = (name) => fs.readFileSync(path.join(SCRIPTS, '..', 'skills', '_shared', name), 'utf8');
   const intake = shared('intake.md');

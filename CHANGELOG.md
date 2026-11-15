@@ -522,6 +522,10 @@ All notable changes to keel are listed here. The format follows
   folder inside it, was a symlink or junction to a folder outside the project (notes shared by several
   projects), their files left the shared folder for `.keel/` and the other projects lost them. Such a
   move is now refused with the reason, and the files stay where they are.
+- A planning draft can depend on a ticket of another feature of the same repository (`PROJ-1`):
+  `plans.js ticket <feature> --depends PROJ-1` refused it with "no ticket PROJ-1", and the same key
+  written into `depends_on` made `plans.js check` say it does not exist, so the plan could never become
+  ready. The key is now looked up as for an exported feature; a key no ticket file has is still refused.
 
 ### Removed
 - `approved_artifact_urls` and `page_shared` in `~/.claude/keel/usage.json`.

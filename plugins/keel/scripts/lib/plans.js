@@ -130,10 +130,10 @@ function ticketNew(root, feature, o) {
     if (asked !== own) repo = asked;
   }
   const all = tickets(d);
-  const other = otherRepos(root, deps.filter((x) => !all.some((t) => t.id === x)));
+  const other = draftMissing(root, d, deps.filter((x) => !all.some((t) => t.id === x)));
   // Another repository's key is unknown only when that repository lacks it; not checked is never unknown.
-  const unknown = deps.filter((x) => !all.some((t) => t.id === x) && (!other.foreign(x) || other.missing.has(x.toUpperCase())));
-  if (unknown.length) return refuse('ticket', `--depends: no ticket ${unknown.map((x) => `${clean(x, 40)}${other.missing.has(x.toUpperCase()) ? ` ${other.missing.get(x.toUpperCase())}` : ''}`).join(', ')}`);
+  const unknown = deps.filter((x) => !all.some((t) => t.id === x) && other.missing.includes(x.toUpperCase()));
+  if (unknown.length) return refuse('ticket', `--depends: no ticket ${unknown.map((x) => `${clean(x, 40)}${other.where.has(x.toUpperCase()) ? ` ${other.where.get(x.toUpperCase())}` : ''}`).join(', ')}`);
   // Numbers are never reused: past the highest ever given and the highest file there.
   const n = Math.max(Number(d.fm.last_ticket) || 0, ...all.map((t) => t.n)) + 1;
   const id = `T${n}`;
@@ -150,8 +150,8 @@ function ticketNew(root, feature, o) {
 const neighbours = () => require('./plans-neighbours.js');
 const repos = () => require('./plans-repos.js');
 const stubs = () => require('./plans-stubs.js');
-// Another repository's keys among a draft's dependencies (lib/plans-neighbours.js).
-const otherRepos = (root, deps) => neighbours().lookUp(root, deps);
+// The dependencies of a draft no ticket file has (lib/plans-export.js).
+const draftMissing = (root, d, deps) => require('./plans-export.js').draftMissing(root, d, deps);
 
 // --- the feature branch ---
 

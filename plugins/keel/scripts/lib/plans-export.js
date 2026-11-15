@@ -208,6 +208,10 @@ function missingKeys(root, keys, f) {
   return out(local.filter((k) => !KEY.test(k) || (!taken.has(k) && !names.some((n) => n === `${k}.MD` || n.startsWith(`${k}-`)))));
 }
 
+// missingKeys for a draft's dependencies that are none of its T-numbers (`d`: the draft): a key of
+// another feature exists as it does for an exported one.
+const draftMissing = (root, d, deps) => missingKeys(root, [...new Set(deps.map((x) => String(x).toUpperCase()))], { list: [], folder: d.folder });
+
 // "API-121" or "API-121 in <folder> (<server data>)" for a key missingKeys found missing.
 const missingText = (m, k) => `${clean(k)}${m.where.has(k) ? ` ${m.where.get(k)}` : ''}`;
 
@@ -539,7 +543,7 @@ function pushFeature(project, feature, { repo } = {}) {
 module.exports = {
   commitFeature, pushFeature, fetched, highestKey, keyCheck,
   // for lib/plans.js, lib/plans-drafts.js and lib/plans-check.js
-  featureFolder, branchWith, exportedTicket, exportedProblems,
+  featureFolder, branchWith, exportedTicket, exportedProblems, draftMissing,
   // for lib/plans-export-repos.js and lib/plans-stubs.js
   TEMP, safe, folderFiles, fileNames, keyFolders,
 };
