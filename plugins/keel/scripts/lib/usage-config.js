@@ -1,6 +1,6 @@
 'use strict';
 // Machine-level usage settings and the wallet a session pays from (subscription, api or credit).
-// Files live in ~/.claude/keel/ (KEEL_USAGE_DIR overrides it in tests). Never throws.
+// Files live in usageDir() (KEEL_USAGE_DIR overrides it in tests). Never throws.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -11,8 +11,14 @@ const WALLETS = ['subscription', 'api', 'credit'];
 const API_ENV = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX',
   'CLAUDE_CODE_USE_FOUNDRY', 'CLAUDE_CODE_USE_MANTLE'];
 
+// <Claude dir>/keel, the Claude dir being CLAUDE_CONFIG_DIR or ~/.claude. A profile without its own folder
+// keeps using an existing ~/.claude/keel, so nothing written before goes missing.
 function usageDir(env = process.env) {
-  return env.KEEL_USAGE_DIR || path.join(os.homedir(), '.claude', 'keel');
+  if (env.KEEL_USAGE_DIR) return env.KEEL_USAGE_DIR;
+  const legacy = path.join(os.homedir(), '.claude', 'keel');
+  if (!env.CLAUDE_CONFIG_DIR) return legacy;
+  const own = path.join(env.CLAUDE_CONFIG_DIR, 'keel');
+  return !fs.existsSync(own) && fs.existsSync(legacy) ? legacy : own;
 }
 
 function readJson(file) {
@@ -23,7 +29,7 @@ function gitEmail() {
   try { return execFileSync('git', ['config', 'user.email'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null; } catch { return null; }
 }
 
-// ~/.claude/keel/usage.json with defaults filled in. `configured` is false until configure wrote it.
+// usage.json with defaults filled in. `configured` is false until configure wrote it.
 // statusline: { mode: 'keel' | 'wrap' | 'none', original: <the user's previous statusLine object> }.
 function loadMachineConfig(env = process.env) {
   const raw = readJson(path.join(usageDir(env), 'usage.json'));

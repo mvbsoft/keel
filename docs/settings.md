@@ -85,7 +85,8 @@ project's own value of `conversation_language`, `allow_opus` and `prompt_preview
 
 ## This machine
 
-In `~/.claude/keel/usage.json` unless noted. Set in `/keel:configure` (section "Usage and costs") or
+In `~/.claude/keel/usage.json` unless noted (with `CLAUDE_CONFIG_DIR` set, in that folder's `keel/` once
+it exists). Set in `/keel:configure` (section "Usage and costs") or
 `/keel:configure machine`, except `history_days`: configure never asks it, you edit the file.
 
 | Setting | What it does | Values | Default |

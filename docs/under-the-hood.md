@@ -113,7 +113,8 @@ works on which task (`active/`), so they hold wherever the chat works. `trusted-
 worktree as its main checkout, and a folder reached through a link as its real path. A worktree
 without its own `.keel/config.json` reads the main checkout's `config.json` and `profile.json`.
 
-On each machine keel also keeps `~/.claude/keel/`:
+On each machine keel also keeps `~/.claude/keel/` (`<CLAUDE_CONFIG_DIR>/keel/` when `CLAUDE_CONFIG_DIR`
+is set, unless only the old `~/.claude/keel/` exists):
 
 - `usage.json`: this machine's usage settings ([settings](settings.md#this-machine));
 - the wallet of each conversation, limit snapshots, the usage cache, the sync state of the usage page, the last plan-limit calibration (`calib-latest.json`), and `keel-tasks.jsonl`, the keel fields of each session (task, level, findings) that the usage page shows;
