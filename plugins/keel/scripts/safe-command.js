@@ -2,8 +2,9 @@
 // Decides whether a gate command may be run once during configure. keel runs only tests, linters and
 // type checks; anything that deploys, publishes, migrates, deletes or reaches remote systems is
 // refused. Script aliases are followed to the commands they really run: `pnpm run check` is judged
-// by the body of the "check" script in package.json, `make test` by its recipe. Package names and
-// file names that start with a read-only verb (check-migration-journal.mjs) are names, not actions.
+// by the body of the "check" script in package.json, `make test` by its recipe, `./scripts/ci.sh` by
+// the file, `cd api && npm test` by the script of api/package.json. Package names and file names that
+// start with a read-only verb (check-migration-journal.mjs) are names, not actions.
 // Usage: node safe-command.js <projectDir> <partDir> -- <command...>
 // Prints "safe" or "refused: <reasons>". Always exits 0.
 const fs = require('node:fs');
@@ -97,26 +98,86 @@ const VALUE_OPTS = { npm: ['--prefix', '-w', '--workspace'], pnpm: ['--filter', 
 // Options that run the script in other packages of the workspace, not only in this folder.
 const WIDE_OPTS = /^(--prefix|-w|--workspace|--workspaces|-ws|--filter|-F|-C|--dir|--cwd|-r|--recursive)(=|$)/;
 const BUILTINS = new Set(['install', 'i', 'ci', 'add', 'exec', 'dlx', 'x']);
+// Commands that run the "test" script: `npm t`, `npm cit` (clean install, then test), `pnpm it`.
+const TEST_ALIAS = { npm: /^(t|tst|it|install-test|cit|install-ci-test|clean-install-test|sit)$/, pnpm: /^(t|tst|it|install-test)$/ };
+
+// Task runners that run a package script in every package of the workspace: `turbo run test`,
+// `nx run-many -t test`, `lerna run test`, `yarn workspaces foreach -A run test`. Every bare word may
+// name a task, so each is looked up.
+function taskRunner(t) {
+  let i = 0;
+  if (/^(npx|bunx)$/.test(t[0])) i = 1;
+  else if (/^(npm|pnpm|yarn|bun)$/.test(t[0]) && /^(exec|x)$/.test(t[1])) i = 2;
+  else if (/^(pnpm|yarn)$/.test(t[0]) && /^(turbo|nx|lerna)(@\S+)?$/.test(t[1])) i = 1;
+  while (i && i < t.length && t[i].startsWith('-')) i++;
+  let rest;
+  if (/^(turbo|nx|lerna)(@\S+)?$/.test(t[i])) rest = t.slice(i + 1);
+  else if (t[0] === 'yarn' && t[1] === 'workspaces' && /^(foreach|run)$/.test(t[2])) rest = t.slice(3);
+  else return null;
+  const end = rest.indexOf('--');
+  const names = (end < 0 ? rest : rest.slice(0, end))
+    .flatMap((w) => w.replace(/^--?(?:targets?|t)=/, '').split(/[,:]/))
+    .filter((w) => w && !w.startsWith('-') && !['run', 'run-many', 'affected', 'exec'].includes(w));
+  const runner = /^(turbo|nx)/.exec(t[i]);
+  return names.length ? { names, wide: true, runner: runner && runner[1] } : null;
+}
+
+// turbo and nx first run the tasks a task depends on: `"test": { "dependsOn": ["^build", "db:reset"] }`
+// in turbo.json, or in nx.json `targetDefaults` and a project's own target (`{ "target": "build" }`).
+function dependsOnTasks(names, root, runner) {
+  let tasks;
+  if (runner === 'turbo') {
+    const json = readJson(path.join(root, 'turbo.json')) || {};
+    tasks = Object.entries(json.tasks || json.pipeline || {});
+  } else {
+    tasks = Object.entries((readJson(path.join(root, 'nx.json')) || {}).targetDefaults || {});
+    for (const file of packageFiles(root)) {
+      const json = readJson(file) || {};
+      tasks.push(...Object.entries((path.basename(file) === 'project.json' ? json.targets : json.nx && json.nx.targets) || {}));
+    }
+  }
+  const all = new Set(names);
+  for (const name of all) {
+    for (const [key, task] of tasks) {
+      if (key !== name && !key.endsWith(`#${name}`)) continue;
+      for (const dep of [].concat((task && task.dependsOn) || [])) {
+        const target = typeof dep === 'string' ? dep : dep && dep.target;
+        if (typeof target === 'string') all.add(target.replace(/^\^/, '').replace(/^[^#]*#/, ''));
+      }
+    }
+  }
+  return [...all];
+}
 
 // The package script a command runs: `npm -s run test`, `pnpm --filter web test`, `yarn workspace web test`.
 function scriptCall(piece) {
   const t = piece.split(/\s+/);
+  const task = taskRunner(t);
+  if (task) return task;
   if (!VALUE_OPTS[t[0]]) return null;
   let i = 1;
   let wide = false;
   if (t[0] === 'yarn' && t[1] === 'workspace') { wide = true; i = 3; }
+  const isWide = (word) => WIDE_OPTS.test(word) && !(t[0] === 'pnpm' && word === '-w');
   const skipOptions = () => {
     for (; i < t.length && t[i].startsWith('-'); i++) {
-      if (WIDE_OPTS.test(t[i]) && !(t[0] === 'pnpm' && t[i] === '-w')) wide = true;
+      if (isWide(t[i])) wide = true;
       if (VALUE_OPTS[t[0]].includes(t[i])) i++;
     }
   };
   skipOptions();
-  if (t[i] === 'run' || t[i] === 'run-script') { i++; skipOptions(); }
-  return t[i] && !BUILTINS.has(t[i]) ? { name: t[i], wide } : null;
+  const run = t[i] === 'run' || t[i] === 'run-script';
+  if (run) { i++; skipOptions(); }
+  if (!t[i] || BUILTINS.has(t[i])) return null;
+  // Options after the name may still reach the package manager (`npm test --workspaces`); only the
+  // words after `--` are the script's own.
+  for (let j = i + 1; j < t.length && t[j] !== '--'; j++) if (isWide(t[j])) wide = true;
+  const name = !run && TEST_ALIAS[t[0]] && TEST_ALIAS[t[0]].test(t[i]) ? 'test' : t[i];
+  return { names: [name], wide };
 }
 
-// package.json files of the workspace below dir, for a script that may run in any of them.
+// package.json and nx project.json files of the workspace below dir, for a script that may run in
+// any of them.
 function packageFiles(dir) {
   const out = [];
   const stack = [[dir, 0]];
@@ -125,17 +186,18 @@ function packageFiles(dir) {
     let entries = [];
     try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { continue; }
     for (const e of entries) {
-      if (e.isFile() && e.name === 'package.json') out.push(path.join(d, e.name));
+      if (e.isFile() && (e.name === 'package.json' || e.name === 'project.json')) out.push(path.join(d, e.name));
       else if (e.isDirectory() && depth < 4 && !['node_modules', '.git', 'dist', 'build', 'vendor'].includes(e.name)) stack.push([path.join(d, e.name), depth + 1]);
     }
   }
   return out;
 }
 
-// `make [-C dir] [-f file] [-j N] [VAR=x] targets...`; no target means the first rule.
+// `make [-C dir] [-f file] [-j N] [VAR=x] targets...`; no target means the first rule. `$(MAKE)` is
+// make inside a recipe.
 function makeCall(piece, dir) {
   const t = piece.split(/\s+/);
-  if (!/^(make|gmake|mingw32-make)$/.test(t[0])) return null;
+  if (!/^(make|gmake|mingw32-make|\$\(MAKE\)|\$\{MAKE\})$/.test(t[0])) return null;
   let at = dir;
   let file = null;
   const targets = [];
@@ -174,50 +236,162 @@ function readJson(file) {
   try { return readJsonFile(file); } catch { return null; }
 }
 
+// The shell commands of a target and its prerequisites. make runs each recipe line in a new shell, so a
+// `cd` on one line does not reach the next, unless the Makefile sets `.ONESHELL:`. A line ending in `\`
+// goes on the next line; the `@`, `-` and `+` that start a line are make's, not the shell's.
 function makeRecipe(makefile, target, seen = new Set()) {
-  if (seen.has(target)) return '';
+  if (seen.has(target)) return [];
   seen.add(target);
   let text;
-  try { text = fs.readFileSync(makefile, 'utf8'); } catch { return ''; }
+  try { text = fs.readFileSync(makefile, 'utf8'); } catch { return []; }
   const lines = text.split(/\r?\n/);
   const head = lines.findIndex((l) => new RegExp(`^${target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:(?!=)`).test(l));
-  if (head === -1) return '';
+  if (head === -1) return [];
   const deps = lines[head].split(':')[1].split(/\s+/).filter(Boolean);
   const body = [];
-  for (let i = head + 1; i < lines.length && /^\t/.test(lines[i]); i++) body.push(lines[i].trim());
-  return [...deps.map((d) => makeRecipe(makefile, d, seen)), ...body].join('\n');
+  for (let i = head + 1; i < lines.length && (/^\t/.test(lines[i]) || /\\$/.test(body[body.length - 1] || '')); i++) {
+    const line = lines[i].trim();
+    if (/\\$/.test(body[body.length - 1] || '')) body[body.length - 1] = `${body[body.length - 1].slice(0, -1)} ${line}`;
+    else body.push(line.replace(/^[@+-]+\s*/, ''));
+  }
+  const own = /^\.ONESHELL\s*:/m.test(text) ? [body.join('\n')] : body;
+  return [...deps.flatMap((d) => makeRecipe(makefile, d, seen)), ...own];
 }
 
-// Expands a command into everything it really runs (script bodies, recipes), up to a few levels.
-function expand(command, dir, depth = 0) {
+// `cd api`, `pushd api`, `Set-Location api`, `cd /d D:\x`: the folder the later pieces run in.
+// Redirects (`> /dev/null`, `2>&1`, `*> $null`) are left out before the match; a cd that still does
+// not match is refused.
+const CD = /^(cd|chdir|pushd|popd|Set-Location|sl|Push-Location|Pop-Location)(?:\s+(?:\/d|-Path|-LiteralPath))?(?:\s+("[^"]*"|'[^']*'|\S+))?$/i;
+const CD_VERB = /^(cd|chdir|pushd|popd|Set-Location|sl|Push-Location|Pop-Location)(?=\s|$)/i;
+const REDIRECT = /(?:\s+[\d*])?\s*(?:&>>?|>>?|<)\s*(?:&\d+|"[^"]*"|'[^']*'|[^\s<>]+)?/g;
+
+function changeDir([, verb, arg], dir, pushed, ctx) {
+  if (/^(popd|Pop-Location)$/i.test(verb)) return pushed.length ? pushed.pop() : dir;
+  const target = arg ? arg.replace(/^["']|["']$/g, '') : '';
+  if (!target || target === '-' || /^~|[$%]/.test(target)) {
+    ctx.refused.add(`changes to a folder keel cannot follow (${[verb, target].join(' ').trim()})`);
+    return dir;
+  }
+  const next = path.resolve(dir, target);
+  const rel = path.relative(ctx.root, next);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    ctx.refused.add(`leaves the project folder (${verb} ${target})`);
+    return dir;
+  }
+  if (/^(pushd|Push-Location)$/i.test(verb)) pushed.push(dir);
+  return next;
+}
+
+// npm, pnpm and yarn run the scripts of the nearest package.json at or above the folder.
+function nearestPackage(dir, root) {
+  for (let d = dir; ; d = path.dirname(d)) {
+    const file = path.join(d, 'package.json');
+    if (fs.existsSync(file)) return file;
+    const rel = path.relative(root, d);
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel) || path.dirname(d) === d) return path.join(dir, 'package.json');
+  }
+}
+
+// The commands a package script or an nx target runs.
+function scriptBodies(file, name) {
+  const json = readJson(file) || {};
+  if (path.basename(file) === 'project.json') {
+    const target = (json.targets || {})[name] || {};
+    const options = target.options || {};
+    return [target.command, options.command, ...[].concat(options.commands || []).map((c) => (c && typeof c === 'object' ? c.command : c))].filter((c) => typeof c === 'string');
+  }
+  const scripts = json.scripts || {};
+  return [name, `pre${name}`, `post${name}`].map((n) => scripts[n]).filter((c) => typeof c === 'string');
+}
+
+// The lines of a shell script file the piece runs: `./scripts/ci.sh`, `bash -e scripts/ci`,
+// `pwsh -File test.ps1`, `script/test` with a `#!/bin/sh` first line. Comment lines are left out. A
+// file that cannot be read is judged by its name. The Maven and Gradle wrappers only download and
+// start the build tool, so `./mvnw test` is judged by its words.
+const SCRIPT_FILE = /\.(?:sh|bash|zsh|ps1|bat|cmd)$/i;
+const SHELL_SHEBANG = /^#!\s*(?:\S*\/)?(?:env\s+(?:-\S+\s+)*)?(?:sh|bash|zsh|dash|ksh)(?:\s|$)/;
+const WRAPPER = /^(?:mvnw|gradlew)(?:\.cmd|\.bat)?$/i;
+function scriptFile(piece, dir, root) {
+  const t = piece.split(/\s+/).map((w) => w.replace(/^["']|["']$/g, ''));
+  let file = SCRIPT_FILE.test(t[0]) ? t[0] : null;
+  if (!file && t[0].includes('/') && !path.isAbsolute(t[0]) && !path.relative(root, path.resolve(dir, t[0])).startsWith('..')) {
+    try { if (SHELL_SHEBANG.test(fs.readFileSync(path.resolve(dir, t[0]), 'utf8').split(/\r?\n/, 1)[0])) file = t[0]; } catch {}
+  }
+  if (!file && /^(?:sh|bash|zsh|dash|ksh|source|\.|pwsh|powershell|cmd)(?:\.exe)?$/i.test(t[0])) {
+    file = t.slice(1).find((w) => SCRIPT_FILE.test(w)) || null;
+    if (!file && /^(?:sh|bash|zsh|dash|ksh|source|\.)$/.test(t[0])) {
+      const i = t.findIndex((w, k) => k > 0 && !w.startsWith('-'));
+      if (i > 0 && !t.slice(1, i).some((w) => /^-\w*c$/.test(w))) file = t[i];
+    }
+  }
+  if (!file || WRAPPER.test(path.basename(file))) return null;
+  try {
+    return fs.readFileSync(path.resolve(dir, file), 'utf8').split(/\r?\n/).filter((l) => !/^\s*(?:#|rem\b|::)/i.test(l)).join('\n');
+  } catch { return null; }
+}
+
+// Expands a command into everything it really runs (script bodies, recipes, script files), up to a few
+// levels. A `cd` moves the later pieces to its folder; a `( ... )` subshell and `sh -c '...'` keep
+// their `cd` inside.
+function expand(command, dir, depth = 0, ctx = { root: dir, refused: new Set() }) {
   if (depth > 5) return [command];
   const out = [command];
-  for (const piece of command.split(/&&|\|\||[;\n|&]/).map(unwrap).filter(Boolean)) {
-    const npm = scriptCall(piece);
-    if (npm) {
-      for (const file of npm.wide ? [path.join(dir, 'package.json'), ...packageFiles(dir)] : [path.join(dir, 'package.json')]) {
-        const scripts = (readJson(file) || {}).scripts || {};
-        for (const name of [npm.name, `pre${npm.name}`, `post${npm.name}`]) if (typeof scripts[name] === 'string') out.push(...expand(scripts[name], path.dirname(file), depth + 1));
+  const subshells = [];
+  const pushed = [];
+  const quoted = [];
+  const text = command.replace(/(?<![\w.-])(?:sh|bash|zsh|dash|ksh)(?:\.exe)?(?:\s+-[a-z]+)*?\s+-[a-z]*c\s+('[^']*'|"[^"]*")/gi, (m, q) => {
+    quoted.push(q.slice(1, -1));
+    return `${m.slice(0, -q.length)}\u0000${quoted.length - 1}`;
+  });
+  // `2>&1` and `&>` are redirects, not `&` that runs a command in the background.
+  for (const raw of text.split(/&&|\|\||[;\n|]|(?<![<>])&(?!>)/)) {
+    for (let n = /^[\s(]*/.exec(raw)[0].split('(').length - 1; n > 0; n--) subshells.push(dir);
+    const piece = unwrap(raw);
+    const bare = piece.replace(REDIRECT, '').trim();
+    const cd = CD_VERB.test(bare) && CD.exec(bare);
+    if (cd) dir = changeDir(cd, dir, pushed, ctx);
+    else if (CD_VERB.test(bare)) ctx.refused.add(`changes to a folder keel cannot follow (${bare.slice(0, 80)})`);
+    else if (piece) {
+      for (const [, k] of piece.matchAll(/\u0000(\d+)/g)) out.push(...expand(quoted[k], dir, depth + 1, ctx));
+      const npm = scriptCall(piece);
+      if (npm) {
+        const own = nearestPackage(dir, ctx.root);
+        const names = npm.runner ? dependsOnTasks(npm.names, ctx.root, npm.runner) : npm.names;
+        for (const file of npm.wide ? [own, ...packageFiles(dir)] : [own]) {
+          for (const name of names) for (const body of scriptBodies(file, name)) out.push(...expand(body, path.basename(file) === 'project.json' ? dir : path.dirname(file), depth + 1, ctx));
+        }
       }
+      const comp = /^composer\s+(?:run-script\s+|run\s+)?([A-Za-z0-9:_.-]+)/.exec(piece);
+      if (comp) {
+        const json = readJson(path.join(dir, 'composer.json'));
+        const body = json && json.scripts && json.scripts[comp[1]];
+        for (const b of [].concat(body || [])) out.push(...expand(String(b).replace(/^@/, ''), dir, depth + 1, ctx));
+      }
+      const make = makeCall(piece, dir);
+      if (make) for (const target of make.targets) for (const line of makeRecipe(make.makefile, target)) out.push(...expand(line, path.dirname(make.makefile), depth + 1, ctx));
+      const file = scriptFile(piece, dir, ctx.root);
+      if (file) out.push(...expand(file, dir, depth + 1, ctx));
     }
-    const comp = /^composer\s+(?:run-script\s+|run\s+)?([A-Za-z0-9:_.-]+)/.exec(piece);
-    if (comp) {
-      const json = readJson(path.join(dir, 'composer.json'));
-      const body = json && json.scripts && json.scripts[comp[1]];
-      for (const b of [].concat(body || [])) out.push(...expand(String(b).replace(/^@/, ''), dir, depth + 1));
-    }
-    const make = makeCall(piece, dir);
-    if (make) for (const target of make.targets) out.push(...expand(makeRecipe(make.makefile, target), path.dirname(make.makefile), depth + 1));
+    for (let n = /[\s)]*$/.exec(raw)[0].split(')').length - 1; n > 0 && subshells.length; n--) dir = subshells.pop();
   }
   return out;
 }
 
 function judge(projectDir, partDir, command) {
-  const dir = path.resolve(projectDir, partDir || '.');
-  const inside = path.relative(path.resolve(projectDir), dir);
+  const root = path.resolve(projectDir);
+  const dir = path.resolve(root, partDir || '.');
+  const inside = path.relative(root, dir);
   if (inside.startsWith('..') || path.isAbsolute(inside)) return { safe: false, reasons: ['the part folder is outside the project'] };
+  const ctx = { root, refused: new Set() };
   const reasons = new Set();
-  for (const text of expand(command, dir)) for (const [re, why] of DENY) if (re.test(withoutNames(text))) reasons.add(`${why} (${text.split('\n')[0].slice(0, 80)})`);
+  for (const text of expand(command, dir, 0, ctx)) {
+    for (const [re, why] of DENY) {
+      if (!re.test(withoutNames(text))) continue;
+      const lines = text.split('\n');
+      reasons.add(`${why} (${(lines.find((l) => re.test(withoutNames(l))) || lines[0]).slice(0, 80)})`);
+    }
+  }
+  for (const why of ctx.refused) reasons.add(why);
   return reasons.size ? { safe: false, reasons: [...reasons] } : { safe: true, reasons: [] };
 }
 

@@ -163,9 +163,11 @@ For every part, propose test, lint and type-check commands from `findings.comman
 conventions) and say where each came from. The user can accept, change or drop each.
 
 Then offer **one dry run** of the confirmed commands, so a wrong command is caught now:
-1. For each command run `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- <command>`
-   (several commands: all in one message as separate tool calls; it writes nothing).
-   `refused:` → do not run it; tell the user why and that they can run it themselves.
+1. For each command run `node "<keel>/scripts/safe-command.js" "<project>" "<part>" -- "<command>"`,
+   the whole command in double quotes, quotes inside it as single quotes (several commands: all in
+   one message as separate tool calls; it writes nothing).
+   `refused:` → do not run it; tell the user why and that they can run it themselves. A command with
+   `$` or a backtick cannot be checked: do not run it; say so and that they can run it themselves.
 2. Show the safe commands together and ask before running them. Run them one at a time from the
    part's folder; bring back only pass or fail and the first error lines.
 3. A failing command is not an error of the setup: ask whether to keep it (tests may be red today),

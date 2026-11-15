@@ -503,3 +503,19 @@ test('a confirmed step word with a project path that is not the current one\'s e
     assert.match(out.permissionDecisionReason, /exact absolute path/, tool);
   }
 });
+
+test('safe-command.js takes the command to judge in double quotes; one with $ or a backtick is not checked', () => {
+  const sc = `node "${SCRIPTS}/safe-command.js" "/p" "."`;
+  for (const tool of ['Bash', 'PowerShell']) {
+    for (const cmd of [`${sc} -- "cd api && npm test"`, `${sc} -- "eslint src/**/*.ts"`, `${sc} -- "pytest -k 'not slow'"`]) {
+      assert.equal(shell(cmd, tool), 'allow', `${tool}: ${cmd}`);
+    }
+    for (const cmd of [`${sc} -- cd api && npm test`, `${sc} -- "go test $(go list ./...)"`, `${sc} -- "pytest --junitxml=$CI_DIR/r.xml"`, `${sc} -- 'go test $(go list ./...)'`, `${sc} -- "go test \`go list\`"`]) {
+      const out = hook(tool, { command: cmd });
+      assert.equal(out?.permissionDecision, 'deny', `${tool}: ${cmd}`);
+      assert.match(out.permissionDecisionReason, /in double quotes after --/, `${tool}: ${cmd}`);
+      assert.match(out.permissionDecisionReason, /\$ or a backtick cannot be checked/, `${tool}: ${cmd}`);
+      assert.doesNotMatch(out.permissionDecisionReason, /one by one/, `${tool}: ${cmd}`);
+    }
+  }
+});

@@ -59,7 +59,12 @@ the setting in full. Quick setup explains too; it only asks fewer questions.
   be skipped, but you can accept the proposal with one answer.
 
 The dry run skips any command that deploys, publishes, migrates, deletes, or discards uncommitted
-work (such as `git restore`, `git stash` or `rm`); keel says why, and you can run it yourself.
+work (such as `git restore`, `git stash` or `rm`); keel says why, and you can run it yourself. It
+judges a command by what it really runs: the package script, Make recipe or shell script behind it,
+in the folder a `cd` moves to and in every package a workspace option or a task runner (turbo, nx,
+lerna) reaches. A program in another language, and the Maven and Gradle wrappers (`./mvnw`,
+`./gradlew`), are judged by the words of the command only. A command with `$` or a backtick cannot
+be checked, so the dry run skips it too.
 
 **Your existing docs.** Quick setup keeps them as they are (the suggested documentation profile and
 pattern). In detailed setup (documentation profiles 3 and 4 pick a pattern such as Diátaxis or
