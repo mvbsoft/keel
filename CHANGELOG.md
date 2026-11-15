@@ -497,6 +497,10 @@ All notable changes to keel are listed here. The format follows
   left out of the gates was new, and after a dependency bump every keel command said `profile: stale`.
   A record rebuilt that way earlier stays until the next full `/keel:configure`; deleting
   `.keel/local/configure-snapshot.json` makes the next `/keel:configure check` rebuild it.
+- A migration from another notes system no longer moves files out of a link: when the old folder, or a
+  folder inside it, was a symlink or junction to a folder outside the project (notes shared by several
+  projects), their files left the shared folder for `.keel/` and the other projects lost them. Such a
+  move is now refused with the reason, and the files stay where they are.
 
 ### Removed
 - `approved_artifact_urls` and `page_shared` in `~/.claude/keel/usage.json`.

@@ -388,6 +388,8 @@ function apply(root, planFile) {
     if (a.op !== 'trash' && !keelTarget(a.to)) { fail('the target must be .keel/next-session.md, .keel/memory/, .keel/sessions/ or .keel/local/archive/'); continue; }
     try {
       if (a.op === 'move') {
+        const viaLink = linkOnWay(root, from);
+        if (viaLink) { fail(`${viaLink}: keel does not move files out of a link; copy what the project needs by hand`); continue; }
         const st = fs.statSync(from);
         const listed = st.isDirectory() ? walk(root, strip(a.from)) : null;
         if (listed && listed.truncated) { fail(`more than ${MAX_WALK} files; move it by hand`); continue; }
