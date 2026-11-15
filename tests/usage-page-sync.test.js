@@ -143,9 +143,25 @@ test('a project with the old shared page URL is told once that it is no longer u
   const spec = w.prepare();
   assert.equal(spec.artifact_url, null);
   assert.equal(spec.action, 'skip');
-  assert.match(w.report(), /shared usage page .* is no longer used/);
+  const said = w.report();
+  assert.match(said, /shared usage page .* is no longer used/);
+  assert.match(said, /no page of its own yet: \/keel:usage on sets one up/, 'a PC without its own page is told the command');
   w.prepare();
   assert.doesNotMatch(w.report(), /no longer used/, 'once per machine');
+  const own = world();
+  session(own);
+  fs.mkdirSync(path.join(own.project, '.keel'), { recursive: true });
+  fs.writeFileSync(path.join(own.project, '.keel', 'config.json'), JSON.stringify({ usage: { artifact_url: 'https://claude.ai/artifact/team' } }));
+  own.prepare();
+  const ownSaid = own.report();
+  assert.match(ownSaid, /is no longer used/);
+  assert.doesNotMatch(ownSaid, /no page of its own/, 'a PC with its own page needs no command');
+  const uk = world({ artifact_url: undefined });
+  session(uk);
+  fs.mkdirSync(path.join(uk.project, '.keel'), { recursive: true });
+  fs.writeFileSync(path.join(uk.project, '.keel', 'config.json'), JSON.stringify({ usage: { artifact_url: 'https://claude.ai/artifact/team' } }));
+  uk.prepare();
+  assert.match(uk.report('--lang', 'uk'), /\/keel:usage on/);
 });
 
 test('audit: the page as published matches the local transcripts; a changed file shows the difference', () => {

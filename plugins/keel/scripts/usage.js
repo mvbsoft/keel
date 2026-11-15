@@ -226,7 +226,7 @@ function prepare(opts) {
   }
   // Without a page the last one is kept: the state still describes it, so the next page resets it above.
   if (url) state.artifact_url = url;
-  if (projectArtifactUrl(root) && !state.team_page_noted) { addNote(state, 'team_page'); state.team_page_noted = true; }
+  if (projectArtifactUrl(root) && !state.team_page_noted) { addNote(state, url ? 'team_page' : 'team_page_no_own'); state.team_page_noted = true; }
 
   const root_ = projectsRoot();
   const sessionRef = typeof opts.session === 'string' ? store.listSessions(root_).find((r) => r.id === opts.session) : store.newestSessionIn(root_, root);

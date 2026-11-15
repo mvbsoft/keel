@@ -125,8 +125,16 @@ claude plugin marketplace update keel
 claude plugin update keel@keel
 ```
 
-Then start a new conversation. A project whose `.keel/config.json` is older than the new version is
-repaired by `/keel:configure`: it asks only about the new fields and keeps everything else.
+Then start a new conversation. keel reads a project's `.keel/config.json` from an older version as it
+is and keeps everything in it; a new settings section is set with `/keel:configure <section>`. What a
+version needs you to do by hand is at the top of its entry in the [changelog](../CHANGELOG.md).
+
+From 1.4.0, in short:
+
+- update keel on every machine that works on a project before anyone runs `/keel:configure` there
+  with the new version: keel 1.4.0 refuses the config the new version writes;
+- run `/keel:configure planning` before you plan;
+- the rest is in [Upgrading from 1.4.0](../CHANGELOG.md#upgrading-from-140).
 
 ## Uninstall
 
