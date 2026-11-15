@@ -1,6 +1,6 @@
 {
   "name": "keel",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "description": "Task, session and feature-planning workflows, project setup and independent multi-agent verification for Claude Code. Requires Node.js 22 or newer.",
   "author": {
     "name": "Vitalii Malinovskyi",

@@ -6,6 +6,8 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-15
+
 ### Upgrading from 1.4.0
 - Update keel on every machine that works on a project before anyone runs `/keel:configure` there with
   this version, also on your own second machine: it writes the new `planning` section (and
@@ -690,7 +692,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/mvbsoft/keel/compare/v1.4.0...v2.0.0
 [1.4.0]: https://github.com/mvbsoft/keel/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/mvbsoft/keel/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/mvbsoft/keel/compare/v1.2.0...v1.2.1
