@@ -172,6 +172,23 @@ test('text files: only doc-like .txt names are docs; requirements.txt and CMakeL
   assert.deepEqual(run([file('requirements.txt', ['flask==3.0'])]).groups.env.topics, ['dependencies']);
 });
 
+test('text files: code named like a README, a changelog or a license is code', () => {
+  for (const p of ['README', 'readme.txt', 'README-dev.txt', 'CHANGELOG', 'docs/CHANGELOG.md', 'changelog.txt', 'LICENSE', 'LICENSE.txt', 'license-MIT.txt', 'LICENSE.md']) assert.equal(changesBehavior(file(p, ['words'])), false, p);
+  for (const p of ['README.rdoc', 'README.org', 'README.textile', 'README.pod', 'README.asciidoc', 'CHANGELOG.rdoc']) {
+    const a = run([file(p, ['Set the API token in config before you start.'])]);
+    assert.equal(a.proposal.tier, 'gates-only', p);
+    assert.ok(a.groups.docs, p);
+    assert.equal(a.groups.security, undefined, p);
+  }
+  const risky = ['import os', 'def f(password): os.system(password)'];
+  for (const p of ['src/changelog_service.py', 'src/readme_parser.py', 'src/ChangelogController.py', 'scripts/changelog.js', 'src/Readme.tsx', 'src/license.py', 'src/License.java', 'lib/license.ts']) {
+    const a = run([file(p, risky)]);
+    assert.equal(a.proposal.tier, 'standard', p);
+    assert.ok(a.groups.security, p);
+    assert.equal(a.groups.docs, undefined, p);
+  }
+});
+
 test('every migration folder and API file of the catalog calls its topic', () => {
   for (const dir of catalog.database.migration_dirs) {
     for (const prefix of ['', 'service/']) {

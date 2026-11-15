@@ -467,6 +467,11 @@ All notable changes to keel are listed here. The format follows
 - A rules or ADR file named like a secret (`.claude/rules/credentials.md`, `docs/adr/secrets.md`) no longer
   stops the project scan: every keel command in such a project said `keel-config: unavailable`. The file
   is listed with the secret files and never opened.
+- A code file whose name starts with `readme`, `changelog` or `license` (`changelog_service.py`,
+  `ChangelogController.py`, `scripts/changelog.js`, `src/license.py`) is now read as code, not as a text
+  file: a one-file change to it was proposed for gates only, and its security words never called the
+  security group. A README, changelog or license counts as text with no extension, a `.txt` one, or in a
+  doc format (Markdown, reST, AsciiDoc, RDoc, Org, Textile, POD).
 - Planning's check for paths of this machine: on an exported feature it also reads the feature's
   tickets in the overview's other repositories on this machine (a later `--repo` ticket or an edit
   there was committed and pushed unchecked); a project at `/app` no longer flags `src/apple.js`; a web
