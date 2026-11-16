@@ -50,7 +50,8 @@ tickets/csv-export/                 the feature folder (place repo; place pc: .k
 The files of a feature never move, except when you ask `plans.js move` to take the whole folder
 between this machine and the repository. A task of a ticket is a flat folder `<feature>-T<n>`.
 It lies in `.keel/local/tasks/` whatever `tasks.in_git` says when the feature is on this machine
-(`pc`) or the ticket is for another repository, so that nothing of a feature outside git travels in git.
+(`pc`), so that nothing of a feature outside git travels in git, or when the ticket is for another
+repository: its code is committed there, and a task folder here would travel on a branch without it.
 
 ### Stages
 
@@ -219,7 +220,7 @@ there.
   admin`, front matter `type: stub`, `repo: admin`) with only what can be written without that
   repository's code: no Boundaries, Correct the priors or Where to look, and How to check in manual
   steps. Tickets name it in `depends_on` like any other and it has a status like any other; the plan
-  reviewer counts its behaviour as covered. This project needs at least one ticket of its own.
+  reviewer counts its behaviour as covered.
   `/keel:start-task` does not start a stub: it must first become a full ticket.
 - **When that repository is here.** `plans.js check` says so (`note: stub T4 can become a full ticket`),
   and keel offers `plans.js ticket <feature> --from-stub T4`: the same `T4`, now a full ticket in
@@ -229,7 +230,8 @@ there.
 - **A repository without keel.** Its tickets are planned and done like the others: the git steps run
   there in manual mode (its main branch from `origin/HEAD`), keel proposes its checks from its
   `package.json` or `composer.json` and you confirm, and its task has its own `started`, `branch` and
-  `base`.
+  `base`. keel's own files there (`.keel/local/`: the verification record, the finish record of its
+  task, scratch files) get a `.gitignore` of their own, so they never show in `git status` or a commit.
 - **Doing it.** `/keel:start-task <feature>/T<n>` for a ticket of another repository asks once where
   it runs: here, in a helper working in that repository (it asks nothing itself: it stops on a
   decision and the conversation asks you), or a separate session. keel prints the separate session's
