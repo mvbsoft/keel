@@ -558,3 +558,16 @@ gitTest('the page marks a ticket and the plan that need review, as plans.js tick
   assert.match(script, /t\.review \? reviewBadge\(\)/, 'the ticket\'s header marks it');
   assert.match(script, /data\.review \? bubbleButton\([^\n]*L\('plan_needs_review_title'\)/, 'the feature card marks the plan');
 });
+
+test('the page has no export-era states: a draft plan shows its tickets\' draft states in the status card', () => {
+  const script = fs.readFileSync(path.join(TEMPLATE_DIR, 'page.js'), 'utf8');
+  const stateKeys = vm.runInNewContext(`(${/const STATE_KEYS = (\{[\s\S]*?\});/.exec(script)[1]})`);
+  assert.ok(!('exported' in stateKeys) && !('draft (ready)' in stateKeys), Object.keys(stateKeys).join(', '));
+  assert.match(script, /function statusCard\(\) \{\n {4}const t = data\.tickets;\n {4}if \(!t\.length\) return null;/, 'a draft plan has its status card');
+  assert.match(script, /const groups = \[[^\]]*'draft'[^\]]*\]\.filter/, 'drafts are counted');
+  for (const code of ['en', 'uk']) {
+    const cat = JSON.parse(fs.readFileSync(path.join(SCRIPTS, '..', 'locales', `${code}.json`), 'utf8'));
+    assert.ok(!('page.state.exported' in cat) && !('page.state.draft_ready' in cat), code);
+    assert.doesNotMatch(cat['page.draft_note'], /export|перенес/i, code);
+  }
+});

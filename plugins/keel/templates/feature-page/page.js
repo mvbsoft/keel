@@ -15,7 +15,7 @@
   const snake = (name) => name.toLowerCase().replace(/[^a-z]+/g, '_').replace(/^_|_$/g, '');
   const sectionName = (n) => (data.labels[`section.${snake(n)}`] !== undefined ? L(`section.${snake(n)}`) : n);
   const STATE_KEYS = { done: 'done', 'waiting for the feature merge': 'waiting_feature', 'waiting for merge into the feature branch': 'waiting_branch',
-    'in progress': 'in_progress', 'to do': 'to_do', next: 'next', draft: 'draft', 'draft (ready)': 'draft_ready', exported: 'exported', abandoned: 'abandoned',
+    'in progress': 'in_progress', 'to do': 'to_do', next: 'next', draft: 'draft', abandoned: 'abandoned',
     'state unknown': 'unknown', 'not found': 'not_found', 'not checked': 'not_checked' };
   const stateText = (s) => (STATE_KEYS[s] ? L(`state.${STATE_KEYS[s]}`) : s);
   // The page's state groups: the counts, the bar and each ticket's colour.
@@ -473,7 +473,7 @@
   // What is in work (every repository), else what is next; the bar and the counts.
   function statusCard() {
     const t = data.tickets;
-    if (!t.length || draft) return null;
+    if (!t.length) return null;
     const doing = t.filter((x) => x.state === 'in progress');
     const next = t.find((x) => x.next);
     const allDone = t.every((x) => ['done', 'waiting'].includes(groupOf(x)));
@@ -486,7 +486,7 @@
     if (doing.length && next) card.append(el('span', 'small muted', L('then_next', { key: next.key, repo: next.repo })));
     const counts = {};
     for (const x of t) counts[countGroup(groupOf(x))] = (counts[countGroup(groupOf(x))] || 0) + 1;
-    const groups = ['done', 'waiting', 'doing', 'todo', 'unknown'].filter((g) => counts[g]);
+    const groups = ['done', 'waiting', 'doing', 'todo', 'draft', 'unknown'].filter((g) => counts[g]);
     const bar = el('div', 'prog');
     bar.setAttribute('role', 'img');
     bar.setAttribute('aria-label', groups.map((g) => `${counts[g]} ${groupText(g)}`).join(', '));
