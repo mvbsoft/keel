@@ -2,7 +2,7 @@
 id: <T-number, as in the file name>
 type: ticket
 status: <draft | ready | in-progress | done | abandoned; plans.js status changes it>
-repo: <only for another repository of the plan's repos: its ticket prefix; none means this project>
+repo: <only for another repository: its name, as plans.js repos names it; none means this project>
 depends_on: <T1, T2, or empty>
 branch: <the task's branch, written when the ticket is taken>
 reason: <only for abandoned: why>

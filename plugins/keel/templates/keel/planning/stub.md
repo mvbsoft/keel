@@ -2,7 +2,7 @@
 id: <T-number, as in the file name>
 type: stub
 status: <draft | ready | in-progress | done | abandoned; plans.js status changes it>
-repo: <the ticket prefix of the repository that is not on this machine>
+repo: <the name of the repository that is not on this machine, as plans.js repos names it>
 depends_on: <T1, T2, or empty>
 review_hash: <set by plans.js reviewed over the essential sections and depends_on; a later change there marks the stub as needing review, its status stays; or ->
 ---
