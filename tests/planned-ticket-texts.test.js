@@ -32,6 +32,8 @@ test('start-task: each ticket state has its answer; a draft stops, a changed tic
   says(p, ['`in-progress` here', '`remote: in-progress on <branch>`', 'who took it and where', 'continue it / start over / take another ticket']);
   says(p, ['`done` or `abandoned`', 'start it again only on a yes', 'a done or abandoned plan opens again with it']);
   says(p, ['`in <name>`', 'another repository', '"start it in <name>"', 'stop']);
+  says(p, ['`stub`', 'planned in full in its repository', '`plans.js ticket <feature> --from-stub T<n>`', 'say so and stop']);
+  order(p, '- `stub` →', '- `next` or `ready` →', 'a ready stub stops before it is read as a ticket to start');
   says(p, ['a `depends:` ticket not `done`', '`note:` line', 'take the next ticket /', 'start anyway']);
   says(p, ['`next` or `ready`', 'read the ticket (`file:`)', 'Goal, Acceptance criteria and Where to', 'steps 3-6 as for any task']);
 });
@@ -42,6 +44,20 @@ test('start-task: a ticket of another repository asks once where it runs; a sepa
   says(p, ['Here or a subagent', 'on that folder in place of', '`<project>`', 'its own rules', 'without keel there git', 'is manual', '`package.json` / `composer.json`', 'the user', 'confirms', 'returns it as a question']);
   says(p, ['A separate session', 'print exactly', '`cd <its folder> && claude --add-dir <project> "<prompt>"`', "the ticket file's", 'absolute path', '`node <keel>/scripts/plans.js <its folder> status <feature> T<n> done --project <project>`', 'stop here']);
   assert.match(read('scripts', 'plans.js'), /^\/\/   status <feature> <T<n>> .*\[--project <path>\]/m, 'plans.js status takes --project');
+  // keel's hook refuses a commit or push on a project other than the session's own: the user runs them.
+  says(p, ['A separate session', "this project's feature branch `<b>`", 'a', 'feature in the repository', 'the line for the user', '"In <project>, on `<b>`, run', '`node <keel>/scripts/plans.js <project> commit <feature> --tickets T<n>`', '`node <keel>/scripts/plans.js <project> push <feature>`"', 'commit only in', 'its own project']);
+  order(p, 'status <feature> T<n> done --project <project>`', 'plans.js <project> commit <feature> --tickets T<n>`', 'the status is written before its commit');
+});
+
+test('a ticket of another repository: every git and verification script there runs with --other-repo, which each takes', () => {
+  const scripts = ['`git-flow.js`', '`changes.js`', '`fingerprint.js`', '`votes.js`'];
+  says(planned(), ['Here or a subagent', 'on that folder in place of', '`--other-repo` as the last argument', ...scripts]);
+  says(planned(), ['`git-flow.js "<its folder>" status --other-repo`']);
+  says(skill('end-task'), ["its `repo:` → another repository", 'in place of `<project>`', '`--other-repo` as the last argument', ...scripts]);
+  says(shared('git.md'), ['**A ticket of another repository**', 'every `git-flow.js` step', 'in place of `<project>`', 'with `--other-repo` last']);
+  says(shared('verify.md'), ["A ticket of another repository (the task's `repo:`)", "`<project>` below is that repository's folder", '`changes.js`, `fingerprint.js` and `votes.js`', 'ends with `--other-repo`']);
+  says(shared('task-resume.md'), ["repository's ticket (its `repo:`)", "run on that repository's", 'in place of `<project>`', 'each `git-flow.js` call with `--other-repo` last', '`notes.js` stays on `<project>`']);
+  for (const name of ['git-flow.js', 'changes.js', 'fingerprint.js', 'votes.js']) assert.match(read('scripts', name), /opts\['other-repo'\]/, `${name} reads --other-repo`);
 });
 
 test('start-task: a ticket works on its feature branch by default; a ticket branch <b>-T<n> only on request; its status is committed and pushed', () => {
@@ -201,7 +217,8 @@ test('git.md: the end of a feature says so, then asks one step at a time; the fe
   assert.match(read('scripts', 'git-flow.js'), /`merge: \$\{source\} -> \$\{target\} \(\$\{merged\}\)`/);
   says(end, ['keep them (default) or delete them']);
   says(end, ['`plans: drop refused (...)`', 'say why', 'tickets stay']);
-  order(end, 'plans.js" "<project>" drop <f>`', 'plans.js" "<project>" commit <f>`', 'the folder leaves in its own commit');
+  // The plan's own commit comes before step 0; within step 1 the drop comes first.
+  order(part(end, '1. The tickets', '2. "Merge'), 'plans.js" "<project>" drop <f>`', 'plans.js" "<project>" commit <f>`', 'the folder leaves in its own commit');
   says(end, ['`drop: <folder> -> trash <batch>`']);
   says(end, ['in its own commit on the feature branch', 'before the merge', 'keel never commits on the main branch']);
   order(end, 'commit <f>`', '"Merge `<branch>` into `<merge_into>`?"', 'the tickets leave before the merge');
@@ -250,4 +267,23 @@ test('every plans.js output line the task and session instructions quote is prin
 test('a plan whose last ticket was closed elsewhere: /keel:tasks and start-task act on the plan: line of plans.js tickets', () => {
   says(skill('tasks'), ['`plan: every ticket is done or abandoned: plans.js state <f> done`', 'its last ticket closed elsewhere', '"Mark the plan <f>', 'done?"', 'that `plans.js state <f> done`']);
   says(planned(), ['`plan: ... plans.js state <f> done` line', 'its last ticket closed elsewhere', 'Mark the plan done?', '"End of feature" in git.md']);
+});
+
+test('End of feature: a plan marked done outside a finish is committed and pushed before the merge; a feature on this machine has only step 1', () => {
+  const end = shared('git-end-of-feature.md');
+  says(end, ['**The plan in git**', 'first when on `<branch>` or its ticket branch `<branch>-<t>`', 'again on', '`<branch>` before step 2', '`git status --porcelain -- <folder>`', 'prints a line', 'outside a task\'s finish', '`node "<keel>/scripts/plans.js" "<project>" commit <f>`', '`plans.js push <f>`', 'On any other branch step 0 takes the change to `<branch>`']);
+  order(end, '**The plan in git**', '0. Onto `<branch>`.', 'the plan is committed before any branch change');
+  says(end, ['`<folder>` from its', '`folder:` line']);
+  says(end, ['A feature on this machine', '`(this machine only)`', 'only step 1', 'no feature branch to switch to, merge or delete']);
+  says(skill('tasks'), ['yes → run that `plans.js state <f> done`', 'its end as below', 'first commits and', 'pushes the plan']);
+  says(planned(), ['"End of feature" in git.md', 'it first commits and', 'pushes the plan']);
+});
+
+test('/keel:tasks: End of feature is offered only while the feature branch can still merge, never again for a feature on this machine', () => {
+  const t = skill('tasks');
+  says(t, ['a', '`- <f>: done` line', 'offer its end', 'not when the line ends with `merged into <m>`,', '`not found` or `kept on this machine`', 'keep was asked when the plan', 'say nothing', '`plans.js drop <f>`', 'on a branch of its own', '`plans.js commit <f>` there']);
+  assert.match(read('scripts', 'lib', 'plans-git.js'), /return ' · kept on this machine';/, 'plans.js list prints kept on this machine');
+  const lib = read('scripts', 'lib', 'plans-git.js');
+  assert.match(lib, /` · branch \$\{clean\(b\.branch, 80\)\} merged into \$\{clean\(b\.merge_into, 80\)\}`/, 'plans.js list prints merged into <m>');
+  assert.match(lib, /` · branch \$\{clean\(b\.branch, 80\)\} not found`/, 'plans.js list prints not found');
 });

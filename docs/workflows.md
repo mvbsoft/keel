@@ -160,6 +160,7 @@ reads the ticket's [status](planning.md#ticket-states):
 | `in-progress` here or on the remote | Names the branch it was taken on and asks: continue it, start over, or take another ticket. |
 | `done` or `abandoned` | Says so; starts it again only on your yes. |
 | blocked by a dependency | A dependency of the feature that is not `done` → take the next ticket, or start anyway. |
+| a stub | Says it is planned in full in its repository once that repository is on this machine, and stops. |
 | in another repository (`type: elsewhere`) | Says "start it in <name>" and stops. A ticket for another repository planned here (`repo:`) asks once where it runs: here, in a helper, or a separate session ([a feature on several repositories](planning.md#a-feature-on-several-repositories)). |
 
 **Branch.** The feature's branch (the plan's `branch`) is offered first: keel switches to it, or

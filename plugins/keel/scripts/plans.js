@@ -9,7 +9,9 @@
 // The result is the first output line; a refusal is `plans: <command> refused (<why>)`. Exit code 0.
 // Usage: node plans.js <projectDir> <command>
 //   list                                  the features: name, state (needs review), open questions,
-//                                         tickets, last change, folder
+//                                         tickets, last change, folder; a done one with nothing left
+//                                         for End of feature: `kept on this machine`, `branch <b> merged
+//                                         into <m>` (here or on the remote), `branch <b> not found`
 //   find <words...>                       the features whose folder name or In plain words has the words:
 //                                         one match, several, or none (then all features)
 //   new <feature> [--place repo|pc]       a feature folder with plan.md (status draft) where --place, else
@@ -53,7 +55,7 @@
 //                                         abandoned to in-progress
 //   status <feature> <T<n>> <draft|ready|in-progress|done|abandoned> [--reason <why>] [--branch <b>] [--project <path>]
 //                                         one ticket's status. ready waits for its review; abandoned needs
-//                                         --reason; in-progress (not from draft, again from done or abandoned;
+//                                         --reason; in-progress (not from draft, not for a stub, again from done or abandoned;
 //                                         --branch: the task's branch, into the ticket's branch field) moves a
 //                                         ready, done or abandoned plan to in-progress; done only from in-progress.
 //                                         --project: the project that holds the feature, for a session in
@@ -85,7 +87,8 @@
 //                                         when it is not in the repository); one ticket (and its file, its
 //                                         status on the remote's plan branch, `remote:`, and its
 //                                         dependencies). `next:` the ticket to take next: ready, no stub,
-//                                         reviewed, every dependency done. --fetch: git fetch --prune first
+//                                         reviewed, every dependency done, one of this repository before an
+//                                         elsewhere one. --fetch: git fetch --prune first
 //   move <feature> --to repo|pc           the feature folder as it is between the repository
 //                                         (<tickets_dir>/<feature>/) and this machine
 //                                         (.keel/local/plans/keel/<feature>/); refused when the target

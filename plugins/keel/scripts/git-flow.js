@@ -34,8 +34,9 @@
 // went to keel's trash: when a step stops, the task is put back at once (`restored:`), so a finish
 // never ends without a commit and without its task. A commit records the finish as committed
 // (lib/finish.js); a push that completes after that commit ends it.
-// A repository without keel (a planned ticket of another repository) runs in manual git mode, its main
-// branch the one origin/HEAD names.
+// --other-repo (any step, last): the folder of a planned ticket of another repository; without keel there
+// it runs in manual git mode, its main branch the one origin/HEAD names. Without it a folder with no
+// .keel/config.json is refused: keel is not configured there.
 // First output line: `git-flow: ok | stopped | unavailable`; then `reason:` and details. Exit code 0.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -96,8 +97,8 @@ function changedFiles(root) {
 // The remote keel works with: origin, else the first one.
 const pickRemote = (remotes) => (remotes.includes('origin') ? 'origin' : remotes[0] || null);
 
-function context(root) {
-  const { config, isSecret } = loadProjectOrDefaults(root);
+function context(root, otherRepo = false) {
+  const { config, isSecret } = loadProjectOrDefaults(root, otherRepo);
   if (!config.git.main_branch) throw new Error('keel is not configured here and origin/HEAD names no main branch (git remote set-head origin --auto sets it)');
   const repo = git(root, ['rev-parse', '--git-dir']);
   if (!repo.ok) throw new Stop(/dubious ownership/i.test(repo.err) ? `git does not trust this folder's owner: ${firstLines(repo.err)}` : 'not a git repository');
@@ -483,12 +484,12 @@ function save(root, opts) {
     if (opts[o] === true) return ['git-flow: stopped', `reason: --${o} needs a base branch: --${o} <base>`];
   }
   if (opts.finish !== undefined && opts.sync === undefined) return ['git-flow: stopped', 'reason: --finish needs --sync <base> in save (a finish always updates from its base before the push)'];
-  const finish = { finish: opts.finish, session: opts.session };
+  const finish = { finish: opts.finish, session: opts.session, 'other-repo': opts['other-repo'] };
   const plan = [
     ['commit', { 'message-file': opts['message-file'], tickets: opts.tickets, ...finish }],
     ...(opts.sync !== undefined ? [['sync', { from: opts.sync, ...finish }]] : []),
     ['push', finish],
-    ...(opts['back-to'] !== undefined ? [['switch', { name: opts['back-to'] }]] : []),
+    ...(opts['back-to'] !== undefined ? [['switch', { name: opts['back-to'], 'other-repo': opts['other-repo'] }]] : []),
   ];
   const names = plan.map(([name]) => name);
   const body = [];
@@ -541,7 +542,7 @@ function afterFinishStep(root, command, opts, ok) {
 function step(root, command, opts) {
   if (!commands[command]) return ['git-flow: unavailable', `reason: unknown command "${command}" (status, start, switch, commit, sync, push, save, merge, trust, delete-branch)`];
   let ctx;
-  try { ctx = context(root); } catch (e) {
+  try { ctx = context(root, opts['other-repo'] !== undefined); } catch (e) {
     return ['git-flow: unavailable', `reason: ${e.message}`];
   }
   try {

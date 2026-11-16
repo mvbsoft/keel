@@ -72,6 +72,40 @@ function mergedWarnings(root, d, list) {
   return out;
 }
 
+// For plans.js list, made once per list: (d) => the mark of a done feature whose End of feature has
+// nothing left to offer, '' for any other. ` · kept on this machine`: a feature on this machine (its
+// keep or delete is asked when the plan is marked done); ` · branch <b> merged into <m>`: its last commit
+// is in <m> here or on the remote (read as mergedWarnings reads a merge), so a merge on the server
+// counts before <m> is pulled; ` · branch <b> not found`: neither here nor on the remote, as of the last
+// fetch. The remote, the main branch and each target's first-parent line are read once.
+function endedMarks(root) {
+  let ctx = null;
+  const sha = (ref) => readGit(root, ['rev-parse', '-q', '--verify', `${ref}^{commit}`]);
+  return (d) => {
+    if (d.fm.status !== 'done') return '';
+    if (d.local) return ' · kept on this machine';
+    if (!ctx) {
+      const repo = readGit(root, ['rev-parse', '--git-dir']) !== null;
+      ctx = { repo, remote: repo ? flow.pickRemote((readGit(root, ['remote']) || '').split('\n').filter(Boolean)) : null, main: repo ? plans.mainBranch(root) : null, lines: new Map() };
+    }
+    if (!ctx.repo) return '';
+    const refs = (name) => [`refs/heads/${name}`, ...(ctx.remote ? [`refs/remotes/${ctx.remote}/${name}`] : [])];
+    const b = plans.branchesOf(root, d, ctx.main);
+    const tip = refs(b.branch).map(sha).find(Boolean);
+    if (!tip) return ` · branch ${clean(b.branch, 80)} not found`;
+    if (!given(b.merge_into) || b.merge_into === b.branch) return '';
+    const merged = refs(b.merge_into).some((into) => {
+      if (!ctx.lines.has(into)) {
+        const line = readGit(root, ['rev-list', '--first-parent', into]);
+        ctx.lines.set(into, line === null ? null : new Set(line.split('\n')));
+      }
+      const line = ctx.lines.get(into);
+      return Boolean(line) && !line.has(tip) && readGit(root, ['merge-base', '--is-ancestor', tip, into]) !== null;
+    });
+    return merged ? ` · branch ${clean(b.branch, 80)} merged into ${clean(b.merge_into, 80)}` : '';
+  };
+}
+
 // --- commit and push ---
 
 // git-flow's checks: a repository whose top folder is the project, no merge, rebase or cherry-pick in
@@ -168,4 +202,4 @@ function pushFeature(root, feature, { repo } = {}) {
   return [...refused, `retry: node "${script}" "${root.split(path.sep).join('/')}" push ${feature}`];
 }
 
-module.exports = { commitFeature, pushFeature, fetched, mergedWarnings };
+module.exports = { commitFeature, pushFeature, fetched, mergedWarnings, endedMarks };

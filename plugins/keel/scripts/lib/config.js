@@ -52,11 +52,13 @@ function withoutLegacy(config) {
   return { ...config, planning };
 }
 
-// The ticket prefixes keel knows: comments.ticket_prefixes. Reads a raw config too, so a value of the
-// wrong type is skipped.
+// The ticket prefixes keel knows: comments.ticket_prefixes, and keel 2.0.0's planning.ticket_prefix
+// until configure moves it into that list. Takes the raw config (checkConfig's leaves the old field
+// out), so a value of the wrong type is skipped.
 function ticketPrefixes(config) {
   const listed = config && config.comments && config.comments.ticket_prefixes;
-  return [...new Set(Array.isArray(listed) ? listed : [])];
+  const legacy = config && config.planning && config.planning.ticket_prefix;
+  return [...new Set([...(Array.isArray(listed) ? listed : []), ...(typeof legacy === 'string' ? [legacy] : [])])];
 }
 
 module.exports = { checkConfig, loadSchema, ticketPrefixes, legacyFields };

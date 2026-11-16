@@ -9,6 +9,8 @@
 // Used to warn about re-verifying an unchanged tree (last-verify.json), to prove that code-running
 // agents left the tree as they found it (snapshot before step 5b, compare after), and by
 // `notes.js task delete`, which moves a finished task only when the work is as it was verified.
+// --other-repo (last): the folder of a planned ticket of another repository, which may have no keel
+// (lib/project.js loadProjectOrDefaults); without it a folder with no .keel/config.json is refused.
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -57,8 +59,8 @@ function workState(root, isSecret, at) {
 const isRepo = (root) => (git(root, ['rev-parse', '--is-inside-work-tree']) || '').trim() === 'true';
 
 // Why the work differs from the recorded verification `last`, or null when it is the same.
-function workChanged(root, last) {
-  const { isSecret } = loadProject(root);
+function workChanged(root, last, otherRepo) {
+  const { isSecret } = loadProject(root, otherRepo);
   const at = /^[0-9a-f]{40,64}$/.test(last.head) ? last.head : undefined; // never an option for git
   let now;
   try { now = workState(root, isSecret, at); } catch { return `the verification at ${last.ts} was recorded on a commit this repository no longer has`; }
@@ -66,21 +68,21 @@ function workChanged(root, last) {
 }
 
 // Why the current work has no recorded verification, or null when it has one: last-verify.json exists
-// and the work is as it was then (outside git: the record exists).
-function unverified(root) {
+// and the work is as it was then (outside git: the record exists). `otherRepo`: as --other-repo.
+function unverified(root, otherRepo = false) {
   const last = readJson(localDir(root, 'last-verify.json'));
   if (!last) return 'no verification is recorded for this change';
   if (!isRepo(root)) return null;
   if (typeof last.work !== 'string') return `the verification at ${last.ts} was recorded by an older keel`;
-  return workChanged(root, last);
+  return workChanged(root, last, otherRepo);
 }
 
 // For changes.js: the last finished verification, if the work is the same now (a "none" record is
 // no verification).
-function lastVerify(root, current) {
+function lastVerify(root, current, otherRepo = false) {
   const last = readJson(localDir(root, 'last-verify.json'));
   if (!last || !last.fingerprint || last.tier === 'none') return null;
-  const same = last.fingerprint === current.fingerprint || (typeof last.work === 'string' && !workChanged(root, last));
+  const same = last.fingerprint === current.fingerprint || (typeof last.work === 'string' && !workChanged(root, last, otherRepo));
   return { ...last, same };
 }
 
@@ -88,7 +90,7 @@ function main(argv) {
   const { opts, pos } = parseArgs(argv);
   const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   const cmd = pos[1];
-  const { isSecret } = loadProject(root);
+  const { isSecret } = loadProject(root, opts['other-repo'] !== undefined);
   if (cmd === 'save') {
     const tier = typeof opts.tier === 'string' && /^[a-z][a-z-]{0,19}$/i.test(opts.tier) ? levelOf(opts.tier.toLowerCase()) : null;
     if (!tier) throw new Error('save needs --tier <level> (gates-only, basic, standard, maximum, or none when the user chose no verification)');

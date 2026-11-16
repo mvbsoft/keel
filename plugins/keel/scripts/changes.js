@@ -10,6 +10,8 @@
 //            comments like comments.js (same --base and --skip) and prints its report first; the run
 //            starts either way, the notes are for the author to act on
 //   --skip   an untracked file the user said is not part of the task (repeatable)
+//   --other-repo  the folder of a planned ticket of another repository, which may have no keel
+//            (lib/project.js loadProjectOrDefaults); without it a folder with no .keel/config.json is refused
 // Untracked files recorded at the task start (.keel/local/session-start.json, notes.js --begin) and
 // unchanged since are left out and listed; without a record every untracked file counts.
 const fs = require('node:fs');
@@ -66,7 +68,8 @@ function run(root, opts) {
 }
 
 function verify(root, opts) {
-  const { config, profile, isSecret } = loadProject(root);
+  const otherRepo = opts['other-repo'] !== undefined;
+  const { config, profile, isSecret } = loadProject(root, otherRepo);
   const base = typeof opts.base === 'string' ? opts.base : null;
   const planning = planningFiles(root);
   const change = collectChanges(root, { base, isSecret, before: untrackedRecord(root), skip: opts.skip || [], isBulk, ignore: (p) => isTaskFile(p) || Boolean(planning(p)) });
@@ -84,7 +87,7 @@ function verify(root, opts) {
   const analysis = analyze(change, profile, config);
   const levels = Object.fromEntries(TIERS.map((t) => [t, lineup(t, analysis)]));
   const state = treeState(root, isSecret);
-  const last = lastVerify(root, state);
+  const last = lastVerify(root, state, otherRepo);
   if (opts.start) startRun(root, base);
 
   const result = {

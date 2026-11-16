@@ -1,7 +1,10 @@
 # keel intake: resume a task (/keel:start-task on an existing task; read from intake.md "Resume")
 
 The calling command gives you `<keel>` and `<project>`. "Before any branch change" is a section of
-`<keel>/skills/_shared/intake.md`; read it when step 1 or 2 needs a branch switch.
+`<keel>/skills/_shared/intake.md`; read it when step 1 or 2 needs a branch switch. A task of another
+repository's ticket (its `repo:`): the branch, git steps and the check command run on that repository's
+folder (`plans.js repos`) in place of `<project>`, each `git-flow.js` call with `--other-repo` last;
+`notes.js` stays on `<project>`.
 
 1. **Uncommitted changes** (see intake.md "Before any branch change") come first, only when step 2 needs
    a branch switch; on the task's branch already they stay and belong to the task.

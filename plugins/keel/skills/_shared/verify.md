@@ -4,6 +4,8 @@ The calling command gives you `<keel>` (plugin folder), `<project>` (project fol
 talk in, the task (from the task file, the note or the conversation: goal and acceptance criteria) and
 any choices the user already made in their instruction (e.g. a level). This flow covers steps
 1-12 (12 keeps the result for the final report). Git and the ending belong to the calling command.
+A ticket of another repository (the task's `repo:`): `<project>` below is that repository's folder, and
+each `changes.js`, `fingerprint.js` and `votes.js` call ends with `--other-repo`.
 
 Principles: scripts decide what scripts can decide; the user chooses the level and what to fix; only
 summaries and failures go into this conversation; every agent gets the same files, never the chat.

@@ -38,7 +38,7 @@ const {
   draftCheck, draftStale, problems, doneHint, ticketProblems, cycles,
   mentionedFiles, machineFolders, localPaths, localProblems, homeNotes, researchTexts,
 } = require('./plans-check.js');
-const { repoNames } = require('./plans-format.js');
+const { repoNames, isStub } = require('./plans-format.js');
 
 const TEMPLATES = path.join(__dirname, '..', '..', 'templates', 'keel', 'planning');
 const PLACES = ['repo', 'pc'];
@@ -190,9 +190,10 @@ const stubs = () => require('./plans-stubs.js');
 // reads as an option.
 const validBranch = (root, name) => validBranchName(root, name) && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name);
 
-// The feature branch and where it merges: plan.md's values, else the feature name and the main branch.
-function branchesOf(root, d) {
-  return { branch: given(d.fm.branch) ? d.fm.branch : d.feature, merge_into: given(d.fm.merge_into) ? d.fm.merge_into : mainBranch(root) };
+// The feature branch and where it merges: plan.md's values, else the feature name and the main branch
+// (`main`, when the caller has read it already).
+function branchesOf(root, d, main) {
+  return { branch: given(d.fm.branch) ? d.fm.branch : d.feature, merge_into: given(d.fm.merge_into) ? d.fm.merge_into : main === undefined ? mainBranch(root) : main };
 }
 
 // plans.js set: the plan's branch and merge_into; and --after-commit: after_commit and the
@@ -379,7 +380,7 @@ function draftState(root, feature, to, o = {}) {
 }
 
 // plans.js status: one ticket's status. ready waits for its review; abandoned needs a reason and names
-// the tickets that depend on it; in-progress (not from draft, with the task's branch when given) moves a
+// the tickets that depend on it; in-progress (not from draft or for a stub, with the task's branch when given) moves a
 // ready plan to in-progress, and opens a done or abandoned one again.
 function ticketStatus(root, feature, id, to, o = {}) {
   const { d, why } = needDraft(root, feature, 'status');
@@ -392,6 +393,7 @@ function ticketStatus(root, feature, id, to, o = {}) {
   const reason = reasonOf(o);
   if (to === 'abandoned' && !reason) return refuse('status', 'abandoned needs --reason "<why>"');
   if (to === 'ready' && needsReview(t)) return refuse('status', `${t.id} needs review: plans.js reviewed ${feature} ${t.id} after its review`);
+  if (to === 'in-progress' && isStub(t.fm)) return refuse('status', `${t.id} is a stub: it is planned in full in its repository, plans.js ticket ${feature} --from-stub ${t.id} once that repository is on this machine`);
   if (to === 'in-progress' && t.fm.status === 'draft') return refuse('status', `${t.id} is a draft: plans.js status ${feature} ${t.id} ready after its review`);
   if (o.branch !== undefined && (to !== 'in-progress' || typeof o.branch !== 'string' || !validBranch(root, o.branch))) return refuse('status', '--branch goes with in-progress and takes a valid branch name');
   const branch = o.branch !== undefined ? { branch: o.branch } : {};

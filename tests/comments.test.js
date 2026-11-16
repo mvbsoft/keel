@@ -213,16 +213,19 @@ test('comments.js: ids of tickets, records and commits in new comments and docs 
   assert.deepEqual(refs(unset), [['src/a.js', 3, ['01071c1b']]], 'no prefixes configured: only commit hashes');
 });
 
-test('comments.js: only comments.ticket_prefixes are checked; keel 2.0.0 planning.ticket_prefix is not read', (t) => {
+test('comments.js: comments.ticket_prefixes and keel 2.0.0 planning.ticket_prefix are checked', (t) => {
   if (!hasGit) { t.skip('git is not installed'); return; }
-  const files = { 'src/a.js': ["'use strict';", '// fix API-12', '// see SHOP-3', ''].join('\n') };
+  const files = { 'src/a.js': ["'use strict';", '// fix API-12', '// see SHOP-3', '// TODO(CAN-123)', ''].join('\n') };
   const refs = (r) => r.notes.filter((n) => n.kind === 'ref').map((n) => [n.line, n.refs]);
   const planning = { ticket_prefix: 'API', tickets: 'repo' };
-  assert.deepEqual(refs(comments.run(repo(files, { planning }), {})), [], 'the old planning prefix alone');
-  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: ['SHOP'] }, planning }), {})), [[3, ['SHOP-3']]], 'the list');
-  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: ['SHOP', 'API'] }, planning }), {})), [[2, ['API-12']], [3, ['SHOP-3']]], 'API listed by itself');
+  // A config written by keel 2.0.0, before configure moved its prefix into comments.ticket_prefixes.
+  assert.deepEqual(refs(comments.run(repo(files, { planning: { ticket_prefix: 'CAN', tickets: 'repo' } }), {})), [[4, ['CAN-123']]], 'the old planning prefix alone');
+  assert.deepEqual(refs(comments.run(repo(files, { planning }), {})), [[2, ['API-12']]]);
+  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: ['SHOP'] }, planning }), {})), [[2, ['API-12']], [3, ['SHOP-3']]], 'the list and the old prefix');
+  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: ['SHOP', 'API'] }, planning }), {})), [[2, ['API-12']], [3, ['SHOP-3']]], 'API listed by itself too');
+  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: ['SHOP'] }, planning: { ticket_prefix: 7 } }), {})), [[3, ['SHOP-3']]], 'an old prefix that is no text is skipped');
   // A hand-edited config: a list that is not a list.
-  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: 'SHOP' }, planning }), {})), [], 'ticket_prefixes as a string is no list');
+  assert.deepEqual(refs(comments.run(repo(files, { comments: { level: 'short', ticket_prefixes: 'SHOP' } }), {})), [], 'ticket_prefixes as a string is no list');
 });
 
 test('comments.js --project: ticket prefixes seen in commit subjects and branch names', (t) => {

@@ -60,7 +60,7 @@ Each configure run records, in `.keel/local/configure-snapshot.json` (outside gi
 parts of the project, their test, lint and type commands, the paths that call for a specialist review,
 the AI instruction files, the frameworks, the files loaded into every session, other notes systems.
 `check` compares the project with that record, and checks the main branch, ticket ids in the git
-history, settings a newer keel recommends, `planning.ticket_prefix` and `planning.tickets` of keel 2.0.0 (no longer read: a config that has them stays valid, and without `planning.place` planning does not start) and this machine's usage settings. Each reason is either
+history, settings a newer keel recommends, `planning.ticket_prefix` and `planning.tickets` of keel 2.0.0 (no longer read for planning: a config that has them stays valid, configure moves the prefix into `comments.ticket_prefixes`, and without `planning.place` planning does not start) and this machine's usage settings. Each reason is either
 **needed** (keel's settings no longer fit: a gate would be missed or fail, a part has no gates, tasks
 cannot branch off the main branch) or **worth a look** (keel could do more, such as a checked plugin for
 a new framework). For example:

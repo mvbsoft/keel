@@ -187,14 +187,16 @@ function where(root, d) {
   return `${rel(root, d.folder)}/${d.local ? ' (this machine only)' : ''}`;
 }
 
-function draftLine(root, d) {
+// `mark`: lib/plans-git.js endedMarks.
+function draftLine(root, d, mark = '') {
   const note = planNeedsReview(d) ? ' (needs review)' : '';
-  return `- ${d.feature}: ${d.fm.status}${note} · open Q ${openQuestions(d.text)} · tickets ${tickets(d).length} · changed ${lastChange(d.folder)} · ${where(root, d)}`;
+  return `- ${d.feature}: ${d.fm.status}${note} · open Q ${openQuestions(d.text)} · tickets ${tickets(d).length} · changed ${lastChange(d.folder)} · ${where(root, d)}${mark}`;
 }
 
 function draftList(root) {
   const drafts = listDrafts(root);
-  return [`features: ${drafts.length}`, ...drafts.map((d) => draftLine(root, d))];
+  const mark = require('./plans-git.js').endedMarks(root);
+  return [`features: ${drafts.length}`, ...drafts.map((d) => draftLine(root, d, mark(d)))];
 }
 
 // Words of a request ("continue planning the S3 connection") against folder names and In plain words.
@@ -213,9 +215,11 @@ function draftFind(root, query) {
   });
   const top = Math.max(0, ...scored.map((s) => s.score));
   const best = top ? scored.filter((s) => s.score === top).map((s) => s.d) : [];
-  if (best.length === 1) return ['find: 1 match', draftLine(root, best[0])];
-  if (best.length > 1) return [`find: ${best.length} matches`, ...best.map((d) => draftLine(root, d))];
-  return [`find: no match (all features: ${drafts.length})`, ...drafts.map((d) => draftLine(root, d))];
+  const mark = require('./plans-git.js').endedMarks(root);
+  const line = (d) => draftLine(root, d, mark(d));
+  if (best.length === 1) return ['find: 1 match', line(best[0])];
+  if (best.length > 1) return [`find: ${best.length} matches`, ...best.map(line)];
+  return [`find: no match (all features: ${drafts.length})`, ...drafts.map(line)];
 }
 
 module.exports = {

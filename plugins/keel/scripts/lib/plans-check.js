@@ -233,8 +233,9 @@ function draftCheck(root, feature) {
 
 // The line that says the plan can be done: every ticket is done or abandoned, the plan is still open.
 // An elsewhere ticket whose status cannot be read (lib/plans-repos.js withElsewhere) is left to the user.
+// None for a folder whose plan is in another repository (home:): the plan is done there.
 function doneHint(d, list) {
-  if (!list.length || CLOSED.includes(d.fm.status)) return [];
+  if (!list.length || CLOSED.includes(d.fm.status) || given(d.fm.home)) return [];
   const open = list.filter((t) => !CLOSED.includes(t.fm.status));
   if (!open.length) return [`plan: every ticket is done or abandoned: plans.js state ${d.feature} done`];
   if (open.some((t) => !t.unknown)) return [];

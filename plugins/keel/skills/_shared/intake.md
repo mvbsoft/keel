@@ -228,8 +228,9 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
    <feature>/T<n>" under the step 2 list (`next: none` or `tickets: none` → nothing). "next ticket" →
    `tickets --fetch`, take its `next:` line (`next: none` → say so and show its list). Either list's
    `plan: ... plans.js state <f> done` line (its last ticket closed elsewhere) → "Feature <f> is
-   complete. Mark the plan done?"; yes → run it, then "End of feature" in git.md. Then (also for a
-   `<feature>/T<n>` given) `tickets <feature>/T<n> --fetch`; `tickets: none (...)` → say so and stop.
+   complete. Mark the plan done?"; yes → run it, then "End of feature" in git.md (it first commits and
+   pushes the plan). Then (also for a `<feature>/T<n>` given) `tickets <feature>/T<n> --fetch`;
+   `tickets: none (...)` → say so and stop.
 2. **Its state** (its line, `branch: <b> -> <merge_into>`, `file:`, `remote:`, `depends:`):
    - `draft` → still being planned: say so (`/keel:start-planning <feature>` finishes it) and stop;
    - `needs review` (its text changed since its review) → show it and ask: start anyway / review it
@@ -239,6 +240,8 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
    - `done` or `abandoned` → say so; start it again only on a yes (a done or abandoned plan opens again
      with it);
    - `in <name>` (it lives in another repository) → say "start it in <name>" and stop;
+   - `stub` → it is planned in full in its repository: once that repository is on this machine,
+     `plans.js ticket <feature> --from-stub T<n>` in `/keel:start-planning <feature>`; say so and stop;
    - a `depends:` ticket not `done`, or a `note:` line → say which and ask: take the next ticket /
      start anyway;
    - `next` or `ready` → read the ticket (`file:`), check its Goal, Acceptance criteria and Where to
@@ -247,19 +250,24 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
 3. **Another repository** (its front matter `repo: <name>`, not this project): ask once where it runs:
    here / a subagent in that repository / a separate session there. Its folder: `plans.js repos`.
    Here or a subagent: its git steps, checks and verification run on that folder in place of
-   `<project>`, its own rules (CLAUDE.md, AGENTS.md, `.keel/config.json`) first; without keel there git
+   `<project>` (`--other-repo` as the last argument of each `git-flow.js`, `changes.js`,
+   `fingerprint.js` and `votes.js` call there), its own rules (CLAUDE.md, AGENTS.md, `.keel/config.json`) first; without keel there git
    is manual and its checks are proposed from its `package.json` / `composer.json` (the user
    confirms); a subagent (`--execution delegate`) stops on a decision and returns it as a question.
    A separate session: step 5 with `--branch <b>-T<n>`, then print exactly
    `cd <its folder> && claude --add-dir <project> "<prompt>"`, the prompt naming the ticket file's
-   absolute path and, as its last step once the work is verified,
-   `node <keel>/scripts/plans.js <its folder> status <feature> T<n> done --project <project>`; stop here.
+   absolute path, this project's feature branch `<b>` and, as its last steps once the work is verified,
+   `node <keel>/scripts/plans.js <its folder> status <feature> T<n> done --project <project>`, then (a
+   feature in the repository) the line for the user "In <project>, on `<b>`, run
+   `node <keel>/scripts/plans.js <project> commit <feature> --tickets T<n>`, then
+   `node <keel>/scripts/plans.js <project> push <feature>`" (keel's hook lets a session commit only in
+   its own project); stop here.
 4. **Branch** (step 6's options for a ticket), "Before any branch change" first: the `branch:` line's
    `<b>` (its feature branch) is offered first. It exists (local or on the remote) →
    `git-flow.js switch --name <b>`; missing → `start --name <b> --from <current>`. A ticket branch
    (rare: the user asks for one) → `<b>-T<n>`, always from `<b>`, after the status below. A feature
    on this machine: the branch as step 6 for any task; another repository: in that repository,
-   `<b>-T<n>` from its main branch (`git-flow.js "<its folder>" status`).
+   `<b>-T<n>` from its main branch (`git-flow.js "<its folder>" status --other-repo`).
 5. **Take it**: `plans.js status <feature> T<n> in-progress --branch <the branch it works on>`. A
    feature in the repository (`file:` not under `.keel/local/`): this project on `<b>` (step 4, also
    for another repository), then `plans.js commit <feature> --tickets T<n>` (only the ticket file and

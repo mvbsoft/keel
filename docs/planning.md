@@ -232,13 +232,18 @@ there.
   `package.json` or `composer.json` and you confirm, and its task has its own `started`, `branch` and
   `base`. keel's own files there (`.keel/local/`: the verification record, the finish record of its
   task, scratch files) get a `.gitignore` of their own, so they never show in `git status` or a commit.
+  These defaults hold only for a ticket's repository (keel's scripts get `--other-repo` there): in a
+  checkout of your own project, a missing `.keel/config.json` stops keel's git and verification steps
+  (`keel is not configured here (config missing: no .keel/config.json); run /keel:configure`).
 - **Doing it.** `/keel:start-task <feature>/T<n>` for a ticket of another repository asks once where
   it runs: here, in a helper working in that repository (it asks nothing itself: it stops on a
   decision and the conversation asks you), or a separate session. keel prints the separate session's
   command, ready to paste: `cd <folder> && claude --add-dir <this project> "<prompt>"`; the prompt
-  names the ticket file and ends with `plans.js ... status <feature> T<n> done --project <this
-  project>`, so the session marks the ticket here. Claude Code must be allowed to write in this
-  project's folder.
+  names the ticket file and this project's feature branch, and ends with `plans.js ... status <feature>
+  T<n> done --project <this project>`, so the session marks the ticket here. Claude Code must be allowed
+  to write in this project's folder. keel commits only in a session's own project, so for a feature in
+  the repository that session ends with the two commands you run in this project, on the feature branch:
+  `plans.js <this project> commit <feature> --tickets T<n>` and `plans.js <this project> push <feature>`.
 - **Commit and push** of a feature are asked for the repository that holds its folder, and Claude
   Code then asks too. Each repository commits and pushes its own files.
 
@@ -292,11 +297,11 @@ agents.
 | `review <feature>` | Says what needs a review | before a review | nothing (per plan and ticket: never reviewed, changed since its review, unchanged) |
 | `reviewed <feature> <T1\|plan> ...` | Records a finished review | right after the review | `review_hash` in the ticket, `ready_hash` in the plan |
 | `state <feature> <draft\|ready\|in-progress\|done\|abandoned> [--reason <why>]` **script only** | Sets the plan's status | `ready` at the end of planning; `done` when every ticket is done or abandoned; `abandoned` on your word | `status` of `plan.md`. `ready` needs a clean check, a ticket and no open question, and also readies every draft ticket that needs no review. `abandoned` needs `--reason` and abandons every open ticket with it. `done` waits for every ticket to be done or abandoned. `in-progress` and `done` only after `ready`; back only from `ready` to `draft`, and from `done` or `abandoned` to `in-progress`. `--project <path>` for a session in another repository |
-| `status <feature> T<n> <state> [--reason <why>] [--branch <b>]` **script only** | Sets one ticket's status | when a ticket is taken, finished or given up | `status` of the ticket file. `ready` waits for its review; `abandoned` needs `--reason` and names the tickets that depend on it; `in-progress` (not from a draft, again from `done` or `abandoned`; `--branch` the task's branch, into `branch:`) also moves a `ready`, `done` or `abandoned` plan to `in-progress`; `done` only from `in-progress`. `--project <path>` for a session in another repository |
+| `status <feature> T<n> <state> [--reason <why>] [--branch <b>]` **script only** | Sets one ticket's status | when a ticket is taken, finished or given up | `status` of the ticket file. `ready` waits for its review; `abandoned` needs `--reason` and names the tickets that depend on it; `in-progress` (not from a draft, not for a stub, again from `done` or `abandoned`; `--branch` the task's branch, into `branch:`) also moves a `ready`, `done` or `abandoned` plan to `in-progress`; `done` only from `in-progress`. `--project <path>` for a session in another repository |
 | `set <feature> [--branch <b>] [--merge-into <b>] [--after-commit]` | The feature branch and where it merges | when they change, and when you hand over | `branch`, `merge_into` in `plan.md`; `--after-commit`: `after_commit` and `after_commit_repos`, the commits the facts were last checked at |
 | `stale <feature>` | Which files changed since the facts were gathered | when you continue a feature | nothing |
 | `tickets [<feature> \| <feature>/T<n>] [--fetch]` | The tickets' states and the ticket to take next; a feature also with its branch and folder (`(this machine only)` when it is not in the repository), a ticket with its file | before taking a ticket; `/keel:tasks` runs it | nothing (`--fetch`: a `git fetch` first) |
-| `list`, `find <words>` | The features; the ones a few words name | to pick a feature | nothing |
+| `list`, `find <words>` | The features; the ones a few words name (a done one whose branch is merged or gone says so) | to pick a feature | nothing |
 | `repos` | This project and the repositories next to it | before asking about other repositories | nothing |
 | `settings`, `settings set --repo <name>=<folder>` | The planning settings; this machine's repos map | `set` when you name where a repository is | `settings set` writes `.keel/local/plans/keel/settings.json` |
 | `commit <feature> [--tickets T1,T2]` **script only** | Commits the feature's folder | after planning, after a status changed | one git commit of the folder as it is, on the current branch; never on the main branch; removes nothing. `--tickets`: only those ticket files and `plan.md` (tickets taken) |
@@ -330,7 +335,8 @@ is taken again (`in-progress`) from `done` or `abandoned`: a finish whose git st
 start it again. A `done` or `abandoned` plan goes back to `in-progress` with it, so a plan marked done
 before a commit that stopped does not stay done with an open ticket. `/keel:tasks` and `/keel:start-task` print each ticket's state, `on <branch>` for one in
 progress, and the one to take next, with `plans.js tickets` (a script, no tokens): the first ticket by
-number that is `ready`, is no stub, needs no review and whose dependencies are all `done`. A ticket that depends on
+number that is `ready`, is no stub, needs no review and whose dependencies are all `done`; one of this
+repository comes before one that lives in another repository. A ticket that depends on
 an abandoned one waits for your answer: remove the dependency, or abandon it too. A ticket in another
 repository is read there; one that cannot be read shows `unknown`.
 
@@ -351,7 +357,8 @@ a ticket back: `/keel:start-task` names it and asks: take the next ticket, or st
 `/keel:start-task <feature>/T<n>` ("next ticket" takes the one `plans.js tickets` names):
 
 1. keel fetches, reads the ticket and says if it is a `draft`, if it needs review, if it is already
-   taken, or if it lives in another repository (then: start it there).
+   taken, if it lives in another repository (then: start it there), or if it is a stub (planned in full
+   in its repository once that repository is on this machine; `plans.js status` refuses to take one).
 2. It reads the ticket, checks its Goal, Acceptance criteria and Where to look against the code, and
    goes on as for any task, with the ticket's acceptance criteria.
 3. The task works on the feature's branch unless you ask for a ticket branch; a ticket branch is the
@@ -424,4 +431,11 @@ ticket was closed in another session or repository) and offers `plans.js state <
 only on its yes, in both git modes: 1) onto the feature branch (a ticket branch first merges into it);
 2) keep the files (default) or remove them: the folder goes to keel's trash, and one in the repository
 leaves in its own commit on the feature branch, before the merge; 3) "Merge `<branch>` into
-`<merge_into>`?"; 4) after the merge, "Delete the branch `<branch>`?".
+`<merge_into>`?"; 4) after the merge, "Delete the branch `<branch>`?". A plan marked done outside a
+task's finish (from `/keel:tasks` or `/keel:start-task`) is committed and pushed on the feature branch
+(or its ticket branch) first, so the merge carries it. A feature on this machine has only step 2, asked
+when the plan is marked done: its tasks had branches of their own. `/keel:tasks` offers this end while
+the feature's branch can still merge: `plans.js list` marks a done feature `kept on this machine`,
+`branch <b> merged into <m>` (here or on the remote, so a pull request merged on the server counts) or
+`branch <b> not found`, and then it offers nothing; its folder stays, and `plans.js drop <feature>`
+removes it (one in the repository on a branch of its own, then `plans.js commit <feature>` there).

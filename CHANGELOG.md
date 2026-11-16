@@ -6,6 +6,40 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-16
+
+### Fixed
+- End of feature commits and pushes the plan on the feature branch before the merge when it was marked
+  done outside a task's finish (`/keel:tasks`, `/keel:start-task`): uncommitted, it stopped the merge
+  (`could not switch to <merge_into>`). It runs for a feature on this machine as only its keep or
+  delete step, since such a feature has no branch of its own.
+- `/keel:tasks` offers End of feature only while the feature's branch can still merge: `plans.js list`
+  ends a done feature's line with `kept on this machine`, `branch <b> merged into <m>` (also a merge
+  on the remote not pulled yet) or `branch <b> not found`, and then nothing is offered. `plans.js drop` on the branch a feature merged into says to drop it on a branch
+  of its own.
+- A separate session for another repository's ticket names this project's feature branch and ends with
+  the two commands that commit and push the ticket's status in this project; before, nothing committed
+  it.
+- In a repository that holds a feature's tickets for another repository's plan (`home:` in its
+  `plan.md`), finishing its last ticket no longer prints `plan: every ticket is done or abandoned`:
+  the plan is done in its home repository, where `plans.js state` runs.
+- The next ticket (`next:` of `plans.js tickets`, the feature page) is one of this repository before one
+  that lives in another repository, so "next ticket" no longer stops at a ticket that must be started
+  there while one here could start.
+- A stub shows `stub` in `plans.js tickets`, `plans.js status <feature> T<n> in-progress` refuses it,
+  and `/keel:start-task <feature>/T<n>` for a stub says it is planned in full in its repository and
+  stops, before any branch or status change.
+- Comments are checked for keel 2.0.0's `planning.ticket_prefix` again (`// TODO(CAN-123)` with
+  `planning.ticket_prefix: "CAN"`), and `/keel:configure` moves that prefix into
+  `comments.ticket_prefixes` instead of dropping it.
+- A checkout of a keel project without `.keel/config.json` is refused again by `git-flow.js`,
+  `changes.js`, `fingerprint.js` and `votes.js` (`keel is not configured here ...; run
+  /keel:configure`), as in 2.0.0, instead of running with defaults (no gates, manual git, the main
+  branch from `origin/HEAD`, so commits on the real main branch were no longer refused). The defaults
+  apply only with `--other-repo`, which keel passes in the folder of another repository's ticket
+  (verification, resuming such a task, and the hook's refusal of `task delete` name it; the refusal of a
+  call without it says to add it).
+
 ## [2.1.0] - 2026-11-16
 
 ### Upgrading from 2.0.0
@@ -780,7 +814,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/mvbsoft/keel/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/mvbsoft/keel/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/mvbsoft/keel/compare/v1.4.0...v2.0.0
 [1.4.0]: https://github.com/mvbsoft/keel/compare/v1.3.0...v1.4.0

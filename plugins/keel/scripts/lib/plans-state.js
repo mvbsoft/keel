@@ -23,12 +23,13 @@ const depsOf = (t) => plans.ticketIds(t.fm.depends_on).map((k) => k.toUpperCase(
 
 // The ticket to take next in one feature, or null: the first by number that is ready, no stub (it
 // cannot be started), needs no review and whose dependencies are all done. One that depends on an
-// abandoned ticket waits for the user: remove the dependency or abandon it too. An elsewhere ticket
-// may be next: it is started in its repository.
+// abandoned ticket waits for the user: remove the dependency or abandon it too. A ticket started here
+// comes first; an elsewhere ticket (started in its repository) is next only when none of those can start.
 function nextOf(list) {
   const byId = new Map(list.map((t) => [t.id, t]));
-  return list.find((t) => t.fm.status === 'ready' && !isStub(t.fm) && !plans.needsReview(t)
-    && depsOf(t).every((k) => byId.has(k) && byId.get(k).fm.status === 'done')) || null;
+  const eligible = list.filter((t) => t.fm.status === 'ready' && !isStub(t.fm) && !plans.needsReview(t)
+    && depsOf(t).every((k) => byId.has(k) && byId.get(k).fm.status === 'done'));
+  return eligible.find((t) => t.fm.type !== 'elsewhere') || eligible[0] || null;
 }
 
 // The open tickets of `shown` that depend on an abandoned one of `list`: `note:` lines.
@@ -40,10 +41,10 @@ function blockedNotes(list, shown) {
 }
 
 // An elsewhere ticket (lib/plans-repos.js withElsewhere) shows where it lives, and why its status is
-// unknown when its file there cannot be read.
+// unknown when its file there cannot be read; a stub says it is one (it cannot be started).
 function ticketLine(t, next) {
   if (t.unknown) return `  ${t.id} ${clean(heading(t.text)[1], 80)} — unknown (${clean(t.unknown, 300)})`;
-  const marks = [t === next ? 'next' : t.fm.status || 'no status', plans.needsReview(t) && !plans.CLOSED.includes(t.fm.status) ? 'needs review' : null, t.fm.status === 'in-progress' && t.fm.branch ? `on ${clean(t.fm.branch, 60)}` : null, t.there ? `in ${clean(t.there.name, 120)}` : null];
+  const marks = [t === next ? 'next' : t.fm.status || 'no status', plans.needsReview(t) && !plans.CLOSED.includes(t.fm.status) ? 'needs review' : null, t.fm.status === 'in-progress' && t.fm.branch ? `on ${clean(t.fm.branch, 60)}` : null, t.there ? `in ${clean(t.there.name, 120)}` : null, isStub(t.fm) ? 'stub' : null];
   return `  ${t.id} ${clean(heading(t.text)[1], 80)} — ${marks.filter(Boolean).join(' · ')}`;
 }
 
@@ -111,7 +112,8 @@ function ticketsCommand(root, arg, { fetch = false } = {}) {
 // --- drop ---
 
 // A feature whose every ticket is done or abandoned: its folder to keel's trash. A folder in the
-// repository goes only off the branch it merges into (then plans.js commit <feature>).
+// repository goes only off the branch it merges into (then plans.js commit <feature>): keel never
+// commits there.
 function dropCommand(root, feature) {
   const what = 'drop';
   const { d, why } = plans.needDraft(root, feature, what);
@@ -122,7 +124,7 @@ function dropCommand(root, feature) {
     const branch = git(root, ['symbolic-ref', '-q', '--short', 'HEAD']);
     if (!branch) return refuse(what, 'HEAD is detached; switch to the feature branch first');
     const b = plans.branchesOf(root, d);
-    if ([plans.mainBranch(root), b.merge_into].filter(Boolean).some((x) => sameBranch(x, branch))) return refuse(what, `on ${branch}, where the feature merges; the folder is removed on the feature branch before its merge`);
+    if ([plans.mainBranch(root), b.merge_into].filter(Boolean).some((x) => sameBranch(x, branch))) return refuse(what, `on ${branch}, where the feature merges; the folder is removed on the feature branch before its merge, or after it on a branch of its own (then plans.js commit ${feature} there)`);
   }
   const r = moveToTrash(root, [rel(root, d.folder)], 'planning');
   if (!r.batch || r.failed.length) return refuse(what, `not moved to keel's trash: ${r.failed.map((f) => `${f.path}: ${f.reason}`).join(', ')}`);

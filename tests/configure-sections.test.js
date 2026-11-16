@@ -311,7 +311,7 @@ test('configure flow section 6: the planning settings, quick setup too, alone wi
   says(six, ['**Where new features live**', 'in the repository, `repo` (recommended', 'together with the', "reports of keel's researcher", '`research/`', 'only on this machine, `pc`']);
   says(six, ['It is the default only', 'a feature may live in the other place']);
   says(six, ['**Ticket language** (`planning.language`)', 'detailed setup only', 'Quick', 'setup takes `repo_language`']);
-  says(six, ["keel 2.0.0's `planning.ticket_prefix` and `planning.tickets` are no longer read", 'drop them']);
+  says(six, ["keel 2.0.0's `planning.ticket_prefix` and `planning.tickets` are no longer read", 'drop', 'after adding the prefix to `comments.ticket_prefixes`', 'when it is not', 'listed there']);
   assert.doesNotMatch(six, /Ticket prefix|planning ticket prefix|3-4 capital letters/);
   // The place values are the schema's.
   const schema = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'schemas', 'config.schema.json'), 'utf8'));

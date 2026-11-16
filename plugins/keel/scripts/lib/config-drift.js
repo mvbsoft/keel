@@ -294,7 +294,7 @@ function liveReasons(root, now, ctx) {
   // 6 code: planning fields of keel 2.0.0 that are no longer read (lib/config.js)
   const legacy = legacyFields(config);
   const placed = config.planning && config.planning.place;
-  if (legacy.length) add('code', placed ? 'worth' : 'needed', `${legacy.join(', ')} in .keel/config.json ${legacy.length === 1 ? 'is' : 'are'} no longer used`, `tickets are numbered T<n> inside each feature and a feature lives in one place (planning.place)${placed ? '' : ', which is not set, so planning does not start'}; configure asks it and removes the old fields`);
+  if (legacy.length) add('code', placed ? 'worth' : 'needed', `${legacy.join(', ')} in .keel/config.json ${legacy.length === 1 ? 'is' : 'are'} no longer used`, `tickets are numbered T<n> inside each feature and a feature lives in one place (planning.place)${placed ? '' : ', which is not set, so planning does not start'}; configure asks it, moves planning.ticket_prefix into comments.ticket_prefixes and removes the old fields`);
   if (!rec) { ctx.skipped.push('ticket ids, new stack plugins, files loaded every session, new decision or spec folders, other notes systems'); return out; }
 
   // 6 code: ticket ids keel could keep out of comments

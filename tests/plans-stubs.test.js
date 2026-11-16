@@ -149,7 +149,7 @@ test('the page template draws a stub\'s mark and note', () => {
   for (const key of ["'stub'", "'stub_title'", "'stub_note'"]) assert.ok(script.includes(key), key);
 });
 
-gitTest('a stub is never next: it cannot be started until it is a full ticket', () => {
+gitTest('a stub is never next and cannot be taken: its line says stub until it is a full ticket', () => {
   const w = world();
   draft(w);
   run(w.api, 'reviewed', FEATURE, 'T1', 'T2', 'T3');
@@ -157,8 +157,11 @@ gitTest('a stub is never next: it cannot be started until it is a full ticket', 
   run(w.api, 'status', FEATURE, 'T1', 'in-progress');
   run(w.api, 'status', FEATURE, 'T1', 'done');
   const out = run(w.api, 'tickets', FEATURE);
-  assert.ok(out.includes('  T2 Admin counter — ready'), out.join('\n'));
+  assert.ok(out.includes('  T2 Admin counter — ready · stub'), out.join('\n'));
   assert.equal(out.at(-1), 'next: none');
+  assert.ok(run(w.api, 'tickets', `${FEATURE}/T2`).includes('  T2 Admin counter — ready · stub'), 'the ticket asked by name says it too');
+  assert.equal(run(w.api, 'status', FEATURE, 'T2', 'in-progress')[0], `plans: status refused (T2 is a stub: it is planned in full in its repository, plans.js ticket ${FEATURE} --from-stub T2 once that repository is on this machine)`);
+  assert.match(readRel(w.api, `${PLAN}/tickets/T2-admin-counter.md`), /^status: ready$/m);
   const data = JSON.parse(/id="feature-data">([\s\S]*?)<\/script>/.exec(fs.readFileSync(line(page(w.api, FEATURE), 'page'), 'utf8'))[1]);
   assert.deepEqual(data.tickets.map((t) => t.next), [false, false, false]);
 });

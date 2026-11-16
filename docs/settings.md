@@ -193,8 +193,9 @@ What the team shares is in `.keel/config.json`: where a feature's folder lives (
 folder in the repository (`planning.tickets_dir`) and the language (`planning.*` in the table above).
 `/keel:configure` asks them, quick setup too, and `/keel:configure planning` asks only them; without
 `planning.place` `/keel:start-planning` stops and says so. `planning.ticket_prefix` and
-`planning.tickets` of keel 2.0.0 are no longer read: a config that still has them stays valid, and
-`/keel:configure check` names them. Tickets have no keys: a ticket is `<feature>/T<n>`.
+`planning.tickets` of keel 2.0.0 are no longer read for planning: a config that still has them stays
+valid, comments are still checked for ticket ids with that prefix, and `/keel:configure` moves it into
+`comments.ticket_prefixes` (`/keel:configure check` names both fields). Tickets have no keys: a ticket is `<feature>/T<n>`.
 
 What is personal stays in `.keel/local/plans/keel/settings.json` (outside git, this machine only):
 

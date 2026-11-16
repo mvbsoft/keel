@@ -42,7 +42,8 @@ Current state of this project:
    file; without one, skip the step 7 deletion). Read the task's `task.md` and
    the folder's `plan.md` if any. Its `ticket: <f>/<t>` (`event-history/T5`) → a planned ticket;
    its `repo:` → another repository: steps 4 and 8 run on that repository's folder (`plans.js repos`)
-   in place of `<project>`.
+   in place of `<project>`, with `--other-repo` as the last argument of each `git-flow.js`,
+   `changes.js`, `fingerprint.js` and `votes.js` call there.
 3. **What to do.** No instruction → ask (AskUserQuestion when it exists): 1) finish fully: verify,
    git, the task folder to keel's trash; 2) hand off: gates only, update the task file, git; continue
    in another session; 3) your own instruction. A clear instruction does not ask WHAT to do (it still

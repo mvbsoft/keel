@@ -11,11 +11,14 @@ const { gitTest, PLUGIN, SCRIPTS, LOCAL, git, write, readRel, exists, run, front
 
 const T = (n, folder = `${LOCAL}/s3-storage`) => `${folder}/tickets/T${n}-ticket-${n}.md`;
 const script = (name, dir, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, name), dir, ...args], { encoding: 'utf8' }).stdout.trim().split('\n');
-// keel's own-files hook on a shell command in the project `dir`: its decision, or null.
-function hookDecision(dir, command) {
+// keel's own-files hook on a shell command in the project `dir`: its decision (with `reason`: its reason
+// too), or null.
+function hookDecision(dir, command, { reason = false } = {}) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_')));
   const r = spawnSync(process.execPath, [path.join(PLUGIN, 'hooks', 'own-files.js')], { input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }), env: { ...env, CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: dir }, encoding: 'utf8' });
-  return r.stdout ? JSON.parse(r.stdout).hookSpecificOutput.permissionDecision : null;
+  if (!r.stdout) return null;
+  const out = JSON.parse(r.stdout).hookSpecificOutput;
+  return reason ? out.permissionDecisionReason : out.permissionDecision;
 }
 
 gitTest('tickets: states from the fields; next is the first ready, reviewed ticket whose dependencies are done', () => {
@@ -146,7 +149,7 @@ gitTest('drop: refused while a ticket is open and on the branch the feature merg
   run(work, 'status', 's3-storage', 'T1', 'done');
   run(work, 'status', 's3-storage', 'T2', 'abandoned', '--reason', 'later');
   git(work, 'checkout', '-q', 'main');
-  assert.deepEqual(run(work, 'drop', 's3-storage'), ['plans: drop refused (on main, where the feature merges; the folder is removed on the feature branch before its merge)']);
+  assert.deepEqual(run(work, 'drop', 's3-storage'), ['plans: drop refused (on main, where the feature merges; the folder is removed on the feature branch before its merge, or after it on a branch of its own (then plans.js commit s3-storage there))']);
   git(work, 'checkout', '-q', 's3-storage');
   assert.match(run(work, 'drop', 's3-storage')[0], /^drop: tickets\/s3-storage\/? -> trash \d{8}-\d{6}/);
   assert.ok(!exists(work, 'tickets/s3-storage'));
@@ -198,12 +201,14 @@ gitTest('task new --ticket: the task <feature>-T<n> with ticket:, on this machin
   // Its verification looks at that repository, which has no keel: its diff, its record, and task delete
   // here (and keel's hook) reads that record.
   write(web, 'index.js', 'x\ny\n');
-  assert.match(script('changes.js', web)[0], /^changes: 1 files, \+1 -0/);
+  assert.match(script('changes.js', web)[0], /^changes: unavailable \(keel is not configured here/, 'without --other-repo a folder without keel is not configured');
+  assert.match(script('changes.js', web, '--other-repo')[0], /^changes: 1 files, \+1 -0/);
   assert.ok(fs.readFileSync(path.join(web, '.keel', 'local', 'tmp', 'changes.diff'), 'utf8').includes('+y'));
   const del = `node "${SCRIPTS}/notes.js" "${work.split(path.sep).join('/')}" task delete csv-export-T2`;
   assert.equal(hookDecision(work, del), 'deny');
-  assert.match(notes('task', 'delete', 'csv-export-T2')[0], /^notes: task delete refused \(no verification is recorded for this change/);
-  assert.match(script('fingerprint.js', web, 'save', '--tier', 'basic')[0], /^saved: verification at /);
+  assert.ok(hookDecision(work, del, { reason: true }).includes(`fingerprint.js "${web.split(path.sep).join('/')}" save --tier none --other-repo`), 'the refusal names the folder and the flag');
+  assert.match(notes('task', 'delete', 'csv-export-T2')[0], /^notes: task delete refused \(no verification is recorded for this change: .* save --tier none --other-repo; then run task delete again\)$/);
+  assert.match(script('fingerprint.js', web, 'save', '--tier', 'basic', '--other-repo')[0], /^saved: verification at /);
   assert.ok(!exists(work, '.keel/local/last-verify.json'), 'nothing is recorded here');
   assert.equal(hookDecision(work, del), 'ask');
   assert.equal(notes('task', 'delete', 'csv-export-T2')[0], 'deleted: .keel/local/tasks/csv-export-T2/ (moved to keel\'s trash)');
