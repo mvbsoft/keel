@@ -2,44 +2,33 @@
 // /keel:feature-page: a feature's md files and its tickets' states as data in a fixed HTML template
 // (templates/feature-page/: index.html, style.css and page.js, with the keel design system of
 // templates/design/ beside them), for the Artifact tool to publish. The texts go in as they are: the page renders the markdown and highlights the code itself, with libraries from cdnjs.
-// - A draft (plan.md, tickets/T<n>-*.md, research/) or an exported feature (README.md, its tickets and
-//   research/ in its folder). An exported feature's states come from lib/plans-state.js; the tickets of
-//   its other repositories are read in their folders from this machine's repos map, else only their
-//   overview lines are shown, state unknown. A stub (lib/plans-stubs.js) is shown with its text, state
-//   unknown and marked; a dependency on it is unknown until a ticket replaces it.
-// - The page's title, the same from every machine and repository of the feature:
-//   [<PREFIX>, ...] - <the overview's heading> (<code>): the prefixes of the repositories with tickets,
-//   the heading cut to 80 characters, and the feature's code (`page:` in plan.md and in every exported
-//   ticket, lib/plans.js), by which the page is found again. A feature exported before the code gets
-//   one, written into its tickets here; a draft without one, into plan.md.
+// - A feature folder (plan.md, tickets/T<n>-*.md, research/); each ticket's state is its status field.
+//   A stub (lib/plans-stubs.js) is shown with its text and marked; a ticket of another repository
+//   (repo:) under that repository's name.
+// - The page's title, the same from every machine and repository of the feature: <the plan's heading>
+//   (<code>): the heading cut to 80 characters and the feature's code (`page:` in plan.md, lib/plans.js),
+//   by which the page is found again. A plan without one gets it here.
 // - Its language: --lang, else the earlier page's (--previous, that page saved to a file), else the
 //   conversation's. Labels come from locales/<code>.json; texts in another language than the
 //   tickets' wait in translate.json for Claude, and `apply` puts the translations in
 //   (lib/feature-page-text.js). The page keeps them, so the next update translates only new texts.
 // Nothing is kept: the page goes to .keel/local/tmp/feature-page/ and `clean` removes it after the
-// publish. Reads git and the files only, but for the code a feature without one gets (see above) and
-// --fetch, which fetches the remote first (a failure is a line and a mark on the page, not a refusal).
-// Usage: node feature-page.js <projectDir> [<feature>] [--lang <code>] [--previous <file>] [--fetch]
+// publish. Reads git and the files only, but for the code a feature without one gets (see above).
+// Usage: node feature-page.js <projectDir> [<feature>] [--lang <code>] [--previous <file>]
 //                                         the page; no feature: the current branch's
 //        node feature-page.js <projectDir> apply         puts translated.json into the waiting page
 //        node feature-page.js <projectDir> clean         removes the page's folder
 const fs = require('node:fs');
 const path = require('node:path');
 const plans = require('./lib/plans.js');
-const { featureFolder, fetched } = require('./lib/plans-export.js');
-const { mapTracked } = require('./lib/plans-export-repos.js');
-const { readStates, collect, states, nextOf, byKey, prefixOf, metBy, depWhere, STATES } = require('./lib/plans-state.js');
-const { neighbourStates, stubStates, stubState, met, NOT_CHECKED } = require('./lib/plans-neighbours.js');
-const { listed, placeOf, ownPrefixes, UNKNOWN } = require('./lib/plans-linked.js');
-const { settings, PREFIX } = require('./lib/plans-settings.js');
-const { planRepos, headOf } = require('./lib/plans-repos.js');
-const { outsideFences, heading, repoName, isStub, STUB_KEY } = require('./lib/plans-format.js');
-const stubs = require('./lib/plans-stubs.js');
-const { git, read, frontmatter, clean } = require('./lib/repo-read.js');
+const { nextOf } = require('./lib/plans-state.js');
+const { settings } = require('./lib/plans-settings.js');
+const { headOf } = require('./lib/plans-repos.js');
+const { outsideFences, heading, repoName, isStub } = require('./lib/plans-format.js');
+const { git, read, clean } = require('./lib/repo-read.js');
 const { safeLocalPath } = require('./lib/safe-path.js');
 const { parseArgs } = require('./lib/project.js');
 const { effectiveOptions } = require('./lib/options.js');
-const { setFront } = require('./lib/tasks.js');
 const { langCode, labelsFor, missing, translate, readPage } = require('./lib/feature-page-text.js');
 
 const { DESIGN_DIR, DESIGN_FILES } = require('./lib/design-files.js');
@@ -50,7 +39,9 @@ const TEMPLATE = path.join(TEMPLATE_DIR, 'index.html');
 // the keel design system (templates/design/). keel-mark.png is binary; copyFileSync copies bytes.
 const PAGE_ASSETS = ['style.css', 'page.js', ...DESIGN_FILES];
 const assetPath = (name) => path.join(DESIGN_FILES.includes(name) ? DESIGN_DIR : TEMPLATE_DIR, name);
-const DONE = STATES[0];
+const DONE = 'done';
+const UNKNOWN = 'state unknown';
+const OPEN_PLAN = ['ready', 'in-progress'];
 
 const refuse = (why) => [`feature-page: refused (${why})`];
 const lf = (text) => String(text).replace(/\r\n/g, '\n');
@@ -102,21 +93,13 @@ function researchOf(folder) {
 
 // The code a file's front matter holds, or null.
 const codeIn = (fm) => (plans.PAGE_CODE.test(fm.page || '') ? fm.page : null);
-// The text with `page: <code>` after its `feature:` line, else at the end of its front matter.
-const withCode = (text, code) => (/^feature:.*$/m.test(text) ? text.replace(/^feature:.*$/m, (l) => `${l}\npage: ${code}`) : setFront(text, { page: code }));
 const TITLE_HEADING_MAX = 80;
 
 // The feature's repositories, this project's first: [{ prefix, name, folder, commit }]. Another
-// repository's folder is read only as lib/plans-linked.js allows it.
-function reposOf(root, own, prefixes, overview) {
-  const tracked = mapTracked(root);
-  const lines = overview ? listed(overview) : [];
-  const out = [{ prefix: own, name: repoName(root), folder: root, commit: headOf(root) }];
-  for (const prefix of prefixes.filter((p) => PREFIX.test(p) && p !== own)) {
-    const folder = placeOf(root, prefix, tracked).folder || null;
-    const fromOverview = (lines.find((t) => prefixOf(t.key) === prefix && t.repo) || {}).repo;
-    out.push({ prefix, name: folder ? repoName(folder) : clean(fromOverview || prefix, 60), folder, commit: folder ? headOf(folder) : null });
-  }
+// repository a ticket names (repo:) is listed by that name, its state as the ticket's file says.
+function reposOf(root, all) {
+  const out = [{ prefix: '', name: repoName(root), folder: root, commit: headOf(root) }];
+  for (const r of [...new Set(all.map((t) => (given(t.fm.repo) ? t.fm.repo.trim() : '')).filter(Boolean))]) out.push({ prefix: r, name: clean(r, 60), folder: null, commit: null });
   return out;
 }
 
@@ -125,164 +108,54 @@ const ticketOf = (key, text, extra) => {
   return { key, title: text ? heading(text)[1] : '', sections, md: text ? lf(text) : null, ...(sections ? sizeOf(sections) : { files: 0, criteria: 0 }), ...extra };
 };
 
-function draftData(root, found) {
-  // A draft made before plans carried the code gets one; it is keel's own file and no edit of the plan.
+// A status as the page names it (templates/feature-page/page.js STATE_KEYS).
+const PAGE_STATE = { draft: 'draft', ready: 'to do', 'in-progress': 'in progress', done: DONE, abandoned: 'abandoned' };
+const pageState = (status) => PAGE_STATE[status] || UNKNOWN;
+
+function featureData(root, found) {
+  // A feature made before plans carried the code gets one; it is keel's own field and no edit of the plan.
   const d = codeIn(found.fm) ? found : plans.writePlan(root, found, { page: plans.pageCode() });
-  const own = settings(root).ticket_prefix;
-  const prefixes = planRepos(d.fm);
-  const repos = reposOf(root, own || prefixes[0], prefixes, null);
-  const nameOf = (p) => (repos.find((r) => r.prefix === p) || { name: p }).name;
   const all = plans.tickets(d);
-  // A stub's state is never read: unknown, also as a dependency.
-  const stubIds = new Set(all.filter((t) => isStub(t.fm)).map((t) => t.id));
-  const depOf = (k) => (stubIds.has(k.toUpperCase()) ? { key: k, met: null, state: UNKNOWN, feature: null, where: null } : { key: k, met: false });
+  const repos = reposOf(root, all);
+  const byId = new Map(all.map((t) => [t.id, t]));
+  const next = OPEN_PLAN.includes(d.fm.status) ? nextOf(all) : null;
+  const depOf = (k) => {
+    const x = byId.get(k.toUpperCase());
+    return { key: k, met: x ? x.fm.status === 'done' : false, state: x ? pageState(x.fm.status) : 'not found', feature: null, where: null };
+  };
   const tickets = all.map((t) => {
-    const prefix = given(t.fm.repo) ? t.fm.repo.trim().toUpperCase() : own;
-    const stub = stubIds.has(t.id);
-    return ticketOf(t.id, t.text, { prefix, repo: stub ? stubs.stubRepoName(root, prefix) : nameOf(prefix), state: stub ? UNKNOWN : 'draft', ...(stub ? { stub } : {}), next: false, depends: plans.ticketIds(t.fm.depends_on).map(depOf) });
+    const repo = given(t.fm.repo) ? t.fm.repo.trim() : '';
+    return ticketOf(t.id, t.text, { prefix: repo, repo: repo ? clean(repo, 60) : repos[0].name, state: pageState(t.fm.status), ...(isStub(t.fm) ? { stub: true } : {}), next: t === next, via: null, onBranch: null, depends: plans.ticketIds(t.fm.depends_on).map(depOf) });
   });
-  return { code: d.fm.page, written: [], stage: `draft${plans.stateOf(d) === 'ready' ? ' (ready)' : ''}`, overviewText: d.text, overviewFile: 'plan.md', prefixes, own, repos, tickets, research: researchOf(d.folder), folder: d.folder, language: given(d.fm.language) ? d.fm.language : settings(root).language };
+  return { code: d.fm.page, stage: d.fm.status, overviewText: d.text, overviewFile: 'plan.md', repos, tickets, research: researchOf(d.folder), folder: d.folder, language: given(d.fm.language) ? d.fm.language : settings(root).language };
 }
 
-function exportedData(root, feature, f, now) {
-  const { keys, others, gone } = readStates(root, now);
-  const mine = [...keys.values()].filter((e) => e.feature === feature).sort((a, b) => byKey(a.key, b.key));
-  const next = nextOf(keys, mine, gone, others);
-  const readme = read(path.join(f.folder, 'README.md'));
-  const overview = readme !== null && frontmatter(readme).type === 'feature' ? readme : null;
-  const own = settings(root).ticket_prefix || prefixOf(mine.length ? mine[0].key : f.list[0].fm.key.toUpperCase());
-  const mineToo = new Set([own, ...ownPrefixes(root, mine)]);
-  const prefixes = overview ? planRepos(frontmatter(overview)) : [];
-  const stubsHere = stubs.stubFiles(f.folder);
-  const keyOfStub = (t) => t.fm.key.toUpperCase();
-  // The overview's Tickets lines may name a repository its repos: lacks (a stub's): it is listed too.
-  const linkedPrefixes = [...new Set([...prefixes, ...(overview ? listed(overview).map((t) => prefixOf(t.key)) : []), ...stubsHere.map((t) => prefixOf(keyOfStub(t)))])];
-  const repos = reposOf(root, own, linkedPrefixes.filter((p) => !mineToo.has(p) || p === own), overview);
-  // Where a dependency's code is (lib/plans-state.js depWhere); `pull`: the feature branch to merge it
-  // into, for one of this repository waiting in another feature branch.
-  const whereTo = (k, e, stated) => {
-    const w = depWhere(keys, stated, e, k);
-    return w && w.kind === 'feature' ? { ...w, pull: keys.has(k) && e.branch ? e.branch : null } : w;
-  };
-  // A dependency is met as nextOf reads it: done, waiting for the merge of this same feature, or already
-  // in this feature branch. One in a repository not read here is null: nextOf lets it pass, the page
-  // shows it not checked.
-  const metThere = (s, feature) => (s.state === NOT_CHECKED ? null : met(s, feature));
-  const depMet = (k, e, where) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, e.feature) || Boolean(where && where.kind === 'yours')
-    : others.has(k) ? metThere(others.get(k), e.feature) : gone.get(`${e.target} ${k}`) === 'done');
-  // The page shows a dependency's own state; `feature` tells it whose feature branch the code waits in.
-  const depState = (k, states, target) => (keys.has(k) ? { state: STATES[keys.get(k).state], feature: keys.get(k).feature }
-    : states.has(k) ? { state: states.get(k).state, feature: states.get(k).feature || null }
-      : { state: target && gone.get(`${target} ${k}`) === 'done' ? 'done' : UNKNOWN, feature: null });
-  const textOf = (list, key) => (list.find((t) => t.fm.key.toUpperCase() === key) || {}).text || null;
-  // A stub's key: the ticket of e's feature that replaces it (lib/plans-neighbours.js stubState), else
-  // unknown (never met, never holding a ticket back); not found once the stub is gone with none.
-  const stubDep = (k, e, stated) => {
-    const s = stubState(stated.get(k), e.feature, !(e.stubsGone || []).includes(k));
-    if (!s || s.state === NOT_CHECKED) return { key: k, met: null, state: UNKNOWN, feature: null, where: null };
-    const one = new Map([[k, s]]);
-    return { key: s.shown || k, met: metThere(s, e.feature), ...depState(k, one, e.target), where: whereTo(k, e, one) };
-  };
-  // A ticket with no file in this working tree: its text from the newest branch that has it, by the
-  // commit read (`./`: the path is the project's, which may be a sub-folder of the repository).
-  const elsewhere = (e) => {
-    const at = e.found.filter((x) => !x.view.work).sort((a, b) => b.view.date - a.view.date)[0];
-    const text = at ? git(root, ['cat-file', 'blob', `${at.view.sha}:./${at.path}`]) : null;
-    return text === null ? null : { text, branch: at.view.ref.replace(/^refs\/(heads|remotes)\//, '') };
-  };
-  const tickets = mine.map((e) => {
-    const here = textOf(f.list, e.key);
-    const away = here === null ? elsewhere(e) : null;
-    return ticketOf(e.shown, here === null && away ? away.text : here, {
-      title: e.title, prefix: prefixOf(e.key), repo: repos[0].name, state: STATES[e.state], next: e === next, via: e.via || null, onBranch: away ? away.branch : null,
-      depends: [...e.depends.map((k) => {
-        const where = whereTo(k, e, others);
-        return { key: k, met: depMet(k, e, where), ...depState(k, others, e.target), where };
-      }), ...e.stubs.map((k) => stubDep(k, e, others))],
-    });
-  });
-  const codes = f.list.map((t) => codeIn(t.fm));
-  for (const r of repos.slice(1)) {
-    const theirs = overview ? listed(overview).filter((t) => prefixOf(t.key) === r.prefix) : [];
-    const there = r.folder ? featureFolder(r.folder, feature) : null;
-    const list = there ? there.list : [];
-    codes.push(...list.map((t) => codeIn(t.fm)));
-    const mineStubs = stubsHere.filter((t) => prefixOf(keyOfStub(t)) === r.prefix);
-    const all = [...new Set([...theirs.map((t) => t.key), ...list.map((t) => t.fm.key.toUpperCase()), ...mineStubs.map(keyOfStub)])].sort(byKey);
-    const fileOf = (k) => list.find((t) => t.fm.key.toUpperCase() === k) || mineStubs.find((t) => keyOfStub(t) === k);
-    const depsOf = (k) => (fileOf(k) ? plans.ticketIds(fileOf(k).fm.depends_on).map((x) => x.toUpperCase()) : []);
-    const deps = [...new Set(all.flatMap(depsOf))].filter((k) => !keys.has(k));
-    // A stub's keys are read in their own repositories, also when this one is not here.
-    const wanted = [...new Set([...all, ...deps])];
-    const plain = wanted.filter((k) => !STUB_KEY.test(k));
-    const stubKeys = wanted.filter((k) => STUB_KEY.test(k));
-    const stated = new Map([...(r.folder && plain.length ? neighbourStates(root, plain, now) : []), ...(stubKeys.length ? stubStates(root, stubKeys, { now, here: [...keys.keys()] }) : [])]);
-    const theirMet = (k) => (keys.has(k) ? metBy(STATES[keys.get(k).state], keys.get(k).feature, feature) : stated.has(k) ? metThere(stated.get(k), feature) : null);
-    for (const k of all) {
-      const s = stated.get(k);
-      // A ticket there: its feature branch is not read here, so a dependency is never in it.
-      const there = { feature, branch: null, tips: [] };
-      const stub = mineStubs.find((t) => keyOfStub(t) === k);
-      const depends = depsOf(k).map((d) => (STUB_KEY.test(d) ? stubDep(d, there, stated) : { key: d, met: theirMet(d), ...depState(d, stated), where: whereTo(d, there, stated) }));
-      const t = stub ? ticketOf(stub.fm.key, stub.text, { prefix: r.prefix, repo: r.name, state: UNKNOWN, stub: true, next: false, via: null, depends })
-        : ticketOf((s && s.shown) || k, textOf(list, k), { prefix: r.prefix, repo: r.name, state: s ? s.state : UNKNOWN, next: false, depends });
-      if (!t.title) t.title = (theirs.find((x) => x.key === k) || {}).title || '';
-      tickets.push(t);
-    }
-  }
-  // The tickets here first, then another repository's on this machine; none: exported before the code,
-  // so a new one goes into this working tree's tickets.
-  // shortcut: another repository's tickets are not written; built there first, it may take another code.
-  let code = codes.find(Boolean) || null;
-  const written = [];
-  if (!code) {
-    code = plans.pageCode();
-    for (const t of f.list) {
-      plans.writeFile(root, { local: f.local }, t.file, withCode(t.text, code));
-      written.push(path.relative(root, t.file).split(path.sep).join('/'));
-    }
-  }
-  return { code, written, stage: 'exported', overviewText: overview, overviewFile: 'README.md', prefixes, own, repos, tickets, research: researchOf(f.folder), folder: f.folder, language: settings(root).language };
-}
-
-// The feature of the current branch: a draft whose branch (or name) it is, or exported tickets whose
-// branch it is, or whose ticket is in progress on it; `all` every draft and exported feature, `here`
-// those the page can be built from in this working tree, for the question.
-function currentFeature(root, now) {
+// The feature of the current branch: one whose branch (or name) it is, or whose ticket's branch it is;
+// `all` every feature here, for the question.
+function currentFeature(root) {
   const branch = git(root, ['symbolic-ref', '-q', '--short', 'HEAD']);
-  const drafts = plans.listDrafts(root).filter((d) => ['draft', 'ready'].includes(plans.stateOf(d)));
-  const keys = [...states(collect(root, now)).values()].filter((e) => plans.validFeature(e.feature));
-  const all = [...new Set([...drafts.map((d) => d.feature), ...keys.map((e) => e.feature)])].sort();
-  const ticketBranch = (e) => e.via && e.via.kind === 'branch' && e.via.branch === branch;
-  const on = branch ? [...new Set([...drafts.filter((d) => d.fm.branch === branch || d.feature === branch).map((d) => d.feature), ...keys.filter((e) => e.branch === branch || ticketBranch(e)).map((e) => e.feature)])] : [];
-  const here = all.filter((x) => drafts.some((d) => d.feature === x) || featureFolder(root, x));
-  return { branch, all, here, on };
+  const features = plans.listDrafts(root);
+  const all = features.map((d) => d.feature);
+  const on = branch ? features.filter((d) => d.fm.branch === branch || d.feature === branch || plans.tickets(d).some((t) => t.fm.branch === branch)).map((d) => d.feature) : [];
+  return { branch, all, on };
 }
 
 // `lang`: the page's language, else the earlier page's (`previous`, its file), else the conversation's.
-// `fetch`: the remote first, so the states are fresh; a failed fetch still builds the page.
-function build(root, arg, { now = new Date(), lang = null, previous = null, fetch = false } = {}) {
+function build(root, arg, { now = new Date(), lang = null, previous = null } = {}) {
   let feature = arg;
   if (feature === undefined) {
-    const c = currentFeature(root, now);
+    const c = currentFeature(root);
     if (c.on.length !== 1) {
       const why = !c.branch ? 'HEAD is detached' : c.on.length ? `the branch ${c.branch} has several: ${c.on.join(', ')}` : `the branch ${c.branch} is no feature's branch`;
-      const elsewhere = c.all.filter((x) => !c.here.includes(x));
-      return [`feature: none (${why})`, `features: ${c.here.join(', ') || 'none'}`, ...(elsewhere.length ? [`other branches: ${elsewhere.join(', ')}`] : [])];
+      return [`feature: none (${why})`, `features: ${c.all.join(', ') || 'none'}`];
     }
     feature = c.on[0];
   }
   if (!plans.validFeature(feature)) return refuse(`invalid feature name "${clean(String(feature), 60)}"`);
-  const draft = plans.listDrafts(root).find((d) => d.feature === feature && ['draft', 'ready'].includes(plans.stateOf(d)));
-  const f = draft ? null : featureFolder(root, feature);
-  if (!draft && !f) return refuse(`no draft and no exported tickets of ${feature} in this working tree; on another branch: switch to it first`);
-  // A draft's tickets have no state from git, so a fetch would freshen nothing on its page.
-  const fetchResult = fetch && !draft ? fetched(root) : { failed: false, notes: [] };
-  // fetched() words its notes for the export ("; keys ..."); the page speaks of ticket states.
-  const fetchNotes = fetchResult.notes.map((n) => n.replace(/; keys .*$/, fetchResult.failed ? '; ticket states as of the last fetch' : ''));
+  const found = plans.listDrafts(root).find((d) => d.feature === feature);
+  if (!found) return refuse(`no feature ${feature} in this working tree; on another branch: switch to it first`);
   let data;
-  try { data = draft ? draftData(root, draft) : exportedData(root, feature, f, now); } catch (e) { return refuse(e.message); }
-  const stale = fetchResult.failed;
+  try { data = featureData(root, found); } catch (e) { return refuse(e.message); }
   // The page leaves this machine: a feature file that names one of its folders is fixed first.
   const folders = plans.machineFolders(root);
   const local = [
@@ -294,20 +167,10 @@ function build(root, arg, { now = new Date(), lang = null, previous = null, fetc
     try { fs.rmSync(path.join(pageDir(root), 'index.html'), { force: true }); } catch { /* none */ }
     return [...refuse(`${local.length} paths of this machine in the feature's files; write them from the repository's root`), ...local.map((p) => `- ${p}`)];
   }
-  const prefix = [...data.prefixes, data.own].find((p) => PREFIX.test(p || ''));
-  if (!prefix) return refuse('no ticket prefix: /keel:configure planning');
-  // A ticket's repository as the page finds it: by its prefix, else by its name.
-  const repoOfTicket = (t) => data.repos.find((r) => r.prefix === t.prefix) || data.repos.find((r) => r.name === t.repo);
-  // In the overview's repos: order, so every repository of the feature gives the same title; with no
-  // repos: (one repository, maybe with stubs) this project's first.
-  const order = data.prefixes.length ? data.prefixes : [data.own];
-  const rank = (p) => (order.includes(p) ? order.indexOf(p) : order.length);
-  const withTickets = data.repos.filter((r) => data.tickets.some((t) => repoOfTicket(t) === r)).map((r) => r.prefix)
-    .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
   const heading = (data.overviewText && titleOf(data.overviewText)) || feature;
   const chars = [...heading.trim()];
   const shown = chars.length > TITLE_HEADING_MAX ? `${chars.slice(0, TITLE_HEADING_MAX - 1).join('').trimEnd()}…` : chars.join('');
-  const title = `[${(withTickets.length ? withTickets : [prefix]).join(', ')}] - ${shown} (${data.code})`;
+  const title = `${shown} (${data.code})`;
   if (lang && !langCode(lang)) return refuse(`"${clean(String(lang), 40)}" is no language code: give one such as en, uk, de`);
   const earlier = previous ? read(previous) : null;
   if (previous && earlier === null) return refuse(`cannot read ${previous}`);
@@ -317,7 +180,7 @@ function build(root, arg, { now = new Date(), lang = null, previous = null, fetc
   const { labels, own } = labelsFor(pageLang);
   const secs = data.overviewText ? sectionsOf(data.overviewText) : [];
   const page = {
-    feature, title, stage: data.stage, generated: now.toISOString(), fetchFailed: stale,
+    feature, title, stage: data.stage, generated: now.toISOString(), fetchFailed: false,
     language: pageLang, source, labels,
     heading,
     repos: data.repos.map((r) => ({ prefix: r.prefix, name: r.name, commit: r.commit })),
@@ -330,10 +193,8 @@ function build(root, arg, { now = new Date(), lang = null, previous = null, fetc
   const info = [
     `title: ${title}`,
     `code: ${data.code}`,
-    ...(data.written.length ? [`code written: ${data.written.join(', ')} (commit and push them, so every machine finds this page)`] : []),
-    `feature: ${feature}, ${data.stage}, ${data.tickets.length} tickets${data.stage === 'exported' ? ` (${done} done)` : ''}`,
+    `feature: ${feature}, ${data.stage}, ${data.tickets.length} tickets (${done} done)`,
     `as of: ${data.repos.map((r) => `${r.name} ${r.commit || 'not on this machine'}`).join(', ')}`,
-    ...fetchNotes,
     `language: ${pageLang}${own ? '' : ' (labels in English: no page labels in this language)'}; texts in ${source}`,
   ];
   let dir;
@@ -409,10 +270,10 @@ if (require.main === module) {
     const { opts, pos } = parseArgs(process.argv.slice(2));
     const root = require('./lib/project-dir.js').scriptProject(pos[0]);
     const str = (v) => (typeof v === 'string' ? v : null);
-    // "--fetch <feature>": parseArgs takes the word as the flag's value; it is the feature.
+    // "--fetch <feature>" (keel 2.0.0's flag, no longer used): parseArgs takes the word as its value; it is the feature.
     const feature = pos[1] ?? str(opts.fetch) ?? undefined;
     lines = feature === 'clean' ? cleanPage(root) : feature === 'apply' ? applyTranslations(root)
-      : build(root, feature, { lang: str(opts.lang), previous: str(opts.previous), fetch: opts.fetch !== undefined });
+      : build(root, feature, { lang: str(opts.lang), previous: str(opts.previous) });
   } catch (e) {
     lines = [`feature-page: unavailable (${e.message})`];
   }
@@ -420,4 +281,4 @@ if (require.main === module) {
   process.exit(0);
 }
 
-module.exports = { termsOf, PAGE_ASSETS };
+module.exports = { termsOf, PAGE_ASSETS, PAGE_STATE, UNKNOWN };

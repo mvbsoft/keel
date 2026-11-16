@@ -143,6 +143,7 @@
   "page.ask": "спершу спитати",
   "page.never": "ніколи",
   "page.state.done": "готово",
+  "page.state.abandoned": "закрито без виконання",
   "page.state.waiting_feature": "чекає злиття фічі",
   "page.state.waiting_branch": "чекає злиття в гілку фічі",
   "page.state.waiting": "чекає злиття",

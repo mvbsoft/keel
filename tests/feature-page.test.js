@@ -10,13 +10,13 @@ const { tempDir } = require('./fixtures/tmp.js');
 
 const SCRIPTS = path.join(__dirname, '..', 'plugins', 'keel', 'scripts');
 const vm = require('node:vm');
-const { termsOf, PAGE_ASSETS } = require(path.join(SCRIPTS, 'feature-page.js'));
+const { termsOf, PAGE_ASSETS, PAGE_STATE } = require(path.join(SCRIPTS, 'feature-page.js'));
 const { langCode, readPage } = require(path.join(SCRIPTS, 'lib', 'feature-page-text.js'));
 
 const hasGit = (() => { try { execFileSync('git', ['--version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const gitTest = (name, fn) => test(name, { skip: !hasGit && 'git is not installed' }, fn);
 
-const CONFIG = (prefix) => ({
+const CONFIG = {
   schema_version: 1,
   repo_language: 'en',
   gates: { checks: [], security_scanners: [] },
@@ -27,11 +27,11 @@ const CONFIG = (prefix) => ({
   },
   architecture: { file_lines_warn: 700, file_lines_max: 1000 },
   docs: { profile: 1, pattern: 'none' },
-  planning: { ticket_prefix: prefix, tickets: 'repo', language: 'uk' },
-});
+  planning: { place: 'repo', language: 'uk' },
+};
 
 const FEATURE = 'message-notify';
-// The feature's code in its tickets, as export writes it.
+// The feature's code in its plan.md.
 const PAGE = '3f9a2c1b';
 const T = `tickets/${FEATURE}`;
 
@@ -53,18 +53,15 @@ function pageData(file) {
 }
 
 // A full ticket: every section, a code block, three criteria and two files in Where to look.
-const FULL = (key, status = 'todo', depends = '[]') => `---
+const FULL = (id, status = 'ready', depends = '', extra = '') => `---
+id: ${id}
 type: ticket
-key: ${key}
 status: ${status}
-feature: ${FEATURE}
-page: ${PAGE}
-branch: ${FEATURE}
-merge_into: main
 depends_on: ${depends}
+${extra}review_hash: -
 ---
 
-# [${key}] Цифра непрочитаних на іконці чату
+# [${id}] Цифра непрочитаних на іконці чату
 
 ## In plain words
 Коли чат закритий, на іконці з'являється червона цифра. Подія приходить через WebSocket.
@@ -109,18 +106,15 @@ D1
 `;
 
 // The same structure without the optional sections (Example, Correct the priors).
-const BARE = (key, status = 'todo') => `---
+const BARE = (id, status = 'ready', depends = '', extra = '') => `---
+id: ${id}
 type: ticket
-key: ${key}
 status: ${status}
-feature: ${FEATURE}
-page: ${PAGE}
-branch: ${FEATURE}
-merge_into: main
-depends_on: []
+depends_on: ${depends}
+${extra}review_hash: -
 ---
 
-# [${key}] Подія message.created
+# [${id}] Подія message.created
 
 ## In plain words
 Бекенд шле подію після нового повідомлення.
@@ -149,10 +143,17 @@ D1
 ## Dependencies
 `;
 
-const OVERVIEW = (repos = '') => `---
-type: feature
-${repos}---
-# Сповіщення про нове повідомлення
+const PLAN = ({ heading = 'Сповіщення про нове повідомлення', status = 'in-progress', page = PAGE } = {}) => `---
+type: plan
+status: ${status}
+feature: ${FEATURE}
+${page ? `page: ${page}\n` : ''}language: uk
+branch: ${FEATURE}
+merge_into: main
+last_ticket: 2
+ready_hash: -
+---
+# ${heading}
 
 ## In plain words
 Коли комусь пишуть, він бачить цифру навіть у закритому чаті; подія приходить через WebSocket.
@@ -165,11 +166,11 @@ D1. Одна подія для всіх.
 - подія: повідомлення від сервера
 
 ## Tickets
-- API-1 Подія message.created (api)
-- API-2 Цифра непрочитаних на іконці чату (api)
+- T1 Подія message.created
+- T2 Цифра непрочитаних на іконці чату
 `;
 
-function repo(tmp, name, prefix, remote) {
+function repo(tmp, name, remote) {
   const dir = path.join(tmp, name);
   fs.mkdirSync(dir);
   git(dir, 'init', '-q', '-b', 'main');
@@ -177,7 +178,7 @@ function repo(tmp, name, prefix, remote) {
   git(dir, 'config', 'user.email', 'test@example.com');
   git(dir, 'config', 'core.autocrlf', 'false');
   if (remote) git(dir, 'remote', 'add', 'origin', remote);
-  write(dir, '.keel/config.json', JSON.stringify(CONFIG(prefix)));
+  write(dir, '.keel/config.json', JSON.stringify(CONFIG));
   write(dir, '.keel/.gitignore', 'local/\n');
   write(dir, 'src/app.js', 'module.exports = 1;\n');
   git(dir, 'add', '-A');
@@ -186,113 +187,74 @@ function repo(tmp, name, prefix, remote) {
   return dir;
 }
 
-// api: API-1 done on the feature branch (bare), API-2 to do after it (full); a research report.
-function exported(tmp, { overview = OVERVIEW(), remote = 'https://bot:s3cret-token@GitHub.com/Team/api.git' } = {}) {
-  const api = repo(tmp, 'api', 'API', remote);
-  write(api, `${T}/API-1-event.md`, BARE('API-1', 'done'));
-  write(api, `${T}/API-2-badge.md`, FULL('API-2', 'todo', '[API-1]'));
-  write(api, `${T}/README.md`, overview);
+// api: T1 done (bare), T2 ready after it (full); a research report; all in the repository.
+function feature(tmp, { plan = PLAN(), remote = 'https://bot:s3cret-token@GitHub.com/Team/api.git' } = {}) {
+  const api = repo(tmp, 'api', remote);
+  write(api, `${T}/plan.md`, plan);
+  write(api, `${T}/tickets/T1-event.md`, BARE('T1', 'done'));
+  write(api, `${T}/tickets/T2-badge.md`, FULL('T2', 'ready', 'T1'));
   write(api, `${T}/research/websocket.md`, '# WebSocket чи опитування\n\n## Question\nЯк доставити подію?\n\n## Recommendation\nWebSocket.\n');
   git(api, 'add', '-A');
-  git(api, 'commit', '-q', '-m', 'Add the notify tickets');
+  git(api, 'commit', '-q', '-m', 'Plan the notify feature');
+  // The tickets as reviewed: T2 is next only so.
+  plans(api, 'reviewed', FEATURE, 'T1', 'T2');
   return api;
 }
 
-gitTest('an exported feature: its texts, states, sizes and terms go into the page as they are', () => {
+gitTest('a feature: its texts, states from the status fields, sizes and terms go into the page as they are; the title has no prefixes', () => {
   const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
+  const api = feature(tmp);
   const out = run(api, FEATURE);
   assert.equal(line(out, 'code'), PAGE);
-  assert.equal(line(out, 'title'), `[API] - Сповіщення про нове повідомлення (${PAGE})`);
-  assert.ok(!out.some((l) => /^(title if taken|page title|marker): /.test(l)), out.join('\n'));
-  assert.equal(line(out, 'feature'), `${FEATURE}, exported, 2 tickets (0 done)`);
+  assert.equal(line(out, 'title'), `Сповіщення про нове повідомлення (${PAGE})`);
+  assert.equal(line(out, 'feature'), `${FEATURE}, in-progress, 2 tickets (1 done)`);
   assert.match(line(out, 'as of'), /^api [0-9a-f]{7,}$/);
   const file = line(out, 'page');
   assert.equal(path.relative(api, file).split(path.sep).join('/'), '.keel/local/tmp/feature-page/index.html');
   const { html, data } = pageData(file);
 
-  assert.ok(html.includes(`<title>[API] - Сповіщення про нове повідомлення (${PAGE})</title>`));
+  assert.ok(html.includes(`<title>Сповіщення про нове повідомлення (${PAGE})</title>`));
   assert.ok(html.indexOf('<title>') < 8192, 'the host reads the title in the first 8KB');
   assert.equal(data.heading, 'Сповіщення про нове повідомлення');
-  assert.equal(data.stage, 'exported');
+  assert.equal(data.stage, 'in-progress');
   assert.equal(data.language, 'uk');
+  assert.equal(data.overview.file, 'plan.md');
   assert.deepEqual(data.overview.sections.map((s) => s.name), ['In plain words', 'Decisions', 'Terms', 'Tickets']);
   assert.deepEqual(data.terms, [{ term: 'WebSocket', text: "постійне з'єднання браузера з сервером" }, { term: 'подія', text: 'повідомлення від сервера' }]);
 
   const [one, two] = data.tickets;
-  assert.deepEqual([one.key, one.state, one.next, two.key, two.state, two.next], ['API-1', 'waiting for the feature merge', false, 'API-2', 'to do', true]);
-  assert.deepEqual(two.depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE, where: null }], 'done on the feature branch holds no ticket of the feature back; the page shows its own state');
+  assert.deepEqual([one.key, one.state, one.next, two.key, two.state, two.next], ['T1', 'done', false, 'T2', 'to do', true]);
+  assert.deepEqual(two.depends, [{ key: 'T1', met: true, state: 'done', feature: null, where: null }]);
   assert.equal(two.title, 'Цифра непрочитаних на іконці чату');
+  assert.equal(two.repo, 'api');
   assert.deepEqual([two.files, two.criteria], [2, 3]);
   // The text as it is: a "## " inside a code block stays in its section.
-  const full = FULL('API-2', 'todo', '[API-1]');
   const sectionText = (name) => two.sections.find((s) => s.name === name).text;
   assert.equal(sectionText('How to check'), '```bash\nnpm test -- chat-badge\n## not a section\n```');
-  assert.ok(full.includes(sectionText('Correct the priors')));
+  assert.ok(FULL('T2').includes(sectionText('Correct the priors')));
   assert.equal(two.sections.length, 11);
   // The whole file too, front matter included, for the page's "MD file" window.
   assert.match(two.md, /^---\n[\s\S]*\n---\n/);
-  assert.ok(two.md.includes('# [API-2] Цифра непрочитаних на іконці чату') && two.md.includes(sectionText('How to check')));
-
+  assert.ok(two.md.includes('# [T2] Цифра непрочитаних на іконці чату') && two.md.includes(sectionText('How to check')));
   // A ticket without the optional sections: the others, in their order, and its size.
   assert.deepEqual(one.sections.map((s) => s.name), ['In plain words', 'Goal', 'Acceptance criteria', 'How to check', 'Boundaries', 'Where to look', 'Out of scope', 'Why', 'Dependencies']);
   assert.deepEqual([one.files, one.criteria], [0, 1]);
   assert.deepEqual(data.research.map((r) => [r.name, r.title, r.sections.map((s) => s.name)]), [['websocket.md', 'WebSocket чи опитування', ['Question', 'Recommendation']]]);
-  assert.equal(two.via, null);
 
-  // A branch named with the key: in progress, with the branch for the page's "in progress now".
-  git(api, 'branch', 'api-2-badge');
-  const doing = pageData(line(run(api, FEATURE), 'page')).data.tickets[1];
-  assert.equal(doing.state, 'in progress');
-  assert.equal(doing.via.kind, 'branch');
-  assert.equal(doing.via.branch, 'api-2-badge');
-  assert.ok(doing.via.author && Number.isInteger(doing.via.date), 'the author and the date of its last commit, apart');
+  // The page's state words for each status; a ticket that needs review or waits for a dependency is no next.
+  plans(api, 'status', FEATURE, 'T2', 'in-progress');
+  assert.deepEqual(pageData(line(run(api, FEATURE), 'page')).data.tickets.map((t) => [t.state, t.next]), [['done', false], ['in progress', false]]);
+  plans(api, 'status', FEATURE, 'T1', 'abandoned', '--reason', 'не треба');
+  plans(api, 'status', FEATURE, 'T2', 'ready');
+  const after = pageData(line(run(api, FEATURE), 'page')).data.tickets;
+  assert.deepEqual(after.map((t) => [t.state, t.next]), [['abandoned', false], ['to do', false]]);
+  assert.deepEqual(after[1].depends, [{ key: 'T1', met: false, state: 'abandoned', feature: null, where: null }]);
 
   // A "</script>" in a ticket cannot end the data block (the page's own: two data blocks, the theme
   // script, three libraries, its script); the token in the remote URL is not on the page.
   assert.equal((html.match(/<\/script>/g) || []).length, 7);
   assert.ok(!html.includes('s3cret'));
   assert.ok(!html.includes(tmp) && !html.includes(tmp.split(path.sep).join('/')), 'no local path on the page');
-});
-
-gitTest('--fetch: the states come from a fresh fetch; a failed fetch still builds the page and marks its states as of the last fetch', () => {
-  const tmp = tempDir('keel-page-');
-  const bare = path.join(tmp, 'api.git');
-  execFileSync('git', ['init', '-q', '--bare', bare]);
-  const api = exported(tmp, { remote: bare });
-  git(api, 'push', '-q', 'origin', 'main', FEATURE);
-  // Another machine starts API-2 and pushes its branch; this clone has not fetched it yet.
-  const other = path.join(tmp, 'other');
-  execFileSync('git', ['clone', '-q', '-b', FEATURE, bare, other]);
-  git(other, 'push', '-q', 'origin', `${FEATURE}:api-2-badge`);
-  const api2 = (out) => pageData(line(out, 'page')).data.tickets[1].state;
-
-  const stale = run(api, FEATURE);
-  assert.equal(api2(stale), 'to do', 'without --fetch: what this clone knows');
-  assert.ok(!stale.some((l) => l.startsWith('fetch: ')), stale.join('\n'));
-
-  const fresh = run(api, '--fetch', FEATURE);
-  assert.equal(api2(fresh), 'in progress', fresh.join('\n'));
-  assert.ok(!fresh.some((l) => l.startsWith('fetch: ')), fresh.join('\n'));
-  assert.ok(!pageData(line(fresh, 'page')).data.fetchFailed);
-
-  git(api, 'remote', 'set-url', 'origin', path.join(tmp, 'gone.git'));
-  const failed = run(api, FEATURE, '--fetch');
-  assert.match(line(failed, 'fetch'), /^origin failed \(.+\); ticket states as of the last fetch$/);
-  const { data } = pageData(line(failed, 'page'));
-  assert.equal(data.fetchFailed, true, 'the page says so too');
-  assert.equal(data.tickets[1].state, 'in progress', 'the states of the last fetch');
-  assert.ok(!JSON.stringify(data).includes('gone.git'), 'no remote or git error on the page');
-  // A draft's tickets have no state from git: nothing to mark.
-  plans(api, 'new', 'csv-export');
-  const draft = run(api, 'csv-export', '--fetch');
-  assert.ok(!draft.some((l) => l.startsWith('fetch: ')), draft.join('\n'));
-  assert.ok(!pageData(line(draft, 'page')).data.fetchFailed, 'a draft page');
-
-  git(api, 'remote', 'remove', 'origin');
-  const none = run(api, FEATURE, '--fetch');
-  assert.equal(line(none, 'fetch'), 'no remote, skipped');
-  assert.ok(!pageData(line(none, 'page')).data.fetchFailed, 'no remote: nothing is stale');
 });
 
 const TEMPLATES = path.join(__dirname, '..', 'plugins', 'keel', 'templates');
@@ -303,7 +265,7 @@ const DESIGN_FILES = fs.readdirSync(DESIGN_DIR);
 
 gitTest('the page\'s other files lie beside it as they are (the design system byte for byte), and the page loads no local file that is not there', () => {
   const tmp = tempDir('keel-page-');
-  const file = line(run(exported(tmp), FEATURE), 'page');
+  const file = line(run(feature(tmp), FEATURE), 'page');
   const dir = path.dirname(file);
   assert.deepEqual(fs.readdirSync(dir).sort(), ['index.html', 'style.css', 'page.js', ...DESIGN_FILES].sort());
   const same = (name, from) => assert.ok(fs.readFileSync(path.join(dir, name)).equals(fs.readFileSync(path.join(from, name))), `${name} is copied as it is`);
@@ -372,36 +334,29 @@ test('the page template: a fragment (the publish tool adds the document) that lo
   for (const [name, n] of Object.entries(lines)) assert.ok(n < 700, `${name} has ${n} lines`);
 });
 
-gitTest('the code: the tickets\' own, whatever the remote; a feature exported without one gets one written into its tickets here', () => {
+gitTest('the code: the plan\'s own, whatever the remote; a plan without one gets one written into plan.md', () => {
   const tmp = tempDir('keel-page-');
   const title = (n, opts) => {
     const dir = path.join(tmp, n);
     fs.mkdirSync(dir);
-    return line(run(exported(dir, opts), FEATURE), 'title');
+    return line(run(feature(dir, opts), FEATURE), 'title');
   };
   assert.equal(title('1'), title('2', { remote: null }), 'no remote: the same page');
   // A long heading is cut, the code stays whole.
-  const long = title('3', { overview: OVERVIEW().replace('# Сповіщення про нове повідомлення', `# ${'Дуже довга назва '.repeat(8)}`) });
-  assert.match(long, new RegExp(`^\\[API\\] - Дуже довга назва .{40,80}… \\(${PAGE}\\)$`), long);
-
-  // Exported before the code: a new one, written into every ticket of the feature here.
+  const long = title('3', { plan: PLAN({ heading: 'Дуже довга назва '.repeat(8) }) });
+  assert.match(long, new RegExp(`^Дуже довга назва .{40,80}… \\(${PAGE}\\)$`), long);
   const dir = path.join(tmp, '4');
   fs.mkdirSync(dir);
-  const api = exported(dir);
-  for (const f of ['API-1-event.md', 'API-2-badge.md']) write(api, `${T}/${f}`, fs.readFileSync(path.join(api, T, f), 'utf8').replace(`page: ${PAGE}\n`, ''));
-  const out = run(api, FEATURE);
-  const code = line(out, 'code');
+  const api = feature(dir, { plan: PLAN({ page: null }) });
+  const code = line(run(api, FEATURE), 'code');
   assert.match(code, /^[0-9a-f]{8}$/);
-  assert.notEqual(code, PAGE);
-  assert.equal(line(out, 'code written'), `${T}/API-1-event.md, ${T}/API-2-badge.md (commit and push them, so every machine finds this page)`);
-  for (const f of ['API-1-event.md', 'API-2-badge.md']) assert.match(fs.readFileSync(path.join(api, T, f), 'utf8'), new RegExp(`^feature: ${FEATURE}\npage: ${code}\n`, 'm'));
-  assert.equal(line(run(api, FEATURE), 'code'), code, 'the next build reads it from the files');
-  assert.equal(line(run(api, FEATURE), 'code written'), '');
+  assert.match(fs.readFileSync(path.join(api, T, 'plan.md'), 'utf8'), new RegExp(`^page: ${code}$`, 'm'));
+  assert.equal(line(run(api, FEATURE), 'code'), code, 'the next build reads it from plan.md');
 });
 
 gitTest('the page\'s language: the conversation\'s; texts in another language wait for a translation, kept in the page for the next update', () => {
   const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
+  const api = feature(tmp);
   const dir = path.join(api, '.keel', 'local', 'tmp', 'feature-page');
   const out = runIn('en')(api, FEATURE);
   assert.equal(line(out, 'page'), '', 'no page until the texts are translated');
@@ -439,7 +394,7 @@ gitTest('the page\'s language: the conversation\'s; texts in another language wa
   assert.deepEqual(said(head), said(saved));
   assert.match(line(run(api, FEATURE, '--previous', head), 'page'), /index\.html$/, 'the first lines are enough for the cache');
   assert.match(line(run(api, FEATURE, '--previous', saved), 'page'), /index\.html$/, 'all known: the page at once, in its language');
-  write(api, `${T}/API-2-badge.md`, FULL('API-2', 'todo', '[API-1]').replace('Показати цифру.', 'Показати цифру одразу.'));
+  write(api, `${T}/tickets/T2-badge.md`, FULL('T2', 'ready', 'T1').replace('Показати цифру.', 'Показати цифру одразу.'));
   const again = run(api, FEATURE, '--previous', saved);
   assert.match(line(again, 'translate'), /^\S.*\(1 texts, /);
   assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'translate.json'), 'utf8')).texts[0].text, 'Показати цифру одразу.');
@@ -451,166 +406,83 @@ gitTest('the page\'s language: the conversation\'s; texts in another language wa
   assert.match(run(api, FEATURE, '--lang', 'German')[0], /^feature-page: refused \("German" is no language code/, 'a name is not turned into a code');
 });
 
-gitTest('a feature on several repositories: one title from each, naming every repository with tickets; another repository read from the map, a missing one from the overview', () => {
+gitTest('a draft on this machine: plan.md as the overview, its tickets as drafts, none next', () => {
   const tmp = tempDir('keel-page-');
-  const overview = OVERVIEW('repos: [API, WEB, WGT]\n').replace('## Tickets\n', '## Tickets\n- WEB-14 Цифра на сайті (web)\n- WGT-3 Цифра у віджеті (widget)\n');
-  const api = exported(tmp, { overview });
-  const web = repo(tmp, 'web', 'WEB', 'git@github.com:Team/web.git');
-  // API-2 and WEB-14 also wait for WGT-3, whose repository is not on this machine.
-  write(api, `${T}/API-2-badge.md`, FULL('API-2', 'todo', '[API-1, WGT-3]'));
-  git(api, 'commit', '-q', '-am', 'API-2 waits for the widget');
-  write(web, `${T}/WEB-14-badge.md`, BARE('WEB-14').replace(/API-1|message.created/g, 'x').replace('# [WEB-14] Подія x', '# [WEB-14] Цифра на сайті').replace('depends_on: []', 'depends_on: [API-1, API-2, WGT-3]'));
-  write(web, `${T}/README.md`, overview);
-  git(web, 'add', '-A');
-  git(web, 'commit', '-q', '-m', 'Add the notify tickets');
-  assert.match(plans(api, 'settings', 'set', '--repo', `WEB=${web}`)[0], /^settings: /);
-  assert.match(plans(web, 'settings', 'set', '--repo', `API=${api}`)[0], /^settings: /);
-
-  const fromApi = run(api, FEATURE);
-  const fromWeb = run(web, FEATURE);
-  assert.equal(line(fromApi, 'title'), `[API, WEB, WGT] - Сповіщення про нове повідомлення (${PAGE})`);
-  assert.equal(line(fromWeb, 'title'), line(fromApi, 'title'), 'the same title from every repository');
-  assert.match(line(fromApi, 'as of'), /^api [0-9a-f]+, web [0-9a-f]+, widget not on this machine$/);
-
-  const { data } = pageData(line(fromApi, 'page'));
-  assert.deepEqual(data.repos.map((r) => r.name), ['api', 'web', 'widget']);
-  const webTicket = data.tickets.find((t) => t.key === 'WEB-14');
-  assert.deepEqual([webTicket.repo, webTicket.state, webTicket.title], ['web', 'to do', 'Цифра на сайті']);
-  assert.ok(webTicket.sections.length > 0, 'its text from its folder');
-  assert.deepEqual(webTicket.depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE, where: null }, { key: 'API-2', met: false, state: 'to do', feature: FEATURE, where: { kind: 'todo' } }, { key: 'WGT-3', met: null, state: 'not checked', feature: null, where: null }], 'its depends_on, met as this repository reads them; one not read here: null');
-  assert.deepEqual(data.tickets.find((t) => t.key === 'API-2').depends, [{ key: 'API-1', met: true, state: 'waiting for the feature merge', feature: FEATURE, where: null }, { key: 'WGT-3', met: null, state: 'not checked', feature: null, where: null }], 'a dependency in a repository not on this machine is not shown met');
-  const wgt = data.tickets.find((t) => t.key === 'WGT-3');
-  assert.deepEqual([wgt.repo, wgt.state, wgt.title, wgt.sections], ['widget', 'state unknown', 'Цифра у віджеті', null]);
-});
-
-gitTest('a draft: plan.md as the overview, its tickets with no state', () => {
-  const tmp = tempDir('keel-page-');
-  const api = repo(tmp, 'api', 'API', 'https://github.com/Team/api.git');
-  assert.equal(plans(api, 'new', 'csv-export')[0], 'created: .keel/local/plans/keel/csv-export/plan.md');
+  const api = repo(tmp, 'api', 'https://github.com/Team/api.git');
+  assert.equal(plans(api, 'new', 'csv-export', '--place', 'pc')[0], 'created: .keel/local/plans/keel/csv-export/plan.md');
   const draft = path.join(api, '.keel', 'local', 'plans', 'keel', 'csv-export');
   const plan = fs.readFileSync(path.join(draft, 'plan.md'), 'utf8').replace(/## In plain words\n[^#]*/, '## In plain words\nЕкспорт рахунків у CSV.\n\n');
   fs.writeFileSync(path.join(draft, 'plan.md'), plan);
-  write(draft, 'tickets/T1-export.md', FULL('T1').replace(/^---[\s\S]*?---/, '---\nid: T1\ndepends_on: []\n---'));
-  write(draft, 'tickets/T2-button.md', BARE('T2').replace(/^---[\s\S]*?---/, '---\nid: T2\ndepends_on: [T1]\n---'));
+  write(draft, 'tickets/T1-export.md', FULL('T1', 'draft'));
+  write(draft, 'tickets/T2-button.md', BARE('T2', 'draft', 'T1'));
   const out = run(api, 'csv-export');
   const code = /^page: ([0-9a-f]{8})$/m.exec(fs.readFileSync(path.join(draft, 'plan.md'), 'utf8'))[1];
-  assert.equal(line(out, 'title'), `[API] - csv-export (${code})`, 'the draft\'s code, from plan.md');
-  assert.equal(line(out, 'code written'), '');
-  assert.equal(line(out, 'feature'), 'csv-export, draft, 2 tickets');
+  assert.equal(line(out, 'title'), `csv-export (${code})`, 'the plan\'s code, from plan.md');
+  assert.equal(line(out, 'feature'), 'csv-export, draft, 2 tickets (0 done)');
   const { data } = pageData(line(out, 'page'));
-  assert.equal(data.overview.file, 'plan.md');
+  assert.equal(data.stage, 'draft');
   assert.equal(data.overview.sections.find((s) => s.name === 'In plain words').text, 'Експорт рахунків у CSV.');
-  assert.deepEqual(data.tickets.map((t) => [t.key, t.state, t.repo, t.files, t.criteria]), [['T1', 'draft', 'api', 2, 3], ['T2', 'draft', 'api', 0, 1]]);
-  assert.deepEqual(data.tickets[1].depends, [{ key: 'T1', met: false }]);
+  assert.deepEqual(data.tickets.map((t) => [t.key, t.state, t.next, t.repo, t.files, t.criteria]), [['T1', 'draft', false, 'api', 2, 3], ['T2', 'draft', false, 'api', 0, 1]]);
+  assert.deepEqual(data.tickets[1].depends, [{ key: 'T1', met: false, state: 'draft', feature: null, where: null }]);
 });
 
-gitTest('no feature named: the current branch\'s, else none with the list; clean removes the page', () => {
+gitTest('a stub and a ticket of another repository: shown under that repository\'s name, the stub marked', () => {
   const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
-  assert.equal(line(run(api), 'feature'), `${FEATURE}, exported, 2 tickets (0 done)`);
+  const api = feature(tmp);
+  write(api, `${T}/tickets/T3-admin.md`, BARE('T3', 'ready', 'T9').replace('type: ticket', 'type: stub\nrepo: ADM'));
+  write(api, `${T}/tickets/T4-web.md`, BARE('T4', 'ready').replace('type: ticket', 'type: ticket\nrepo: WEB'));
+  const { data } = pageData(line(run(api, FEATURE), 'page'));
+  const [, , stub, web] = data.tickets;
+  assert.deepEqual([stub.key, stub.repo, stub.stub, web.key, web.repo, web.stub], ['T3', 'ADM', true, 'T4', 'WEB', undefined]);
+  assert.deepEqual(stub.depends, [{ key: 'T9', met: false, state: 'not found', feature: null, where: null }]);
+  assert.deepEqual(data.repos.map((r) => r.name), ['api', 'ADM', 'WEB']);
+});
+
+gitTest('no feature named: the current branch\'s, or a ticket\'s branch\'s, else none with the list; clean removes the page', () => {
+  const tmp = tempDir('keel-page-');
+  const api = feature(tmp);
+  assert.equal(line(run(api), 'feature'), `${FEATURE}, in-progress, 2 tickets (1 done)`);
+  write(api, `${T}/tickets/T2-badge.md`, FULL('T2', 'in-progress', 'T1', 'branch: message-notify-T2\n'));
+  git(api, 'commit', '-qam', 'T2 in progress');
+  git(api, 'checkout', '-q', '-b', 'message-notify-T2');
+  assert.equal(line(run(api), 'feature'), `${FEATURE}, in-progress, 2 tickets (1 done)`, 'a ticket\'s own branch');
   git(api, 'checkout', '-q', 'main');
-  assert.deepEqual(run(api), ['feature: none (the branch main is no feature\'s branch)', 'features: none', `other branches: ${FEATURE}`]);
-  assert.deepEqual(run(api, 'no-such-feature'), ['feature-page: refused (no draft and no exported tickets of no-such-feature in this working tree; on another branch: switch to it first)']);
+  assert.deepEqual(run(api), ['feature: none (the branch main is no feature\'s branch)', 'features: none']);
+  git(api, 'checkout', '-q', FEATURE);
+  plans(api, 'new', 'csv-export', '--place', 'pc');
+  git(api, 'checkout', '-q', '-b', 'other-work');
+  assert.deepEqual(run(api), ['feature: none (the branch other-work is no feature\'s branch)', `features: csv-export, ${FEATURE}`]);
+  assert.deepEqual(run(api, 'no-such-feature'), ['feature-page: refused (no feature no-such-feature in this working tree; on another branch: switch to it first)']);
   assert.match(run(api, 'Bad Name')[0], /^feature-page: refused \(invalid feature name/);
   assert.deepEqual(run(api, 'clean'), ['clean: removed .keel/local/tmp/feature-page']);
   assert.ok(!fs.existsSync(path.join(api, '.keel', 'local', 'tmp', 'feature-page')));
   assert.deepEqual(run(api, 'clean'), ['clean: nothing to remove']);
 });
 
-gitTest('every ticket gets its repository: a second prefix here is this one\'s; a repository only the Tickets lines name; a map that gives another prefix to this project is not read', () => {
-  const tmp = tempDir('keel-page-');
-  const overview = OVERVIEW('repos: [API, WEB]\n').replace('## Tickets\n', '## Tickets\n- WEB-14 Цифра на сайті (web)\n- MOB-5 Прийом push (mobile)\n');
-  const api = exported(tmp, { overview });
-  write(api, `${T}/OLD-7-legacy.md`, BARE('OLD-7'));
-  git(api, 'add', '-A');
-  git(api, 'commit', '-q', '-m', 'An older ticket');
-  assert.match(plans(api, 'settings', 'set', '--repo', `WEB=${api}`)[0], /^settings: /);
-  const out = run(api, FEATURE);
-  assert.match(line(out, 'as of'), /^api [0-9a-f]+, web not on this machine, mobile not on this machine$/);
-  const { data } = pageData(line(out, 'page'));
-  assert.deepEqual(data.tickets.map((t) => [t.key, t.repo, t.state]), [['API-1', 'api', 'waiting for the feature merge'], ['API-2', 'api', 'to do'], ['OLD-7', 'api', 'to do'], ['WEB-14', 'web', 'state unknown'], ['MOB-5', 'mobile', 'state unknown']]);
-});
-
-gitTest('in progress by a keel task or by the session note: the page says which', () => {
-  const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
-  const via = () => pageData(line(run(api, FEATURE), 'page')).data.tickets[1];
-  write(api, '.keel/tasks/API-2/task.md', '---\nid: API-2\ntitle: t\nstatus: active\nupdated: 2026-10-26\n---\n');
-  assert.deepEqual([via().state, via().via], ['in progress', { kind: 'task' }]);
-  fs.rmSync(path.join(api, '.keel', 'tasks'), { recursive: true });
-  write(api, '.keel/next-session.md', '---\nstatus: in-progress\nkeys: API-2\n---\n');
-  assert.deepEqual([via().state, via().via], ['in progress', { kind: 'session' }]);
-});
-
-gitTest('a dependency of another feature: where its code is, and met once it is in this feature branch', () => {
-  const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
-  git(api, 'checkout', '-q', '-b', 'chat', 'main');
-  write(api, 'tickets/chat/API-7-send.md', BARE('API-7', 'done').replace(new RegExp(FEATURE, 'g'), 'chat'));
-  write(api, 'src/send.js', '1\n');
-  git(api, 'add', '-A');
-  git(api, 'commit', '-q', '-m', 'API-7: send');
-  git(api, 'checkout', '-q', FEATURE);
-  write(api, `${T}/API-3-list.md`, BARE('API-3').replace('depends_on: []', 'depends_on: [API-7]'));
-  git(api, 'add', '-A');
-  git(api, 'commit', '-q', '-m', 'Add API-3');
-  const deps = () => pageData(line(run(api, FEATURE), 'page')).data.tickets.find((t) => t.key === 'API-3').depends;
-  assert.deepEqual(deps(), [{ key: 'API-7', met: false, state: 'waiting for the feature merge', feature: 'chat',
-    where: { kind: 'feature', branch: 'chat', word: 'feature branch', into: 'main', pull: FEATURE } }], 'ready in another feature branch: wait for main or pull it into this one');
-  git(api, 'merge', '-q', '--no-edit', 'chat');
-  assert.deepEqual(deps(), [{ key: 'API-7', met: true, state: 'waiting for the feature merge', feature: 'chat', where: { kind: 'yours', branch: FEATURE } }], 'pulled into this feature branch: it may start');
-});
-
-gitTest('a ticket of this repository only on another branch: its text from that branch, and which branch', () => {
-  const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
-  git(api, 'checkout', '-q', '-b', 'api-3-badge');
-  write(api, `${T}/API-3-list.md`, FULL('API-3').replace('# [API-3] Цифра непрочитаних на іконці чату', '# [API-3] Список непрочитаних'));
-  git(api, 'add', '-A');
-  git(api, 'commit', '-q', '-m', 'Add API-3');
-  git(api, 'checkout', '-q', FEATURE);
-  const { data } = pageData(line(run(api, FEATURE), 'page'));
-  const three = data.tickets.find((t) => t.key === 'API-3');
-  assert.deepEqual([three.title, three.repo, three.onBranch, three.criteria], ['Список непрочитаних', 'api', 'api-3-badge', 3]);
-  assert.ok(three.sections.length > 0 && three.md.includes('# [API-3] Список непрочитаних'), 'the whole ticket, read from git');
-  assert.equal(data.tickets.find((t) => t.key === 'API-2').onBranch, null, 'one in the working tree');
-});
-
 gitTest('a research report with no heading is shown by its file name', () => {
   const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
+  const api = feature(tmp);
   write(api, `${T}/research/notes.md`, 'Лише текст, без заголовка.\n');
   const { data } = pageData(line(run(api, FEATURE), 'page'));
   assert.deepEqual(data.research.map((r) => [r.name, r.title]), [['notes.md', 'notes.md'], ['websocket.md', 'WebSocket чи опитування']]);
 });
 
-gitTest('a draft and an exported feature of the same name: the page is the draft\'s', () => {
-  const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
-  const draft = path.join(api, '.keel', 'local', 'plans', 'keel', FEATURE);
-  write(draft, 'plan.md', `---\ntype: plan\nfeature: ${FEATURE}\nstatus: draft\npage: 0a1b2c3d\n---\n\n# Нова чернетка\n\n## In plain words\nЧернетка.\n`);
-  write(draft, 'tickets/T1-export.md', FULL('T1').replace(/^---[\s\S]*?---/, '---\nid: T1\ndepends_on: []\n---'));
-  const out = run(api, FEATURE);
-  assert.equal(line(out, 'feature'), `${FEATURE}, draft, 1 tickets`);
-  assert.equal(line(out, 'title'), '[API] - Нова чернетка (0a1b2c3d)');
-});
-
 gitTest('no path of this machine on the page: the script adds none, and a feature file with one is refused', () => {
   const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
+  const api = feature(tmp);
   const file = line(run(api, FEATURE), 'page');
   const html = fs.readFileSync(file, 'utf8');
   const forms = (p) => [p, p.split(path.sep).join('/'), JSON.stringify(p).slice(1, -1)];
   for (const p of [api, tmp, require('node:os').homedir()]) {
     for (const f of forms(p)) assert.ok(!html.includes(f), `${f} on the page`);
   }
-  const ticket = `${T}/API-2-badge.md`;
+  const ticket = `${T}/tickets/T2-badge.md`;
   write(api, ticket, fs.readFileSync(path.join(api, ticket), 'utf8').replace('## Where to look', 'Як у C:\\Users\\ann\\api\\src\\chat.js.\n\n## Where to look'));
   const home = require('node:os').homedir().replace(/\\/g, '/');
   write(api, `${T}/research/websocket.md`, `# WebSocket\n\nПриклад у ${home}/api/ws.js\n`);
   const out = run(api, FEATURE);
   assert.equal(out[0], 'feature-page: refused (2 paths of this machine in the feature\'s files; write them from the repository\'s root)', out.join('\n'));
-  assert.match(out[1], /^- API-2: local path C:\\Users\\ann\\api\\src\\chat\.js \(line \d+\)$/);
+  assert.match(out[1], /^- T2: local path C:\\Users\\ann\\api\\src\\chat\.js \(line \d+\)$/);
   assert.equal(out[2], `- research/websocket.md: local path ${home}/api/ws.js (line 3)`);
   assert.ok(!fs.existsSync(file), 'no page is left to publish');
 });
@@ -644,12 +516,12 @@ test('the page template: its script parses, every label it names exists, and it 
   for (const [code, cat] of catalogs) for (const k of labels) assert.ok(`page.${k}` in cat, `${code}: page.${k}`);
   const stateKeys = vm.runInNewContext(`(${/const STATE_KEYS = (\{[\s\S]*?\});/.exec(scripts[0])[1]})`);
   const { STATES } = require(path.join(SCRIPTS, 'lib', 'plans-state.js'));
-  const { NOT_CHECKED } = require(path.join(SCRIPTS, 'lib', 'plans-neighbours.js'));
-  const { UNKNOWN } = require(path.join(SCRIPTS, 'lib', 'plans-linked.js'));
-  // Each ticket state also has its group: the counts, the bar and the colour.
+  const { UNKNOWN } = require(path.join(SCRIPTS, 'feature-page.js'));
+  // Every plan status has a page state, and each ticket state also has its group: the counts, the bar and the colour.
+  assert.deepEqual(Object.keys(PAGE_STATE).sort(), [...STATES].sort());
   const groupOf = vm.runInNewContext(`(${/const GROUP_OF = (\{[\s\S]*?\});/.exec(scripts[0])[1]})`);
-  for (const state of [...STATES, 'draft']) assert.ok(state in groupOf, `the page groups "${state}"`);
-  for (const state of [...STATES, UNKNOWN, NOT_CHECKED, 'not found', 'draft', 'draft (ready)', 'exported']) {
+  for (const state of Object.values(PAGE_STATE)) assert.ok(state in groupOf, `the page groups "${state}"`);
+  for (const state of [...Object.values(PAGE_STATE), UNKNOWN, 'not found']) {
     assert.ok(state in stateKeys, `the page knows "${state}"`);
     for (const [code, cat] of catalogs) assert.ok(`page.state.${stateKeys[state]}` in cat, `${code}: page.state.${stateKeys[state]}`);
   }
@@ -657,40 +529,9 @@ test('the page template: its script parses, every label it names exists, and it 
 
 gitTest('a title that holds the text of a placeholder leaves the page\'s data intact', () => {
   const tmp = tempDir('keel-page-');
-  const api = exported(tmp, { overview: OVERVIEW().replace('# Сповіщення про нове повідомлення', '# {{DATA}} {{TRANSLATIONS}} шаблони') });
+  const api = feature(tmp, { plan: PLAN({ heading: '{{DATA}} {{TRANSLATIONS}} шаблони' }) });
   const { html, data } = pageData(line(run(api, FEATURE), 'page'));
   assert.equal(data.heading, '{{DATA}} {{TRANSLATIONS}} шаблони');
-  assert.ok(html.includes('<title>[API] - {{DATA}} {{TRANSLATIONS}} шаблони'), 'the title keeps its text');
+  assert.ok(html.includes(`<title>{{DATA}} {{TRANSLATIONS}} шаблони (${PAGE})</title>`), 'the title keeps its text');
   assert.equal(JSON.parse(/id="feature-translations">([\s\S]*?)<\/script>/.exec(html)[1]).lang, 'uk');
-});
-
-gitTest('no feature named, on a ticket\'s own branch: the ticket\'s feature', () => {
-  const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
-  git(api, 'checkout', '-q', '-b', 'api-2-badge');
-  assert.equal(line(run(api), 'feature'), `${FEATURE}, exported, 2 tickets (0 done)`);
-});
-
-gitTest('no feature named: the list holds the features of this working tree, the others by their branches', () => {
-  const tmp = tempDir('keel-page-');
-  const api = exported(tmp);
-  plans(api, 'new', 'csv-export');
-  git(api, 'checkout', '-q', 'main');
-  assert.deepEqual(run(api), ['feature: none (the branch main is no feature\'s branch)', 'features: csv-export', `other branches: ${FEATURE}`]);
-});
-
-gitTest('--fetch does not run for a draft', () => {
-  const tmp = tempDir('keel-page-');
-  const bare = path.join(tmp, 'api.git');
-  execFileSync('git', ['init', '-q', '--bare', bare]);
-  const api = exported(tmp, { remote: bare });
-  git(api, 'push', '-q', 'origin', 'main', FEATURE);
-  plans(api, 'new', 'csv-export');
-  const other = path.join(tmp, 'other');
-  execFileSync('git', ['clone', '-q', '-b', FEATURE, bare, other]);
-  git(other, 'push', '-q', 'origin', `${FEATURE}:api-9-late`);
-  run(api, 'csv-export', '--fetch');
-  assert.equal(git(api, 'for-each-ref', 'refs/remotes/origin/api-9-late'), '', 'a draft has no git states to freshen');
-  run(api, FEATURE, '--fetch');
-  assert.ok(git(api, 'for-each-ref', 'refs/remotes/origin/api-9-late'), 'an exported feature does');
 });

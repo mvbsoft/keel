@@ -143,6 +143,7 @@
   "page.ask": "ask first",
   "page.never": "never",
   "page.state.done": "done",
+  "page.state.abandoned": "abandoned",
   "page.state.waiting_feature": "waiting for the feature merge",
   "page.state.waiting_branch": "waiting for merge into the feature branch",
   "page.state.waiting": "waiting for merge",

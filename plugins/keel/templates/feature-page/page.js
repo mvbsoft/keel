@@ -15,12 +15,12 @@
   const snake = (name) => name.toLowerCase().replace(/[^a-z]+/g, '_').replace(/^_|_$/g, '');
   const sectionName = (n) => (data.labels[`section.${snake(n)}`] !== undefined ? L(`section.${snake(n)}`) : n);
   const STATE_KEYS = { done: 'done', 'waiting for the feature merge': 'waiting_feature', 'waiting for merge into the feature branch': 'waiting_branch',
-    'in progress': 'in_progress', 'to do': 'to_do', next: 'next', draft: 'draft', 'draft (ready)': 'draft_ready', exported: 'exported',
+    'in progress': 'in_progress', 'to do': 'to_do', next: 'next', draft: 'draft', 'draft (ready)': 'draft_ready', exported: 'exported', abandoned: 'abandoned',
     'state unknown': 'unknown', 'not found': 'not_found', 'not checked': 'not_checked' };
   const stateText = (s) => (STATE_KEYS[s] ? L(`state.${STATE_KEYS[s]}`) : s);
   // The page's state groups: the counts, the bar and each ticket's colour.
   const GROUP_OF = { done: 'done', 'waiting for the feature merge': 'waiting', 'waiting for merge into the feature branch': 'waiting',
-    'in progress': 'doing', 'to do': 'todo', draft: 'draft' };
+    'in progress': 'doing', 'to do': 'todo', draft: 'draft', abandoned: 'done' };
   const groupOf = (t) => (t.next ? 'next' : GROUP_OF[t.state] || 'unknown');
   // A group's pill class in keel.css.
   const PILL = { done: 'good', waiting: 'wait', doing: 'doing', next: 'next', todo: '', draft: 'wait', unknown: 'unknown' };
