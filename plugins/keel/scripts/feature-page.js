@@ -23,6 +23,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const plans = require('./lib/plans.js');
 const { nextOf, featureTickets } = require('./lib/plans-state.js');
+const { planNeedsReview } = require('./lib/plans-drafts.js');
 const { settings } = require('./lib/plans-settings.js');
 const { headOf } = require('./lib/plans-repos.js');
 const { outsideFences, heading, repoName, isStub } = require('./lib/plans-format.js');
@@ -112,6 +113,8 @@ const ticketOf = (key, text, extra) => {
 // A status as the page names it (templates/feature-page/page.js STATE_KEYS).
 const PAGE_STATE = { draft: 'draft', ready: 'to do', 'in-progress': 'in progress', done: DONE, abandoned: 'abandoned' };
 const pageState = (status) => PAGE_STATE[status] || UNKNOWN;
+// The "needs review" mark, as plans.js tickets shows it: an open ticket whose text changed since its review.
+const needsMark = (t) => !t.unknown && !plans.CLOSED.includes(t.fm.status) && plans.needsReview(t);
 
 function featureData(root, found) {
   // A feature made before plans carried the code gets one; it is keel's own field and no edit of the plan.
@@ -126,9 +129,9 @@ function featureData(root, found) {
   };
   const tickets = all.map((t) => {
     const repo = given(t.fm.repo) ? t.fm.repo.trim() : '';
-    return ticketOf(t.id, t.text, { prefix: repo, repo: repo ? clean(repo, 60) : repos[0].name, state: pageState(t.fm.status), ...(isStub(t.fm) ? { stub: true } : {}), next: t === next, via: null, onBranch: null, depends: plans.ticketIds(t.fm.depends_on).map(depOf) });
+    return ticketOf(t.id, t.text, { prefix: repo, repo: repo ? clean(repo, 60) : repos[0].name, state: pageState(t.fm.status), ...(isStub(t.fm) ? { stub: true } : {}), ...(needsMark(t) ? { review: true } : {}), next: t === next, via: null, onBranch: null, depends: plans.ticketIds(t.fm.depends_on).map(depOf) });
   });
-  return { code: d.fm.page, stage: d.fm.status, overviewText: d.text, overviewFile: 'plan.md', repos, tickets, research: researchOf(d.folder), folder: d.folder, language: given(d.fm.language) ? d.fm.language : settings(root).language };
+  return { code: d.fm.page, stage: d.fm.status, review: planNeedsReview(d), overviewText: d.text, overviewFile: 'plan.md', repos, tickets, research: researchOf(d.folder), folder: d.folder, language: given(d.fm.language) ? d.fm.language : settings(root).language };
 }
 
 // The feature of the current branch: one whose branch (or name) it is, or whose ticket's branch it is;
@@ -181,7 +184,7 @@ function build(root, arg, { now = new Date(), lang = null, previous = null } = {
   const { labels, own } = labelsFor(pageLang);
   const secs = data.overviewText ? sectionsOf(data.overviewText) : [];
   const page = {
-    feature, title, stage: data.stage, generated: now.toISOString(), fetchFailed: false,
+    feature, title, stage: data.stage, review: data.review, generated: now.toISOString(), fetchFailed: false,
     language: pageLang, source, labels,
     heading,
     repos: data.repos.map((r) => ({ prefix: r.prefix, name: r.name, commit: r.commit })),

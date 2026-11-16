@@ -172,7 +172,8 @@ A plan `ready` or `in-progress` keeps its status through every edit and new tick
      `plans.js review <f>`: `- plan: changed since ready`). Ask "Review the plan now?"; yes → one
      `keel:plan-reviewer` ("Reviews" step 4); the tickets it names get a ticket review, then
      `plans.js reviewed <f> plan`.
-   - "Later" → the mark stays; `/keel:start-task`, `/keel:start-planning` and `/keel:tasks` show it.
+   - "Later" → the mark stays; `/keel:start-task`, `/keel:start-planning`, `/keel:tasks` and the
+     feature page show it.
      The user only says yes or no; there is no command to learn.
 2. **A new ticket** on a ready plan: `plans.js ticket` makes it `status: draft`, not reviewed (`note:
    <T> is a draft until its review: ...`); the plan keeps its status, and `/keel:start-task` never

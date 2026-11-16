@@ -76,13 +76,15 @@ choice is remembered in that browser ([the design system](design-system.md)).
 ## Where the states come from
 
 A ticket's state is its `status` field (`draft`, `ready` shown as "to do", `in-progress`, `done`,
-`abandoned`); the one to take next is marked. keel reads only the feature's files: no `git fetch`, no
+`abandoned`); the one to take next is marked, and a ticket or the plan whose essential part changed
+since its review shows "needs review", as in `plans.js tickets`. keel reads only the feature's files: no `git fetch`, no
 history. The page shows them as they were when it was built or updated: it does not update itself, and
 the feature card says when it was built.
 
 A feature on several repositories also shows the other repositories' tickets under their repository's
 name: a ticket planned here for another repository (`repo:`) with its own state, a stub with a "stub"
-mark, and a ticket that lives in another repository (`type: elsewhere`) with the state unknown.
+mark, and a ticket that lives in another repository (`type: elsewhere`) with the state its file there
+says, or unknown when that repository is not on this machine.
 
 ## How it is built
 

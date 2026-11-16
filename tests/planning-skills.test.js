@@ -224,7 +224,7 @@ test('after ready: an edit keeps the status, its weight is its section, review n
   says(after, ['Changed Dependencies', 'tickets that depend on it', 'ask whether to review them too']);
   says(after, ['An `in-progress` ticket', 'not reviewed here', '`/keel:end-task` reviews it with the code']);
   says(after, ['An essential section of the plan', '`(needs review)`', '`- plan: changed since ready`', '"Review the plan now?"', '`plans.js reviewed <f> plan`']);
-  says(after, ['"Later" → the mark stays', '`/keel:start-task`, `/keel:start-planning` and `/keel:tasks` show it']);
+  says(after, ['"Later" → the mark stays', '`/keel:start-task`, `/keel:start-planning`, `/keel:tasks` and the', 'feature page show it']);
   says(after, ['A new ticket', '`status: draft`', 'the plan keeps its status', 'never offers a draft as the next ticket', 'offer its review at once', '`plans.js reviewed <f> <T>`, then `plans.js status <f> <T> ready`']);
   says(after, ['only on the user\'s words', '`plans.js status <f> <T> abandoned --reason "<why>"`']);
   says(after, ['`note: <X> depends on <T>, which is', 'remove the dependency', 'abandon it too']);

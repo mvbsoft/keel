@@ -405,7 +405,8 @@ removes only what you choose; the folder goes to the trash.
 
 **What it does:** creates a private page of a planned feature in your claude.ai account (overview,
 tickets with states, research) and on a repeat run updates the same page from any computer. It
-takes the states from the `status` fields. `--lang` sets the page language,
+takes the states from the `status` fields; a ticket or the plan whose essential part changed since
+its review is marked "needs review". `--lang` sets the page language,
 translations are kept. It never overwrites someone else's page. With only an API key and no
 claude.ai there will be no page.
 The page opens dark, and a switch in the header turns on the light theme; the choice is remembered in

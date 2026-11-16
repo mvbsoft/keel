@@ -536,3 +536,25 @@ gitTest('a title that holds the text of a placeholder leaves the page\'s data in
   assert.ok(html.includes(`<title>{{DATA}} {{TRANSLATIONS}} шаблони (${PAGE})</title>`), 'the title keeps its text');
   assert.equal(JSON.parse(/id="feature-translations">([\s\S]*?)<\/script>/.exec(html)[1]).lang, 'uk');
 });
+
+gitTest('the page marks a ticket and the plan that need review, as plans.js tickets and list do', () => {
+  const tmp = tempDir('keel-page-');
+  const api = feature(tmp);
+  plans(api, 'reviewed', FEATURE, 'plan');
+  let data = pageData(line(run(api, FEATURE), 'page')).data;
+  assert.deepEqual(data.tickets.map((t) => Boolean(t.review)), [false, false]);
+  assert.equal(Boolean(data.review), false);
+  // An essential section changes: T2 and the plan need review; a closed ticket never shows the mark.
+  const t2 = path.join(api, T, 'tickets', 'T2-badge.md');
+  fs.writeFileSync(t2, fs.readFileSync(t2, 'utf8').replace('## Goal\n', '## Goal\nAlso the tab title.\n'));
+  const plan = path.join(api, T, 'plan.md');
+  fs.writeFileSync(plan, fs.readFileSync(plan, 'utf8').replace('D1. Одна подія для всіх.', 'D1. Дві події.'));
+  data = pageData(line(run(api, FEATURE), 'page')).data;
+  assert.deepEqual(data.tickets.map((t) => Boolean(t.review)), [false, true]);
+  assert.equal(data.review, true);
+  // The page draws both marks with their explanations.
+  const script = fs.readFileSync(path.join(TEMPLATE_DIR, 'page.js'), 'utf8');
+  assert.match(script, /t\.review \? reviewMark\(\)/, 'the list marks the ticket');
+  assert.match(script, /t\.review \? reviewBadge\(\)/, 'the ticket\'s header marks it');
+  assert.match(script, /data\.review \? bubbleButton\([^\n]*L\('plan_needs_review_title'\)/, 'the feature card marks the plan');
+});
