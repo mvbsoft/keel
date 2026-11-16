@@ -1,7 +1,8 @@
 'use strict';
 // A feature folder and git: plans.js commit and push (the folder goes into git as it is, nothing is
 // renamed or removed), the fetch of plans.js tickets --fetch, and git's one warning about a ticket: its
-// branch is merged into the plan's merge_into, but its status is not done. The status in the file is
+// branch is merged (a ticket branch into the plan's branch, any other into merge_into), but its status is
+// not done. The status in the file is
 // the only state; git never sets one. Claude Code asks before every commit and push (hooks/own-files.js).
 const fs = require('node:fs');
 const path = require('node:path');
@@ -44,23 +45,27 @@ function refOf(root, branch, remote) {
   return null;
 }
 
-// `warn:` lines for the tickets that are not done and whose `branch` is merged into the plan's
-// merge_into. Merged: the branch's last commit is in merge_into's history but not on its first-parent
-// line, so a branch just made from merge_into (no commit of its own yet) is not taken for merged.
+// `warn:` lines for the tickets that are not done and whose `branch` is merged where it goes: a ticket
+// branch <plan branch>-T<n> into the plan's branch, any other (the feature branch) into merge_into.
+// Merged: the branch's last commit is in the target's history but not on its first-parent line, so a
+// branch just made from the target (no commit of its own yet) is not taken for merged.
 // shortcut: a fast-forward or squash merge is not seen; the task's base commit would show both.
 function mergedWarnings(root, d, list) {
   const open = list.filter((t) => !plans.CLOSED.includes(t.fm.status) && given(t.fm.branch));
-  if (!open.length || !given(d.fm.merge_into) || readGit(root, ['rev-parse', '--git-dir']) === null) return [];
+  if (!open.length || readGit(root, ['rev-parse', '--git-dir']) === null) return [];
   const remote = flow.pickRemote((readGit(root, ['remote']) || '').split('\n').filter(Boolean));
-  const into = refOf(root, d.fm.merge_into, remote);
-  if (!into) return [];
-  const line = new Set((readGit(root, ['rev-list', '--first-parent', into]) || '').split('\n').filter(Boolean));
+  const branch = plans.branchesOf(root, d).branch;
+  const firstParents = new Map();
   const out = [];
   for (const t of open) {
-    const ref = t.fm.branch === d.fm.merge_into ? null : refOf(root, t.fm.branch, remote);
+    const target = t.fm.branch === `${branch}-${t.id}` ? branch : d.fm.merge_into;
+    const into = given(target) && t.fm.branch !== target ? refOf(root, target, remote) : null;
+    const ref = into ? refOf(root, t.fm.branch, remote) : null;
     const tip = ref ? readGit(root, ['rev-parse', `${ref}^{commit}`]) : null;
-    if (!tip || line.has(tip) || readGit(root, ['merge-base', '--is-ancestor', tip, into]) === null) continue;
-    out.push(`warn: ${t.id}: its branch ${clean(t.fm.branch, 80)} is merged into ${clean(d.fm.merge_into, 80)}, but the ticket is ${clean(t.fm.status || 'without a status', 20)}: plans.js status ${d.feature} ${t.id} done once its work is finished`);
+    if (!tip || readGit(root, ['merge-base', '--is-ancestor', tip, into]) === null) continue;
+    if (!firstParents.has(into)) firstParents.set(into, new Set((readGit(root, ['rev-list', '--first-parent', into]) || '').split('\n').filter(Boolean)));
+    if (firstParents.get(into).has(tip)) continue;
+    out.push(`warn: ${t.id}: its branch ${clean(t.fm.branch, 80)} is merged into ${clean(target, 80)}, but the ticket is ${clean(t.fm.status || 'without a status', 20)}: plans.js status ${d.feature} ${t.id} done once its work is finished`);
   }
   return out;
 }

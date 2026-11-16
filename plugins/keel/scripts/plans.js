@@ -35,7 +35,8 @@
 //                                         cycles. Another repository's ticket (repo:) is checked in its
 //                                         folder, an elsewhere one there;
 //                                         without one: a `note:`. Then `warn:` for a ticket whose branch is
-//                                         merged into merge_into while it is not done, and `plan:` when every
+//                                         merged (a ticket branch into the plan's branch, else into
+//                                         merge_into) while it is not done, and `plan:` when every
 //                                         ticket is done or abandoned (an elsewhere one whose status cannot
 //                                         be read: confirmation needed)
 //   review <feature>                      the plan and each ticket: never reviewed, changed since review

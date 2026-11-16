@@ -79,25 +79,31 @@ gitTest('tickets: a draft is never next; a ticket that depends on an abandoned o
   assert.equal(run(work, 'tickets', 's3-storage').at(-2), 'plan: every ticket is done or abandoned: plans.js state s3-storage done');
 });
 
-gitTest('the one git warning: a ticket whose branch is merged into merge_into while it is not done; a new branch or a done ticket is no warning', () => {
+gitTest('the one git warning: a ticket whose branch is merged while it is not done (a ticket branch into the plan\'s branch, the feature branch into merge_into); a new branch or a done ticket is no warning', () => {
   const { work } = setup({ remote: false });
   planning(work, { place: 'repo' });
   ready(work, 's3-storage', 2, 'tickets/s3-storage');
   const t1 = T(1, 'tickets/s3-storage');
   run(work, 'status', 's3-storage', 'T1', 'in-progress');
   front(work, t1, 'status', 'in-progress\nbranch: s3-storage-T1');
+  git(work, 'branch', 's3-storage');
   git(work, 'branch', 's3-storage-T1');
   assert.ok(!run(work, 'check', 's3-storage').some((l) => l.startsWith('warn:')), 'a branch with no commit of its own is not merged');
   git(work, 'checkout', '-q', 's3-storage-T1');
   write(work, 'src/app.js', 'module.exports = 5;\n');
   git(work, 'commit', '-qam', 'upload');
-  git(work, 'checkout', '-q', 'main');
+  git(work, 'checkout', '-q', 's3-storage');
   git(work, 'merge', '-q', '--no-ff', '-m', 'merge T1', 's3-storage-T1');
-  const warn = 'warn: T1: its branch s3-storage-T1 is merged into main, but the ticket is in-progress: plans.js status s3-storage T1 done once its work is finished';
+  const warn = 'warn: T1: its branch s3-storage-T1 is merged into s3-storage, but the ticket is in-progress: plans.js status s3-storage T1 done once its work is finished';
   assert.ok(run(work, 'check', 's3-storage').includes(warn), run(work, 'check', 's3-storage').join('\n'));
   assert.ok(run(work, 'tickets', 's3-storage').includes(warn));
   run(work, 'status', 's3-storage', 'T1', 'done');
   assert.ok(!run(work, 'tickets', 's3-storage').some((l) => l.startsWith('warn:')));
+  // A ticket on the feature branch: merged with the feature into merge_into.
+  run(work, 'status', 's3-storage', 'T2', 'in-progress', '--branch', 's3-storage');
+  git(work, 'checkout', '-q', 'main');
+  git(work, 'merge', '-q', '--no-ff', '-m', 'merge the feature', 's3-storage');
+  assert.ok(run(work, 'tickets', 's3-storage').includes('warn: T2: its branch s3-storage is merged into main, but the ticket is in-progress: plans.js status s3-storage T2 done once its work is finished'));
   // --fetch first: without a remote it says so and reads the files all the same.
   assert.equal(run(work, 'tickets', '--fetch', 's3-storage').at(-1), 'fetch: no remote, skipped');
 });

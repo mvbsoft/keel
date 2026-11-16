@@ -338,8 +338,9 @@ working tree is a copy. `/keel:start-task` fetches first, and a ticket that is `
 another branch is shown with who took it and where, so two people do not take one ticket unknowingly.
 For a feature on this machine only, nothing is shared.
 
-**What git says.** Git changes no state. It warns in one case: the ticket's branch is merged into the
-feature's `merge_into` while the ticket is not `done` (`warn:` in `plans.js tickets` and `check`).
+**What git says.** Git changes no state. It warns in one case: the ticket's branch is merged where it
+goes while the ticket is not `done`: a ticket branch `<feature branch>-T<n>` into the feature branch,
+the feature branch into the feature's `merge_into` (`warn:` in `plans.js tickets` and `check`).
 
 **Dependencies.** `depends_on` names tickets of the same feature. A dependency that is not `done` holds
 a ticket back: `/keel:start-task` names it and asks: take the next ticket, or start anyway.
