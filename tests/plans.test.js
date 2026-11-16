@@ -520,6 +520,8 @@ test('status and state --project: a session in another folder updates the featur
   assert.match(readRel(dir, `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`), /^status: done$/m);
   assert.deepEqual(run(elsewhere, 'state', 's3-connection', 'in-progress', '--project', dir), ['status: in-progress']);
   assert.match(run(elsewhere, 'status', 's3-connection', 'T1', 'done', '--project')[0], /refused \(--project needs the project's folder\)/);
+  const missing = path.join(dir, 'no-such-folder');
+  assert.deepEqual(run(elsewhere, 'state', 's3-connection', 'done', '--project', missing), [`plans: state refused (--project: ${missing} is no folder)`]);
   assert.match(run(elsewhere, 'status', 's3-connection', 'T1', 'done')[0], /refused \(no feature "s3-connection"/);
 });
 

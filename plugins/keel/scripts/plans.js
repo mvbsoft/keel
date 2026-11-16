@@ -117,6 +117,7 @@ function run(root, pos, opts) {
   if ((command === 'state' || command === 'status') && opts.project !== undefined) {
     if (typeof opts.project !== 'string' || !opts.project.trim()) return [`plans: ${command} refused (--project needs the project's folder)`];
     root = path.resolve(opts.project);
+    if (!require('./lib/plans-repos.js').isFolder(root)) return [`plans: ${command} refused (--project: ${root} is no folder)`];
   }
   if (command === 'list') return plans.draftList(root);
   if (command === 'find') return plans.draftFind(root, pos.slice(2).join(' '));
