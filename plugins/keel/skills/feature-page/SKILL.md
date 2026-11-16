@@ -39,15 +39,12 @@ so an update translates only what changed.
    session that uses an API key has none) → one line: "No feature page here: pages are
    published only when Claude Code is signed in to a claude.ai account." Stop; nothing else runs.
 3. Run `node "<keel>/scripts/feature-page.js" "<project>" [<feature>] [--lang <code>]`; here only its
-   `title:`, `code:` and `code written:` lines count.
-   - `code written: <files> (...)` → the feature was exported before it had a code: keel gave it one and
-     wrote it into those ticket files. After the result (step 6) say so in one line, naming the files:
-     commit and push them, so every machine finds this page.
+   `title:` and `code:` lines count.
    - `feature: none (<why>)` → say why in plain words. `features: none` → there is no planned feature
      here (`/keel:start-planning` plans one); stop. Else ask which feature (AskUserQuestion, from the
-     `features:` list) and run again with it. An `other branches:` list names features whose files are
-     on another branch: they are not offered; say that the user switches to that branch first.
-   - `feature-page: refused (<why>)` or `unavailable` → say why in plain words and stop. Refused for
+     `features:` list) and run again with it.
+   - `feature-page: refused (<why>)` or `unavailable` → say why in plain words and stop (a feature
+     whose files are on another branch: the user switches to that branch first). Refused for
      paths of this machine: show the `- ` lines below it (file, path, line); they are fixed in those
      files, never on the page.
 4. Find the page. List your own pages: `action: list`, mine, `limit` 200. This feature's page is the one whose title
@@ -64,9 +61,8 @@ so an update translates only what changed.
    translation stay in a Sonnet agent; this conversation gets its one-line reply.
 6. Tell the result from the reply's `published:` line in one or two lines: "Done: the page of feature
    <feature>, <n> tickets, as of commit <the as of hashes>, in <language>." with the link, and whether
-   it is new or updated. `fetch failed: <reason>` → one more line: the fetch failed (its reason in
-   plain words), so the ticket states are as of the last fetch; run the command again once the remote
-   is reachable. `no labels for <code>` → say once that this language has no labels of its own yet.
+   it is new or updated; the ticket states are the status fields of this working tree.
+   `no labels for <code>` → say once that this language has no labels of its own yet.
    The page is private; its Share menu shares it.
 7. Last, run `node "<keel>/scripts/usage.js" report --project "<project>" --session <sid> --last-turn --lang <the conversation language code>`
    and give its one line as it is, as the report's last line.

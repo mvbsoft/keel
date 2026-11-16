@@ -1,6 +1,6 @@
 'use strict';
 // The planning variants of the shop project: the invoices on main and the csv-export feature as a draft
-// or exported into tickets, and a new notification-system draft.
+// or ready and taken ticket by ticket, and a new notification-system draft.
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
@@ -292,15 +292,14 @@ ${openq ? 'Q1. Should the file use a semicolon, as Excel with a Ukrainian locale
 ${list.map((t, i) => `T${i + 1} ${t.title}`).join('\n')}
 
 ## Next action
-${next || (list.length > 2 ? 'Export the tickets.' : 'Final review of the tickets, then export them.')}
+${next || 'Final review of the tickets, then mark the plan ready.'}
 `;
 }
 
-// A draft csv-export as start-planning leaves it: the draft place, plan.md and the tickets written in full, each
+// A draft csv-export as start-planning leaves it: its place, plan.md and the tickets written in full, each
 // ticket reviewed as it is (last, so the review hashes match).
 function draft({ where = 'pc', list = TICKETS.slice(0, 2), openq = false, next } = {}) {
-  plans('settings', 'set', '--draft', where);
-  const plan = /^created: (.+)$/m.exec(plans('new', 'csv-export'))[1];
+  const plan = /^created: (.+)$/m.exec(plans('new', 'csv-export', '--place', where))[1];
   const files = list.map((t) => /^created: (.+)$/m.exec(plans('ticket', 'csv-export', '--title', t.title, '--slug', t.slug, ...(t.depends ? ['--depends', t.depends] : [])))[1]);
   body(plan, planText(list, openq, next));
   list.forEach((t, i) => body(files[i], `# [T${i + 1}] ${t.title}\n\n${t.text}`));
@@ -320,14 +319,13 @@ function planningReady() {
   write('AGENTS.md', '# Agents\n\nNo ticket or backlog files in this repository: tickets live in Jira.\nRun `npm test` before every commit.\nAmounts are in UAH.\n');
   commitAll('Add AGENTS.md');
   git('push', '-q', 'origin', 'main');
-  planning({ next: 'Export the tickets.' });
+  planning({ next: 'Share the tickets with the team.' });
   plans('state', 'csv-export', 'ready');
 }
 
 // A feature just named: start-planning has made its draft and marked the chat, the work not begun.
 function planningNew() {
   invoices();
-  plans('settings', 'set', '--draft', 'pc');
   plans('new', 'notification-system');
   plans('mark', 'set', 'notification-system', '--session', SID);
 }
@@ -335,7 +333,6 @@ function planningNew() {
 // A feature start-task handed over in a brief: start-planning made its draft from it and marked the chat.
 function planningBrief() {
   invoices();
-  plans('settings', 'set', '--draft', 'pc');
   const brief = '.keel/local/plans/briefs/notification-system-brief.md';
   write(brief, fs.readFileSync(path.join(__dirname, 'notification-system-brief.md'), 'utf8'));
   plans('new', 'notification-system');
@@ -343,17 +340,23 @@ function planningBrief() {
   plans('mark', 'set', 'notification-system', '--session', SID);
 }
 
-// Commits as another person: the in-progress hint names the branch tip's author.
+// Commits as another person: the in-progress ticket names the branch tip's author.
 const commitAs = (name, email, msg) => { git('add', '-A'); git('-c', `user.name=${name}`, '-c', `user.email=${email}`, 'commit', '-q', '-m', msg); };
 
-function planned() {
+// csv-export planned in the repository, ready, committed on its branch csv-export.
+function readyOnBranch() {
   invoices();
-  draft({ list: TICKETS });
+  draft({ where: 'repo', list: TICKETS });
   plans('state', 'csv-export', 'ready');
+  plans('mark', 'clear', '--session', SID);
   git('switch', '-q', '-c', 'csv-export');
-  plans('export', 'csv-export');
   plans('commit', 'csv-export');
-  // INV-1: the route, done, and the feature branch merged into main (done reads from origin/main).
+}
+
+function planned() {
+  readyOnBranch();
+  // T1: the route, done on the feature branch, and the feature branch merged into main.
+  plans('status', 'csv-export', 'T1', 'in-progress', '--branch', 'csv-export');
   write('src/invoices.js', [...INVOICES,
     '// The invoices as CSV: a header row, then one line per invoice; totals with two decimals.',
     'function toCsv(invoices) {',
@@ -363,43 +366,44 @@ function planned() {
     '}',
     'module.exports = { list, toCsv };', ''].join('\n'));
   write('test/invoices.test.js', "const test = require('node:test');\nconst assert = require('node:assert');\nconst { list, toCsv } = require('../src/invoices');\ntest('csv of the paid orders', () => assert.equal(toCsv(list([{ id: 1, status: 'paid', date: '2026-10-01', customer: 'Smith, Dana', total: 1234.5 }, { id: 2, status: 'new', date: '2026-10-02', customer: 'Lee', total: 5 }])), 'number,date,customer,total\\n1,2026-10-01,\"Smith, Dana\",1234.50\\n'));\n");
-  plans('done', 'INV-1');
-  commitAll('INV-1: GET /invoices.csv');
+  plans('status', 'csv-export', 'T1', 'done');
+  commitAll('GET /invoices.csv');
   git('push', '-q', '-u', 'origin', 'csv-export');
   git('switch', '-q', 'main');
   git('merge', '-q', '--no-ff', '-m', "Merge branch 'csv-export'", 'csv-export');
   git('push', '-q', 'origin', 'main');
-  // INV-2: work in progress by a colleague, status not written.
-  git('switch', '-q', '-c', 'INV-2-download-button', 'csv-export');
+  // T2: taken by a colleague, work in progress on csv-export-T2; its status on origin/csv-export.
+  git('switch', '-q', 'csv-export');
+  plans('status', 'csv-export', 'T2', 'in-progress', '--branch', 'csv-export-T2');
+  commitAs('Dana Smith', 'dana@example.com', 'Take T2');
+  git('switch', '-q', '-c', 'csv-export-T2');
   write('public/invoices.html', PAGE.map((l) => (l === '  <table id="invoices">' ? '  <a href="/invoices.csv" download="invoices.csv"><button>Download CSV</button></a>\n' + l : l)).join('\n'));
-  commitAs('Dana Smith', 'dana@example.com', 'INV-2: Download CSV button on the invoices page');
-  git('push', '-q', '-u', 'origin', 'INV-2-download-button');
-  // INV-3: done on its ticket branch, not merged into csv-export yet.
-  git('switch', '-q', '-c', 'INV-3-date-range', 'csv-export');
+  commitAs('Dana Smith', 'dana@example.com', 'Download CSV button on the invoices page');
+  git('push', '-q', '-u', 'origin', 'csv-export-T2');
+  // T3: taken on csv-export-T3 and done there, not merged into csv-export yet.
+  git('switch', '-q', 'csv-export');
+  plans('status', 'csv-export', 'T3', 'in-progress', '--branch', 'csv-export-T3');
+  commitAll('Take T3');
+  git('push', '-q', 'origin', 'csv-export');
+  git('switch', '-q', '-c', 'csv-export-T3');
   write('src/server.js', SERVER.map((l) => (l.startsWith('// The shop') ? `${l}\n// GET /invoices.csv?from=YYYY-MM-DD&to=YYYY-MM-DD: the invoices dated inside the range.` : l)).join('\n'));
-  commitAll('INV-3: date range for the CSV export');
-  plans('done', 'INV-3');
-  commitAll('INV-3: status done');
-  git('push', '-q', '-u', 'origin', 'INV-3-date-range');
+  plans('status', 'csv-export', 'T3', 'done');
+  commitAll('Date range for the CSV export');
+  git('push', '-q', '-u', 'origin', 'csv-export-T3');
   git('switch', '-q', 'main');
 }
 
-// csv-export exported and pushed; ticket INV-1 a task working directly on the shared feature branch
-// (branch = base = csv-export), active for the chat SID; half of it not committed: toCsv() with no
-// tests of its own and no route yet.
+// csv-export ready and pushed; ticket T1 a task (csv-export-T1) working directly on the shared feature
+// branch (branch = base = csv-export), active for the chat SID; half of it not committed: toCsv() with
+// no tests of its own and no route yet.
 function ticketOnFeature() {
-  invoices();
-  draft({ list: TICKETS });
-  plans('state', 'csv-export', 'ready');
-  git('switch', '-q', '-c', 'csv-export');
-  plans('export', 'csv-export');
-  plans('commit', 'csv-export');
-  plans('mark', 'clear', '--session', SID);
+  readyOnBranch();
   git('push', '-q', '-u', 'origin', 'csv-export');
   const started = git('rev-parse', 'HEAD');
-  const ticket = fs.readdirSync(path.join(root, 'tickets', 'csv-export')).find((f) => f.startsWith('INV-1-'));
-  write('.keel/tasks/INV-1/task.md', taskFile({
-    id: 'INV-1', title: 'CSV export endpoint for invoices', source: 'file', link: `tickets/csv-export/${ticket}`,
+  const ticket = fs.readdirSync(path.join(root, 'tickets', 'csv-export', 'tickets')).find((f) => f.startsWith('T1-'));
+  plans('status', 'csv-export', 'T1', 'in-progress', '--branch', 'csv-export');
+  write('.keel/tasks/csv-export-T1/task.md', taskFile({
+    id: 'csv-export-T1', title: 'CSV export endpoint for invoices', source: 'file', link: `tickets/csv-export/tickets/${ticket}`, ticket: 'csv-export/T1',
     status: 'handed-off', branch: 'csv-export', base: 'csv-export', created: '2026-11-07', updated: '2026-11-07', last: git('rev-parse', '--short', 'HEAD'),
     goal: 'GET /invoices.csv returns the invoices GET /invoices returns, as a CSV file.',
     next: 'Write tests for toCsv in test/invoices.test.js, then the route in src/server.js.',
@@ -407,8 +411,8 @@ function ticketOnFeature() {
     state: '- ✅ toCsv(invoices) in src/invoices.js (not committed)\n- ⬜ tests for toCsv\n- ⬜ the route GET /invoices.csv',
     files: '- Changed: src/invoices.js: toCsv(invoices)\n- Next: test/invoices.test.js, src/server.js',
   }));
-  commitAll('keel: task INV-1');
-  activate('INV-1', started);
+  commitAll('keel: task csv-export-T1');
+  activate('csv-export-T1', started);
   git('push', '-q', 'origin', 'csv-export');
   write('src/invoices.js', [...INVOICES,
     '// The invoices as CSV: a header row, then one line per invoice; totals with two decimals.',

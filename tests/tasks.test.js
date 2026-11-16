@@ -20,7 +20,7 @@ test('ids: tracker keys, slugs and dates are valid; paths, dots and long names a
 
 test('lib/tasks.js is the one module callers require: it exports every task function, also those its tasks-*.js parts hold', () => {
   const names = ['validId', 'readBlobs', 'listTasks', 'treeTasks', 'findTask', 'activeTask', 'sessionMarker', 'busyTasks', 'summaryLine', 'taskList', 'taskNew', 'taskActivate',
-    'taskDeactivate', 'taskDelete', 'taskRestore', 'taskDrop', 'taskInventory', 'sections', 'setFront', 'stepCounts', 'planText', 'readClosed', 'dateOf'];
+    'taskDeactivate', 'taskDelete', 'taskRestore', 'taskDrop', 'taskInventory', 'sections', 'setFront', 'stepCounts', 'planText', 'readClosed', 'dateOf', 'workRoot'];
   assert.deepEqual(Object.keys(tasks).sort(), [...names].sort());
   for (const n of names) assert.equal(typeof tasks[n], 'function', n);
 });

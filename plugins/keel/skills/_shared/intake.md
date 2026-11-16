@@ -26,8 +26,8 @@ tasks of this working tree and of every branch, one block each).
 ## 2. Source
 | Instruction | What to do |
 |---|---|
-| empty | unfinished tasks → show them (as `/keel:tasks` does), then the next planned ticket ("Planned ticket" below: "next planned: <KEY>"), and ask which to continue or what the new task is; none of either → ask "What is the task?" (a link, a key or your own words) and wait |
-| the next ticket in any words ("next ticket") | "Planned ticket" below |
+| empty | unfinished tasks → show them (as `/keel:tasks` does), then the next planned ticket ("Planned ticket" below: "next planned: <feature>/T<n>"), and ask which to continue or what the new task is; none of either → ask "What is the task?" (a link, a key or your own words) and wait |
+| the next ticket in any words ("next ticket"), or a planned ticket `<feature>/T<n>` (`event-history/T5`) | "Planned ticket" below |
 | a link (any URL: Jira, Linear, Asana, GitHub, Google Docs, any page) | **external**: read it with the matching connector tool (tool names contain `atlassian`/`jira`, `linear`, `asana`, `google`, `notion`...; deferred tools count: load them first), a GitHub link with `gh issue view <link> --json title,body,labels,comments` (`gh pr view` for a pull request), any other page with WebFetch |
 | anything else | **internal search**: keel's tasks first (the `tasks` list: id, title, goal), then the repository (Grep the words or key in files, `git log --oneline --grep <key>`). A key or number (`CAN-123`, `#123`) → show what you found and ask "Is this it?" (not when `lane: task` names it: step 3 asks once); nothing found → say so and ask for a link or the text. A file path → read the file. A longer description → it is the task text; look for similar tasks for step 3 |
 
@@ -36,14 +36,13 @@ read (no connector, it needs authorizing, `gh` missing, the page is closed) → 
 ask the user to paste the text. Never guess content from a link or a key. Read comments and linked
 items only when the description alone leaves the goal unclear.
 
-**Lanes never mix.** For a key, task id or link run `node "<keel>/scripts/notes.js" "<project>" lane <key or link>`
+**Lanes never mix.** For a key, task id, `<feature>/T<n>` or link run `node "<keel>/scripts/notes.js" "<project>" lane <key or link>`
 (a link: it also checks the tracker key in it). `lane: session` → say "This is led by /keel:start-session
 (the long-work note names it); continue it there." and stop. `lane: conflict` → show its lines, ask
 which lane leads it and stop. `lane: task` → it is an unfinished task: step 3 offers to continue it.
 `lane: none (task <id> was finished or dropped earlier)` → say so and ask whether to start it as a new
 task; no → stop (a dropped or finished folder may still be in keel's trash: `/keel:cleanup restore`);
-yes for a key → "Planned ticket" below first.
-Any other `lane: none` for a key → it may be a planned ticket: "Planned ticket" below first.
+yes for a `<feature>/T<n>` → "Planned ticket" below first.
 
 ## 3. Retell, new or continuation
 In a few plain lines: **goal**, **how we know it is done** (acceptance criteria), **out of scope**.
@@ -79,7 +78,7 @@ Propose (in the step 3 message): an **id** (a tracker key as given, `CAN-123`; o
 words, `fix-reset-500`: lowercase `[a-z0-9-]`, at most 60 characters; letters, digits, `.`, `_`, `-`
 are allowed, at most 80), a **title** (a few words) and a **one-line description**, in the step 3
 question. The user's word wins. The id must give `lane: none` (`notes.js lane <id>`). A planned
-ticket: the id is its `key` exactly (`PROJ-104`, no slug) and the title is its title.
+ticket: the id is `<feature>-T<n>` exactly (`event-history-T5`, no slug) and the title is its title.
 
 ## 5. Questions, or a brainstorm
 **Brainstorm, only with a yes.** The goal is vague, or the task needs a design choice (several real
@@ -176,9 +175,9 @@ lands on the main branch:
    Any `stopped` or `unavailable` → tell the user the reason and wait.
 2. `node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source <jira|linear|asana|github|file|text> [--link <url or path>] --branch <branch> --base <base> --merge-into <target> --execution <here|delegate|fresh> [--plan-file <plan file>] --session <sid>`
    (any other page or document link, e.g. Google Docs or Notion: `--source text --link <url>`; a
-   planned ticket: `--source file --link <its file path>`, `--branch`, `--base` and `--merge-into` as
-   "Planned ticket" says; a complex plan: `--plan-file` copies it into the task folder as `plan.md`
-   and sets `plan: plan.md`, only when the plan file is already in the language "Languages" gives
+   planned ticket: `--source file --link <its file path> --ticket <feature>/T<n>`, `--branch`, `--base`
+   and `--merge-into` as "Planned ticket" says; a complex plan: `--plan-file` copies it into the task
+   folder as `plan.md` and sets `plan: plan.md`, only when the plan file is already in the language "Languages" gives
    the task files, else write `plan.md` yourself in that language; a title with double or curly
    quotes, `$`, a backquote or a backslash before a quote or a space is refused by keel (nothing
    runs): keep `--title` plain and fix it in the file). A line starting `notes:` is a refusal: read
@@ -223,57 +222,54 @@ ticket whose branch exists, a resumed task): `git-flow.js switch` stops on them,
 has its own version of one; then show git's message and ask.
 
 ## Planned ticket
-Tickets exported by `/keel:end-planning` live in a feature folder; `plans.js tickets` reads their state
-from git (0 tokens). Each call is `node "<keel>/scripts/plans.js" "<project>" tickets ...`.
-1. **Which ticket.** No instruction → `tickets`: its `next: <KEY> (<feature>)` line becomes "next
-   planned: <KEY>" under the step 2 list (`next: none` or `tickets: none` → nothing). "next ticket" →
-   `tickets --fetch`, take the key of its `next:` line (`next: none` → say so and show its list), then
-   `tickets <KEY>`. A key → `tickets <KEY> --fetch`; `tickets: none (no ticket or feature <x>)` → not a
-   planned ticket: step 2's internal search goes on.
-   A key `<PREFIX>-S<n>` is a stub: the place of work in a repository that was not on the planner's
-   machine, not a ticket to build. Say so and stop; when that repository is this one, add that
-   `/keel:start-planning <feature>` turns it into a ticket (planning-exported.md).
-2. **Its state** (the `<KEY>` view: the ticket line, `branch: <b> -> <merge_into>`, `file:`, `depends:`):
-   - `duplicate key (<n> files)` → warn first: "two tickets with the key <KEY>", naming the files;
-   - `to do` or `next` → read the ticket (`file:` a path, or `<ref>:./<path>`: `git show <ref>:./<path>`,
-     the `./` reads the path from the project folder), check its Goal, Acceptance criteria and Where
-     to look against the code (step 3's premise check), then steps 3-6 as for any task, with its
-     acceptance criteria;
-   - `in progress` or `waiting for ...` → say the branch, author and date of its hint and ask: continue
-     it (on that branch) / start over / take another ticket. A waiting ticket is never offered as free;
-     with `stale` ask "Nobody touched it for 30 days: treat it as free?". `reverted` → say "The branch
-     was merged once and that merge was reverted; merging it again brings nothing back: it needs a
-     revert of that revert, or new commits.";
-   - a `depends:` ticket of this repository `waiting for merge into the feature branch`, or one of
-     another feature that is not done (not `not found`) → its `where:` line says where its code is: say
-     it in plain words. `... or pull it into <b>: git merge <x>` → ask: wait for its merge / pull it in
-     (`git merge <x>` on `<b>`, after step 3's branch) / start anyway; another `where:` → ask: wait for
-     it / start anyway. `... is in your feature branch <b>: <KEY> can start` → say so, nothing to ask;
-   - a `depends:` ticket of another repository (its state is followed by `(<folder>, <server data>)`,
-     read from that folder's git, never fetched) that is not done (not `not found`), and the ticket is
-     not `next` (`next` counts one waiting for the merge of the same feature as met) → say which, its
-     state there and as of when (a fetch in that folder brings it up to date), and ask: take the next
-     ticket / wait for it / start anyway;
-   - a `depends:` ticket `not checked` (its folder is not in the repos map, not on this machine, or not a
-     git repository) →
-     say which and why, and that `plans.js settings set --repo <PREFIX>=<folder>` makes it checked;
-     ask: start anyway / take another ticket;
-   - a `depends:` ticket of the same feature `to do` or `in progress`, or any `not found` → say which,
-     and ask: take the next ticket / start anyway. A `not found` may be a finished feature merged
-     with squash after its tickets were removed (no ticket file ever reached `merge_into`): say so;
-     the user checks its code there;
-   - `done` → say so; start it again only on a yes.
-3. **Branch** (step 6's options for a ticket), "Before any branch change" first: the ticket's
-   `branch:` (its feature branch) is offered first. It exists (local or on the remote) →
-   `node "<keel>/scripts/git-flow.js" "<project>" switch --name <branch>`; missing →
-   `node "<keel>/scripts/git-flow.js" "<project>" start --name <branch> --from <the ref that has the ticket>`
-   (the `file:` ref without the remote prefix: `origin/x` → `x`; a working-tree `file:`: the current
-   branch), then ask "Push `<branch>` now, so others see the
-   ticket is taken?" (yes → `git-flow.js push`). A ticket branch (rare: the user asks for one) →
-   `<KEY>-<short-name>`, always from the feature branch.
-4. **Task file** (step 7 item 2): on the feature branch `branch` = `base` = the feature branch and
-   `merge_into` = the ticket's `merge_into`; on a ticket branch `branch` = it and `base` = `merge_into`
-   = the feature branch.
+A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each call is
+`node "<keel>/scripts/plans.js" "<project>" <command> ...`.
+1. **Which ticket.** No instruction → `tickets`: its `next: <feature>/T<n>` line becomes "next planned:
+   <feature>/T<n>" under the step 2 list (`next: none` or `tickets: none` → nothing). "next ticket" →
+   `tickets --fetch`, take its `next:` line (`next: none` → say so and show its list). Either list's
+   `plan: ... plans.js state <f> done` line (its last ticket closed elsewhere) → "Feature <f> is
+   complete. Mark the plan done?"; yes → run it, then "End of feature" in git.md. Then (also for a
+   `<feature>/T<n>` given) `tickets <feature>/T<n> --fetch`; `tickets: none (...)` → say so and stop.
+2. **Its state** (its line, `branch: <b> -> <merge_into>`, `file:`, `remote:`, `depends:`):
+   - `draft` → still being planned: say so (`/keel:start-planning <feature>` finishes it) and stop;
+   - `needs review` (its text changed since its review) → show it and ask: start anyway / review it
+     first;
+   - `in-progress` here, or `remote: in-progress on <branch>` → say who took it and where (that
+     branch) and ask: continue it / start over / take another ticket;
+   - `done` or `abandoned` → say so; start it again only on a yes (a done or abandoned plan opens again
+     with it);
+   - `in <name>` (it lives in another repository) → say "start it in <name>" and stop;
+   - a `depends:` ticket not `done`, or a `note:` line → say which and ask: take the next ticket /
+     start anyway;
+   - `next` or `ready` → read the ticket (`file:`), check its Goal, Acceptance criteria and Where to
+     look against the code (step 3's premise check), then steps 3-6 as for any task, with its
+     acceptance criteria.
+3. **Another repository** (its front matter `repo: <name>`, not this project): ask once where it runs:
+   here / a subagent in that repository / a separate session there. Its folder: `plans.js repos`.
+   Here or a subagent: its git steps, checks and verification run on that folder in place of
+   `<project>`, its own rules (CLAUDE.md, AGENTS.md, `.keel/config.json`) first; without keel there git
+   is manual and its checks are proposed from its `package.json` / `composer.json` (the user
+   confirms); a subagent (`--execution delegate`) stops on a decision and returns it as a question.
+   A separate session: step 5 with `--branch <b>-T<n>`, then print exactly
+   `cd <its folder> && claude --add-dir <project> "<prompt>"`, the prompt naming the ticket file's
+   absolute path and, as its last step once the work is verified,
+   `node <keel>/scripts/plans.js <its folder> status <feature> T<n> done --project <project>`; stop here.
+4. **Branch** (step 6's options for a ticket), "Before any branch change" first: the `branch:` line's
+   `<b>` (its feature branch) is offered first. It exists (local or on the remote) →
+   `git-flow.js switch --name <b>`; missing → `start --name <b> --from <current>`. A ticket branch
+   (rare: the user asks for one) → `<b>-T<n>`, always from `<b>`, after the status below. A feature
+   on this machine: the branch as step 6 for any task; another repository: in that repository,
+   `<b>-T<n>` from its main branch (`git-flow.js "<its folder>" status`).
+5. **Take it**: `plans.js status <feature> T<n> in-progress --branch <the branch it works on>`. A
+   feature in the repository (`file:` not under `.keel/local/`): this project on `<b>` (step 4, also
+   for another repository), then `plans.js commit <feature> --tickets T<n>` (only the ticket file and
+   `plan.md`) and `plans.js push <feature>` (Claude
+   Code asks each): autonomous git runs them, manual git offers them ("so others see the ticket is
+   taken"). A feature on this machine: only that call.
+6. **Task file** (step 7 item 2): id `<feature>-T<n>`, `--ticket <feature>/T<n>`; on the feature
+   branch `--branch` = `--base` = `<b>` and `--merge-into` = its `merge_into`; on a ticket branch
+   `--branch <b>-T<n>` and `--base` = `--merge-into` = `<b>`; another repository: `--base` =
+   `--merge-into` = its main branch.
 
 ## Task to planning
 **Task to planning** (the task is too big, step 3: the user asks to split it or plan it as a feature,

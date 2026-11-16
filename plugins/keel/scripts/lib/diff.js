@@ -119,9 +119,11 @@ const splitLines = (text) => {
   return lines;
 };
 
+// keel's own .keel/local is never part of a change, also where no .gitignore leaves it out yet (a
+// repository without keel).
 function listUntracked(root) {
   const out = git(root, ['-c', 'core.quotepath=off', 'ls-files', '-z', '--others', '--exclude-standard']) || '';
-  return out.split('\0').filter(Boolean).map((p) => p.replace(/\\/g, '/'));
+  return out.split('\0').filter(Boolean).map((p) => p.replace(/\\/g, '/')).filter((p) => !p.startsWith('.keel/local/'));
 }
 
 // How a file looks now, to tell later whether it changed: a content hash up to MAX_READ, size and

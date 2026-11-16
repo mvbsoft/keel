@@ -30,8 +30,7 @@ Wait for its reply.
    translations). Its `<title>` must end with ` (<code>)</title>`: Grep the file for `<title>`, do
    not read the whole file here. Another title → reply
    `failed: not this feature's page (<its title>)` and stop: never publish over another page.
-   Run `node "<keel>/scripts/feature-page.js" "<project>" <args> [--previous "<that file>"] --fetch`.
-   `--fetch` fetches the remote first, so the tickets' states are fresh.
+   Run `node "<keel>/scripts/feature-page.js" "<project>" <args> [--previous "<that file>"]`.
    - `feature-page: refused (<why>)` or `unavailable` → reply `failed: build: <why>` and stop.
    - `translate: <file> (...)` → Read that file and translate each text from `from` to `to`: the
      words only; markdown, line breaks, code blocks, inline code, paths, URLs, keys such as API-121
@@ -41,8 +40,7 @@ Wait for its reply.
      apply again. Its `page:` line is the page.
    - Else its `page:` line is the page. No `page:` line (`feature: none (...)` and the like) → reply
      `failed: build: <its first line>` and stop.
-   Keep for the reply: the `title:`, `feature:` (its ticket count), `as of:` and `language:` lines,
-   and a `fetch: <remote> failed (...)` line (the page is still built, its states as of the last fetch).
+   Keep for the reply: the `title:`, `feature:` (its ticket count), `as of:` and `language:` lines.
 3. **Publish.** Read the whole page file and every other file beside it: `style.css`, `page.js`,
    `keel.css`, `keel-theme.js` and `keel-mark.png` (the image is read as an image). Then publish them
    with the Artifact tool: `file_path` that file and `files` `{ "style.css": "<the style.css beside it>",
@@ -57,5 +55,4 @@ Wait for its reply.
    a failed publish then replies `failed: publish: <the tool's reason>` and stops.
 4. **Reply** in one line, nothing else:
    `published: <link> <new|updated>; <n> tickets; as of <the as of hashes>; language <code>`, plus
-   `; fetch failed: <its reason>` after a failed fetch, and `; no labels for <code>` when the
-   `language:` line says its labels are in English.
+   `; no labels for <code>` when the `language:` line says its labels are in English.

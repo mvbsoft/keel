@@ -6,6 +6,94 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-16
+
+### Upgrading from 2.0.0
+- Features planned with 2.0.0 are not supported, and nothing converts them: the exported tickets with
+  keys such as `PROJ-12`, their `README.md` overview and the drafts of 2.0.0 are not read. Plan such a
+  feature again, or write its files in the new layout by hand (`plan.md`, `tickets/T<n>-<slug>.md`, a
+  `status` field in each).
+- Update keel on every machine that works on a project before anyone runs `/keel:configure planning`
+  there: it writes `planning.place` into the shared `.keel/config.json`, and keel 2.0.0 calls a
+  `planning` section with that key invalid (it wants `ticket_prefix` and `tickets`) and stops every keel
+  command.
+- `planning.place` (`repo` or `pc`) replaces `planning.ticket_prefix`, `planning.tickets` and, on
+  each machine, `draft` and `draft_dir` of `.keel/local/plans/keel/settings.json`. Without
+  `planning.place` planning does not start: run `/keel:configure planning`. The old fields are no
+  longer read; a config that still has them stays valid, and `/keel:configure check` names them. The
+  prefix is no longer added to the ticket prefixes checked in comments: list it in
+  `comments.ticket_prefixes` when you still want it checked.
+- The machine's `repos` map is keyed by repository name (`web`, or `owner/web`) instead of the ticket
+  prefix: enter the folders again with `plans.js settings set --repo <name>=<folder>`.
+- The plan fields `repos:` and `export:` are gone; `after_commit` and `after_commit_repos` stay.
+
+### Added
+- One feature folder from the first question to the end: `<tickets_dir>/<feature>/` (place `repo`) or
+  `.keel/local/plans/keel/<feature>/` (place `pc`) with `plan.md`, `tickets/T<n>-<slug>.md`, `reviews/`
+  and `research/`. Nothing is copied, exported or renamed on the way, no README is made from the plan,
+  and keel invents no tracker keys: a ticket is `<feature>/T<n>`.
+- States live in `status` fields. A ticket goes `draft`, `ready`, `in-progress`, `done`, and `abandoned`
+  (with a `reason`) from any state; a plan goes the same way, and abandoning a plan abandons its open
+  tickets. States move forward only: a plan goes back only from `ready` to `draft`, a ticket is `done`
+  only from `in-progress` and is taken again (`in-progress`) from `done` or `abandoned`, which takes a
+  `done` or `abandoned` plan back to `in-progress` with it. `plans.js state <feature> <state>` sets the plan's, `plans.js status <feature> T<n> <state>`
+  a ticket's (`--reason`, `--branch`, and `--project <path>` for a session in another repository).
+  Both are scripts: the same result every time, no tokens, no agent.
+- Edits after `ready` never reset a status. `review_hash` and `ready_hash` cover only the essential
+  sections (a ticket's Goal, Acceptance criteria, How to check, Boundaries, Correct the priors, Out of
+  scope, Dependencies and `depends_on`; a plan's Level, Decisions, Contract, Out of scope, Design
+  sketch); a mismatch is the mark "needs review", shown by `plans.js list` and `plans.js tickets`. A new
+  ticket on a `ready` feature is a `draft` that needs review, and the plan keeps its state. `status`,
+  `branch`, `reason`, `tracker`, `tracker_url`, `review_hash`, `ready_hash` and `page` are in no hash.
+- `/keel:start-task <feature>/T<n>` makes the task `<feature>-T<n>` (flat, `ticket: <feature>/T<n>` in
+  `task.md`), fetches first, says who has taken the ticket on the remote, and writes `status:
+  in-progress` and `branch` into the ticket (a ready plan becomes `in-progress`); `/keel:end-task`
+  finish sets `done` after a green verification, in the commit with the code, and offers to mark the
+  plan done after the last ticket; a hand off keeps `in-progress`. A ticket branch, when you ask for
+  one, is `<plan branch>-T<n>`. The task of a feature kept on this machine, or of a ticket for another
+  repository, always lives in `.keel/local/tasks/`.
+- Other repositories by name (the remote's last part, else the folder's name, `owner/name` for two of one
+  name): one question per repository. A ticket is planned here (`repo:`), put into that repository
+  (`plans.js ticket --elsewhere <name>`: its own `plan.md` with `home:`, here a pointer file with
+  `type: elsewhere`) or, for a repository not on this machine, a stub (`--stub <name>`, later
+  `--from-stub T<n>`). A repository on this machine without keel gets a full ticket here, and its git
+  steps, their finish record and its verification run there. For a separate session keel prints the command,
+  `cd <folder> && claude --add-dir <project> "<prompt>"`.
+- `plans.js move <feature> --to repo|pc` moves a whole feature folder between this machine and the
+  repository as it is; refused when the target exists, a ticket is `in-progress`, a task names a ticket of
+  the feature or the folder has uncommitted changes.
+- `tracker` and `tracker_url` fields on the plan and on tickets, written only when you ask, and a tracker
+  skill (`tracker`, loaded on such a request in any conversation) that links a ticket, creates it through your tracker's connector or moves a whole feature, looking
+  for each item by name first so a second run makes no duplicates. keel never reads or writes the tracker's
+  status.
+- `docs/planning.md` describes every `plans.js` command (what it does, when to run it, what it changes
+  in files), marks the scripts that need no agent, and shows where a feature's and a task's folders live at
+  each stage.
+
+### Changed
+- `plans.js commit <feature>` commits the feature's folder as it is and removes nothing; `push` no
+  longer checks keys. `plans.js tickets` and `/keel:tasks` show each ticket's `status`, "needs review" and
+  `on <branch>`, and name the ticket to take next: ready, reviewed, every dependency `done`; a ticket that
+  depends on an abandoned one waits for your answer; `plans.js tickets <feature>` also prints the
+  feature's branch and folder (`(this machine only)` when it is not in the repository). Git warns in one
+  case only: a ticket's branch is
+  merged into `merge_into` while the ticket is not `done`.
+- `depends_on` names tickets of the same feature, one plain line (`T1, T4`); every front matter value is a
+  plain string.
+- The feature page reads the `status` fields, makes no `git fetch` and is titled `<heading> (<code>)`
+  without ticket prefixes; the code is made when the feature starts.
+- `git-flow.js` works in a repository without keel (manual git, the main branch from `origin/HEAD`), and
+  `--tickets` takes `<feature>/T<n>`.
+
+### Removed
+- `plans.js export`, `plans.js done <KEY>` (and `--undo`), `plans.js align`, `plans.js set --repos`,
+  `plans.js settings set --draft` and `--draft-dir`, `--repo <PREFIX>` on `commit` and `push`.
+- The copies with keys (`PROJ-12-<slug>.md`), the generated `README.md` overview, stub keys
+  (`ADM-S1`), the `linked:` lines of `/keel:tasks`, and the ticket states worked out from git history
+  (`waiting for the feature merge`, `reverted`, `stale`, `duplicate key`).
+- `planning.ticket_prefix`, `planning.tickets`, and the machine's `draft` and `draft_dir`; the plan fields
+  `repos:` and `export:`.
+
 ## [2.0.0] - 2026-11-15
 
 ### Upgrading from 1.4.0
@@ -692,7 +780,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/mvbsoft/keel/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/mvbsoft/keel/compare/v1.4.0...v2.0.0
 [1.4.0]: https://github.com/mvbsoft/keel/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/mvbsoft/keel/compare/v1.2.1...v1.3.0

@@ -7,4 +7,4 @@ allowed_tools: [Read, Glob, Grep, Skill, Agent, Bash, Write, Edit]
 tags: [start-task, planning]
 ---
 
-/keel:start-task INV-2
+/keel:start-task csv-export/T2

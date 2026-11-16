@@ -149,6 +149,9 @@ test('the planning reviewers check what the plan-findings schema names, with evi
   says(plan, ['one finding per behaviour', 'its words quoted', 'the rest named in one last finding']);
   // In plain words is for a person: read first, never counted in the size, judged as advice.
   says(ticket, ['Read `plan.md` first (In plain words,']);
+  // The feature folder as it is: plan.md and tickets/T<n>-<slug>.md; nothing of keel 2.0.0's export.
+  says(ticket, ['`plan.md`', '`tickets/T<n>-<slug>.md`', 'each named by its', '`T<n>`']);
+  assert.doesNotMatch(ticket, /README|<KEY>|PROJ-\d|exported/i);
   says(ticket, ['`size`: the technical part', 'all but In plain words and Example', 'is about 150-500 words', 'A long In plain words never counts against it']);
   // A section a newcomer cannot follow: important where it hides when the ticket is done, advice elsewhere.
   says(ticket, ['`clear-to-newcomer`: a reader who has not seen the feature', 'understands every other section']);

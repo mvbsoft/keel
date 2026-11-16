@@ -20,7 +20,7 @@ Where to start: read [How keel works](overview.md) for the whole picture, follow
 | Page | What you find there |
 |---|---|
 | [Ways of working](workflows.md) | Tasks, sessions and planning: when to use which, every case as "you type → keel does", the final report, the task list, the handoff format, where the files live, git. |
-| [Planning](planning.md) | Planning a feature before the code: starting and ending, a feature on several repositories, the export, ticket states, editing an exported feature, the end of a feature. |
+| [Planning](planning.md) | Planning a feature before the code: where its folder lives and what happens to it at each stage, starting and ending, a feature on several repositories, every `plans.js` command, ticket states, taking and finishing a ticket, changing a ready plan, the tracker, the end of a feature. |
 | [How keel behaves](behavior.md) | What keel does in each situation and what guarantees it: Claude Code's confirmations, script guards, the Stop hooks, the behaviour tests; `claude -p` and bypass mode; what is not guaranteed. |
 | [Verification](verification.md) | The four levels: who checks what, how a level is proposed, the report, what it costs, which to choose. |
 | [Cost optimization](cost-optimization.md) | Spending less without losing quality: model choice, levels, compaction, delegation. |

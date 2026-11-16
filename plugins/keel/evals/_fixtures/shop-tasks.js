@@ -20,7 +20,8 @@ plan: ${o.plan || 'inline'}
 created: ${o.created}
 updated: ${o.updated}
 after_commit: ${o.last || '-'}
----
+${o.ticket ? `ticket: ${o.ticket}
+` : ''}---
 
 # ${o.id}: ${o.title}
 

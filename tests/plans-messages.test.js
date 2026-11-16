@@ -1,11 +1,10 @@
 'use strict';
-// Messages and edges of plans.js: a stub key in a report, a flag in a refusal, a repeated export, an
-// exported draft's files in a project below the top folder of its repository, a draft that is not seen.
+// Messages and edges of plans.js: a stub key in a report, a flag in a refusal, a plan.md written by hand.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { tempDir } = require('./fixtures/tmp.js');
-const { LOCAL, write, readRel, run, planning, setup, ready, gitTest } = require('./fixtures/plans-export.js');
+const { LOCAL, write, readRel, run, setup, ready, gitTest } = require('./fixtures/plans-git.js');
 const { SCRIPTS } = require('./fixtures/keel-project.js');
 const { TICKET } = require(path.join(SCRIPTS, 'lib', 'plans-report.js'));
 const schema = require(path.join(SCRIPTS, '..', 'schemas', 'plan-findings.schema.json'));
@@ -29,17 +28,7 @@ test('report: the ticket keys the script takes are the ticket keys of the schema
 
 gitTest('settings set: a refusal names the flag as it is typed', () => {
   const { work } = setup({ remote: false });
-  assert.deepEqual(run(work, 'settings', 'set', '--draft-dir', '../x'), ['plans: settings set refused (--draft-dir: contains ..)']);
-  assert.deepEqual(run(work, 'settings', 'set', '--draft', 'nope'), ['plans: settings set refused (--draft: pc or repo)']);
-});
-
-gitTest('export: a feature that is exported already says so, not "no draft"', () => {
-  const { work } = setup({ remote: false });
-  ready(work, 's3-storage');
-  planning(work, { tickets: 'pc', ticket_prefix: 'PROJ' });
-  assert.match(run(work, 'export', 's3-storage')[0], /^exported: /);
-  assert.deepEqual(run(work, 'export', 's3-storage'), [`plans: export refused (s3-storage is exported already: its tickets are in ${LOCAL}/s3-storage/tickets/)`]);
-  assert.match(run(work, 'export', 'no-such-plan')[0], /refused \(no draft "no-such-plan"/);
+  assert.deepEqual(run(work, 'settings', 'set', '--repo', 'WEB=../x'), ['plans: settings set refused (--repo: the folder is an absolute path)']);
 });
 
 gitTest('a plan.md whose status is in quotes is a draft all the same; two ticket files with one number are a problem', () => {

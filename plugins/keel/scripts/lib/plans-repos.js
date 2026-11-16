@@ -1,26 +1,33 @@
 'use strict';
-// A feature on several repositories, while it is a draft (lib/plans.js):
-// - plan.md `repos: [API, WEB]`: the ticket prefixes of its repositories, this project's first; `-` for
-//   this project only.
-// - a ticket's `repo: WEB`: the prefix of the repository the ticket is for, only when it is another one;
-//   no field = this project.
-// - plan.md `after_commit_repos: WEB=<commit>, MOB=<commit>`: each other repository's HEAD when its facts
-//   were last checked, as `after_commit` is this project's.
-// The folders come from the repos map (lib/plans-settings.js). Nothing here writes; git runs only
-// rev-parse.
+// A feature on several repositories. Another repository is named by its repository name
+// (lib/plans-format.js repoNames: the remote's last part, else the folder's name; owner/name when two
+// share one); this machine's repos map (lib/plans-settings.js) says where it is.
+// - A ticket's `repo: <name>`, only for another repository (no field = this project): with `type: ticket`
+//   the ticket is planned here from that repository's code; with `type: stub` (lib/plans-stubs.js) that
+//   repository is not on this machine; with `type: elsewhere` the ticket itself lives in that
+//   repository, in its own folder of the feature (<its tickets_dir>/<feature>/tickets/, the same
+//   T-number), whose plan.md has only `type: plan`, `status`, `feature` and `home: <this repository's
+//   name>`. The file here holds no status: its status, depends_on and review are read there.
+// - plan.md `after_commit_repos: <name>=<commit>, ...`: each other repository's HEAD when its facts were
+//   last checked, as `after_commit` is this project's.
+// Nothing here writes; git only reads (rev-parse, remote, ls-files).
 const fs = require('node:fs');
 const path = require('node:path');
 const { checkConfig } = require('./config.js');
-const { settings, PREFIX } = require('./plans-settings.js');
+const { settings, settingsFile, validName } = require('./plans-settings.js');
 const { git, clean } = require('./repo-read.js');
 const { samePath } = require('./safe-path.js');
+const { repoNames } = require('./plans-format.js');
 
 // How many folders next to the project are looked at, per parent folder.
 const SCAN_MAX = 200;
+// The status of an elsewhere ticket whose file cannot be read.
+const UNKNOWN = 'unknown';
 
 const given = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '-';
 const isFolder = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
 const slashes = (p) => p.replace(/\\/g, '/').replace(/\/+$/, '');
+const rel = (root, file) => path.relative(root, file).split(path.sep).join('/');
 // The long, real form: git prints C:/Users/runneradmin where Node may have C:\Users\RUNNER~1.
 const real = (p) => { try { return fs.realpathSync.native(p); } catch { return path.resolve(p); } };
 const same = (a, b) => samePath(slashes(real(a)), slashes(real(b)));
@@ -37,14 +44,13 @@ function isRepoTop(folder) {
   return top !== null && same(top, folder);
 }
 
-// The planning prefix a repository set in its .keel/config.json: `prefix` (null when none), or
-// `broken` when the file is there but cannot be read. An outdated or invalid config still names its
-// prefix: settings() would ignore it, but a prefix that differs from the map must not pass unseen.
-function plannedPrefix(folder) {
-  const { state, config } = checkConfig(folder);
-  if (state === 'broken') return { broken: true, prefix: null };
-  const p = config && config.planning && config.planning.ticket_prefix;
-  return { broken: false, prefix: typeof p === 'string' ? p : null };
+// The names this project goes by: its name and owner/name.
+const ownNames = (root) => { const n = repoNames(root); return new Set([n.name, n.full]); };
+
+// Whether keel is set up in a folder: "keel set up", "no keel", or what is wrong with its config.
+function keelText(folder) {
+  const { state } = checkConfig(folder);
+  return state === 'ok' ? 'keel set up' : state === 'missing' ? 'no keel' : `.keel/config.json ${state}`;
 }
 
 // `folder` (a real path, as git prints it) spelled through the nearest ancestor of `root` it lies under,
@@ -52,8 +58,8 @@ function plannedPrefix(folder) {
 function asGiven(folder, root) {
   const target = real(folder);
   for (let a = path.dirname(root); ; a = path.dirname(a)) {
-    const rel = path.relative(real(a), target);
-    if (!rel.startsWith('..') && !path.isAbsolute(rel)) return path.join(a, rel);
+    const r = path.relative(real(a), target);
+    if (!r.startsWith('..') && !path.isAbsolute(r)) return path.join(a, r);
     if (path.dirname(a) === a) return folder;
   }
 }
@@ -90,70 +96,106 @@ function nextTo(root) {
   return { folders: out, notes };
 }
 
-// What a planned prefix says about a folder: "planning prefix WEB", "no planning prefix", ...
-function prefixText(folder, mapKey) {
-  const p = plannedPrefix(folder);
-  if (p.broken) return '.keel/config.json cannot be read';
-  if (!p.prefix) return 'no planning prefix';
-  return mapKey && p.prefix !== mapKey ? `planning prefix ${p.prefix} (not ${mapKey})` : `planning prefix ${p.prefix}`;
-}
-
-// plans.js repos: this project and the repositories a feature may also touch: the repos map, then the
-// git repositories next to the project.
+// plans.js repos: this project and the repositories a feature may also touch, each with the name a
+// ticket's repo: and the repos map use: the repos map, then the git repositories next to the project.
+// Next to it, a name that two of them share is given as owner/name.
 function reposCommand(root) {
   const s = settings(root);
+  const own = repoNames(root);
   const lines = [];
   const seen = [];
-  for (const [prefix, folder] of Object.entries(s.repos)) {
+  for (const [name, folder] of Object.entries(s.repos)) {
     seen.push(folder);
-    const state = !isFolder(folder) ? 'not on this machine'
-      : !isRepoTop(folder) ? 'not a git repository' : prefixText(folder, prefix);
-    lines.push(`- ${clean(folder, 200)}: repos map ${prefix}, ${state}`);
+    let state = !isFolder(folder) ? 'not on this machine' : !isRepoTop(folder) ? 'not a git repository' : null;
+    if (!state) {
+      const n = repoNames(folder);
+      state = `${keelText(folder)}${name !== n.name && name !== n.full ? `, named ${n.name} (not ${name})` : ''}`;
+    }
+    lines.push(`- ${clean(folder, 200)}: repos map ${clean(name, 120)}, ${state}`);
   }
   const { folders, notes } = nextTo(root);
-  let near = 0;
-  for (const folder of folders) {
-    if (seen.some((f) => same(f, folder))) continue;
-    near += 1;
-    lines.push(`- ${clean(slashes(folder), 200)}: next to this project, ${prefixText(folder, null)}`);
+  const near = folders.filter((f) => !seen.some((x) => same(x, f))).map((folder) => ({ folder, n: repoNames(folder) }));
+  const taken = [own.name, ...Object.keys(s.repos)];
+  for (const { folder, n } of near) {
+    const clash = taken.includes(n.name) || near.filter((x) => x.n.name === n.name).length > 1;
+    lines.push(`- ${clean(slashes(folder), 200)}: next to this project, ${clash ? n.full : n.name}, ${keelText(folder)}`);
   }
   const count = Object.keys(s.repos).length;
   return [
-    `repos: ${count + near} (repos map ${count}, next to this project ${near})`,
-    `this project: ${s.ticket_prefix || '-'} (${clean(slashes(root), 200)})`,
+    `repos: ${count + near.length} (repos map ${count}, next to this project ${near.length})`,
+    `this project: ${own.name} (${clean(slashes(root), 200)})`,
     ...lines,
     ...notes,
   ];
 }
 
-const planRepos = (fm) => (given(fm.repos) ? fm.repos.replace(/[[\]]/g, '').split(/[\s,;]+/).filter(Boolean) : []);
-
-function planReposProblems(fm, own) {
-  const list = planRepos(fm);
-  const out = [];
-  for (const p of list) if (!PREFIX.test(p)) out.push(`plan.md: repos: "${clean(p, 20)}" is not a ticket prefix`);
-  for (const p of new Set(list.filter((p, i) => list.indexOf(p) !== i))) out.push(`plan.md: repos: ${clean(p, 20)} appears twice`);
-  if (list.length && own && list[0] !== own) out.push(`plan.md: repos: this project's prefix ${own} comes first`);
-  return out;
-}
-
-// The other repositories a draft names: in `repos:` and in its tickets' `repo:`.
-function namedRepos(fm, ticketList, own) {
-  const all = [...planRepos(fm), ...ticketList.map((t) => t.fm.repo).filter(given)].map((p) => p.trim());
-  return [...new Set(all)].filter((p) => p !== own);
-}
-
-// The repository a ticket is for: this project (`own`), or another one's prefix with its folder from
-// the repos map, or `why` it has none on this machine. `bad`: the field is not a prefix.
+// The repository a ticket is for: this project (`own`), or another one's name with its folder from the
+// repos map, or `why` it has none on this machine. `bad`: the field is no repository name.
 function targetOf(root, t, s = settings(root)) {
-  const repo = given(t.fm.repo) ? t.fm.repo.trim() : null;
-  if (!repo || repo === s.ticket_prefix) return { own: true, prefix: s.ticket_prefix, folder: root };
-  if (!PREFIX.test(repo)) return { own: false, bad: true, prefix: repo, folder: null };
-  const folder = s.repos[repo];
-  const why = !folder ? `no folder for ${repo} in the repos map: plans.js settings set --repo ${repo}=<folder>`
+  const name = given(t.fm.repo) ? t.fm.repo.trim() : null;
+  if (!name || ownNames(root).has(name)) return { own: true, name: null, folder: root };
+  if (!validName(name)) return { own: false, bad: true, name, folder: null };
+  const folder = s.repos[name];
+  const why = !folder ? `no folder for ${name} in the repos map: plans.js settings set --repo ${name}=<folder>`
     : !isFolder(folder) ? `${folder} is not on this machine` : null;
-  return { own: false, prefix: repo, folder: why ? null : folder, why };
+  return { own: false, name, folder: why ? null : folder, why };
 }
+
+// A repos map in git is not this machine's own: another repository's folder is never taken from it for
+// a write.
+const mapTracked = (root) => Boolean(git(root, ['ls-files', '--', rel(root, settingsFile(root))]));
+
+// The repository of a new ticket for another repository, --repo <name> (planned here) or --elsewhere
+// <name> (the ticket goes into that repository): { name, folder } (name null: this project, only for
+// --repo), or { why }. It is in the repos map, on this machine and a git repository; --elsewhere also
+// needs keel set up there and a repos map that is not in git.
+function ticketRepo(root, value, flag) {
+  if (typeof value !== 'string' || !value.trim()) return { why: `${flag} needs a repository name: ${flag} <name> (plans.js repos lists them)` };
+  const name = value.trim();
+  if (ownNames(root).has(name)) return flag === '--repo' ? { name: null, folder: root } : { why: `${flag}: ${clean(name, 120)} is this project` };
+  if (!validName(name)) return { why: `${flag}: "${clean(name, 120)}" is not a repository name (plans.js repos lists them)` };
+  const folder = settings(root).repos[name];
+  if (!folder) return { why: `${flag}: no folder for ${name} in the repos map: plans.js settings set --repo ${name}=<folder>` };
+  if (!isFolder(folder)) return { why: `${flag}: ${clean(folder, 200)} (${name}) is not on this machine: plan a stub for it (--stub ${name})` };
+  if (same(folder, root)) return { why: `${flag}: ${clean(folder, 200)} (${name}) is this project` };
+  if (!isRepoTop(folder)) return { why: `${flag}: ${clean(folder, 200)} (${name}) is not a git repository` };
+  if (flag === '--elsewhere') {
+    if (keelText(folder) !== 'keel set up') return { why: `${flag}: ${clean(folder, 200)} (${name}): ${keelText(folder)}; plan the ticket here (--repo ${name})` };
+    if (mapTracked(root)) return { why: `${flag}: the repos map ${rel(root, settingsFile(root))} is in git; keel writes into another repository only through this machine's own map: git rm --cached ${rel(root, settingsFile(root))}` };
+  }
+  return { name, folder };
+}
+
+// An elsewhere ticket's file in its repository: { name, folder, d (the feature there), t (the ticket
+// there) }, or { why } it cannot be read. Read in that repository's working tree, never fetched.
+function elsewhereOf(root, d, t, s = settings(root)) {
+  const target = targetOf(root, t, s);
+  if (target.own) return { why: 'its repo: is this project' };
+  if (target.bad) return { why: `repo "${clean(target.name, 120)}" is no repository name` };
+  if (!target.folder) return { why: clean(target.why, 300) };
+  const drafts = require('./plans-drafts.js');
+  const there = drafts.listDrafts(target.folder).find((x) => x.feature === d.feature && !x.local);
+  const where = `${clean(slashes(target.folder), 200)}`;
+  if (!there || !given(there.fm.home)) return { why: `no ${d.feature} of this plan in ${where}` };
+  if (!ownNames(root).has(there.fm.home.trim())) return { why: `${d.feature} in ${where} belongs to ${clean(there.fm.home, 120)}` };
+  const found = drafts.tickets(there).find((x) => x.id === t.id);
+  if (!found) return { why: `no ${t.id} in ${where}/${rel(target.folder, there.folder)}/tickets/` };
+  return { name: target.name, folder: target.folder, d: there, t: found };
+}
+
+// The feature's tickets as their statuses are: an elsewhere ticket with the front matter and text of
+// its file there (`there`: elsewhereOf), or status unknown (`unknown`: why) when that cannot be read.
+function withElsewhere(root, d, list, s = settings(root)) {
+  return list.map((t) => {
+    if (t.fm.type !== 'elsewhere') return t;
+    const e = elsewhereOf(root, d, t, s);
+    if (e.why) return { ...t, fm: { ...t.fm, status: UNKNOWN }, unknown: e.why };
+    return { ...t, fm: { ...e.t.fm, id: t.id, type: 'elsewhere', repo: t.fm.repo }, text: e.t.text, there: e };
+  });
+}
+
+// The other repositories the tickets name (repo:), stubs left out: their repository is not here.
+const namedRepos = (root, list) => [...new Set(list.filter((t) => t.fm.type !== 'stub').map((t) => targetOf(root, t)).filter((x) => !x.own && !x.bad).map((x) => x.name))];
 
 const headOf = (folder) => git(folder, ['rev-parse', '--short', 'HEAD']);
 
@@ -161,68 +203,34 @@ function commitsOf(fm) {
   const out = new Map();
   if (!given(fm.after_commit_repos)) return out;
   for (const part of fm.after_commit_repos.split(/[\s,;]+/)) {
-    const m = /^([A-Z][A-Z0-9]*)=([0-9a-f]{4,40})$/i.exec(part);
-    if (m) out.set(m[1], m[2]);
+    const m = /^(.+)=([0-9a-f]{4,40})$/i.exec(part);
+    if (m && validName(m[1])) out.set(m[1], m[2]);
   }
   return out;
 }
 
-const commitsText = (map) => (map.size ? [...map].map(([p, c]) => `${p}=${c}`).join(', ') : '-');
+const commitsText = (map) => (map.size ? [...map].map(([n, c]) => `${n}=${c}`).join(', ') : '-');
 
-// plans.js set --repos: the new `repos:` value from "WEB,MOB" (this project's prefix first, added when
-// missing; `-` for this project only), or `why` it is refused. Each other repository must be in the
-// repos map, on this machine, a git repository, and plan with the same prefix if it has one set; one
-// with none set yet is taken, and its own config is not checked until a feature on several
-// repositories can be exported.
-function reposValue(root, raw, s = settings(root)) {
-  const own = s.ticket_prefix;
-  if (!own) return { why: 'this project has no planning prefix: /keel:configure planning' };
-  if (typeof raw !== 'string' || !raw.trim()) return { why: 'give the prefixes, "WEB,MOB", or - for this project only' };
-  if (raw.trim() === '-') return { list: [], value: '-' };
-  const asked = raw.split(/[\s,;]+/).filter(Boolean).map((p) => p.toUpperCase());
-  const others = [];
-  for (const p of asked) {
-    if (!PREFIX.test(p)) return { why: `"${clean(p, 20)}" is not a ticket prefix (2-10 capital letters and digits, starting with a letter)` };
-    if (p === own && s.repos[p] && !same(s.repos[p], root)) return { why: `the repos map gives this project's prefix ${own} to ${clean(s.repos[p], 200)}: two repositories in one plan need different prefixes (/keel:configure planning there)` };
-    if (p === own) continue;
-    if (others.includes(p)) return { why: `${p} is named twice` };
-    const folder = s.repos[p];
-    if (!folder) return { why: `no folder for ${p} in the repos map: plans.js settings set --repo ${p}=<folder>` };
-    if (!isFolder(folder)) return { why: `${clean(folder, 200)} (${p}) is not on this machine: plan stubs for it instead` };
-    if (same(folder, root)) return { why: `${clean(folder, 200)} (${p}) is this project` };
-    if (!isRepoTop(folder)) return { why: `${clean(folder, 200)} (${p}) is not a git repository` };
-    const planned = plannedPrefix(folder);
-    if (planned.broken) return { why: `${clean(folder, 200)}/.keel/config.json cannot be read: fix it there with /keel:configure` };
-    if (planned.prefix === own) return { why: `${clean(folder, 200)} (${p}) plans with this project's prefix ${own}: two repositories in one plan need different prefixes (/keel:configure planning there)` };
-    if (planned.prefix && planned.prefix !== p) return { why: `${clean(folder, 200)} plans with the prefix ${planned.prefix}, not ${p}: plans.js settings set --repo ${planned.prefix}=<folder>` };
-    for (const [q, f] of Object.entries(s.repos)) if (q !== p && others.includes(q) && same(f, folder)) return { why: `${p} and ${q} are the same folder` };
-    others.push(p);
-  }
-  const list = others.length ? [own, ...others] : [];
-  return { list, value: list.length ? `[${list.join(', ')}]` : '-' };
-}
-
-// after_commit_repos for `list`: the old commits kept, the HEAD of each repository in `fresh` (or of
-// the new ones only) taken from its folder when it is on this machine.
-function recordCommits(fm, list, s, fresh = null) {
+// after_commit_repos for the repositories `names`: the old commits kept, the HEAD of each one taken
+// from its folder when it is on this machine: of every one with `all`, else of the new ones only.
+function recordCommits(fm, names, s, all = false) {
   const old = commitsOf(fm);
   const out = new Map();
-  for (const p of list.filter((x) => x !== s.ticket_prefix)) {
-    const folder = s.repos[p];
-    const take = fresh === 'all' || !old.has(p);
-    const head = take && folder && isFolder(folder) ? headOf(folder) : null;
-    if (head) out.set(p, head);
-    else if (old.has(p)) out.set(p, old.get(p));
+  for (const n of names) {
+    const folder = s.repos[n];
+    const head = (all || !old.has(n)) && folder && isFolder(folder) ? headOf(folder) : null;
+    if (head) out.set(n, head);
+    else if (old.has(n)) out.set(n, old.get(n));
   }
   return out;
 }
 
-// The other repositories of `list` on this machine with no commit yet: stale has nothing to compare with.
-const noCommitNotes = (list, s) => list
-  .filter((p) => p !== s.ticket_prefix && s.repos[p] && isFolder(s.repos[p]) && !headOf(s.repos[p]))
-  .map((p) => `note: ${p} has no commit yet: stale cannot check its tickets until it has one`);
+// The repositories of `names` on this machine with no commit yet: stale has nothing to compare with.
+const noCommitNotes = (names, s) => names
+  .filter((n) => s.repos[n] && isFolder(s.repos[n]) && !headOf(s.repos[n]))
+  .map((n) => `note: ${n} has no commit yet: stale cannot check its tickets until it has one`);
 
 module.exports = {
-  reposCommand, planRepos, planReposProblems, namedRepos, targetOf, headOf, commitsOf, commitsText, reposValue, recordCommits,
-  noCommitNotes, isFolder, isRepoTop, same, plannedPrefix,
+  reposCommand, targetOf, ticketRepo, elsewhereOf, withElsewhere, namedRepos, headOf, commitsOf, commitsText,
+  recordCommits, noCommitNotes, isFolder, isRepoTop, same, ownNames, keelText, UNKNOWN,
 };

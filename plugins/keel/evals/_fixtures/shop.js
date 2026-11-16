@@ -41,26 +41,27 @@
 //                   of 0002, docs/ops.md links the superseded 0001; keel's review rules in .keel/local/tmp/keel
 //   adr-living-breach   adr-living; not committed: history marks in 0001, 0004 amends 0002, 0003 deleted
 //                   while CLAUDE.md links it; keel's review rules in .keel/local/tmp/keel
-// Every variant's config has the planning settings: ticket prefix INV, tickets in the repository.
+// Every variant's config has the planning settings: new features on this machine (place pc).
 // The planning variants add the invoices (src/invoices.js, src/server.js, public/invoices.html) on main:
-//   planning        a draft csv-export on this machine (draft pc): plan.md and tickets T1, T2 (T2 depends
+//   planning        a draft csv-export on this machine: plan.md and tickets T1, T2 (T2 depends
 //                   on T1) written, both reviewed as they are, check clean, no open question; the chat SID
 //                   plans csv-export; on main
 //   planning-openq  as planning, with one open question Q1 in plan.md
-//   planning-ready  as planning, the plan ready, and a committed AGENTS.md
+//   planning-ready  as planning, the plan and its tickets ready, and a committed AGENTS.md
 //                   that says tickets live in Jira
-//   planning-repo   as planning, the draft in the repository (draft repo): tickets/csv-export/ not committed
+//   planning-repo   as planning, the feature in the repository (--place repo): tickets/csv-export/ not committed
 //   planning-new    a new draft notification-system on this machine, as plans.js new writes it, nothing
 //                   gathered or asked yet; the chat SID plans it; on main
 //   planning-brief  as planning-new, the draft made from start-task's brief (notification-system-brief.md):
 //                   plans.js brief moved its sections into plan.md and the brief to keel's trash
-//   planned         csv-export exported into tickets/csv-export/ (INV-1..INV-4, branch csv-export, merge_into
-//                   main) and merged into main: INV-1 done on origin/main, INV-2 in progress (branch
-//                   INV-2-download-button, its tip by Dana Smith), INV-3 done on its branch INV-3-date-range
-//                   only (waiting for merge into the feature branch), INV-4 to do (depends on INV-3); on main
-//   ticket-on-feature  csv-export exported and pushed; ticket INV-1 a task working directly on the shared
-//                   feature branch (branch = base = csv-export), active for the chat SID; not committed:
-//                   half of it, toCsv() in src/invoices.js with no tests and no route; on csv-export
+//   planned         csv-export ready in tickets/csv-export/ (T1..T4, branch csv-export, merge_into main),
+//                   merged into main with T1 done; then on origin/csv-export: T2 in-progress on
+//                   csv-export-T2 (its tip by Dana Smith), T3 in-progress on csv-export-T3 (done there, not
+//                   merged into csv-export); T4 ready (depends on T3); on main
+//   ticket-on-feature  csv-export ready and pushed; ticket csv-export/T1 a task (csv-export-T1) working
+//                   directly on the shared feature branch (branch = base = csv-export), active for the chat
+//                   SID; not committed: half of it, toCsv() in src/invoices.js with no tests and no route;
+//                   on csv-export
 const { base, worktree, leftovers, messy } = require('./shop-base.js');
 const { tasks, finish, session, overbuilt, taskActive, taskFresh, taskOnMain } = require('./shop-tasks.js');
 const { planning, planningReady, planningNew, planningBrief, planned, ticketOnFeature } = require('./shop-planning.js');

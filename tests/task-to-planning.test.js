@@ -83,7 +83,7 @@ test('start-task: with code changed keel advises by its state and asks; it never
   const a = part(half, '(a)', '(b)');
   // A half never lands in a shared branch: a task working on one gets a new branch from it.
   assert.match(a, /the task's `branch` when it\s+differs from `base`/);
-  says(a, ['A task working directly on a shared branch', '`branch` is `base`', 'gets a new one from `<base>`', '`<KEY>-<short-name>` for a planned ticket, else `<name>`', 'so a half never lands in a shared branch']);
+  says(a, ['A task working directly on a shared branch', '`branch` is `base`', 'gets a new one from `<base>`', '`<base>-T<n>` for', 'a planned ticket', 'else `<name>`', 'so a half never lands in a shared branch']);
   says(a, ['The brief says "already done on branch <branch>: ..."', 'the feature goes on in `<branch>`', "merges into the task's `merge_into`", '(a new branch: into `<base>`)']);
   // Unfinished work is always committed and pushed: no question, so another machine sees it.
   order(a, 'The brief says', 'say "<id> goes to keel\'s trash', 'the brief first, while the chat still has it all');

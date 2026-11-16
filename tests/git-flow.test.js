@@ -385,33 +385,55 @@ gitTest('sync on the main branch pulls it only forward: local commits there stop
   assert.equal(git(work, 'rev-parse', 'HEAD'), before);
 });
 
-gitTest('commit --tickets lets exactly those tickets in (keys without case); --finish compares without case too', () => {
+gitTest('a repository without keel: manual git, the main branch from origin/HEAD; a broken config still stops', () => {
+  const { tmp, server } = setup();
+  const other = path.join(tmp, 'other');
+  execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', server, other]);
+  fs.rmSync(path.join(other, '.keel'), { recursive: true, force: true });
+  let out = flow(other, 'status');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.ok(out.includes('main branch: main') && out.includes('mode: manual'), out.join('\n'));
+  assert.ok(!out.some((l) => l.startsWith('autonomous on this machine')), out.join('\n'));
+  assert.equal(flow(other, 'trust')[1], 'reason: the git mode is not autonomous; nothing to confirm');
+  git(other, 'remote', 'set-head', 'origin', '--delete');
+  out = flow(other, 'status');
+  assert.deepEqual(out, ['git-flow: unavailable', 'reason: keel is not configured here and origin/HEAD names no main branch (git remote set-head origin --auto sets it)']);
+  write(other, '.keel/config.json', '{');
+  assert.match(flow(other, 'status')[1], /^reason: keel is not configured here \(config broken/);
+});
+
+gitTest('commit --tickets lets exactly those tickets and their plan.md in (references without case); --finish carries none', () => {
   const { work } = setup();
-  const ticket = (key, status) => `---\ntype: ticket\nkey: ${key}\nstatus: ${status}\nfeature: s3-storage\nbranch: s3-storage\nmerge_into: main\ndepends_on: []\n---\n# [${key}] Part\n`;
-  for (const k of ['PROJ-101', 'PROJ-102', 'PROJ-103']) write(work, `tickets/s3-storage/${k}-part.md`, ticket(k, 'todo'));
-  write(work, 'tickets/billing/plan.md', '---\ntype: plan\nstatus: draft\nlanguage: en\n---\n# Billing\n');
+  const plan = (title) => `---\ntype: plan\nstatus: in-progress\nlanguage: en\n---\n# ${title}\n`;
+  const ticket = (id, status) => `---\nid: ${id}\ntype: ticket\nstatus: ${status}\n---\n# [${id}] Part\n`;
+  write(work, 'tickets/s3-storage/plan.md', plan('S3 storage'));
+  for (const id of ['T1', 'T2', 'T3']) write(work, `tickets/s3-storage/tickets/${id}-part.md`, ticket(id, 'in-progress'));
+  write(work, 'tickets/billing/plan.md', plan('Billing'));
   git(work, 'add', '-A');
   git(work, 'commit', '-q', '-m', 'tickets');
-  git(work, 'switch', '-q', '-c', 's3-storage');
+  git(work, 'switch', '-q', '-c', 's3-storage-T1');
 
-  for (const k of ['PROJ-101', 'PROJ-102', 'PROJ-103']) write(work, `tickets/s3-storage/${k}-part.md`, ticket(k, 'done'));
-  write(work, 'tickets/billing/plan.md', '---\ntype: plan\nstatus: draft\nlanguage: en\n---\n# Billing, more\n');
+  for (const id of ['T1', 'T2', 'T3']) write(work, `tickets/s3-storage/tickets/${id}-part.md`, ticket(id, 'done'));
+  write(work, 'tickets/s3-storage/plan.md', plan('S3 storage, done'));
+  write(work, 'tickets/billing/plan.md', plan('Billing, more'));
   write(work, 'src/app.js', 'one\nsession\nthree\n');
   write(work, '.keel/local/tmp/commit-message.txt', 'feat: session work\n');
   const msg = path.join(work, '.keel/local/tmp/commit-message.txt');
-  let out = flow(work, 'commit', '--message-file', msg, '--tickets', 'proj-101,PROJ-102');
+  let out = flow(work, 'commit', '--message-file', msg, '--tickets', 'S3-storage/t1,s3-storage/T2');
   assert.equal(out[0], 'git-flow: ok', out.join('\n'));
-  assert.ok(out.includes('not committed (planning files): tickets/billing/plan.md, tickets/s3-storage/PROJ-103-part.md'), out.join('\n'));
-  assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['src/app.js', 'tickets/s3-storage/PROJ-101-part.md', 'tickets/s3-storage/PROJ-102-part.md']);
+  assert.ok(out.includes('not committed (planning files): tickets/billing/plan.md, tickets/s3-storage/tickets/T3-part.md'), out.join('\n'));
+  assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['src/app.js', 'tickets/s3-storage/plan.md', 'tickets/s3-storage/tickets/T1-part.md', 'tickets/s3-storage/tickets/T2-part.md']);
 
   out = flow(work, 'commit', '--message-file', msg, '--tickets');
-  assert.equal(line(out, 'reason:'), 'reason: --tickets needs the keys: --tickets "<K1,K2>"');
+  assert.equal(line(out, 'reason:'), 'reason: --tickets needs the tickets: --tickets "<feature>/T<n>,..."');
+  out = flow(work, 'commit', '--message-file', msg, '--tickets', 'PROJ-103');
+  assert.equal(line(out, 'reason:'), 'reason: --tickets takes <feature>/T<n>: PROJ-103');
 
   write(work, 'src/app.js', 'one\nfinish\nthree\n');
-  out = flow(work, 'commit', '--message-file', msg, '--finish', 'proj-103', '--session', 's1');
+  out = flow(work, 'commit', '--message-file', msg, '--finish', 's3-storage-T3', '--session', 's1');
   assert.equal(out[0], 'git-flow: ok', out.join('\n'));
-  assert.ok(out.includes('not committed (planning files): tickets/billing/plan.md'), out.join('\n'));
-  assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['src/app.js', 'tickets/s3-storage/PROJ-103-part.md']);
+  assert.ok(out.includes('not committed (planning files): tickets/billing/plan.md, tickets/s3-storage/tickets/T3-part.md'), out.join('\n'));
+  assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n'), ['src/app.js']);
 });
 
 gitTest('push and merge --no-ff into main; the merge question is the last step', () => {
@@ -670,4 +692,23 @@ gitTest('trust covers the git settings it was given: a branch that changes them 
   const bare = path.resolve(work).replace(/\\/g, '/');
   fs.writeFileSync(path.join(usageDir, 'trusted-git.json'), JSON.stringify({ projects: [process.platform === 'win32' ? bare.toLowerCase() : bare] }));
   assert.doesNotMatch(line(run(work, 'status'), 'autonomous on this machine:'), /: confirmed/);
+});
+
+gitTest('a repository without keel: keel\'s own files under .keel/local are no change there and leave git status clean', () => {
+  const { tmp, server } = setup();
+  const plain = path.join(tmp, 'plain');
+  execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', server, plain]);
+  git(plain, 'config', 'user.name', 'Test');
+  git(plain, 'config', 'user.email', 'test@example.com');
+  git(plain, 'rm', '-q', '-r', '.keel');
+  git(plain, 'commit', '-q', '-m', 'no keel here');
+  // A scratch file written before any keel script runs there, as a commit message is.
+  write(plain, '.keel/local/tmp/commit-message.txt', 'Message\n');
+  const fingerprint = (...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'fingerprint.js'), plain, ...args], { encoding: 'utf8' }).stdout.trim();
+  assert.match(fingerprint('snapshot', 'x'), /^snapshot x: 0 changed files recorded$/);
+  assert.equal(fingerprint('compare', 'x'), 'same');
+  assert.equal(git(plain, 'status', '--porcelain', '--untracked-files=all'), '');
+  const out = flow(plain, 'start', '--name', 'feature');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.ok(!out.some((l) => l.startsWith('carried:')), out.join('\n'));
 });

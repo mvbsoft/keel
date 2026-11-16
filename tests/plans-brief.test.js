@@ -92,13 +92,13 @@ test('plans.js brief refuses what is not a brief, a missing draft or one that is
   refusal(['order-notices', '.keel/local/plans/briefs/notices-2-brief.md'], '.* is not a brief');
   refusal(['order-notices', '.keel/local/plans/briefs/missing-one-brief.md'], 'no brief');
   refusal(['order-notices', '.keel/local/plans/briefs/bare-goal-brief.md'], '.* has no Goal section');
-  refusal(['other-feature', BRIEF], 'no draft "other-feature"');
+  refusal(['other-feature', BRIEF], 'no feature "other-feature"');
   const file = path.join(dir, '.keel/local/plans/keel/order-notices/plan.md');
   const draft = fs.readFileSync(file, 'utf8');
-  fs.writeFileSync(file, draft.replace(/^status: draft$/m, 'status: exported'));
-  refusal(['order-notices', BRIEF], 'the plan is exported');
+  fs.writeFileSync(file, draft.replace(/^status: draft$/m, 'status: ready'));
+  refusal(['order-notices', BRIEF], 'the plan is ready');
   assert.ok(fs.existsSync(path.join(dir, BRIEF)), 'a refusal moves nothing');
-  assert.equal(fs.readFileSync(file, 'utf8'), draft.replace(/^status: draft$/m, 'status: exported'), 'and writes nothing');
+  assert.equal(fs.readFileSync(file, 'utf8'), draft.replace(/^status: draft$/m, 'status: ready'), 'and writes nothing');
 });
 
 test('plans.js brief never gives two items one number: a number the brief or the section has is skipped', () => {

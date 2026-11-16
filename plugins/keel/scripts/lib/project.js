@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const catalog = require('../../data/catalog.json');
-const { checkConfig } = require('./config.js');
+const { checkConfig, loadSchema } = require('./config.js');
 const { isSecretName } = require('./secret-names.js');
 const { safeLocalWrite } = require('./safe-path.js');
 const { readJsonFile } = require('./json.js');
@@ -11,6 +11,33 @@ const { readJsonFile } = require('./json.js');
 function loadProject(root) {
   const { state, errors, config } = checkConfig(root);
   if (state !== 'ok') throw new Error(`keel is not configured here (config ${state}${errors.length ? `: ${errors[0]}` : ''}); run /keel:configure`);
+  const { profile, isSecret } = secretCheck(root);
+  return { config, profile, isSecret };
+}
+
+// The `default` values of a JSON schema node, as an object (undefined when it has none).
+function defaultsOf(node) {
+  if (node.default !== undefined) return node.default;
+  if (node.type !== 'object' || !node.properties) return undefined;
+  const out = {};
+  for (const [k, v] of Object.entries(node.properties)) {
+    const d = defaultsOf(v);
+    if (d !== undefined) out[k] = d;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+// loadProject for git steps and verification (git-flow.js, changes.js, fingerprint.js, votes.js). A
+// repository without keel (a planned ticket of another repository) gets the config schema's defaults,
+// no gates, manual git and the main branch origin/HEAD names (null when it names none); a config keel
+// cannot use, or a folder outside git, still throws.
+function loadProjectOrDefaults(root) {
+  const { git } = require('./repo-read.js');
+  if (checkConfig(root).state !== 'missing' || git(root, ['rev-parse', '--git-dir']) === null) return loadProject(root);
+  const head = git(root, ['symbolic-ref', '--short', '-q', 'refs/remotes/origin/HEAD']);
+  const main = head && head.includes('/') ? head.slice(head.indexOf('/') + 1) : null;
+  const defaults = defaultsOf(loadSchema());
+  const config = { ...defaults, gates: { checks: [], security_scanners: [] }, git: { ...defaults.git, mode: 'manual', main_branch: main } };
   const { profile, isSecret } = secretCheck(root);
   return { config, profile, isSecret };
 }
@@ -49,4 +76,4 @@ function parseArgs(argv) {
   return { opts, pos };
 }
 
-module.exports = { loadProject, secretCheck, localDir, writeLocal, readJson, parseArgs };
+module.exports = { loadProject, loadProjectOrDefaults, secretCheck, localDir, writeLocal, readJson, parseArgs };

@@ -15,12 +15,12 @@
   const snake = (name) => name.toLowerCase().replace(/[^a-z]+/g, '_').replace(/^_|_$/g, '');
   const sectionName = (n) => (data.labels[`section.${snake(n)}`] !== undefined ? L(`section.${snake(n)}`) : n);
   const STATE_KEYS = { done: 'done', 'waiting for the feature merge': 'waiting_feature', 'waiting for merge into the feature branch': 'waiting_branch',
-    'in progress': 'in_progress', 'to do': 'to_do', next: 'next', draft: 'draft', 'draft (ready)': 'draft_ready', exported: 'exported',
+    'in progress': 'in_progress', 'to do': 'to_do', next: 'next', draft: 'draft', abandoned: 'abandoned',
     'state unknown': 'unknown', 'not found': 'not_found', 'not checked': 'not_checked' };
   const stateText = (s) => (STATE_KEYS[s] ? L(`state.${STATE_KEYS[s]}`) : s);
   // The page's state groups: the counts, the bar and each ticket's colour.
   const GROUP_OF = { done: 'done', 'waiting for the feature merge': 'waiting', 'waiting for merge into the feature branch': 'waiting',
-    'in progress': 'doing', 'to do': 'todo', draft: 'draft' };
+    'in progress': 'doing', 'to do': 'todo', draft: 'draft', abandoned: 'done' };
   const groupOf = (t) => (t.next ? 'next' : GROUP_OF[t.state] || 'unknown');
   // A group's pill class in keel.css.
   const PILL = { done: 'good', waiting: 'wait', doing: 'doing', next: 'next', todo: '', draft: 'wait', unknown: 'unknown' };
@@ -355,6 +355,9 @@
   const stubText = (repo) => L('stub_title', { repo });
   const stubBadge = (repo) => bubbleButton('pill off stub', [icon('braces'), el('span', '', L('stub'))], stubText(repo));
   const stubMark = () => el('span', 'pill off stub', L('stub'));
+  // A ticket whose essential part changed since its review (plans.js tickets: `needs review`).
+  const reviewBadge = () => bubbleButton('pill wait', [el('span', '', L('needs_review'))], L('needs_review_title'));
+  const reviewMark = () => el('span', 'pill wait', L('needs_review'));
   // Why a ticket's or a dependency's state is unknown: a stub, or a repository not on this machine.
   const unknownText = (t, key) => (isStub(t) ? stubText(t.repo) : offText(t ? t.repo : repoOfKey(key)));
   // A ticket of this repository whose file is only on another branch: its text is read from there.
@@ -414,7 +417,8 @@
       p.append(el('span', 'small muted', L('built', { date: builtAt })));
     });
     const stale = data.fetchFailed ? bubbleButton('pill wait', [icon('alert'), el('span', '', L('fetch_failed'))], L('fetch_failed_title')) : null;
-    card.append(add(el('div', 'row chips'), projects, asOf, stale));
+    const review = data.review ? bubbleButton('pill wait', [icon('alert'), el('span', '', L('needs_review'))], L('plan_needs_review_title')) : null;
+    card.append(add(el('div', 'row chips'), projects, asOf, review, stale));
     const o = data.overview;
     const plain = o ? named(o.sections, 'In plain words') : '';
     if (plain) {
@@ -469,7 +473,7 @@
   // What is in work (every repository), else what is next; the bar and the counts.
   function statusCard() {
     const t = data.tickets;
-    if (!t.length || draft) return null;
+    if (!t.length) return null;
     const doing = t.filter((x) => x.state === 'in progress');
     const next = t.find((x) => x.next);
     const allDone = t.every((x) => ['done', 'waiting'].includes(groupOf(x)));
@@ -482,7 +486,7 @@
     if (doing.length && next) card.append(el('span', 'small muted', L('then_next', { key: next.key, repo: next.repo })));
     const counts = {};
     for (const x of t) counts[countGroup(groupOf(x))] = (counts[countGroup(groupOf(x))] || 0) + 1;
-    const groups = ['done', 'waiting', 'doing', 'todo', 'unknown'].filter((g) => counts[g]);
+    const groups = ['done', 'waiting', 'doing', 'todo', 'draft', 'unknown'].filter((g) => counts[g]);
     const bar = el('div', 'prog');
     bar.setAttribute('role', 'img');
     bar.setAttribute('aria-label', groups.map((g) => `${counts[g]} ${groupText(g)}`).join(', '));
@@ -507,7 +511,7 @@
         const dot = el('i', `sdot ${groupOf(t)}`);
         const state = stateText(t.next ? 'next' : t.state);
         const off = isOff(t);
-        const b = btn('tk', [dot, el('span', 'kk', t.key), el('span', 'tt', t.title || t.key), off ? offMark() : isStub(t) ? stubMark() : t.onBranch ? branchMark(t.onBranch) : null], () => select(t.key, true));
+        const b = btn('tk', [dot, el('span', 'kk', t.key), el('span', 'tt', t.title || t.key), off ? offMark() : isStub(t) ? stubMark() : t.onBranch ? branchMark(t.onBranch) : null, t.review ? reviewMark() : null], () => select(t.key, true));
         b.title = `${t.key} · ${t.title} · ${state}${off || isStub(t) ? ` · ${unknownText(t)}` : ''}`;
         items.set(t.key, b);
         card.append(b);
@@ -611,7 +615,7 @@
     detail.textContent = '';
     const back = btn('btn sm back', [icon('arrowLeft'), el('span', '', L('back'))], () => { document.body.classList.remove('reading'); const i = items.get(t.key); if (i) i.focus(); });
     const top = add(el('div', 'row'), pill(PILL[groupOf(t)], stateText(t.next ? 'next' : t.state)), el('span', 'key', t.key), el('span', 'pill', t.repo),
-      isOff(t) ? offBadge(t.repo) : isStub(t) ? stubBadge(t.repo) : t.onBranch ? branchBadge(t.onBranch) : null);
+      isOff(t) ? offBadge(t.repo) : isStub(t) ? stubBadge(t.repo) : t.onBranch ? branchBadge(t.onBranch) : null, t.review ? reviewBadge() : null);
     if (t.md) top.append(btn('btn sm mdbtn', [icon('file'), el('span', '', L('show_md'))], () => mdFile(t)));
     const meta = el('div', 'row');
     meta.append(...viaChips(t.via));

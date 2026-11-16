@@ -46,7 +46,7 @@ the setting in full. Quick setup explains too; it only asks fewer questions.
 
 - **Quick setup** asks only: the two languages (the one keel talks in and the one it writes into the
   repository), the gate commands (the commands that must pass) and one dry run of them, the run command of a part that serves something, the git mode
-  and the main branch, the planning ticket prefix and where the tickets live, the recommended Claude Code
+  and the main branch, where planned features live (the repository or this machine), the recommended Claude Code
   settings (all, one by one, or none), the [ADR style](settings.md#adr-styles) when the project has or
   will write decision records (an ADR folder or documentation profile 2 or higher), and, when this machine
   has no usage settings yet, how it pays, the status line and the usage page. Every other value is
@@ -326,19 +326,19 @@ conversation of its own, and it writes no code:
 /keel:start-planning CSV export of invoices
 ```
 
-Planning needs the project's ticket prefix and where the tickets live, set once by `/keel:configure`
-(or `/keel:configure planning`). The first time in a project keel then asks where the draft lives (on
-this machine, outside git, or in the repository, where colleagues see it). Then it retells
+Planning needs to know where a feature's folder lives, set once by `/keel:configure`
+(or `/keel:configure planning`): in the repository, where colleagues see it through git, or on this
+machine, outside git (you can put one feature in the other place when you start it). Then it retells
 the feature, checks in the code what it relies on, proposes a name and asks one question at a time.
-Your answers become decisions; the work becomes short tickets (T1, T2…) in the draft. With no argument,
-keel lists the drafts to continue. While a conversation plans, keel refuses the task, session, configure
+Your answers become decisions; the work becomes short tickets (T1, T2…) in the feature's folder. With no argument,
+keel lists the features to continue. While a conversation plans, keel refuses the task, session, configure
 and cleanup commands.
 
 `/keel:end-planning we continue tomorrow` reviews the changed tickets and writes where planning stopped;
-`/keel:start-planning <feature>` picks up from there. `/keel:end-planning final review and export` has
+`/keel:start-planning <feature>` picks up from there. `/keel:end-planning final review` has
 reviewer agents check the tickets not yet reviewed as they are now, and then the whole plan; once you
-decide each finding, keel exports the tickets into the feature folder with real keys such as
-`PROJ-101`. Git steps wait for your yes.
+decide each finding, keel marks the plan and its tickets `ready`. The folder stays as it is: a ticket
+is `<feature>/T<n>`, such as `csv-export/T3`, with no key of a tracker. Git steps wait for your yes.
 
 Then build the tickets, each in a fresh conversation (`/clear`): `/keel:start-task next ticket` takes
 the next free ticket and offers its feature branch; from there it is an ordinary task. Or

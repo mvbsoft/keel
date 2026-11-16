@@ -32,12 +32,11 @@ test('`other` goes only into findings, and a rejected reply is answered by a new
   says(reviews(), ['`report: failed`', 'a new reviewer run', 'never the same reviewer again']);
 });
 
-test('feature-page: features that exist only on another branch are not offered', () => {
-  says(skill('feature-page'), ['`other branches:`', 'not offered', 'switches to that branch first']);
+test('feature-page: a feature whose files are on another branch is refused, and the user switches there first', () => {
+  says(skill('feature-page'), ['`feature-page: refused (<why>)`', 'whose files are on another branch', 'switches to that branch first']);
+  says(read('scripts', 'feature-page.js'), ['in this working tree; on another branch: switch to it first']);
 });
 
-test('an exported feature: removing a ticket has no command, and a page is offered after the export', () => {
-  const planning = shared('planning-exported.md');
-  says(planning, ['No command removes a ticket or cancels the feature', '`plans.js drop`', 'after a yes', '`plans.js check <f>`', '`plans.js tickets <f> --fetch` again', 'started on another machine']);
+test('end-planning offers the feature page after the plan is ready', () => {
   says(skill('end-planning'), ['`/keel:feature-page <f>`', 'the user types it']);
 });

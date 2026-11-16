@@ -299,7 +299,7 @@ test('git.md: default steps per ending in one table; branches are deleted only b
   says(git, ['**Unfinished work never stays on this machine only**']);
   // The only way out of the automatic commit and push.
   says(git, ['The user\'s own instruction (e.g. "do not commit") wins']);
-  const noBranch = part(git, '**A task handoff without its own branch**', 'A planned ticket on its feature branch');
+  const noBranch = part(git, '**A task handoff without its own branch**', '**Default steps**');
   says(noBranch, ['no question', 'a new branch `<id>-<short-name>` from here', '`start --name <it> --from <current>`', 'commit and push there', 'back on `<current>`']);
   says(noBranch, ['Say it in one line, naming the new branch']);
   assert.doesNotMatch(git, /no commit: the changes stay uncommitted|commit and push to the current branch|git stash/);

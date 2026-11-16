@@ -1,7 +1,8 @@
 'use strict';
 // keel's tasks. One task = one folder, from start until finished.
 // - Where: .keel/tasks/<id>/ (goes into git, so it travels with the task branch), or
-//   .keel/local/tasks/<id>/ when config `tasks.in_git` is false. The folder holds task.md (ticket, state
+//   .keel/local/tasks/<id>/ when config `tasks.in_git` is false, and always for a planned ticket of a
+//   feature kept on this machine or of another repository. The folder holds task.md (ticket, state
 //   and handoff in one file) and plan.md when the plan is big. Listing also reads every local and
 //   remote-tracking branch, because a handed-off task is committed on its own branch and is absent
 //   from the base branch. Only folders count: any other file in .keel/tasks (a README) is not a task.
@@ -22,7 +23,7 @@ const { git, clean, validBranchName } = require('./repo-read.js');
 const { isSecretName } = require('./secret-names.js');
 const { secretCheck } = require('./project.js');
 const { realPath, samePath, linkOnWay } = require('./safe-path.js');
-const { readFinish, writeFinish, clearFinish, ownItem } = require('./finish.js');
+const { findFinish, writeFinish, clearFinish, ownItem } = require('./finish.js');
 const { validId, validSid: validSession } = require('./ids.js');
 const { mainOf } = require('./project-dir.js');
 const {
@@ -64,6 +65,26 @@ function readPlanFile(root, file) {
   return { text, from: shown };
 }
 
+// The planned ticket a task works on (--ticket <feature>/T<n>): { ref, repo, folder, local }, or
+// { refusal }. Its task id is <feature>-T<n>. `repo`: the other repository the ticket is for (its
+// `repo:`), whose `folder` gives the task's start commit; `local`: the task stays on this machine (a
+// feature kept here, or a ticket whose code is in another repository).
+function plannedTicket(root, id, value) {
+  const r = require('./planning.js').ticketRef(value);
+  if (!r) return { refusal: `--ticket takes <feature>/T<n>, not "${clean(String(value))}"` };
+  const ref = `${r.feature}/${r.ticket}`;
+  if (!sameId(id, `${r.feature}-${r.ticket}`)) return { refusal: `the task of ${ref} is ${r.feature}-${r.ticket}` };
+  const d = require('./plans-drafts.js').listDrafts(root).find((x) => x.feature === r.feature);
+  const t = d && require('./plans-drafts.js').tickets(d).find((x) => x.id === r.ticket);
+  if (!t) return { refusal: d ? `no ticket ${r.ticket} in ${r.feature}` : `no feature ${r.feature}` };
+  if (t.fm.type === 'stub') return { refusal: `${ref} is a stub: plan it in full first` };
+  if (t.fm.type === 'elsewhere') return { refusal: `${ref} lives in ${clean(t.fm.repo, 120)}: start it there` };
+  const target = require('./plans-repos.js').targetOf(root, t);
+  if (target.own) return { ref, repo: null, folder: root, local: d.local };
+  if (!target.folder) return { refusal: `${ref} is for ${clean(target.name, 120)}: ${target.bad ? 'not a repository name' : clean(target.why, 300)}` };
+  return { ref, repo: target.name, folder: target.folder, local: true };
+}
+
 // The skeleton: the template without its comments, the front matter filled from the arguments.
 function taskNew(root, id, o, now = new Date()) {
   if (!validId(id)) return refuse('task new', `invalid id "${clean(String(id))}": letters, digits, . _ -, at most 80 characters, starting with a letter or digit, no "..", not ending with ".", not a Windows device name (CON, NUL, COM1...)`);
@@ -85,6 +106,8 @@ function taskNew(root, id, o, now = new Date()) {
     plan = readPlanFile(root, o.planFile);
     if (plan.refusal) return refuse('task new', plan.refusal);
   }
+  const ticket = o.ticket !== undefined ? plannedTicket(root, id, o.ticket) : null;
+  if (ticket && ticket.refusal) return refuse('task new', ticket.refusal);
   const local = localRefusal(root, 'task new');
   if (local) return local;
   const old = findTask(root, id);
@@ -95,18 +118,20 @@ function taskNew(root, id, o, now = new Date()) {
     const taken = names.find((n) => sameId(n, id));
     if (taken) return refuse('task new', `${rel(root, path.join(dir, taken))} exists (ids compare without case)`);
   }
-  const folder = path.join(treeDirs(root)[0], id);
+  const home = ticket && ticket.local ? localRoot(root) : treeDirs(root)[0];
+  const folder = path.join(home, id);
   // Local tasks live in the main checkout, tasks in git in this folder: links are checked in the one that holds it.
-  const linked = linkOnWay(treeDirs(root)[0] === localRoot(root) ? mainOf(root) : root, path.join(folder, TASK_FILE));
+  const linked = linkOnWay(home === localRoot(root) ? mainOf(root) : root, path.join(folder, TASK_FILE));
   if (linked) return refuse('task new', linked);
   const { main } = settings(root);
   const today = dateOf(now);
   const title = oneLine(o.title);
   // The commit the task started from: `git diff <started>` is the task's work, also on a branch shared
-  // with others, whose commits come in by sync.
-  const started = git(root, ['rev-parse', '-q', '--verify', 'HEAD^{commit}']) || '-';
+  // with others, whose commits come in by sync. A ticket of another repository starts in that one.
+  const started = git(ticket ? ticket.folder : root, ['rev-parse', '-q', '--verify', 'HEAD^{commit}']) || '-';
   const front = {
-    id, title, source: o.source, link: typeof o.link === 'string' && oneLine(o.link) ? oneLine(o.link) : '-', status: 'active',
+    id, title, source: o.source, link: typeof o.link === 'string' && oneLine(o.link) ? oneLine(o.link) : '-',
+    ...(ticket ? { ticket: ticket.ref } : {}), ...(ticket && ticket.repo ? { repo: ticket.repo } : {}), status: 'active',
     branch: picked.branch || '-', base: picked.base || main || '-', merge_into: picked.mergeInto || main || '-', execution: o.execution || 'here', plan: plan ? PLAN_FILE : 'inline',
     created: today, updated: today, after_commit: '-', started,
   };
@@ -208,28 +233,42 @@ function toTrash(root, id, sid, what, guard = () => null) {
   return { t, target, batch: r.batch, tracked };
 }
 
-// Only work whose verification is recorded (fingerprint.js save, also --tier none) is finished; in
-// autonomous git the finish is recorded for the session until a commit holds it or it is restored
-// (lib/finish.js, hooks/finish-check.js).
-function verifiedGuard(root) {
-  const why = require('../fingerprint.js').unverified(root);
+// Where a task's work is verified: the folder of its `repo:` (a planned ticket of another repository,
+// from the repos map), else the project; { why } when that repository is not on this machine.
+function workRoot(root, t) {
+  const repo = t && t.fm && typeof t.fm.repo === 'string' ? t.fm.repo.trim() : '';
+  if (!repo || repo === '-') return { folder: root };
+  const target = require('./plans-repos.js').targetOf(root, { fm: { repo } });
+  return target.folder ? { folder: target.folder } : { why: `the task's repository ${clean(repo, 120)} is not on this machine (${target.bad ? 'not a repository name' : clean(target.why, 300)})` };
+}
+
+// Only work whose verification is recorded (fingerprint.js save, also --tier none, in the folder the
+// work is in: workRoot) is finished; in autonomous git the finish is recorded for the session until a
+// commit holds it or it is restored (lib/finish.js, hooks/finish-check.js).
+function verifiedGuard(root, t) {
+  const work = workRoot(root, t);
+  if (work.why) return work.why;
+  const why = require('../fingerprint.js').unverified(work.folder);
   if (!why) return null;
   const fp = path.join(__dirname, '..', 'fingerprint.js');
-  return `${why}: finish the verification first (it ends with fingerprint.js save --tier <level>); when the user chose no verification, run node "${fp}" "${root}" save --tier none; then run task delete again`;
+  return `${why}: finish the verification first (it ends with fingerprint.js save --tier <level>); when the user chose no verification, run node "${fp}" "${work.folder}" save --tier none; then run task delete again`;
 }
 
 function taskDelete(root, id, sid) {
-  const record = sid !== undefined && settings(root).mode === 'autonomous';
-  let recorded = false;
-  // The finish record comes before the move: a finish that cannot be recorded does not start.
+  let recorded = null;
+  // The finish record comes before the move: a finish that cannot be recorded does not start. It goes
+  // where the finish's git steps run (lib/finish.js), only when keel runs them there: autonomous git
+  // in that folder's config (none: manual).
   const guard = (task) => {
-    const notVerified = verifiedGuard(root);
-    if (notVerified || !record) return notVerified;
-    try { writeFinish(root, sid, task.id, 'deleted'); recorded = true; return null; } catch (e) { return `the finish record cannot be written: ${e.message}`; }
+    const notVerified = verifiedGuard(root, task);
+    if (notVerified || sid === undefined) return notVerified;
+    const home = workRoot(root, task).folder;
+    if (settings(home).mode !== 'autonomous') return null;
+    try { writeFinish(home, sid, task.id, 'deleted', home === root ? undefined : root); recorded = home; return null; } catch (e) { return `the finish record cannot be written: ${e.message}`; }
   };
   const { why, t, target, batch, tracked } = toTrash(root, id, sid, 'task delete', guard);
   if (why) {
-    if (recorded) clearFinish(root, sid);
+    if (recorded) clearFinish(recorded, sid);
     return why;
   }
   return [`deleted: ${rel(root, target)}${t.folder ? '/' : ''} (moved to keel's trash)`, `trash batch: ${batch}`, 'active task: none', ...(tracked ? [TRACKED_NOTE] : [])];
@@ -270,8 +309,8 @@ function taskRestore(root, id, sid, now = new Date()) {
     try { if (was) writeClosed(root, (c) => { c[id] = was; }); } catch { /* the task then lists again; the batch still holds it */ }
     return refuse('task restore', r.refused || `nothing put back: ${r.kept.map((k) => `${k.path} (${k.reason})`).join(', ')}`);
   }
-  const pending = readFinish(root, sid);
-  if (pending && sameId(pending.id, id)) clearFinish(root, sid);
+  const pending = findFinish(root, sid);
+  if (pending && sameId(pending.r.id, id)) clearFinish(pending.home, sid);
   return [`restored: ${r.restored.map((i) => i.path).join(', ')} (trash batch ${b.batch})`, ...taskActivate(root, id, sid, now)];
 }
 
@@ -282,6 +321,6 @@ function taskDrop(root, id) {
 }
 
 module.exports = {
-  validId, readBlobs, listTasks, treeTasks, findTask, activeTask, sessionMarker, busyTasks, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
+  validId, readBlobs, listTasks, treeTasks, findTask, workRoot, activeTask, sessionMarker, busyTasks, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
   taskDelete, taskRestore, taskDrop, taskInventory, sections, setFront, stepCounts, planText, readClosed, dateOf,
 };

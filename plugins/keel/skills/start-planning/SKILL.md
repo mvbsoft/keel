@@ -1,6 +1,6 @@
 ---
 name: start-planning
-description: Plan a feature in its own conversation - one question at a time, decisions and short tickets in a draft; continue a draft by name or your words. No code here. Finish with /keel:end-planning.
+description: Plan a feature in its own conversation - one question at a time, decisions and short tickets in its folder; continue a feature by name or your words. No code here. Finish with /keel:end-planning.
 disable-model-invocation: true
 argument-hint: "[idea | link | file | feature name | what to continue, in your words]"
 allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" *), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" *)
@@ -33,34 +33,27 @@ Current state of this project:
    a person.) Run `node "<keel>/scripts/notes.js" "<project>" check --session <sid>` (no `--begin`:
    that record is for tasks), then `node "<keel>/scripts/plans.js" "<project>" mark get --session <sid>`:
    `planning: <f>` → this conversation already plans `<f>`: one conversation, one feature; continue
-   `<f>` (step 6; an exported feature, told apart as in step 4: planning-exported.md steps
-   3-6), or end it with /keel:end-planning first.
-3. Read `<keel>/skills/_shared/planning.md`, sections "Rules", "Work" and "Several repositories"; they
-   hold for the whole command (an exported feature: also `<keel>/skills/_shared/planning-exported.md`). Run `plans.js settings`.
+   `<f>` (step 6), or end it with /keel:end-planning first.
+3. Read `<keel>/skills/_shared/planning.md`, sections "Rules", "Work", "After ready" and "Several
+   repositories"; they hold for the whole command. Run `plans.js settings`.
    `planning: planning is not set up ...` → before any question say: "Planning is not set up in this
-   project yet: the ticket prefix and where the tickets live are shared with the team in
-   `.keel/config.json`. Run `/keel:configure planning`, then `/keel:start-planning` again." and stop.
-   `settings: none yet` → one question: where the draft lives: on this machine (default, outside git)
-   or in the repository (folder `tickets`, or a ticket folder the project already has; colleagues see
-   it through git). Save with `plans.js settings set --draft <pc|repo> [--draft-dir <dir>]`. A change
-   the user names at any start ("draft in the repo") → the same command.
+   project yet: where new features live is shared with the team in `.keel/config.json`. Run
+   `/keel:configure planning`, then `/keel:start-planning` again." and stop.
+   Its `place:` line is where a new feature goes (`repo`: `<tickets_dir>/<f>/`, in git; `pc`: this
+   machine only). The user may say otherwise for this feature ("this one off the repository") →
+   `plans.js new <f> --place pc` (or `--place repo`) in step 5; the setting stays.
 4. **Which feature**, from the instruction:
-   - empty → `plans.js list`: show each draft (feature, state, open Q, tickets, last change, where)
-     and ask which to continue, or what the new feature is; no drafts → ask "What feature do we plan?"
+   - empty → `plans.js list`: show each feature (feature, state, open Q, tickets, last change, where)
+     and ask which to continue, or what the new feature is; none → ask "What feature do we plan?"
      (an idea, a link, a file or your own words);
-   - a draft's exact name → continue it (step 6);
+   - a feature's exact name → continue it (step 6);
    - a link or a file → a new feature from it (step 5; a brief
      `.keel/local/plans/briefs/<name>-brief.md`, written by /keel:start-task for a task too big for
      one: step 5 "From a brief");
-   - a single name with no draft → `plans.js tickets <it>` first: it lists tickets → an exported
-     feature (below); `tickets: none ...` → the next case;
    - other words → `plans.js find "<words>"`: `find: 1 match` → "Continue `<f>`?"; several → show
-     them and ask which; `find: no match` → show the drafts it lists (if any) and ask: one of these, or a
-     new feature from these words? No drafts → "No draft matches, so this is a new feature. Right?"
-   A chosen plan that is `exported`, or a name `plans.js tickets <f>` lists tickets for (an exported
-   feature without a draft) → its tickets live in the feature folder: planning-exported.md
-   steps 1-2, then step 7, then its steps 3-6 as the work (not steps 5, 6 and 8). `abandoned` → say
-   so; another draft or a new feature.
+     them and ask which; `find: no match` → show the features it lists (if any) and ask: one of these, or a
+     new feature from these words? None → "No feature matches, so this is a new feature. Right?"
+   A chosen plan `done` or `abandoned` → say so; another feature or a new one.
 5. **New feature.**
    - Say once, in one line: keel advises Opus for planning, since the plan shapes all the work after
      it; the model stays the user's choice (`/model`).
@@ -71,7 +64,7 @@ Current state of this project:
    - Retell in a few lines: the goal, who gains, what is out. Check the premise in the code with a
      few searches: what the feature relies on exists and works as said (else say it, `file:line`).
    - **Which projects**: only with signs of another repository, planning.md "Several repositories"
-     items 1-3.
+     items 1 and 3.
    - Size: **small** (up to 5 questions, one conversation) or **large** (several conversations, each
      ended with /keel:end-planning). One goal, 1-3 sittings, one ticket → it looks like one task:
      suggest `/keel:start-task`; the user decides.
@@ -81,30 +74,30 @@ Current state of this project:
    - Main branch: run `git for-each-ref --format="%(refname:short)" refs/heads refs/remotes`. Several
      of main, master, develop, release/* (remote prefix dropped) → one question: "Where will this
      feature's tasks merge?"; otherwise say in one line that they merge into `git.main_branch`.
-   - planning.md "Project rules" (the draft's place, the branch name).
-   - A repository draft → planning.md "Branch hints".
-   - `plans.js new <f>` (`a draft "<f>" exists` → continue it or another name; `branch <f> exists and
-     may hold this draft` → offer "Switch to `<f>`?": yes → `git switch <f>`, then `plans.js list`
-     there and continue that draft (step 6); no → another name). A merge branch other
+   - planning.md "Project rules" (the feature's place, the branch name).
+   - A feature in the repository → planning.md "Branch hints".
+   - `plans.js new <f> [--place repo|pc]` (`a feature "<f>" exists` → continue it or another name;
+     `branch <f> exists and may hold this feature` → offer "Switch to `<f>`?": yes → `git switch <f>`,
+     then `plans.js list` there and continue that feature (step 6); no → another name). A merge branch other
      than `git.main_branch`, or a branch name other than `<f>` → `plans.js set <f> --branch <b> --merge-into <m>` (`branch:` and `merge_into:` lines).
-     Other repositories chosen → `plans.js set <f> --repos "<PREFIX>,..."` ("Several repositories" item 4).
    - **From a brief**: what it settles is not asked again. The retell comes from its Goal, the name
      proposed is `<name>`, and a branch its Decisions and why names ("goes on in branch <b> and merges
      into <m>") replaces the main-branch question: after `plans.js new`, `plans.js set <f> --branch <b>
      --merge-into <m>`. Then `plans.js brief <f> <the brief>`: its sections go into `plan.md` (Goal →
      In plain words, Files → What was gathered, Decisions and why → Decisions, Open questions → Open
      questions) and the brief to keel's trash; say its lines.
-6. **Continue a draft.** `plans.js check <f>` and `plans.js review <f>`; read `plan.md` only (not the
+6. **Continue a feature.** `plans.js check <f>` and `plans.js review <f>`; read `plan.md` only (not the
    tickets): the ticket list, open Q, What was gathered, Next action; and in `reviews/` the findings
    marked `undecided`: show them and ask for each decision (planning.md "Reviews", step 6).
    Stale? `plans.js stale <f>`: show its `stale:` lines as they are (one more per other repository).
-   A stub whose repository is now here (check's `note: <T>: <PREFIX> is on this machine now`) →
-   "Several repositories" item 7. A repository draft → planning.md
-   "Branch hints". Then a summary in 3-6 lines and the Next action. A `ready` plan: any change makes it a draft again.
-7. `plans.js mark set <f> --session <sid>` → `planning: <f>` (an exported feature:
-   `planning: <f> (exported: <folder>)`). Say in one line: this conversation now
+   A stub whose repository is here now (check's `note: stub <T> can become a full ticket: ...`) →
+   "Several repositories" item 6. A feature in the repository → planning.md
+   "Branch hints". Then a summary in 3-6 lines and the Next action. A plan `ready` or `in-progress`
+   keeps its status: name what needs review (`changed since review`, `- plan: changed since ready`)
+   and ask "Review now?"; every edit follows planning.md "After ready".
+7. `plans.js mark set <f> --session <sid>` → `planning: <f>`. Say in one line: this conversation now
    plans `<f>`; task and session commands wait for /keel:end-planning; no code changes here.
 8. Work as planning.md "Work" says, from the Next action (new: the gathering offer when
    it fits, else the first open question; from a brief: first grow In plain words from its Goal into
    the whole feature, write it, and show its text in the reply, then its first open question). When the user
-   wants to stop: "/keel:end-planning hands over, or reviews and exports the tickets."
+   wants to stop: "/keel:end-planning hands over, or reviews the tickets and marks the plan ready."

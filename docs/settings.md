@@ -141,10 +141,9 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 | `docs.adr_style` | how decision records (ADRs) are kept when the project has or writes them ([ADR styles](#adr-styles)). `/keel:configure` asks it, says how your ADRs are kept now, and `/keel:configure check` reminds you while it is not chosen | `journal` / `living` / `custom` | `journal` |
 | `delegation.min_plan_steps`, `min_plan_files` | from this plan size keel recommends a fresh conversation for the plan, or handing the steps to implementer agents | steps, files | 8, 15 |
 | `cleanup.trash_max_age_days` | `/keel:cleanup empty-trash` deletes batches this many days old or more by default | days | 30 |
-| `tasks.in_git` | where unfinished task folders live: `true` in `.keel/tasks/<id>/`, committed on the task's branch so the team sees them; `false` in `.keel/local/tasks/<id>/`, this machine only. See [ways of working](workflows.md#where-the-files-live) | on / off | on |
-| `planning.ticket_prefix` | the start of every ticket key planning gives (`PROJ` in `PROJ-12`), one per repository. New comments and docs are checked for it as for `comments.ticket_prefixes` | 2-10 capital letters and digits, starting with a letter | none: `/keel:configure` proposes the tracker's prefix from git history, else 3-4 letters of the repository's name |
-| `planning.tickets` | where exported tickets live, with the researcher's reports: `repo` in `planning.tickets_dir`, committed on the feature branch so the team sees them; `pc` on this machine only. Without `ticket_prefix` and `tickets` planning does not start | `repo` / `pc` | none: `/keel:configure` recommends `repo` |
-| `planning.tickets_dir` | the repository folder for exported tickets | a folder; never a hidden one, `handoff/`, `handoffs/`, `docs/plans` or a place outside the project | `tickets` |
+| `tasks.in_git` | where unfinished task folders live: `true` in `.keel/tasks/<id>/`, committed on the task's branch so the team sees them; `false` in `.keel/local/tasks/<id>/`, this machine only (the task of a planned ticket whose feature is on this machine, or that is for another repository, is always there). See [ways of working](workflows.md#where-the-files-live) | on / off | on |
+| `planning.place` | where a new feature's folder lives: `repo` in `planning.tickets_dir`, committed on the feature branch so the team sees it; `pc` in `.keel/local/plans/keel/<feature>/`, on this machine only (one feature can be put in the other place when you start it). Without it planning does not start | `repo` / `pc` | none: `/keel:configure planning` asks it |
+| `planning.tickets_dir` | the repository folder that holds the feature folders (`<tickets_dir>/<feature>/`) | a folder; never a hidden one, `handoff/`, `handoffs/`, `docs/plans` or a place outside the project | `tickets` |
 | `planning.language` | the language of `plan.md` and the tickets. Detailed setup asks it; quick setup takes `repo_language` | a language code | `repo_language` |
 | `stack_skills` | the stack plugins you chose (for information) | names | none |
 | `usage.artifact_url` | no longer used: each machine syncs to its owner's own page ([one page per account](usage-dashboard.md#one-page-per-account)). The key stays valid and is ignored; keel says so once per machine | a claude.ai link | none |
@@ -190,21 +189,21 @@ git does not ignore that file yet, `/keel:configure` offers to add it to `.gitig
 
 ### Planning settings
 
-What the team shares is in `.keel/config.json`: the ticket prefix, where the tickets live and their
-language (`planning.*` in the table above). `/keel:configure` asks them, quick setup too, and
-`/keel:configure planning` asks only them; without them `/keel:start-planning` stops and says so.
+What the team shares is in `.keel/config.json`: where a feature's folder lives (`planning.place`), the
+folder in the repository (`planning.tickets_dir`) and the language (`planning.*` in the table above).
+`/keel:configure` asks them, quick setup too, and `/keel:configure planning` asks only them; without
+`planning.place` `/keel:start-planning` stops and says so. `planning.ticket_prefix` and
+`planning.tickets` of keel 2.0.0 are no longer read: a config that still has them stays valid, and
+`/keel:configure check` names them. Tickets have no keys: a ticket is `<feature>/T<n>`.
 
-What is personal stays in `.keel/local/plans/keel/settings.json` (outside git, this machine only). The
-first `/keel:start-planning` asks where the draft lives, and a change you name at any start ("draft in
-the repo") is saved too.
+What is personal stays in `.keel/local/plans/keel/settings.json` (outside git, this machine only):
 
 | Setting | What it does | Values | Default |
 |---|---|---|---|
-| `draft`, `draft_dir` | where a draft lives while you plan; its folder in the repository | `pc` (this machine) or `repo`; a folder | `pc`; `tickets` |
-| `repos` | where the neighbouring repositories are on this machine, by their ticket prefix (`"WEB": "/path/to/web"`); set with `plans.js settings set --repo WEB=<folder>`; keel reads the state of their tickets a `depends_on` names there ([Ticket states](planning.md#ticket-states)), and where planning reads the rules, code and ticket files of a feature on several repositories ([A feature on several repositories](planning.md#a-feature-on-several-repositories)) | a prefix and an absolute folder each | none |
+| `repos` | where the neighbouring repositories are on this machine, by their name (`"web": "/path/to/web"`; `owner/web` when two repositories have the same name); set with `plans.js settings set --repo web=<folder>`; where planning reads the rules, code and tickets of a feature on several repositories, and where keel reads the status of a ticket that lives there ([A feature on several repositories](planning.md#a-feature-on-several-repositories)) | a name and an absolute folder each | none |
 
-Places keel never uses: [export](planning.md#export). How they are used:
-[planning](planning.md).
+`draft` and `draft_dir` of keel 2.0.0 in that file are no longer read: where a feature lives is
+`planning.place`. Where each place is and what happens to a feature's folder: [planning](planning.md#where-things-live).
 
 ## Examples
 

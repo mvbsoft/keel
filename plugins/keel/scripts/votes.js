@@ -16,7 +16,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { validate, prune } = require('./lib/schema.js');
 const { lineup, levelOf, verifierCaps } = require('./lib/tier.js');
-const { loadProject, localDir, writeLocal, readJson, parseArgs } = require('./lib/project.js');
+const { loadProjectOrDefaults: loadProject, localDir, writeLocal, readJson, parseArgs } = require('./lib/project.js');
 const { safeLocalPath } = require('./lib/safe-path.js');
 
 const SCHEMAS = path.join(__dirname, '..', 'schemas');

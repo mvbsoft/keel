@@ -210,18 +210,19 @@ gitTest('save: --finish without --sync is refused and nothing runs', () => {
 
 gitTest('save: --tickets lets the named ticket file into the commit', () => {
   const { work } = setup();
-  const ticket = (key, status) => `---\ntype: ticket\nkey: ${key}\nstatus: ${status}\nfeature: f\nbranch: f\nmerge_into: main\ndepends_on: []\n---\n# [${key}] Part\n`;
-  write(work, 'tickets/f/K-1-part.md', ticket('K-1', 'todo'));
-  write(work, 'tickets/f/K-2-part.md', ticket('K-2', 'todo'));
+  const ticket = (id, status) => `---\nid: ${id}\ntype: ticket\nstatus: ${status}\n---\n# [${id}] Part\n`;
+  write(work, 'tickets/csv-export/plan.md', '---\ntype: plan\nstatus: in-progress\n---\n# CSV export\n');
+  write(work, 'tickets/csv-export/tickets/T1-part.md', ticket('T1', 'in-progress'));
+  write(work, 'tickets/csv-export/tickets/T2-part.md', ticket('T2', 'in-progress'));
   git(work, 'add', '-A');
   git(work, 'commit', '-q', '-m', 'tickets');
-  git(work, 'switch', '-q', '-c', 'f');
-  write(work, 'tickets/f/K-1-part.md', ticket('K-1', 'done'));
-  write(work, 'tickets/f/K-2-part.md', ticket('K-2', 'done'));
+  git(work, 'switch', '-q', '-c', 'csv-export-T1');
+  write(work, 'tickets/csv-export/tickets/T1-part.md', ticket('T1', 'done'));
+  write(work, 'tickets/csv-export/tickets/T2-part.md', ticket('T2', 'done'));
   write(work, 'src/app.js', 'one\ntwo\n');
-  const out = flow(work, 'save', '--message-file', message(work), '--tickets', 'k-1');
+  const out = flow(work, 'save', '--message-file', message(work), '--tickets', 'csv-export/T1');
   assert.equal(out[0], 'git-flow: ok', out.join('\n'));
-  assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['src/app.js', 'tickets/f/K-1-part.md']);
+  assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['src/app.js', 'tickets/csv-export/tickets/T1-part.md']);
 });
 
 gitTest('save: with nothing to commit it still syncs and pushes', () => {

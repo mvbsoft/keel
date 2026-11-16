@@ -69,7 +69,7 @@ keel has 17 agents. Read-only agents cannot write; the ones that run code are ch
 | verifier | tries to prove or refute a serious finding, with `file:line` evidence | Sonnet; Opus for some findings at Standard and all at Maximum |
 | judge | merges the findings into one ranked list, adds none of its own | Sonnet; Opus at Maximum |
 | implementer | does one planned step when the work is delegated | the step's model: Haiku, Sonnet or Opus |
-| ticket-reviewer | in planning: reviews up to 4 tickets (draft or exported) each against a checklist and checks in the code what they rely on | Sonnet |
+| ticket-reviewer | in planning: reviews up to 4 tickets each against a checklist and checks in the code what they rely on | Sonnet |
 | plan-reviewer | in planning: reviews the whole plan once at its final end (coverage, with each acceptance criterion in exactly one ticket, contradictions, order) | Sonnet |
 | researcher | in planning, on your yes: reads documentation, package registries and the web (how others do it, which package fits) and returns a report with dated data | Sonnet |
 
@@ -99,14 +99,13 @@ accepts each step after running its tests. Why steps should not be cut too small
 | `.keel/tasks/<id>/` | one folder per unfinished task, on the task's own branch | yes, on the task branch only; with `tasks.in_git: false` the folder is `.keel/local/tasks/<id>/`, not in git |
 | `.keel/local/options.json` | this project's own values of `conversation_language`, `allow_opus` and `prompt_preview` (personal) | no |
 | `.keel/local/plans/claude/` | Claude Code's Plan Mode files | no |
-| `.keel/local/plans/keel/` | planning: drafts kept on this machine and tickets exported to this machine (`<feature>/tickets/`), the planning settings, which conversation plans which feature (`sessions/`), ticket review samples (`samples/`) | no |
-| `<draft_dir>/<feature>/`, `<tickets_dir>/<feature>/` | a feature's draft in the repository, and its exported tickets with their overview (`tickets/` by default) | when you commit them, on the feature's branch |
+| `.keel/local/plans/keel/` | planning: the feature folders kept on this machine (`<feature>/`: `plan.md`, `tickets/`, `reviews/`, `research/`), the planning settings, which conversation plans which feature (`sessions/`), ticket review samples (`samples/`) | no |
+| `<tickets_dir>/<feature>/` | a feature's folder in the repository (`tickets/` by default): the plan, its tickets, reviews and research | when you commit them, on the feature's branch |
 | `.keel/local/` | temporary agent files and saved agent reports, the token ledger, backups, the trash | no |
 
 In a linked git worktree of the project, the worktree's `.keel/local/` holds only this conversation's
 state: where the session started, temporary and agent files. What this machine shares between
-conversations stays in the main checkout's `.keel/local/`: `options.json`, the planning drafts, tickets
-exported to this machine, settings and samples, the briefs, local tasks and the record of closed ones,
+conversations stays in the main checkout's `.keel/local/`: `options.json`, the planning features kept on this machine, settings and samples, the briefs, local tasks and the record of closed ones,
 the trash (an item that came from a worktree goes back to it; one whose worktree is gone stays in the
 trash), and, keyed by session, which conversation plans which feature (`plans/keel/sessions/`) and which
 works on which task (`active/`), so they hold wherever the chat works. `trusted-git.json` counts a
@@ -210,7 +209,7 @@ folders and the note move with git: [ways of working](workflows.md#where-the-fil
   as `git restore`, `git stash`, `git reset`, `git rm`, `git mv`, `git checkout --`, `git switch -f`,
   `find -delete`, `rm`, `mv`).
 - **Critical steps are scripts, not text**: config checks, secret scanning, vote counting, token
-  accounting, merge questions, and in planning the draft's structure check, ticket keys and ticket
+  accounting, merge questions, and in planning the feature's structure check, ticket numbers and ticket
   states (`plans.js`).
 - **Data that leaves the machine.** Usage data goes only to the usage page in your own claude.ai
   account, in the page's database
@@ -244,7 +243,8 @@ above remind it:
 `architecture`, `adr-required`, `documentation-philosophy`, `git`, `migration-safety`,
 `performance-review`, `postgres-best-practices`, `production-readiness`, `python-conventions`,
 `root-cause-analysis`, `when-tests-are-owed`. `/keel:configure` also suggests checked plugins for your
-stack (you run the install commands yourself).
+stack (you run the install commands yourself). The `tracker` skill is loaded when you ask to link
+planned work to your issue tracker, in any conversation ([the tracker](planning.md#the-tracker)).
 
 ## Languages
 

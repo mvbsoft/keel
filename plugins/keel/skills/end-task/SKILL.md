@@ -40,7 +40,9 @@ Current state of this project:
    (`node "<keel>/scripts/notes.js" "<project>" task new <id> --title "<title>" --source text --session <sid>`,
    then fill its Goal and Acceptance criteria), or verify without a task file (a hand off needs the
    file; without one, skip the step 7 deletion). Read the task's `task.md` and
-   the folder's `plan.md` if any.
+   the folder's `plan.md` if any. Its `ticket: <f>/<t>` (`event-history/T5`) → a planned ticket;
+   its `repo:` → another repository: steps 4 and 8 run on that repository's folder (`plans.js repos`)
+   in place of `<project>`.
 3. **What to do.** No instruction → ask (AskUserQuestion when it exists): 1) finish fully: verify,
    git, the task folder to keel's trash; 2) hand off: gates only, update the task file, git; continue
    in another session; 3) your own instruction. A clear instruction does not ask WHAT to do (it still
@@ -61,6 +63,9 @@ Current state of this project:
    `--base <started>`: say in one line that teammates' commits pulled into
    that branch since are covered too; only without a task branch (manual git on the main branch) and
    when `session start:` shows commits since, `--base <that commit>`.
+   A planned ticket: its file's acceptance criteria count too; its line in
+   `node "<keel>/scripts/plans.js" "<project>" tickets <f>/<t>` says `needs review` → the verification
+   also checks the ticket's changed text against the code (no separate review of the ticket).
    **Hand off**: gates only, no agents: read only the
    sections "1. Overview of the change", "2. Gates" and "12. Result" of verify.md, unless the
    instruction names a level. Red gates are never fixed in a hand off (section 2 step 4 is skipped,
@@ -89,23 +94,22 @@ Current state of this project:
    - The user declines (a non-interactive run denies it): that is the user's "no". Never run it again
      or another way. The task stays as it is (active, on its branch): skip steps 8 and 9; the report
      says the work is verified and the task stays active (go on, or run /keel:end-task again).
-   - Right after `task delete` printed `deleted:`, only when the verification passed (gates green, no must item left;
-     no verification is not a pass): `node "<keel>/scripts/plans.js" "<project>" done <id>` marks a
-     planned ticket done in the same commit as its code. `done: <KEY> (<path>)` or
-     `done: <KEY> (already)` → go on; then `done: feature <f> complete (<n> tickets)` → git-end-of-feature.md
-     after the push; `done: feature <f> has stubs left: ...` → say it in the report (the
-     feature is not complete). `done: none (no ticket <KEY> here)` → `plans.js tickets <id>`:
-     `tickets: none ...` → not a ticket, go on; else warn that the ticket's file is not in this working
-     tree, so its status is not written, put the task back
-     (`node "<keel>/scripts/notes.js" "<project>" task restore <id> --session <sid>`) and stop before git
-     (ask what to do). `plans: done refused (invalid key ...)` → the id is no key, not a ticket: go
-     on. Any other `plans: done refused (...)` (e.g. two files with the key) → warn with its reason,
-     put the task back the same way and stop before git. Red verification or a hand off → no
-     `plans.js done` call.
+   - Right after `task delete` printed `deleted:`, only when the verification passed (gates green, no
+     must item left; no verification is not a pass), a planned ticket gets its state in the same
+     commit as its code: `node "<keel>/scripts/plans.js" "<project>" status <f> <t> done`, then
+     `node "<keel>/scripts/plans.js" "<project>" reviewed <f> <t>`. `status: <t> done` → go on;
+     with `plan: every ticket is done or abandoned: plans.js state <f> done` ask "Mark the plan <f>
+     done?" (yes → `plans.js state <f> done`, then git-end-of-feature.md after the push). Any
+     `plans: status refused (...)` → warn with its reason, put the task back
+     (`node "<keel>/scripts/notes.js" "<project>" task restore <id> --session <sid>`) and stop before
+     git (ask what to do). Red verification or a hand off → no `plans.js status` call: a hand off
+     never changes a ticket's state.
 8. Git: read `<keel>/skills/_shared/git.md` and follow it: **finish** or **handoff**, with the actions
    from the instruction. On a hand off, after any `start` of git.md (a branch the instruction names
    or one git.md makes; manual git: the new branch git-manual.md names) → set the task file's
    `branch:` to the `branch:` that `start` printed (manual git: to that new branch), before the commit.
+   A planned ticket, finish and hand off alike: `save` adds `--tickets "<f>/<t>"`, so its ticket
+   file and `plan.md` go into the commit with the code.
    **Finish after the deletion**: add `--finish <id> --session <sid>` to every `start`, `save` and
    `push`. A step that stops puts the task back by itself (`restored:` lines): the report
    says what stopped and that the task is back and active (fix it, then /keel:end-task again). A
@@ -115,11 +119,12 @@ Current state of this project:
    the user says they did not commit (or will not), run
    `node "<keel>/scripts/notes.js" "<project>" task restore <id> --session <sid>`.
    Any `restored:` line, or that manual `task restore`, after step 7 marked a ticket done → also
-   `node "<keel>/scripts/plans.js" "<project>" done <id> --undo` (the ticket is `todo` again).
+   `node "<keel>/scripts/plans.js" "<project>" status <f> <t> in-progress` (it is not done after all);
+   a plan marked done goes back to `in-progress` with it (`plan: in-progress`).
    The user commits by hand (manual git, or declines keel's commit) after step 7 marked a ticket
    done → one line: "The ticket file <path> is marked done: commit it with the code." (not for a
-   ticket under `.keel/local/`: it is outside git); with `done: feature <f> complete` also "Feature
-   <f> is complete; /keel:tasks offers its end once you have committed and pushed."
+   ticket under `.keel/local/`: it is outside git); with the plan marked done also "Feature <f> is
+   complete; /keel:tasks offers its end once you have committed and pushed."
 9. Hand off: `node "<keel>/scripts/notes.js" "<project>" task deactivate --session <sid>`.
 10. Run usage-sync.md step 4 (the cost report). Then, in one message as two calls: run
     `node "<keel>/scripts/cleanup.js" "<project>" reminder` (its line goes into the report only when

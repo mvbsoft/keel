@@ -13,7 +13,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { collectChanges, fileStamp, git } = require('./lib/diff.js');
-const { loadProject, localDir, writeLocal, readJson, parseArgs } = require('./lib/project.js');
+const { loadProjectOrDefaults: loadProject, localDir, writeLocal, readJson, parseArgs } = require('./lib/project.js');
 const { levelOf } = require('./lib/tier.js');
 const { planningFiles } = require('./lib/planning.js');
 

@@ -98,8 +98,7 @@ function classify(lines, syntax) {
   return { kinds, trailing };
 }
 
-// The comments section; its ticket prefixes include the planning ticket prefix, joined on every read
-// so a changed planning prefix is never missed.
+// The comments section, with its ticket prefixes as lib/config.js ticketPrefixes reads them.
 function commentsConfig(root) {
   let config;
   try { config = readJsonFile(path.join(require('./lib/project-dir.js').configHome(root), '.keel', 'config.json')) || {}; } catch { return {}; }

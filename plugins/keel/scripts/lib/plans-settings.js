@@ -1,19 +1,24 @@
 'use strict';
 // The planning settings, in two places:
-// - .keel/config.json `planning` (in git, the same for the team): ticket_prefix, tickets (repo | pc),
-//   tickets_dir, language. /keel:configure asks them; without them planning does not start and export
-//   is refused.
-// - .keel/local/plans/keel/settings.json (this machine): draft (pc | repo), draft_dir, and repos, where
-//   the neighbouring repositories are on this machine: { "<PREFIX>": "<absolute folder>" }.
+// - .keel/config.json `planning` (in git, the same for the team): place (repo | pc, where a new
+//   feature's folder goes), tickets_dir, language. /keel:configure asks them; without place planning
+//   does not start.
+// - .keel/local/plans/keel/settings.json (this machine): repos, where the neighbouring repositories are
+//   on this machine: { "<name>": "<absolute folder>" }, the name as lib/plans-format.js repoNames gives
+//   it (web, or team/web when two repositories share a name). keel 2.0.0's draft and draft_dir there
+//   are not read.
 const path = require('node:path');
 const { checkConfig } = require('./config.js');
 const { read } = require('./repo-read.js');
 const { unsafeRel, safeLocalWrite } = require('./safe-path.js');
 const { mainOf } = require('./project-dir.js');
 
-const DEFAULTS = { draft: 'pc', draft_dir: 'tickets', tickets_dir: 'tickets' };
-const LOCAL_KEYS = ['draft', 'draft_dir'];
-const PREFIX = /^[A-Z][A-Z0-9]{1,9}$/;
+const DEFAULTS = { tickets_dir: 'tickets' };
+const PROJECT_KEYS = ['place', 'tickets_dir', 'language'];
+// A repository's name: its remote's last part or its folder's name, owner/name for two of one name.
+const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)?$/;
+const NAME_MAX = 120;
+const validName = (name) => typeof name === 'string' && name.length <= NAME_MAX && NAME.test(name);
 const NOT_SET_UP = 'planning is not set up in .keel/config.json: /keel:configure planning';
 
 const refuse = (what, why) => [`plans: ${what} refused (${why})`];
@@ -38,13 +43,8 @@ function badFolder(root, dir) {
   return null;
 }
 
-const LOCAL_CHECKS = {
-  draft: (v) => (['pc', 'repo'].includes(v) ? null : 'pc or repo'),
-  draft_dir: (v, root) => badFolder(root, v),
-};
-
-function repoProblem(prefix, folder) {
-  if (!PREFIX.test(prefix)) return 'the prefix is 2-10 capital letters and digits, starting with a letter';
+function repoProblem(name, folder) {
+  if (!validName(name)) return 'the name is the repository name: letters, digits, . _ -, or owner/name for two of one name';
   if (typeof folder !== 'string' || !path.isAbsolute(folder.trim())) return 'the folder is an absolute path';
   return null;
 }
@@ -56,7 +56,6 @@ function readSettings(root) {
   try { raw = text === null ? null : JSON.parse(text); } catch { /* unreadable: defaults */ }
   const saved = {};
   if (raw && typeof raw === 'object') {
-    for (const k of LOCAL_KEYS) if (typeof raw[k] === 'string' && !LOCAL_CHECKS[k](raw[k], root)) saved[k] = raw[k];
     if (raw.repos && typeof raw.repos === 'object' && !Array.isArray(raw.repos)) {
       const repos = Object.fromEntries(Object.entries(raw.repos).filter(([p, f]) => !repoProblem(p, f)));
       if (Object.keys(repos).length) saved.repos = repos;
@@ -72,15 +71,16 @@ function projectPlanning(root) {
   return { planning: state === 'ok' && config.planning ? config.planning : null, repoLanguage: (state === 'ok' && config.repo_language) || 'en' };
 }
 
-// The settings in effect. ticket_prefix and tickets are undefined when the project has no planning
-// section; the language defaults to repo_language.
+// The settings in effect. place is undefined when the project's planning section has none; the
+// language defaults to repo_language.
 function settings(root) {
   const { saved } = readSettings(root);
   const { planning, repoLanguage } = projectPlanning(root);
-  return { ...DEFAULTS, repos: {}, ...saved, language: repoLanguage, ...(planning || {}) };
+  const own = Object.fromEntries(Object.entries(planning || {}).filter(([k]) => PROJECT_KEYS.includes(k)));
+  return { ...DEFAULTS, repos: {}, ...saved, language: repoLanguage, ...own };
 }
 
-const setUp = (s) => s.ticket_prefix !== undefined && s.tickets !== undefined;
+const setUp = (s) => s.place !== undefined;
 
 // Why planning is not set up: no section, or a config the check rejects (then its section is not used).
 function notSetUp(root) {
@@ -90,46 +90,48 @@ function notSetUp(root) {
 }
 
 function settingsShow(root) {
-  const { exists, readable, saved } = readSettings(root);
+  const { exists, readable } = readSettings(root);
   const { planning } = projectPlanning(root);
   const s = settings(root);
   const mark = (k, own) => `${k}: ${s[k] === undefined ? '-' : s[k]}${own && k in own ? '' : s[k] === undefined ? '' : ' (default)'}`;
   const repos = Object.entries(s.repos).map(([p, f]) => `${p}=${f}`).join(', ');
   return [
-    exists ? `settings: ${rel(root, settingsFile(root))}${readable ? '' : ' (unreadable: defaults in use)'}` : 'settings: none yet (the first planning here asks where the draft lives)',
-    ...LOCAL_KEYS.map((k) => mark(k, saved)),
+    exists ? `settings: ${rel(root, settingsFile(root))}${readable ? '' : ' (unreadable: defaults in use)'}` : 'settings: none yet',
     `repos: ${repos || '-'}`,
     setUp(s) ? 'planning: .keel/config.json' : `planning: ${notSetUp(root)}`,
-    ...['ticket_prefix', 'tickets', 'tickets_dir', 'language'].map((k) => mark(k, planning)),
+    ...PROJECT_KEYS.map((k) => mark(k, planning)),
   ];
+}
+
+// Why `name` does not name the git repository at `folder` (its name or owner/name), or null; a folder
+// that is not on this machine or not a repository is taken as given.
+function nameProblem(name, folder) {
+  const repos = require('./plans-repos.js');
+  if (!repos.isFolder(folder) || !repos.isRepoTop(folder)) return null;
+  const n = require('./plans-format.js').repoNames(folder);
+  return name === n.name || name === n.full ? null : `${slashes(folder)} is named ${n.name} (or ${n.full}): --repo ${n.name}=<folder>`;
 }
 
 function settingsSet(root, opts) {
   const updates = {};
-  for (const k of LOCAL_KEYS) {
-    if (opts[k] === undefined) continue;
-    const v = typeof opts[k] === 'string' ? slashes(opts[k]) : '';
-    const why = LOCAL_CHECKS[k](v, root);
-    if (why) return refuse('settings set', `--${k.replace('_', '-')}: ${why}`);
-    updates[k] = v;
-  }
   const { saved } = readSettings(root);
   if (opts.repo !== undefined) {
     const m = /^([^=]*)=(.*)$/.exec(typeof opts.repo === 'string' ? opts.repo : '');
-    const why = m ? repoProblem(m[1], m[2]) : 'give <PREFIX>=<absolute folder>';
+    const why = m ? repoProblem(m[1], m[2]) || nameProblem(m[1], m[2].trim()) : 'give <name>=<absolute folder>';
     if (why) return refuse('settings set', `--repo: ${why}`);
     updates.repos = { ...saved.repos, [m[1]]: slashes(m[2]) };
   }
-  if (!Object.keys(updates).length) return refuse('settings set', 'nothing to set: --draft, --draft-dir, --repo');
+  if (!Object.keys(updates).length) return refuse('settings set', 'nothing to set: --repo <name>=<absolute folder>');
   try {
     safeLocalWrite(mainOf(root), ['plans', 'keel', 'settings.json'], JSON.stringify({ ...saved, ...updates }, null, 2) + '\n');
   } catch (e) { return refuse('settings set', e.message); }
   return settingsShow(root);
 }
 
-// The repository folder exported features go to (tickets_dir), or null when it is not one keel uses.
-function exportDir(root, s = settings(root)) {
+// The repository folder that holds the feature folders (tickets_dir), or null when it is not one keel
+// uses.
+function repoDir(root, s = settings(root)) {
   return badFolder(root, s.tickets_dir) ? null : path.join(root, s.tickets_dir);
 }
 
-module.exports = { base, settingsFile, badFolder, settings, setUp, notSetUp, settingsShow, settingsSet, exportDir, PREFIX };
+module.exports = { base, settingsFile, badFolder, settings, setUp, notSetUp, settingsShow, settingsSet, repoDir, validName };

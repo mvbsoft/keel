@@ -19,10 +19,15 @@
 //            task or note keeps the untracked record of its first start
 //   tasks [--session <id>]             the unfinished tasks (this working tree and every branch), one block each
 //   lane <key or link>                 which lane leads a key: a task (start-task), the note (start-session),
-//                                      both (conflict) or none; a link counts with the tracker key in it
+//                                      both (conflict) or none; a link counts with the tracker key in it, a
+//                                      planned ticket <feature>/T<n> with the task whose ticket it is
 //   task new <id> --title <t> --source <s> [--link <l>] [--session <id>] [--branch <b>] [--base <b>]
-//            [--merge-into <b>] [--execution here|delegate|fresh] [--plan-file <path>]
+//            [--merge-into <b>] [--execution here|delegate|fresh] [--plan-file <path>] [--ticket <feature>/T<n>]
 //                                      the folder and task.md, status active, started: the HEAD commit;
+//                                      --ticket: a planned ticket's task (id <feature>-T<n>, task.md
+//                                      ticket:); a feature on this machine or a ticket of another
+//                                      repository (task.md repo:, started: that repository's HEAD) keeps
+//                                      its task in .keel/local/tasks/ whatever tasks.in_git says;
 //                                      the options fill the front matter (branch names are checked with git);
 //                                      --plan-file copies a text file of up to 200 KB in as plan.md;
 //                                      refused for a key the note names (that lane is the session's)
@@ -186,8 +191,8 @@ const derivedKey = (arg) => {
   const number = new RegExp(LINK_NUMBER.source).exec(arg);
   return tracker ? tracker[1] : number ? `#${number[1]}` : null;
 };
-// A task's keys: its id, its link and the tracker key in that link.
-const taskKeys = (t) => new Set([...laneKeys(t.id), ...(given(t.fm.link) ? laneKeys(t.fm.link) : [])]);
+// A task's keys: its id, its link and the tracker key in that link, its planned ticket.
+const taskKeys = (t) => new Set([...laneKeys(t.id), ...(given(t.fm.link) ? laneKeys(t.fm.link) : []), ...(given(t.fm.ticket) ? laneKeys(t.fm.ticket) : [])]);
 const given = (v) => typeof v === 'string' && v.trim() && v.trim() !== '-';
 
 // The keys the note names while its line is open (none when it is missing or done), as written.
@@ -236,7 +241,7 @@ function taskCommand(root, pos, opts) {
     const keys = new Set([...(typeof id === 'string' ? laneKeys(id) : []), ...(given(opts.link) ? laneKeys(opts.link) : [])]);
     const named = noteKeys(root).find((k) => overlap(laneKeys(k), keys));
     if (named) return ['notes: task new refused (the note .keel/next-session.md names ' + clean(named) + ': /keel:start-session leads it; lanes never mix)'];
-    return tasks.taskNew(root, id, { title: opts.title, source: opts.source, link: opts.link, session, branch: opts.branch, base: opts.base, mergeInto: opts['merge-into'], execution: opts.execution, planFile: opts['plan-file'] });
+    return tasks.taskNew(root, id, { title: opts.title, source: opts.source, link: opts.link, session, branch: opts.branch, base: opts.base, mergeInto: opts['merge-into'], execution: opts.execution, planFile: opts['plan-file'], ticket: opts.ticket });
   }
   if (sub === 'active') {
     const active = tasks.activeTask(root, session);

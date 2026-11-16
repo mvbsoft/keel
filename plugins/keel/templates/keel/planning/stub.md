@@ -1,9 +1,10 @@
 ---
 id: <T-number, as in the file name>
 type: stub
-repo: <the ticket prefix of the repository that is not on this machine>
-depends_on: <[T1, T2] or []>
-review_hash: <set by plans.js reviewed; a different text means the stub changed since its review, or ->
+status: <draft | ready | in-progress | done | abandoned; plans.js status changes it>
+repo: <the name of the repository that is not on this machine, as plans.js repos names it>
+depends_on: <T1, T2, or empty>
+review_hash: <set by plans.js reviewed over the essential sections and depends_on; a later change there marks the stub as needing review, its status stays; or ->
 ---
 <!-- A stub (plans.js ticket --stub): a ticket for a repository that is not on this machine, with only
 what can be written without its code. No Boundaries, Correct the priors or Where to look: they come when

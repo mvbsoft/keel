@@ -13,7 +13,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { git } = require('./diff.js');
 const { readJson, localDir, writeLocal } = require('./project.js');
-const { ticketPrefixes } = require('./config.js');
+const { ticketPrefixes, legacyFields } = require('./config.js');
 
 const SNAPSHOT = 'configure-snapshot.json';
 // The configure sections by number (configure-flow.md); a reason names one of them.
@@ -291,6 +291,10 @@ function liveReasons(root, now, ctx) {
   const known = require('../../data/catalog.json').docs.adr_dirs;
   const adrDirs = now.docs.doc_dirs.filter((d) => known.includes(d));
   if (!docs.adr_style && ((docs.profile || 1) >= 2 || adrDirs.length)) add('docs', 'worth', `no ADR style chosen${adrDirs.length ? ` (ADR folder ${adrDirs.join(', ')})` : ''}`, 'keel keeps ADRs as a journal until you choose: journal, living (one record per topic) or your own way');
+  // 6 code: planning fields of keel 2.0.0 that are no longer read (lib/config.js)
+  const legacy = legacyFields(config);
+  const placed = config.planning && config.planning.place;
+  if (legacy.length) add('code', placed ? 'worth' : 'needed', `${legacy.join(', ')} in .keel/config.json ${legacy.length === 1 ? 'is' : 'are'} no longer used`, `tickets are numbered T<n> inside each feature and a feature lives in one place (planning.place)${placed ? '' : ', which is not set, so planning does not start'}; configure asks it and removes the old fields`);
   if (!rec) { ctx.skipped.push('ticket ids, new stack plugins, files loaded every session, new decision or spec folders, other notes systems'); return out; }
 
   // 6 code: ticket ids keel could keep out of comments

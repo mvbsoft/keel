@@ -58,12 +58,22 @@ function safeLocalPath(root, ...parts) {
   return file;
 }
 
-// Writes (or appends) text to a file under .keel/local after safeLocalPath; returns its path.
+// Writes (or appends) text to a file under .keel/local after safeLocalPath; returns its path. In a
+// repository without keel (a planned ticket of another repository) it also writes .keel/local/.gitignore.
 function safeLocalWrite(root, parts, text, { append = false } = {}) {
   const file = safeLocalPath(root, ...[].concat(parts));
   fs.mkdirSync(path.dirname(file), { recursive: true });
+  ignoreLocal(root);
   if (append) fs.appendFileSync(file, text); else fs.writeFileSync(file, text);
   return file;
+}
+
+// Without keel's config no .keel/.gitignore keeps .keel/local out of git: a .gitignore there that
+// ignores everything, itself too, keeps keel's files out of git status and of every commit.
+// Best effort: a link there (safeLocalPath refuses it) or a file already there leaves it as it is.
+function ignoreLocal(root) {
+  if (fs.existsSync(path.join(root, '.keel', 'config.json'))) return;
+  try { fs.writeFileSync(safeLocalPath(root, '.gitignore'), '*\n', { flag: 'wx' }); } catch { /* there, or a link */ }
 }
 
 // Replaces .keel/local/<name> with text by writing a temporary file and renaming it over the file, so a

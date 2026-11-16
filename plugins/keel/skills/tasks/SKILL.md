@@ -35,22 +35,15 @@ Current state of this project:
    `/keel:tasks drop <id>`, or `/keel:start-task <id>` then `/keel:end-task` to finish it; say nothing
    about age otherwise. End with: "Continue one with `/keel:start-task <id>`." No tasks → say so.
    Then the planned tickets: `node "<keel>/scripts/plans.js" "<project>" tickets`. Not
-   `tickets: none` → a block "Planned": each feature and its ticket lines as printed (states, hints and
-   marks such as `<KEY> only in feature branch <b>` in the conversation language; keys, branches and
-   names stay), the data-date line
-   (`server data from <date>`, `no remote` or `never fetched`), and "Start the next one with
-   `/keel:start-task <KEY>`" with the key of its `next:` line (`next: none` → no such line). A
-   feature whose every ticket is `done` or `waiting for the feature merge` (all done in its feature
-   branch) and that has no `— stub (` line in `plans.js tickets <f>` → offer its end as
-   `<keel>/skills/_shared/git-end-of-feature.md` says; with a stub left, say it is not complete yet.
-   `linked:` lines after `next:` → a block "Other repositories" (tickets of the same features there,
-   never the next one here): each `linked: <feature> in <name> (<PREFIX>; <folder>, <data date>)`
-   with its ticket lines as printed; `... has more tickets, state unknown (<why>):` → "<name> is not
-   on this machine; its tickets from the overview:" with its lines and the why. `... the overview in
-   <names> differs ...` → one line: pull there first; still different → offer the alignment: run
-   `plans.js align <feature>`, show its versions and each section's `-` / `+` lines as they are, and
-   ask which version is right, its `default:` first; on the answer `plans.js align <feature> --take
-   <PREFIX>`; the commit and push of each `commit:` line only on the user's yes.
+   `tickets: none` → a block "Planned": each feature and its ticket lines as printed (states and marks
+   such as `needs review` or `on <branch>` in the conversation language; ids, branches and names
+   stay), and "Start the next one with `/keel:start-task <feature>/T<n>`" from its `next:` line
+   (`next: none` → no such line). A `plan: every ticket is done or abandoned: plans.js state <f> done`
+   line (its last ticket closed elsewhere) → say "Feature <f> is complete" and ask "Mark the plan <f>
+   done?"; yes → run that `plans.js state <f> done`, then offer its end as below. Then
+   `node "<keel>/scripts/plans.js" "<project>" list`: a
+   `- <f>: done` line (every ticket done or abandoned, its folder still here) → offer its end as
+   `<keel>/skills/_shared/git-end-of-feature.md` says.
 4. `<task id>`: show its block, then read its `task.md` (and `plan.md`): in this working tree from the
    path in Files; on another branch: `git show <branch>:./<path>/task.md`. Tell its goal, state,
    open questions and next action in 3-6 lines. An id that is not listed → say so and show the list.

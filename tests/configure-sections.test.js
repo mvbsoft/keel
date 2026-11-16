@@ -303,17 +303,20 @@ test('configure flow section 5: turn caps are stated, not asked (they live in th
   assert.ok(five.indexOf('ask whether to keep them') < five.indexOf('Turn caps'), 'the question covers only the configurable values');
 });
 
-test('configure flow section 6: the planning settings, quick setup too, alone with `planning`; the planning prefix never goes into ticket_prefixes', () => {
+test('configure flow section 6: the planning settings, quick setup too, alone with `planning`; no ticket prefix any more', () => {
   const text = flow();
   const six = text.slice(text.indexOf('## 6. Code'), text.indexOf('## 7.'));
   says(six, ['**Planning tickets**', '`planning`; alone: `/keel:configure planning`']);
-  for (const field of ['planning.ticket_prefix', 'planning.tickets', 'planning.tickets_dir', 'planning.language']) assert.ok(six.includes(`\`${field}\``), field);
-  says(six, ['else 3-4 capital letters', "from the repository's name"]);
-  says(six, ['in the repository (recommended', "together with the reports of keel's researcher", '`research/`', 'only on this machine']);
-  says(six, ['**Ticket language** (`planning.language`)', 'detailed setup only', 'Quick setup takes `repo_language`']);
-  assert.ok(six.indexOf('**Planning tickets**') < six.indexOf('**Ids in comments and docs**'), 'the prefix is known before the ids question shows it');
-  says(six, ['The planning ticket prefix is always checked too', 'list it as "added on its own"', 'never write it into `ticket_prefixes`']);
-  says(text, ['| 6 Code |', 'planning tickets asked', 'the prefix and where they live', 'two questions in one call', 'the language is `repo_language`']);
+  for (const field of ['planning.place', 'planning.tickets_dir', 'planning.language']) assert.ok(six.includes(`\`${field}\``), field);
+  says(six, ['**Where new features live**', 'in the repository, `repo` (recommended', 'together with the', "reports of keel's researcher", '`research/`', 'only on this machine, `pc`']);
+  says(six, ['It is the default only', 'a feature may live in the other place']);
+  says(six, ['**Ticket language** (`planning.language`)', 'detailed setup only', 'Quick', 'setup takes `repo_language`']);
+  says(six, ["keel 2.0.0's `planning.ticket_prefix` and `planning.tickets` are no longer read", 'drop them']);
+  assert.doesNotMatch(six, /Ticket prefix|planning ticket prefix|3-4 capital letters/);
+  // The place values are the schema's.
+  const schema = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'schemas', 'config.schema.json'), 'utf8'));
+  assert.deepEqual(schema.properties.planning.properties.place.enum, ['repo', 'pc']);
+  says(text, ['| 6 Code |', 'planning asked: where new features live, one question', 'the language is `repo_language`']);
   says(text, ['`planning` runs only', 'the "Planning tickets" block of section 6']);
 });
 

@@ -97,7 +97,8 @@ test('feature-page: may run the scripts it names, finds its page by the feature\
     for (const shell of ['Bash', 'PowerShell']) assert.ok(fields['allowed-tools'].includes(`${shell}(node "\${CLAUDE_PLUGIN_ROOT}/scripts/${run} *)`), `${shell}: ${run} is allowed`);
   }
   says(body, ["This feature's page is the one whose title", 'ends with ` (<code>)`', 'the `code:` line']);
-  says(body, ['`code written: <files> (...)`', 'commit and push them', 'every machine finds this page']);
+  // The page reads the status fields of this working tree: no fetch and no code-written line any more.
+  assert.doesNotMatch(body, /code written|--fetch|fetch failed/);
   assert.doesNotMatch(body, /--taken|marker|title if taken/);
   const build = fs.readFileSync(path.join(SKILLS, '_shared', 'feature-page-build.md'), 'utf8');
   says(build, ["its title is not the `title:` line", 'takes that title too', "the tool's title"]);
@@ -123,8 +124,9 @@ test('feature-page: the questions stay in the session, the page is built and pub
   says(body, ['the `code:` line and the page from step 4']);
   says(build, ['read it into a file', 'never into the conversation']);
   says(build, ['`published: <link> <new|updated>; <n> tickets; as of <the as of hashes>; language <code>`']);
-  says(build, ['`; fetch failed: <its reason>`', '`; no labels for <code>`']);
-  says(body, ["the reply's `published:` line", '`fetch failed: <reason>`', '`no labels for <code>`']);
+  says(build, ['`; no labels for <code>`']);
+  says(body, ["the reply's `published:` line", '`no labels for <code>`']);
+  assert.doesNotMatch(build, /--fetch|fetch failed/);
   const runs = [...build.matchAll(/node "<keel>\/scripts\/([\w-]+\.js)"/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(runs)], ['feature-page.js'], 'the agent runs only the page script');
 });
@@ -147,10 +149,11 @@ test('end commands verify, then write the note and do git in the agreed order', 
   assert.ok(end('end-task').indexOf('usage-sync.md') < end('end-task').indexOf('task delete <id> --session'), 'the costs read the task title first');
   assert.ok(end('end-task').indexOf('task deactivate') > end('end-task').indexOf('git.md'), 'a handed-off task is released after git');
   // A planned ticket is marked done after the folder deletion (a declined deletion marks nothing) and before git (same commit as the code).
-  const done = et.indexOf('plans.js" "<project>" done <id>`');
-  assert.ok(et.indexOf('task delete <id> --session') < done && done < et.indexOf('8. Git: read `<keel>/skills/_shared/git.md`'), 'task delete, then plans.js done, then git');
+  const done = et.indexOf('plans.js" "<project>" status <f> <t> done`');
+  assert.ok(et.indexOf('task delete <id> --session') < done && done < et.indexOf('8. Git: read `<keel>/skills/_shared/git.md`'), 'task delete, then plans.js status done, then git');
   const es = end('end-session');
-  assert.ok(es.indexOf('verify.md') < es.indexOf('plans.js" "<project>" done <KEY>`') && es.indexOf('done <KEY>`') < es.indexOf('7. Costs'), 'end-session: verified first, tickets marked before the commit');
+  const esDone = es.indexOf('plans.js" "<project>" status <f> <t> done`');
+  assert.ok(es.indexOf('verify.md') < esDone && esDone < es.indexOf('7. Costs'), 'end-session: verified first, tickets marked before the commit');
   assert.match(fs.readFileSync(path.join(SKILLS, '_shared', 'final-report.md'), 'utf8'), /\/clear before the next task/);
   assert.ok(end('end-session').indexOf('handoff.md') < end('end-session').indexOf('git.md'), 'the note is prepared before the action');
 });
@@ -423,6 +426,18 @@ test('/keel:help: user-only, static, short, and its table names every keel comma
   assert.ok(body.split('\n').length < 30, 'short');
   says(body, ['/keel:configure', 'machine'], 'the configure row names the machine section');
   says(body, ['/keel:cleanup', 'restore', 'empty-trash'], 'the cleanup row names restore and empty-trash');
+});
+
+test('tracker: a skill the model loads in any conversation when the user asks to link planned work to an issue tracker', () => {
+  const { fields, body } = parse('tracker');
+  assert.equal(fields.name, 'tracker');
+  assert.equal(fields['disable-model-invocation'], undefined, 'the model loads it on what the user asks');
+  assert.match(fields.description, /^Use when/);
+  says(fields.description, ['link a planned ticket or feature', 'issue tracker', 'create its item there', 'move a whole planned feature']);
+  assert.ok(fields.description.length <= 240, `description is ${fields.description.length} characters`);
+  says(body, ['plans.js" "<project>" tickets <feature>/T<n>`', '`file:`']);
+  says(body, ['`plans.js commit <feature>`', '`plans.js push <feature>`', 'Claude Code asks each']);
+  assert.ok(!fs.existsSync(path.join(SKILLS, '_shared', 'planning-tracker.md')), 'one place for the tracker rules');
 });
 
 test('every command the user runs has its section in docs/commands.md', () => {

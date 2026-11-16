@@ -176,7 +176,7 @@ gitTest('own-files: a keel script named with the worktree, or with the main chec
 const run = (script, args, cwd, main) => node(path.join(SCRIPTS, script), args, cwd, { CLAUDE_PROJECT_DIR: main });
 
 gitTest('planning drafts, briefs and keel\'s trash from a worktree are the main checkout\'s', () => {
-  const { tmp, main, wt } = setup({ planning: { ticket_prefix: 'PAY', tickets: 'repo' } });
+  const { tmp, main, wt } = setup({ planning: { place: 'pc' } });
   const made = run('plans.js', [main, 'new', 'pay-later'], wt, main);
   assert.match(made.stdout, /^created: /m, made.stdout + made.stderr);
   assert.ok(fs.existsSync(path.join(main, '.keel', 'local', 'plans', 'keel', 'pay-later', 'plan.md')), 'the draft is in the main checkout');
@@ -191,8 +191,9 @@ gitTest('planning drafts, briefs and keel\'s trash from a worktree are the main 
   assert.match(brief.stdout, /^brief: /m, brief.stdout);
   assert.match(fs.readFileSync(path.join(main, '.keel', 'local', 'plans', 'keel', 'pay-later', 'plan.md'), 'utf8'), /Pay later\./);
 
-  const gone = run('plans.js', [main, 'state', 'pay-later', 'abandoned'], wt, main);
-  assert.match(gone.stdout, /moved to keel's trash: batch /, gone.stdout);
+  assert.match(run('plans.js', [main, 'state', 'pay-later', 'abandoned', '--reason', 'not now'], wt, main).stdout, /^status: abandoned$/m);
+  const gone = run('plans.js', [main, 'drop', 'pay-later'], wt, main);
+  assert.match(gone.stdout, /^drop: \.keel\/local\/plans\/keel\/pay-later\/? -> trash /, gone.stdout);
   assert.ok(!fs.existsSync(path.join(main, '.keel', 'local', 'plans', 'keel', 'pay-later')));
   assert.match(run('cleanup.js', [main, 'trash'], main, main).stdout, /trash batches/, 'the main checkout\'s trash holds it');
   const back = run('cleanup.js', [main, 'restore'], wt, main);

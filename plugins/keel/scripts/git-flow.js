@@ -10,16 +10,16 @@
 //                                     carrying the changes, when it is not
 //   switch --name <b>                 switch to an existing branch (clean tree only); when the fetch
 //                                     fails, a local branch is switched to as it is, with a warning
-//   commit --message-file <f> [--tickets "<K1,K2>"]   stage every changed file except secret and planning
-//                                     ones and new files named like a secret, drop AI trailers from the message, commit (never on the main
-//                                     branch); the ticket files of the keys --tickets names go in (tickets
-//                                     a session marked done), as the finished task's own does with --finish
+//   commit --message-file <f> [--tickets "<feature>/T<n>,..."]   stage every changed file except secret
+//                                     and planning ones and new files named like a secret, drop AI trailers from the message, commit (never on the main
+//                                     branch); the ticket files --tickets names and their features' plan.md
+//                                     go in (a planned ticket's status lands with its code)
 //   sync [--from <base>]              merge the updated base into the current branch; on the base itself
 //                                     (a feature branch shared with others), merge its remote copy: the
 //                                     others' pushes (the main branch: only when it moves forward); none
 //                                     yet: nothing to pull
 //   push                              push the current branch with upstream tracking
-//   save --message-file <f> [--sync <base>] [--back-to <base>] [--tickets "<K1,K2>"]
+//   save --message-file <f> [--sync <base>] [--back-to <base>] [--tickets "<feature>/T<n>,..."]
 //                                     commit, then sync --from <base> (a finish), push, then switch to
 //                                     <base> (a task handoff), in one call; stops at the first step that
 //                                     stops, and after a sync that merged commits (run the gates first). Without
@@ -34,17 +34,19 @@
 // went to keel's trash: when a step stops, the task is put back at once (`restored:`), so a finish
 // never ends without a commit and without its task. A commit records the finish as committed
 // (lib/finish.js); a push that completes after that commit ends it.
+// A repository without keel (a planned ticket of another repository) runs in manual git mode, its main
+// branch the one origin/HEAD names.
 // First output line: `git-flow: ok | stopped | unavailable`; then `reason:` and details. Exit code 0.
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { loadProject, parseArgs } = require('./lib/project.js');
+const { loadProjectOrDefaults, parseArgs } = require('./lib/project.js');
 const { trustState, trust } = require('./lib/trust.js');
 const { linkOnWay, safeLocalWrite, realPath, samePath } = require('./lib/safe-path.js');
 const { readFinish, clearFinish, markCommitted, validSid } = require('./lib/finish.js');
 const { stripAttribution } = require('./lib/attribution.js');
 const { untrackedRecord, fileStamp } = require('./lib/diff.js');
-const { planningFiles } = require('./lib/planning.js');
+const { planningFiles, ticketRef } = require('./lib/planning.js');
 const { isSecretName } = require('./lib/secret-names.js');
 const { validBranchName } = require('./lib/repo-read.js');
 
@@ -73,7 +75,8 @@ class Stop extends Error {
   constructor(reason, details = []) { super(reason); this.details = details; }
 }
 
-// `git status --porcelain -z`: [{ xy, path, orig }]
+// `git status --porcelain -z`: [{ xy, path, orig }]. keel's own untracked .keel/local files are left
+// out, also where no .gitignore leaves them out yet (a repository without keel).
 function changedFiles(root) {
   const r = git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']);
   if (!r.ok) throw new Stop(`git status failed: ${firstLines(r.err)}`);
@@ -84,6 +87,7 @@ function changedFiles(root) {
     if (e.length < 4) continue;
     const f = { xy: e.slice(0, 2), path: e.slice(3), orig: null };
     if (f.xy[0] === 'R' || f.xy[0] === 'C') f.orig = parts[++i];
+    if (f.xy === '??' && f.path.startsWith('.keel/local/')) continue;
     files.push(f);
   }
   return files;
@@ -93,7 +97,8 @@ function changedFiles(root) {
 const pickRemote = (remotes) => (remotes.includes('origin') ? 'origin' : remotes[0] || null);
 
 function context(root) {
-  const { config, isSecret } = loadProject(root);
+  const { config, isSecret } = loadProjectOrDefaults(root);
+  if (!config.git.main_branch) throw new Error('keel is not configured here and origin/HEAD names no main branch (git remote set-head origin --auto sets it)');
   const repo = git(root, ['rev-parse', '--git-dir']);
   if (!repo.ok) throw new Stop(/dubious ownership/i.test(repo.err) ? `git does not trust this folder's owner: ${firstLines(repo.err)}` : 'not a git repository');
   const branch = git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).out || null;
@@ -122,8 +127,8 @@ function newSecretName(ctx, p) {
 }
 
 // Planning's files (lib/planning.js) are not a task's work: its commit leaves them out and they do not
-// block a step. Only the tickets a commit names go in (the finished task's own, a session's --tickets),
-// so their `done` lands with the code. Keys compare without case.
+// block a step. Only the tickets a commit names (--tickets) and their features' plan.md go in, so a
+// ticket's status lands with its code.
 function planningOf(ctx) {
   if (!ctx.planning) ctx.planning = planningFiles(ctx.root);
   return ctx.planning;
@@ -257,9 +262,12 @@ const commands = {
     try { message = stripAttribution(fs.readFileSync(messageFile, 'utf8')); } catch (e) { throw new Stop(`cannot read the message file: ${e.message}`); }
     if (!message) throw new Stop('the commit message is empty');
 
-    if (opts.tickets === true) throw new Stop('--tickets needs the keys: --tickets "<K1,K2>"');
-    const carried = new Set([opts.finish, ...(typeof opts.tickets === 'string' ? opts.tickets.split(',') : [])]
-      .filter((k) => typeof k === 'string' && k.trim()).map((k) => k.trim().toLowerCase()));
+    if (opts.tickets === true) throw new Stop('--tickets needs the tickets: --tickets "<feature>/T<n>,..."');
+    const refs = typeof opts.tickets === 'string' ? opts.tickets.split(',').filter((k) => k.trim()) : [];
+    const bad = refs.filter((k) => !ticketRef(k));
+    if (bad.length) throw new Stop(`--tickets takes <feature>/T<n>: ${bad.join(', ')}`);
+    const carried = new Set(refs.map((k) => { const r = ticketRef(k); return `${r.feature}/${r.ticket}`; }));
+    const features = new Set(refs.map((k) => ticketRef(k).feature));
 
     const files = changedFiles(ctx.root);
     const paths = new Set();
@@ -268,8 +276,8 @@ const commands = {
     const notTask = [];
     const planning = [];
     const planned = (p) => {
-      const kind = planningOf(ctx)(p);
-      return Boolean(kind) && !(kind.kind === 'ticket' && carried.has(String(kind.key).toLowerCase()));
+      const f = planningOf(ctx)(p);
+      return Boolean(f) && !(f.ticket ? carried.has(`${f.feature}/${f.ticket}`) : f.plan && features.has(f.feature));
     };
     for (const f of files) {
       if (notTaskWork(ctx, f)) { notTask.push(f.path); continue; }
@@ -524,7 +532,8 @@ function afterFinishStep(root, command, opts, ok) {
   // The removal is already committed: putting the folder back would undo the commit's work; the finish
   // goes on from the stopped step once its reason is fixed.
   if (pending.state === 'committed') return [`restore: not needed (the removal of task ${id} is committed; fix the reason above, then run this step again)`];
-  const back = require('./lib/tasks.js').taskRestore(root, id, sid);
+  // A ticket of another repository: its task is in the project that planned it (lib/finish.js).
+  const back = require('./lib/tasks.js').taskRestore(pending.project || root, id, sid);
   if (back[0].startsWith('restored: ')) back.push(`task: ${id} is back and active; the finish did not complete (see reason above): fix it, then /keel:end-task again`);
   return back;
 }

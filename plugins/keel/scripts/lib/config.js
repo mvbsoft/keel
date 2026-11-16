@@ -33,16 +33,30 @@ function checkConfig(projectDir) {
   if (config && Number.isInteger(config.schema_version) && config.schema_version < current) {
     return { state: 'outdated', errors: [`schema_version ${config.schema_version} is older than ${current}`], config };
   }
-  const errors = validate(config, schema);
-  return { state: errors.length ? 'invalid' : 'ok', errors, config };
+  const inUse = withoutLegacy(config);
+  const errors = validate(inUse, schema);
+  return { state: errors.length ? 'invalid' : 'ok', errors, config: inUse };
 }
 
-// The ticket prefixes keel knows: comments.ticket_prefixes plus the planning ticket prefix. Reads a raw
-// config too, so a value of the wrong type is skipped.
+// keel 2.0.0's planning fields that keel no longer reads (tickets have no keys and one place now). A
+// config that still has them stays valid: they are left out before the check and of the config keel
+// works with; config-drift.js names them.
+const LEGACY_PLANNING = ['ticket_prefix', 'tickets'];
+
+const legacyFields = (config) => (config && config.planning && typeof config.planning === 'object'
+  ? LEGACY_PLANNING.filter((k) => k in config.planning).map((k) => `planning.${k}`) : []);
+
+function withoutLegacy(config) {
+  if (!legacyFields(config).length) return config;
+  const planning = Object.fromEntries(Object.entries(config.planning).filter(([k]) => !LEGACY_PLANNING.includes(k)));
+  return { ...config, planning };
+}
+
+// The ticket prefixes keel knows: comments.ticket_prefixes. Reads a raw config too, so a value of the
+// wrong type is skipped.
 function ticketPrefixes(config) {
   const listed = config && config.comments && config.comments.ticket_prefixes;
-  const own = config && config.planning && config.planning.ticket_prefix;
-  return [...new Set([...(Array.isArray(listed) ? listed : []), ...(typeof own === 'string' ? [own] : [])])];
+  return [...new Set(Array.isArray(listed) ? listed : [])];
 }
 
-module.exports = { checkConfig, loadSchema, ticketPrefixes };
+module.exports = { checkConfig, loadSchema, ticketPrefixes, legacyFields };

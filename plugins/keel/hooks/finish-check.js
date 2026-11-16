@@ -26,7 +26,7 @@ function decide(input, project, keel) {
   return {
     decision: 'block',
     reason: `keel: task ${id}'s folder went to keel's trash in this finish, but no commit holds it and it was not put back. `
-      + `Go on with the finish's git steps (skills/_shared/git.md) with --finish ${id} --session ${sid}: a step that stops puts the task back by itself. `
+      + `Go on with the finish's git steps (skills/_shared/git.md) in "${pending.home}" with --finish ${id} --session ${sid}: a step that stops puts the task back by itself. `
       + `If the finish will not be committed now, run node "${path.join(scripts, 'notes.js')}" "${project}" task restore ${id} --session ${sid} and tell the user the task stays active.`,
   };
 }

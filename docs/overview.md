@@ -22,7 +22,7 @@ of short tickets that tasks or a session then build.
 |---|---|---|---|
 | What | point changes: a bug, a ticket, a small feature; many at once | one big job from a plan, day after day | a feature thought through before code, in one conversation or several: decisions and short tickets |
 | Commands | `/keel:start-task <anything>`, `/keel:end-task [instruction]`, `/keel:tasks` | `/keel:start-session [plan file \| feature \| link \| description \| how to continue]`, `/keel:end-session [instruction]` | `/keel:start-planning [idea \| link \| file \| feature \| nothing]`, `/keel:end-planning [instruction]` |
-| Lives in | `.keel/tasks/<id>/`, on the task's branch | `.keel/next-session.md` | a draft in `.keel/local/plans/keel/<feature>/` or in the repository; then the feature folder |
+| Lives in | `.keel/tasks/<id>/`, on the task's branch | `.keel/next-session.md` | one feature folder, in the repository (`<tickets_dir>/<feature>/`) or on this machine (`.keel/local/plans/keel/<feature>/`) |
 
 **How to choose:** "done" within 1-3 sittings → a task; a plan for weeks with items for "later" → a
 session; a feature that needs several tasks → plan it first.
@@ -87,11 +87,12 @@ More: [start a session](workflows.md#start-a-session-keelstart-session),
 ## 6. Planning
 
 `/keel:start-planning` plans a feature in its own conversation: it retells the feature, checks it
-against the code, then asks one question at a time and writes the decisions and short tickets into a
-draft; no code changes here. With no argument it lists the drafts. `/keel:end-planning we continue
-tomorrow` reviews the changed tickets and saves where planning stands; `/keel:end-planning final review
-and export` has reviewer agents check the tickets not yet reviewed as they are now, and then the whole
-plan, and exports the tickets into the feature folder with real keys. Then `/keel:start-task next
+against the code, then asks one question at a time and writes the decisions and short tickets into the
+feature's folder; no code changes here. With no argument it lists the features. `/keel:end-planning we continue
+tomorrow` reviews the changed tickets and saves where planning stands; `/keel:end-planning final review`
+has reviewer agents check the tickets not yet reviewed as they are now, and then the whole
+plan, and marks the plan and its tickets `ready`: no file is copied or renamed, and tickets have no keys
+but `<feature>/T<n>`. Then `/keel:start-task next
 ticket` builds them one by one, or `/keel:start-session <feature>` takes them one by one in a session.
 More: [planning](planning.md), [start-planning](commands.md#keelstart-planning),
 [end-planning](commands.md#keelend-planning).

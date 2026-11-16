@@ -1,27 +1,26 @@
 ---
 type: plan
-status: <draft | ready | exported | abandoned>
+status: <draft | ready | in-progress | done | abandoned: plans.js state changes it>
 feature: <feature name: the folder name>
-page: <the code of the feature's page, 8 random hex digits, written by plans.js new; it goes into every exported ticket; keep it>
+page: <the code of the feature's page, 8 random hex digits, written by plans.js new; keep it>
 language: <language of the plan and its tickets>
-export: <where the tickets went: pc | repo, written by plans.js export, or ->
-branch: <the feature branch, written into every exported ticket; plans.js set changes it>
+branch: <the feature branch; plans.js set changes it>
 merge_into: <the branch the feature merges into (git.main_branch by default); plans.js set changes it>
-repos: <a feature on several repositories: their ticket prefixes, this project's first, [API, WEB]; plans.js set --repos changes it; or ->
 created: <YYYY-MM-DD>
 after_commit: <this project's HEAD when the plan's facts were last checked; plans.js set --after-commit, or ->
-after_commit_repos: <the same for each other repository of repos, WEB=<commit>, MOB=<commit>; plans.js set --after-commit, or ->
+after_commit_repos: <the same for each other repository the tickets name, web=<commit>, api=<commit>; plans.js set --after-commit, or ->
 last_ticket: <highest T-number ever given; numbers are never reused>
-ready_hash: <set by plans.js state ready; any later change makes the plan a draft again, or ->
+ready_hash: <set by plans.js state ready over the essential sections (Level, Decisions, Contract, Out of scope, Design sketch); a later change there means the plan needs review, its status stays; or ->
+tracker: <the plan's key in the team's tracker, written only when the user asks>
+tracker_url: <its link, written only when the user asks>
 ---
 <!-- The plan of one feature (plans.js new). Headings and front matter keys stay in English; the text is
 in the plan's language. plans.js check reads the sections by these names: keep them all, empty when
-there is nothing to say. Export builds the feature overview README.md from In plain words, Level,
-Decisions, Contract, Out of scope and Terms, with a Tickets list of its own.
+there is nothing to say. Every value in the front matter is one plain line.
 Level: for a reader who has not seen the levels, which of how many and what the scale means, what this
 level builds, and what is left for later and why. Contract: the APIs, events and formats
-between repositories. Design sketch of a feature on several repositories: one "### <PREFIX>" part per
-repository of repos. What was gathered: what was found before the questions. A repository that is not
+between repositories. Design sketch of a feature on several repositories: one "### <name>" part per
+other repository. What was gathered: what was found before the questions. A repository that is not
 on this machine gets stubs, not a part here (plans.js ticket --stub). No TBD and no <...> left in the
 text. Comments are removed when the file is made. -->
 # <feature>
