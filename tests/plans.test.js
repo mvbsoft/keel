@@ -154,7 +154,7 @@ gitTest('new in the repository: planning.place repo or --place repo puts it in t
   assert.deepEqual(run(dir, 'new', 's3-connection').slice(0, 2), ['created: plans/features/s3-connection/plan.md', 'folder: plans/features/s3-connection/']);
   run(dir, 'ticket', 's3-connection', '--title', 'Client');
   const isPlanning = planningFiles(dir);
-  assert.equal(isPlanning('plans/features/s3-connection/tickets/T1-client.md').kind, 'draft');
+  assert.deepEqual(isPlanning('plans/features/s3-connection/tickets/T1-client.md'), { feature: 's3-connection', ticket: 'T1', plan: false });
   assert.equal(isPlanning('src/app.js'), null);
   write(dir, 'plans/features/csv-export/notes.md', 'x\n');
   assert.match(run(dir, 'new', 'csv-export')[0], /refused \(plans\/features\/csv-export\/ exists/);

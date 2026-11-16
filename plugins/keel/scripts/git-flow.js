@@ -10,16 +10,16 @@
 //                                     carrying the changes, when it is not
 //   switch --name <b>                 switch to an existing branch (clean tree only); when the fetch
 //                                     fails, a local branch is switched to as it is, with a warning
-//   commit --message-file <f> [--tickets "<K1,K2>"]   stage every changed file except secret and planning
-//                                     ones and new files named like a secret, drop AI trailers from the message, commit (never on the main
-//                                     branch); the ticket files of the keys --tickets names go in (tickets
-//                                     a session marked done), as the finished task's own does with --finish
+//   commit --message-file <f> [--tickets "<feature>/T<n>,..."]   stage every changed file except secret
+//                                     and planning ones and new files named like a secret, drop AI trailers from the message, commit (never on the main
+//                                     branch); the ticket files --tickets names and their features' plan.md
+//                                     go in (a planned ticket's status lands with its code)
 //   sync [--from <base>]              merge the updated base into the current branch; on the base itself
 //                                     (a feature branch shared with others), merge its remote copy: the
 //                                     others' pushes (the main branch: only when it moves forward); none
 //                                     yet: nothing to pull
 //   push                              push the current branch with upstream tracking
-//   save --message-file <f> [--sync <base>] [--back-to <base>] [--tickets "<K1,K2>"]
+//   save --message-file <f> [--sync <base>] [--back-to <base>] [--tickets "<feature>/T<n>,..."]
 //                                     commit, then sync --from <base> (a finish), push, then switch to
 //                                     <base> (a task handoff), in one call; stops at the first step that
 //                                     stops, and after a sync that merged commits (run the gates first). Without
@@ -44,7 +44,7 @@ const { linkOnWay, safeLocalWrite, realPath, samePath } = require('./lib/safe-pa
 const { readFinish, clearFinish, markCommitted, validSid } = require('./lib/finish.js');
 const { stripAttribution } = require('./lib/attribution.js');
 const { untrackedRecord, fileStamp } = require('./lib/diff.js');
-const { planningFiles } = require('./lib/planning.js');
+const { planningFiles, ticketRef } = require('./lib/planning.js');
 const { isSecretName } = require('./lib/secret-names.js');
 const { validBranchName } = require('./lib/repo-read.js');
 
@@ -122,8 +122,8 @@ function newSecretName(ctx, p) {
 }
 
 // Planning's files (lib/planning.js) are not a task's work: its commit leaves them out and they do not
-// block a step. Only the tickets a commit names go in (the finished task's own, a session's --tickets),
-// so their `done` lands with the code. Keys compare without case.
+// block a step. Only the tickets a commit names (--tickets) and their features' plan.md go in, so a
+// ticket's status lands with its code.
 function planningOf(ctx) {
   if (!ctx.planning) ctx.planning = planningFiles(ctx.root);
   return ctx.planning;
@@ -257,9 +257,12 @@ const commands = {
     try { message = stripAttribution(fs.readFileSync(messageFile, 'utf8')); } catch (e) { throw new Stop(`cannot read the message file: ${e.message}`); }
     if (!message) throw new Stop('the commit message is empty');
 
-    if (opts.tickets === true) throw new Stop('--tickets needs the keys: --tickets "<K1,K2>"');
-    const carried = new Set([opts.finish, ...(typeof opts.tickets === 'string' ? opts.tickets.split(',') : [])]
-      .filter((k) => typeof k === 'string' && k.trim()).map((k) => k.trim().toLowerCase()));
+    if (opts.tickets === true) throw new Stop('--tickets needs the tickets: --tickets "<feature>/T<n>,..."');
+    const refs = typeof opts.tickets === 'string' ? opts.tickets.split(',').filter((k) => k.trim()) : [];
+    const bad = refs.filter((k) => !ticketRef(k));
+    if (bad.length) throw new Stop(`--tickets takes <feature>/T<n>: ${bad.join(', ')}`);
+    const carried = new Set(refs.map((k) => { const r = ticketRef(k); return `${r.feature}/${r.ticket}`; }));
+    const features = new Set(refs.map((k) => ticketRef(k).feature));
 
     const files = changedFiles(ctx.root);
     const paths = new Set();
@@ -268,8 +271,8 @@ const commands = {
     const notTask = [];
     const planning = [];
     const planned = (p) => {
-      const kind = planningOf(ctx)(p);
-      return Boolean(kind) && !(kind.kind === 'ticket' && carried.has(String(kind.key).toLowerCase()));
+      const f = planningOf(ctx)(p);
+      return Boolean(f) && !(f.ticket ? carried.has(`${f.feature}/${f.ticket}`) : f.plan && features.has(f.feature));
     };
     for (const f of files) {
       if (notTaskWork(ctx, f)) { notTask.push(f.path); continue; }
