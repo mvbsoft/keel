@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { checkConfig } = require('../plugins/keel/scripts/lib/config.js');
+const { checkConfig, legacyFields } = require('../plugins/keel/scripts/lib/config.js');
 const { tempDir } = require('./fixtures/tmp.js');
 
 function project(content) {
@@ -51,17 +51,23 @@ test('checkConfig: a config saved with a byte order mark (Windows PowerShell 5.1
   assert.equal(checkConfig(project('\uFEFF' + JSON.stringify(VALID))).state, 'ok');
 });
 
-test('checkConfig: the planning section is optional; when present it needs the prefix and where the tickets live', () => {
+test('checkConfig: the planning section is optional; when present it says where a feature lives', () => {
   const state = (planning) => checkConfig(project(JSON.stringify({ ...VALID, planning }))).state;
   assert.equal(state(undefined), 'ok', 'a config without planning');
-  assert.equal(state({ ticket_prefix: 'API', tickets: 'repo' }), 'ok');
-  assert.equal(state({ ticket_prefix: 'API2', tickets: 'pc', tickets_dir: 'work/tickets', language: 'pt-BR' }), 'ok');
+  assert.equal(state({ place: 'repo' }), 'ok');
+  assert.equal(state({ place: 'pc', tickets_dir: 'work/tickets', language: 'pt-BR' }), 'ok');
   const errors = (planning) => checkConfig(project(JSON.stringify({ ...VALID, planning }))).errors.join('\n');
-  assert.match(errors({ tickets: 'repo' }), /\$\.planning: missing "ticket_prefix"/);
-  assert.match(errors({ ticket_prefix: 'API' }), /\$\.planning: missing "tickets"/);
-  for (const prefix of ['api', 'A', '1API', 'API-X', 'ABCDEFGHIJK']) assert.match(errors({ ticket_prefix: prefix, tickets: 'repo' }), /\$\.planning\.ticket_prefix: does not match/, prefix);
-  assert.match(errors({ ticket_prefix: 'API', tickets: 'jira' }), /\$\.planning\.tickets: must be one of/);
-  assert.match(errors({ ticket_prefix: 'API', tickets: 'repo', tickets_dir: '' }), /\$\.planning\.tickets_dir: shorter than 1/);
-  assert.match(errors({ ticket_prefix: 'API', tickets: 'repo', language: 'English' }), /\$\.planning\.language: does not match/);
-  assert.match(errors({ ticket_prefix: 'API', tickets: 'repo', research: 'pc' }), /\$\.planning\.research: unexpected property/);
+  assert.match(errors({ place: 'jira' }), /\$\.planning\.place: must be one of/);
+  assert.match(errors({ place: 'repo', tickets_dir: '' }), /\$\.planning\.tickets_dir: shorter than 1/);
+  assert.match(errors({ place: 'repo', language: 'English' }), /\$\.planning\.language: does not match/);
+  assert.match(errors({ place: 'repo', research: 'pc' }), /\$\.planning\.research: unexpected property/);
+});
+
+test('checkConfig: keel 2.0.0 ticket_prefix and tickets stay valid and are left out of the config keel uses', () => {
+  const r = checkConfig(project(JSON.stringify({ ...VALID, planning: { ticket_prefix: 'API', tickets: 'repo', place: 'repo' } })));
+  assert.equal(r.state, 'ok', r.errors.join('\n'));
+  assert.deepEqual(r.config.planning, { place: 'repo' });
+  assert.equal(checkConfig(project(JSON.stringify({ ...VALID, planning: { ticket_prefix: 'any value', tickets: 'jira' } }))).state, 'ok', 'their values are not checked either');
+  assert.deepEqual(legacyFields({ planning: { ticket_prefix: 'API', tickets: 'repo' } }), ['planning.ticket_prefix', 'planning.tickets']);
+  assert.deepEqual(legacyFields({ planning: { place: 'pc' } }), []);
 });

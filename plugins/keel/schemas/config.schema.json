@@ -298,28 +298,19 @@
       }
     },
     "planning": {
-      "description": "Optional. The team's planning settings (/keel:start-planning). Without them planning does not start and export is refused: /keel:configure planning asks them.",
+      "description": "Optional. The team's planning settings (/keel:start-planning). Without place, planning does not start: /keel:configure planning asks it. keel 2.0.0's ticket_prefix and tickets are no longer read: a config that has them stays valid, and /keel:configure check names them.",
       "type": "object",
-      "required": [
-        "ticket_prefix",
-        "tickets"
-      ],
       "additionalProperties": false,
       "properties": {
-        "ticket_prefix": {
-          "description": "The start of every ticket key (PROJ in PROJ-12). comments.js also reports it in new comments and docs, besides comments.ticket_prefixes.",
-          "type": "string",
-          "pattern": "^[A-Z][A-Z0-9]{1,9}$"
-        },
-        "tickets": {
-          "description": "Where exported tickets live, with the researcher's reports: repo (tickets_dir, committed on the feature branch) or pc (this machine only).",
+        "place": {
+          "description": "Where a new feature's folder lives: repo (<tickets_dir>/<feature>/, committed with plans.js commit) or pc (.keel/local/plans/keel/<feature>/, this machine only). Its planning can put one feature in the other place.",
           "enum": [
             "repo",
             "pc"
           ]
         },
         "tickets_dir": {
-          "description": "The repository folder for exported tickets (repo). Never a hidden folder, handoff/, handoffs/, docs/plans or a place outside the project. Configs without it use tickets.",
+          "description": "The repository folder that holds the feature folders (place repo). Never a hidden folder, handoff/, handoffs/, docs/plans or a place outside the project. Configs without it use tickets.",
           "type": "string",
           "minLength": 1,
           "default": "tickets"

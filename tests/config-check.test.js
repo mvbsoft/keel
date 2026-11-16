@@ -228,7 +228,7 @@ test('docs worth a look: no ADR style chosen while the project keeps ADRs; nothi
   assert.ok(reason(lines), lines.join('\n'));
 });
 
-test('ticket ids of the planning ticket prefix are not proposed as tracker prefixes: comments.js checks them already', () => {
+test('keel 2.0.0 planning fields are named once: no longer used, and needed while planning.place is not set', () => {
   const p = project();
   write(path.join(p.dir, '.keel', 'config.json'), JSON.stringify({ ...CONFIG, planning: { ticket_prefix: 'SHOP', tickets: 'repo' } }));
   p.commit('planning settings');
@@ -238,7 +238,11 @@ test('ticket ids of the planning ticket prefix are not proposed as tracker prefi
   write(path.join(p.dir, 'a.js'), 'module.exports = 3;\n');
   p.commit('SHOP-2 totals');
   const lines = block(p.check());
-  assert.ok(!lines.some((l) => l.startsWith('- code [worth]: ticket ids')), lines.join('\n'));
+  const legacy = lines.filter((l) => l.includes('no longer used'));
+  assert.deepEqual(legacy.map((l) => l.split(' | ')[0]), ['- code [needed]: planning.ticket_prefix, planning.tickets in .keel/config.json are no longer used'], lines.join('\n'));
+  assert.ok(lines.some((l) => l.startsWith('- code [worth]: ticket ids in the git history: SHOP')), 'the old planning prefix is no ticket prefix any more');
+  write(path.join(p.dir, '.keel', 'config.json'), JSON.stringify({ ...CONFIG, planning: { ticket_prefix: 'SHOP', place: 'repo' } }));
+  assert.ok(block(p.check()).some((l) => l.startsWith('- code [worth]: planning.ticket_prefix in .keel/config.json is no longer used')), 'with place set it is only worth a look');
 });
 
 test('a recommended value that changed is worth a look once: a record from an older keel counts as its old value', () => {
