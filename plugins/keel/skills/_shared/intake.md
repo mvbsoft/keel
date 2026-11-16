@@ -260,7 +260,7 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
    Then the task branch as step 6 says, `<b>-T<n>` from `<b>` (a feature on this machine: from the
    current branch; another repository: from its main branch, `git-flow.js "<its folder>" status`).
 5. **Task file** (step 7 item 2): id `<feature>-T<n>`, `--ticket <feature>/T<n>`; `--branch <b>-T<n>`,
-   `--base` and `--merge-into` its base (`<b>`; another repository: its main branch).
+   `--base` and `--merge-into` its base, the branch step 4 started it from.
 
 ## Task to planning
 **Task to planning** (the task is too big, step 3: the user asks to split it or plan it as a feature,
