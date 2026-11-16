@@ -233,14 +233,25 @@ function toTrash(root, id, sid, what, guard = () => null) {
   return { t, target, batch: r.batch, tracked };
 }
 
-// Only work whose verification is recorded (fingerprint.js save, also --tier none) is finished; in
-// autonomous git the finish is recorded for the session until a commit holds it or it is restored
-// (lib/finish.js, hooks/finish-check.js).
-function verifiedGuard(root) {
-  const why = require('../fingerprint.js').unverified(root);
+// Where a task's work is verified: the folder of its `repo:` (a planned ticket of another repository,
+// from the repos map), else the project; { why } when that repository is not on this machine.
+function workRoot(root, t) {
+  const repo = t && t.fm && typeof t.fm.repo === 'string' ? t.fm.repo.trim() : '';
+  if (!repo || repo === '-') return { folder: root };
+  const target = require('./plans-repos.js').targetOf(root, { fm: { repo } });
+  return target.folder ? { folder: target.folder } : { why: `the task's repository ${clean(repo, 120)} is not on this machine (${target.bad ? 'not a repository name' : clean(target.why, 300)})` };
+}
+
+// Only work whose verification is recorded (fingerprint.js save, also --tier none, in the folder the
+// work is in: workRoot) is finished; in autonomous git the finish is recorded for the session until a
+// commit holds it or it is restored (lib/finish.js, hooks/finish-check.js).
+function verifiedGuard(root, t) {
+  const work = workRoot(root, t);
+  if (work.why) return work.why;
+  const why = require('../fingerprint.js').unverified(work.folder);
   if (!why) return null;
   const fp = path.join(__dirname, '..', 'fingerprint.js');
-  return `${why}: finish the verification first (it ends with fingerprint.js save --tier <level>); when the user chose no verification, run node "${fp}" "${root}" save --tier none; then run task delete again`;
+  return `${why}: finish the verification first (it ends with fingerprint.js save --tier <level>); when the user chose no verification, run node "${fp}" "${work.folder}" save --tier none; then run task delete again`;
 }
 
 function taskDelete(root, id, sid) {
@@ -248,7 +259,7 @@ function taskDelete(root, id, sid) {
   let recorded = false;
   // The finish record comes before the move: a finish that cannot be recorded does not start.
   const guard = (task) => {
-    const notVerified = verifiedGuard(root);
+    const notVerified = verifiedGuard(root, task);
     if (notVerified || !record) return notVerified;
     try { writeFinish(root, sid, task.id, 'deleted'); recorded = true; return null; } catch (e) { return `the finish record cannot be written: ${e.message}`; }
   };
@@ -307,6 +318,6 @@ function taskDrop(root, id) {
 }
 
 module.exports = {
-  validId, readBlobs, listTasks, treeTasks, findTask, activeTask, sessionMarker, busyTasks, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
+  validId, readBlobs, listTasks, treeTasks, findTask, workRoot, activeTask, sessionMarker, busyTasks, summaryLine, taskList, taskNew, taskActivate, taskDeactivate,
   taskDelete, taskRestore, taskDrop, taskInventory, sections, setFront, stepCounts, planText, readClosed, dateOf,
 };

@@ -40,7 +40,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { loadGitProject, parseArgs } = require('./lib/project.js');
+const { loadProjectOrDefaults, parseArgs } = require('./lib/project.js');
 const { trustState, trust } = require('./lib/trust.js');
 const { linkOnWay, safeLocalWrite, realPath, samePath } = require('./lib/safe-path.js');
 const { readFinish, clearFinish, markCommitted, validSid } = require('./lib/finish.js');
@@ -95,7 +95,8 @@ function changedFiles(root) {
 const pickRemote = (remotes) => (remotes.includes('origin') ? 'origin' : remotes[0] || null);
 
 function context(root) {
-  const { config, isSecret } = loadGitProject(root);
+  const { config, isSecret } = loadProjectOrDefaults(root);
+  if (!config.git.main_branch) throw new Error('keel is not configured here and origin/HEAD names no main branch (git remote set-head origin --auto sets it)');
   const repo = git(root, ['rev-parse', '--git-dir']);
   if (!repo.ok) throw new Stop(/dubious ownership/i.test(repo.err) ? `git does not trust this folder's owner: ${firstLines(repo.err)}` : 'not a git repository');
   const branch = git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).out || null;

@@ -7,9 +7,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { gitTest, SCRIPTS, LOCAL, git, write, readRel, exists, run, front, planning, setup, ready, trashed } = require('./fixtures/plans-git.js');
+const { gitTest, PLUGIN, SCRIPTS, LOCAL, git, write, readRel, exists, run, front, planning, setup, ready, trashed } = require('./fixtures/plans-git.js');
 
 const T = (n, folder = `${LOCAL}/s3-storage`) => `${folder}/tickets/T${n}-ticket-${n}.md`;
+const script = (name, dir, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, name), dir, ...args], { encoding: 'utf8' }).stdout.trim().split('\n');
+// keel's own-files hook on a shell command in the project `dir`: its decision, or null.
+function hookDecision(dir, command) {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CLAUDE_')));
+  const r = spawnSync(process.execPath, [path.join(PLUGIN, 'hooks', 'own-files.js')], { input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }), env: { ...env, CLAUDE_PLUGIN_ROOT: PLUGIN, CLAUDE_PROJECT_DIR: dir }, encoding: 'utf8' });
+  return r.stdout ? JSON.parse(r.stdout).hookSpecificOutput.permissionDecision : null;
+}
 
 gitTest('tickets: states from the fields; next is the first ready, reviewed ticket whose dependencies are done', () => {
   const { work } = setup({ remote: false });
@@ -146,7 +153,7 @@ test('drop: a feature on this machine goes to keel\'s trash once its tickets are
   assert.ok(!exists(work, `${LOCAL}/s3-storage`));
 });
 
-gitTest('task new --ticket: the task <feature>-T<n> with ticket:, on this machine for a feature kept here or a ticket of another repository', () => {
+gitTest('task new --ticket: the task <feature>-T<n> with ticket:, on this machine for a feature kept here or a ticket of another repository, which is verified there', () => {
   const { tmp, work } = setup({ remote: false });
   const notes = (...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'notes.js'), work, ...args], { encoding: 'utf8' }).stdout.trim().split('\n');
   const task = (id, ...args) => notes('task', 'new', id, '--title', 'Upload', '--source', 'file', ...args);
@@ -177,4 +184,16 @@ gitTest('task new --ticket: the task <feature>-T<n> with ticket:, on this machin
   const text = readRel(work, '.keel/local/tasks/csv-export-T2/task.md');
   assert.match(text, /^repo: web$/m);
   assert.match(text, new RegExp(`^started: ${git(web, 'rev-parse', 'HEAD')}$`, 'm'));
+  // Its verification looks at that repository, which has no keel: its diff, its record, and task delete
+  // here (and keel's hook) reads that record.
+  write(web, 'index.js', 'x\ny\n');
+  assert.match(script('changes.js', web)[0], /^changes: 1 files, \+1 -0/);
+  assert.ok(fs.readFileSync(path.join(web, '.keel', 'local', 'tmp', 'changes.diff'), 'utf8').includes('+y'));
+  const del = `node "${SCRIPTS}/notes.js" "${work.split(path.sep).join('/')}" task delete csv-export-T2`;
+  assert.equal(hookDecision(work, del), 'deny');
+  assert.match(notes('task', 'delete', 'csv-export-T2')[0], /^notes: task delete refused \(no verification is recorded for this change/);
+  assert.match(script('fingerprint.js', web, 'save', '--tier', 'basic')[0], /^saved: verification at /);
+  assert.ok(!exists(work, '.keel/local/last-verify.json'), 'nothing is recorded here');
+  assert.equal(hookDecision(work, del), 'ask');
+  assert.equal(notes('task', 'delete', 'csv-export-T2')[0], 'deleted: .keel/local/tasks/csv-export-T2/ (moved to keel\'s trash)');
 });

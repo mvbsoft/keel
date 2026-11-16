@@ -85,6 +85,15 @@ function taskPath(project, id) {
   return t && t.folder ? `${path.relative(project, t.folder).split(path.sep).join('/')}/` : `.keel/tasks/${id}/`;
 }
 
+// The folder whose verification a task delete needs: a planned ticket of another repository is
+// verified there (lib/tasks.js workRoot).
+function verifiedIn(project, id) {
+  try {
+    const tasks = require('../scripts/lib/tasks.js');
+    return tasks.workRoot(project, tasks.findTask(project, id)).folder || project;
+  } catch { return project; }
+}
+
 // The repository a plans.js commit or push works in, for its confirmation: always the project (the
 // script refuses --repo).
 const plansRepo = (project) => require('../scripts/lib/repo-read.js').clean(norm(project), 200);
@@ -103,7 +112,7 @@ function destructive(name, pos, opts) {
   if (name === 'notes.js' && command === 'task' && (sub === 'delete' || sub === 'drop') && typeof id === 'string') {
     if (sub === 'delete') {
       // The script refuses it too; denied here, the user is not asked about a step that cannot run.
-      if (!fs.existsSync(path.join(project, '.keel', 'local', 'last-verify.json'))) {
+      if (!fs.existsSync(path.join(verifiedIn(project, id), '.keel', 'local', 'last-verify.json'))) {
         return decide('deny', 'keel: no verification is recorded for this change, so the task cannot be finished yet. Finish the verification (verify.md ends with fingerprint.js save --tier <level>; when the user chose no verification: fingerprint.js save --tier none), then run task delete again.');
       }
       return decide('ask', say(project, 'confirm.task_delete', { id, path: taskPath(project, id) }));
