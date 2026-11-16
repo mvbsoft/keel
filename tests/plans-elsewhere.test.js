@@ -100,6 +100,18 @@ gitTest('check, review, states, tickets and next read an elsewhere ticket in its
   assert.ok(run(api, 'check', FEATURE).includes(`plan: every ticket is done or abandoned: plans.js state ${FEATURE} done`));
 });
 
+gitTest('in the repository an elsewhere ticket lives in, its last ticket done gives no plan: line: the plan is done at home', () => {
+  const w = world();
+  const { api, web } = w;
+  draft(w);
+  run(api, 'reviewed', FEATURE, 'T1', 'T2');
+  run(api, 'state', FEATURE, 'ready');
+  run(web, 'status', FEATURE, 'T1', 'in-progress');
+  assert.deepEqual(run(web, 'status', FEATURE, 'T1', 'done'), ['status: T1 done']);
+  assert.ok(!run(web, 'check', FEATURE).some((l) => l.startsWith('plan:')), run(web, 'check', FEATURE).join('\n'));
+  assert.ok(!run(web, 'tickets', FEATURE).some((l) => l.startsWith('plan:')), run(web, 'tickets', FEATURE).join('\n'));
+});
+
 gitTest('an elsewhere ticket that cannot be read is unknown: check notes it, next skips it, done needs the user\'s confirmation', () => {
   const w = world();
   const { tmp, api, web } = w;
