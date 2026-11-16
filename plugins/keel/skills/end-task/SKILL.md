@@ -119,7 +119,8 @@ Current state of this project:
    the user says they did not commit (or will not), run
    `node "<keel>/scripts/notes.js" "<project>" task restore <id> --session <sid>`.
    Any `restored:` line, or that manual `task restore`, after step 7 marked a ticket done → also
-   `node "<keel>/scripts/plans.js" "<project>" status <f> <t> in-progress` (it is not done after all).
+   `node "<keel>/scripts/plans.js" "<project>" status <f> <t> in-progress` (it is not done after all);
+   a plan marked done goes back to `in-progress` with it (`plan: in-progress`).
    The user commits by hand (manual git, or declines keel's commit) after step 7 marked a ticket
    done → one line: "The ticket file <path> is marked done: commit it with the code." (not for a
    ticket under `.keel/local/`: it is outside git); with the plan marked done also "Feature <f> is

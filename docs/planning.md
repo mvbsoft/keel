@@ -291,8 +291,8 @@ agents.
 | `check <feature>` | Checks the structure | before a review and before `ready` | nothing (a report: problems, `note:`, `warn:`, and `plan:` when every ticket is done or abandoned) |
 | `review <feature>` | Says what needs a review | before a review | nothing (per plan and ticket: never reviewed, changed since its review, unchanged) |
 | `reviewed <feature> <T1\|plan> ...` | Records a finished review | right after the review | `review_hash` in the ticket, `ready_hash` in the plan |
-| `state <feature> <draft\|ready\|in-progress\|done\|abandoned> [--reason <why>]` **script only** | Sets the plan's status | `ready` at the end of planning; `done` when every ticket is done or abandoned; `abandoned` on your word | `status` of `plan.md`. `ready` needs a clean check, a ticket and no open question, and also readies every draft ticket that needs no review. `abandoned` needs `--reason` and abandons every open ticket with it. `done` waits for every ticket to be done or abandoned. `in-progress` and `done` only after `ready`; back only from `ready` to `draft`. `--project <path>` for a session in another repository |
-| `status <feature> T<n> <state> [--reason <why>] [--branch <b>]` **script only** | Sets one ticket's status | when a ticket is taken, finished or given up | `status` of the ticket file. `ready` waits for its review; `abandoned` needs `--reason` and names the tickets that depend on it; `in-progress` (not from a draft, again from `done` or `abandoned`; `--branch` the task's branch, into `branch:`) also moves a `ready` plan to `in-progress`; `done` only from `in-progress`. `--project <path>` for a session in another repository |
+| `state <feature> <draft\|ready\|in-progress\|done\|abandoned> [--reason <why>]` **script only** | Sets the plan's status | `ready` at the end of planning; `done` when every ticket is done or abandoned; `abandoned` on your word | `status` of `plan.md`. `ready` needs a clean check, a ticket and no open question, and also readies every draft ticket that needs no review. `abandoned` needs `--reason` and abandons every open ticket with it. `done` waits for every ticket to be done or abandoned. `in-progress` and `done` only after `ready`; back only from `ready` to `draft`, and from `done` or `abandoned` to `in-progress`. `--project <path>` for a session in another repository |
+| `status <feature> T<n> <state> [--reason <why>] [--branch <b>]` **script only** | Sets one ticket's status | when a ticket is taken, finished or given up | `status` of the ticket file. `ready` waits for its review; `abandoned` needs `--reason` and names the tickets that depend on it; `in-progress` (not from a draft, again from `done` or `abandoned`; `--branch` the task's branch, into `branch:`) also moves a `ready`, `done` or `abandoned` plan to `in-progress`; `done` only from `in-progress`. `--project <path>` for a session in another repository |
 | `set <feature> [--branch <b>] [--merge-into <b>] [--after-commit]` | The feature branch and where it merges | when they change, and when you hand over | `branch`, `merge_into` in `plan.md`; `--after-commit`: `after_commit` and `after_commit_repos`, the commits the facts were last checked at |
 | `stale <feature>` | Which files changed since the facts were gathered | when you continue a feature | nothing |
 | `tickets [<feature> \| <feature>/T<n>] [--fetch]` | The tickets' states and the ticket to take next | before taking a ticket; `/keel:tasks` runs it | nothing (`--fetch`: a `git fetch` first) |
@@ -327,7 +327,8 @@ Any state may go to `abandoned` (on your word, with a reason). Otherwise a state
 and `plans.js` refuses the rest: a plan becomes `in-progress` or `done` only after `ready`, and goes
 back only from `ready` to `draft` (planning reopened); a ticket is `done` only from `in-progress`, and
 is taken again (`in-progress`) from `done` or `abandoned`: a finish whose git step stopped, or you
-start it again. `/keel:tasks` and `/keel:start-task` print each ticket's state, `on <branch>` for one in
+start it again. A `done` or `abandoned` plan goes back to `in-progress` with it, so a plan marked done
+before a commit that stopped does not stay done with an open ticket. `/keel:tasks` and `/keel:start-task` print each ticket's state, `on <branch>` for one in
 progress, and the one to take next, with `plans.js tickets` (a script, no tokens): the first ticket by
 number that is `ready`, is no stub, needs no review and whose dependencies are all `done`. A ticket that depends on
 an abandoned one waits for your answer: remove the dependency, or abandon it too. A ticket in another
@@ -356,7 +357,7 @@ a ticket back: `/keel:start-task` names it and asks: take the next ticket, or st
 3. The task works on the feature's branch unless you ask for a ticket branch; a ticket branch is the
    plan's branch plus `-T<n>` (`csv-export-T3`), made from the plan's branch, and merges back into it.
 4. `plans.js status <feature> T<n> in-progress --branch <the branch>` writes `status` and `branch`
-   (and moves a `ready` plan to `in-progress`). For a feature in the repository keel then offers the
+   (and moves a `ready`, `done` or `abandoned` plan to `in-progress`). For a feature in the repository keel then offers the
    commit and push of that change (only the ticket file and `plan.md`), so others see the ticket is
    taken; in autonomous git it runs them. `/keel:start-session` does the same for the tickets it takes.
 5. The task is `.keel/tasks/<feature>-T<n>/`, with `ticket: <feature>/T<n>` in its `task.md`.

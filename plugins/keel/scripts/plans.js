@@ -49,12 +49,13 @@
 //                                         with it; done waits for every ticket to be done or abandoned
 //                                         (--confirm: the user said so for an elsewhere ticket whose status
 //                                         cannot be read). Elsewhere tickets change in their repository.
-//                                         Forward only; back only from ready to draft
+//                                         Forward only; back only from ready to draft, and from done or
+//                                         abandoned to in-progress
 //   status <feature> <T<n>> <draft|ready|in-progress|done|abandoned> [--reason <why>] [--branch <b>] [--project <path>]
 //                                         one ticket's status. ready waits for its review; abandoned needs
 //                                         --reason; in-progress (not from draft, again from done or abandoned;
 //                                         --branch: the task's branch, into the ticket's branch field) moves a
-//                                         ready plan to in-progress; done only from in-progress.
+//                                         ready, done or abandoned plan to in-progress; done only from in-progress.
 //                                         --project: the project that holds the feature, for a session in
 //                                         another repository
 //   set <feature> [--branch <b>] [--merge-into <b>] [--after-commit]

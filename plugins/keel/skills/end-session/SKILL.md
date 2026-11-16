@@ -60,8 +60,8 @@ Current state of this project:
    `plan: every ticket is done or abandoned: plans.js state <f> done` line → ask "Mark the plan <f>
    done?" (yes → `plans.js state <f> done`, then git-end-of-feature.md after the push). Gates only or
    red → no `plans.js status` call. git stops before the commit holds them (`save` stopped with
-   `commit` not in its `done:` line, or never ran) → `plans.js status <f> <t> in-progress` for each; a
-   stop after the commit (`commit` in `done:`: sync, push) → no undo: the commit holds them, say the
+   `commit` not in its `done:` line, or never ran) → `plans.js status <f> <t> in-progress` for each (a
+   plan marked done goes back to `in-progress` with them (`plan: in-progress`)); a stop after the commit (`commit` in `done:`: sync, push) → no undo: the commit holds them, say the
    push is left. Manual git → one line: "The ticket files <paths> are marked done: commit them with
    the code." (not for tickets under `.keel/local/`: they are outside git); with the plan marked done
    also "Feature <f> is complete; /keel:tasks offers its end once you have committed and pushed."

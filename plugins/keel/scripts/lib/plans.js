@@ -283,12 +283,13 @@ const unknownState = (what, to) => refuse(what, `unknown state "${clean(String(t
 
 const FORWARD = ['draft', 'ready', 'in-progress', 'done'];
 // Why a status may not move from `from` to `to` (a plan's when `plan`), or null: forward along FORWARD,
-// abandoned from any. A plan also goes back from ready to draft (its planning reopened); a ticket is
-// taken again (in-progress) from done or abandoned: a finish whose git step stopped, or the user starts
-// it again. A status that is no state (check names it) may go anywhere.
+// abandoned from any. A plan also goes back from ready to draft (its planning reopened); a ticket, and
+// its plan with it, is taken again (in-progress) from done or abandoned: a finish whose git step
+// stopped, or the user starts it again. A status that is no state (check names it) may go anywhere.
 function backward(from, to, plan) {
   if (from === to || to === 'abandoned' || !STATES.includes(from)) return null;
-  if (plan ? from === 'ready' && to === 'draft' : to === 'in-progress' && CLOSED.includes(from)) return null;
+  if (to === 'in-progress' && CLOSED.includes(from)) return null;
+  if (plan && from === 'ready' && to === 'draft') return null;
   if (from !== 'abandoned' && FORWARD.indexOf(to) > FORWARD.indexOf(from)) return null;
   return `${from} -> ${to}: a state moves forward only (${FORWARD.join(', ')}); abandoned from any`;
 }
@@ -379,7 +380,7 @@ function draftState(root, feature, to, o = {}) {
 
 // plans.js status: one ticket's status. ready waits for its review; abandoned needs a reason and names
 // the tickets that depend on it; in-progress (not from draft, with the task's branch when given) moves a
-// ready plan to in-progress.
+// ready plan to in-progress, and opens a done or abandoned one again.
 function ticketStatus(root, feature, id, to, o = {}) {
   const { d, why } = needDraft(root, feature, 'status');
   if (!d) return why;
@@ -401,7 +402,7 @@ function ticketStatus(root, feature, id, to, o = {}) {
   let now;
   try {
     now = writeStatus(root, d, t, { status: to, reason: to === 'abandoned' ? reason : null, ...branch });
-    if (to === 'in-progress' && d.fm.status === 'ready' && !given(d.fm.home)) { writePlan(root, d, { status: 'in-progress' }); out.push('plan: in-progress', ...mirrorStatus(list, 'in-progress')); }
+    if (to === 'in-progress' && ['ready', ...CLOSED].includes(d.fm.status) && !given(d.fm.home)) { writePlan(root, d, { status: 'in-progress', reason: null }); out.push('plan: in-progress', ...mirrorStatus(list, 'in-progress')); }
   } catch (e) { return refuse('status', e.message); }
   if (to === 'abandoned') {
     for (const x of list.filter((x) => !CLOSED.includes(x.fm.status) && ticketIds(x.fm.depends_on).map((k) => k.toUpperCase()).includes(t.id))) {

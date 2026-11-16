@@ -30,7 +30,7 @@ test('start-task: each ticket state has its answer; a draft stops, a changed tic
   says(p, ['`draft`', 'still being planned', '`/keel:start-planning <feature>`', 'stop']);
   says(p, ['`needs review`', 'show it and ask', 'start anyway / review it first']);
   says(p, ['`in-progress` here', '`remote: in-progress on <branch>`', 'who took it and where', 'continue it / start over / take another ticket']);
-  says(p, ['`done` or `abandoned`', 'start it again only on a yes']);
+  says(p, ['`done` or `abandoned`', 'start it again only on a yes', 'a done or abandoned plan opens again with it']);
   says(p, ['`in <name>`', 'another repository', '"start it in <name>"', 'stop']);
   says(p, ['a `depends:` ticket not `done`', '`note:` line', 'take the next ticket /', 'start anyway']);
   says(p, ['`next` or `ready`', 'read the ticket (`file:`)', 'Goal, Acceptance criteria and Where to', 'steps 3-6 as for any task']);
@@ -73,6 +73,8 @@ test('end-task: a planned ticket is marked done right after the folder deletion,
   assert.match(read('scripts', 'lib', 'tasks.js'), /`deleted: \$\{/, 'task delete prints that line');
   says(text, ['`plan: every ticket is done or abandoned: plans.js state <f> done`', 'Mark the plan <f>', 'done?', 'git-end-of-feature.md after the push']);
   says(text, ['`plans: status refused (...)`', 'warn with its reason', 'put the task back', 'task restore <id> --session <sid>`', 'stop before', 'git']);
+  // A plan marked done before git stays consistent when the commit stops: the ticket taken again opens it.
+  says(text, ['status <f> <t> in-progress` (it is not done after all)', 'a plan marked done goes back to `in-progress`', 'with it (`plan: in-progress`)']);
   says(text, ['Red verification or a hand off', 'no `plans.js status` call', 'a hand off', "never changes a ticket's state"]);
   // An in-progress ticket whose text changed is reviewed with the code, never on its own.
   says(text, ['`needs review`', 'the verification', "also checks the ticket's changed text against the code", 'no separate review']);
@@ -109,7 +111,7 @@ test('end-session: a passed full verification marks the finished planned tickets
   says(six, ['so their ticket files go into the commit'], 'git-flow.js commit leaves planning files out unless named');
   says(six, ['Gates only or', 'red → no `plans.js status` call']);
   // A session commits without --finish: after its commit HEAD holds done, so only a stop before it undoes.
-  says(six, ['git stops before the commit holds them', '`save` stopped with', '`commit` not in its `done:` line', '`plans.js status <f> <t> in-progress` for each']);
+  says(six, ['git stops before the commit holds them', '`save` stopped with', '`commit` not in its `done:` line', '`plans.js status <f> <t> in-progress` for each', 'a plan marked done goes back to `in-progress`', 'with them (`plan: in-progress`)']);
   says(six, ['stop after the commit', '`commit` in `done:`', 'no undo', 'the commit holds them', 'push is left']);
   says(six, ['Manual git → one line', 'The ticket files <paths> are marked done', 'commit them with', 'the code', 'not for tickets under `.keel/local/`']);
   says(six, ['`plan: every ticket is done or abandoned: plans.js state <f> done`', 'Mark the plan <f>', 'git-end-of-feature.md after the push']);

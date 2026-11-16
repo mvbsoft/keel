@@ -33,7 +33,8 @@ All notable changes to keel are listed here. The format follows
 - States live in `status` fields. A ticket goes `draft`, `ready`, `in-progress`, `done`, and `abandoned`
   (with a `reason`) from any state; a plan goes the same way, and abandoning a plan abandons its open
   tickets. States move forward only: a plan goes back only from `ready` to `draft`, a ticket is `done`
-  only from `in-progress` and is taken again (`in-progress`) from `done` or `abandoned`. `plans.js state <feature> <state>` sets the plan's, `plans.js status <feature> T<n> <state>`
+  only from `in-progress` and is taken again (`in-progress`) from `done` or `abandoned`, which takes a
+  `done` or `abandoned` plan back to `in-progress` with it. `plans.js state <feature> <state>` sets the plan's, `plans.js status <feature> T<n> <state>`
   a ticket's (`--reason`, `--branch`, and `--project <path>` for a session in another repository).
   Both are scripts: the same result every time, no tokens, no agent.
 - Edits after `ready` never reset a status. `review_hash` and `ready_hash` cover only the essential

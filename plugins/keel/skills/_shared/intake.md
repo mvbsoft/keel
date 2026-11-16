@@ -236,7 +236,8 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
      first;
    - `in-progress` here, or `remote: in-progress on <branch>` → say who took it and where (that
      branch) and ask: continue it / start over / take another ticket;
-   - `done` or `abandoned` → say so; start it again only on a yes;
+   - `done` or `abandoned` → say so; start it again only on a yes (a done or abandoned plan opens again
+     with it);
    - `in <name>` (it lives in another repository) → say "start it in <name>" and stop;
    - a `depends:` ticket not `done`, or a `note:` line → say which and ask: take the next ticket /
      start anyway;

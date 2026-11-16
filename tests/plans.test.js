@@ -638,7 +638,29 @@ test('states move forward only: a plan goes back from ready to draft, a ticket i
   run(dir, 'status', 's3-connection', 'T2', 'abandoned', '--reason', 'later');
   assert.match(run(dir, 'status', 's3-connection', 'T2', 'ready')[0], /^plans: status refused \(abandoned -> ready: a state moves forward only/);
   assert.ok(moved(run(dir, 'status', 's3-connection', 'T2', 'in-progress')));
-  // A closed plan does not open again.
+  // A closed plan opens again only as in-progress: a ticket of it taken again.
   run(dir, 'state', 's3-connection', 'abandoned', '--reason', 'no time');
   assert.match(run(dir, 'state', 's3-connection', 'draft')[0], /^plans: state refused \(abandoned -> draft: a state moves forward only/);
+  assert.match(run(dir, 'state', 's3-connection', 'ready')[0], /^plans: state refused \(abandoned -> ready: a state moves forward only/);
+  assert.deepEqual(run(dir, 'state', 's3-connection', 'in-progress'), ['status: in-progress']);
+});
+
+test('a ticket taken again opens its closed plan: a plan marked done before a commit that stopped is in-progress again', () => {
+  const dir = project();
+  filled(dir, 's3-connection');
+  run(dir, 'reviewed', 's3-connection', 'T1', 'T2');
+  run(dir, 'state', 's3-connection', 'ready');
+  const plan = `${LOCAL}/s3-connection/plan.md`;
+  run(dir, 'status', 's3-connection', 'T1', 'in-progress');
+  run(dir, 'status', 's3-connection', 'T2', 'abandoned', '--reason', 'later');
+  run(dir, 'status', 's3-connection', 'T1', 'done');
+  assert.deepEqual(run(dir, 'state', 's3-connection', 'done'), ['status: done']);
+  // The finish's commit stopped: its ticket goes back to in-progress, and the plan with it.
+  assert.deepEqual(run(dir, 'status', 's3-connection', 'T1', 'in-progress'), ['status: T1 in-progress', 'plan: in-progress']);
+  assert.match(readRel(dir, plan), /^status: in-progress$/m);
+  // An abandoned plan: a ticket taken again opens it too, and its reason goes.
+  run(dir, 'state', 's3-connection', 'abandoned', '--reason', 'no time');
+  assert.deepEqual(run(dir, 'status', 's3-connection', 'T2', 'in-progress'), ['status: T2 in-progress', 'plan: in-progress']);
+  assert.match(readRel(dir, plan), /^status: in-progress$/m);
+  assert.doesNotMatch(readRel(dir, plan), /no time/);
 });
