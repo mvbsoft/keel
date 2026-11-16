@@ -326,7 +326,7 @@ it. The same field is on the plan.
 Any state may go to `abandoned` (on your word, with a reason). keel moves a state forward only; it
 never moves one back on its own. `/keel:tasks` and `/keel:start-task` print each ticket's state, `on <branch>` for one in
 progress, and the one to take next, with `plans.js tickets` (a script, no tokens): the first ticket by
-number that is `ready`, needs no review and whose dependencies are all `done`. A ticket that depends on
+number that is `ready`, is no stub, needs no review and whose dependencies are all `done`. A ticket that depends on
 an abandoned one waits for your answer: remove the dependency, or abandon it too. A ticket in another
 repository is read there; one that cannot be read shows `unknown`.
 

@@ -148,3 +148,17 @@ test('the page template draws a stub\'s mark and note', () => {
   const script = fs.readFileSync(path.join(SCRIPTS, '..', 'templates', 'feature-page', 'page.js'), 'utf8');
   for (const key of ["'stub'", "'stub_title'", "'stub_note'"]) assert.ok(script.includes(key), key);
 });
+
+gitTest('a stub is never next: it cannot be started until it is a full ticket', () => {
+  const w = world();
+  draft(w);
+  run(w.api, 'reviewed', FEATURE, 'T1', 'T2', 'T3');
+  run(w.api, 'state', FEATURE, 'ready');
+  run(w.api, 'status', FEATURE, 'T1', 'in-progress');
+  run(w.api, 'status', FEATURE, 'T1', 'done');
+  const out = run(w.api, 'tickets', FEATURE);
+  assert.ok(out.includes('  T2 Admin counter — ready'), out.join('\n'));
+  assert.equal(out.at(-1), 'next: none');
+  const data = JSON.parse(/id="feature-data">([\s\S]*?)<\/script>/.exec(fs.readFileSync(line(page(w.api, FEATURE), 'page'), 'utf8'))[1]);
+  assert.deepEqual(data.tickets.map((t) => t.next), [false, false, false]);
+});

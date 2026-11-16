@@ -9,7 +9,7 @@ const plans = require('./plans.js');
 const { git, clean, frontmatter, noBom } = require('./repo-read.js');
 const { moveToTrash } = require('./trash.js');
 const { sameBranch, pickRemote } = require('../git-flow.js');
-const { heading } = require('./plans-format.js');
+const { heading, isStub } = require('./plans-format.js');
 
 // The ticket states, in their order.
 const STATES = plans.STATES;
@@ -21,12 +21,13 @@ const rel = (root, file) => path.relative(root, file).split(path.sep).join('/');
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const depsOf = (t) => plans.ticketIds(t.fm.depends_on).map((k) => k.toUpperCase());
 
-// The ticket to take next in one feature, or null: the first by number that is ready, needs no review
-// and whose dependencies are all done. One that depends on an abandoned ticket waits for the user:
-// remove the dependency or abandon it too.
+// The ticket to take next in one feature, or null: the first by number that is ready, no stub (it
+// cannot be started), needs no review and whose dependencies are all done. One that depends on an
+// abandoned ticket waits for the user: remove the dependency or abandon it too. An elsewhere ticket
+// may be next: it is started in its repository.
 function nextOf(list) {
   const byId = new Map(list.map((t) => [t.id, t]));
-  return list.find((t) => t.fm.status === 'ready' && !plans.needsReview(t)
+  return list.find((t) => t.fm.status === 'ready' && !isStub(t.fm) && !plans.needsReview(t)
     && depsOf(t).every((k) => byId.has(k) && byId.get(k).fm.status === 'done')) || null;
 }
 

@@ -76,8 +76,8 @@
 //                                         ready or in-progress feature with a ticket not done or abandoned;
 //                                         one feature (and its branch); one ticket (and its file, its
 //                                         status on the remote's plan branch, `remote:`, and its
-//                                         dependencies). `next:` the ticket to take next: ready, reviewed,
-//                                         every dependency done. --fetch: git fetch --prune first
+//                                         dependencies). `next:` the ticket to take next: ready, no stub,
+//                                         reviewed, every dependency done. --fetch: git fetch --prune first
 //   move <feature> --to repo|pc           the feature folder as it is between the repository
 //                                         (<tickets_dir>/<feature>/) and this machine
 //                                         (.keel/local/plans/keel/<feature>/); refused when the target
