@@ -38,7 +38,10 @@ Current state of this project:
    `tickets: none` → a block "Planned": each feature and its ticket lines as printed (states and marks
    such as `needs review` or `on <branch>` in the conversation language; ids, branches and names
    stay), and "Start the next one with `/keel:start-task <feature>/T<n>`" from its `next:` line
-   (`next: none` → no such line). Then `node "<keel>/scripts/plans.js" "<project>" list`: a
+   (`next: none` → no such line). A `plan: every ticket is done or abandoned: plans.js state <f> done`
+   line (its last ticket closed elsewhere) → say "Feature <f> is complete" and ask "Mark the plan <f>
+   done?"; yes → run that `plans.js state <f> done`, then offer its end as below. Then
+   `node "<keel>/scripts/plans.js" "<project>" list`: a
    `- <f>: done` line (every ticket done or abandoned, its folder still here) → offer its end as
    `<keel>/skills/_shared/git-end-of-feature.md` says.
 4. `<task id>`: show its block, then read its `task.md` (and `plan.md`): in this working tree from the

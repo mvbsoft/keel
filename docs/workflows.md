@@ -318,7 +318,9 @@ Start the next one with /keel:start-task csv-export/T4.
 ```
 
 A ticket whose text changed since its review shows "needs review" after its state. A feature whose
-every ticket is `done` or `abandoned` gets the offer of its [end](planning.md#end-of-a-feature).
+every ticket is `done` or `abandoned` while its plan is still open (the last one closed in another
+session or repository) is listed too: keel asks "Mark the plan done?", then offers its
+[end](planning.md#end-of-a-feature).
 
 | You type | keel does |
 |---|---|

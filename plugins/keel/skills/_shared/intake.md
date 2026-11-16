@@ -226,7 +226,9 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
 `node "<keel>/scripts/plans.js" "<project>" <command> ...`.
 1. **Which ticket.** No instruction → `tickets`: its `next: <feature>/T<n>` line becomes "next planned:
    <feature>/T<n>" under the step 2 list (`next: none` or `tickets: none` → nothing). "next ticket" →
-   `tickets --fetch`, take its `next:` line (`next: none` → say so and show its list). Then (also for a
+   `tickets --fetch`, take its `next:` line (`next: none` → say so and show its list). Either list's
+   `plan: ... plans.js state <f> done` line (its last ticket closed elsewhere) → "Feature <f> is
+   complete. Mark the plan done?"; yes → run it, then "End of feature" in git.md. Then (also for a
    `<feature>/T<n>` given) `tickets <feature>/T<n> --fetch`; `tickets: none (...)` → say so and stop.
 2. **Its state** (its line, `branch: <b> -> <merge_into>`, `file:`, `remote:`, `depends:`):
    - `draft` → still being planned: say so (`/keel:start-planning <feature>` finishes it) and stop;

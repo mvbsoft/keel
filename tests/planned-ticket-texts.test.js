@@ -241,3 +241,8 @@ test('every plans.js output line the task and session instructions quote is prin
   for (const cmd of ['tickets', 'status', 'reviewed', 'state', 'drop', 'commit', 'push', 'list', 'repos']) assert.ok(named.has(cmd), `the instructions never call ${cmd}`);
   for (const cmd of named) assert.match(header, new RegExp(`^//   ${cmd}\\b`, 'm'), `plans.js documents no ${cmd}`);
 });
+
+test('a plan whose last ticket was closed elsewhere: /keel:tasks and start-task act on the plan: line of plans.js tickets', () => {
+  says(skill('tasks'), ['`plan: every ticket is done or abandoned: plans.js state <f> done`', 'its last ticket closed elsewhere', '"Mark the plan <f>', 'done?"', 'that `plans.js state <f> done`']);
+  says(planned(), ['`plan: ... plans.js state <f> done` line', 'its last ticket closed elsewhere', 'Mark the plan done?', '"End of feature" in git.md']);
+});

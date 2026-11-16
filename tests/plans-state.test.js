@@ -71,11 +71,11 @@ gitTest('tickets: a draft is never next; a ticket that depends on an abandoned o
   ]);
   assert.deepEqual(run(work, 'tickets', 's3-storage/T9'), ['tickets: none (no ticket s3-storage/T9)']);
   assert.deepEqual(run(work, 'tickets', 'no-such-thing'), ['tickets: none (no feature no-such-thing)']);
-  // Without an argument: only ready or in-progress features with an open ticket.
+  // Without an argument: only ready or in-progress features with tickets; all closed: its plan: line.
   run(work, 'new', 'csv-export');
   assert.deepEqual(run(work, 'tickets').slice(0, 2), ['tickets: 1 feature, 4 tickets', 's3-storage (ready; 0 of 4 done)']);
   for (const n of [2, 3, 4]) run(work, 'status', 's3-storage', `T${n}`, 'abandoned', '--reason', 'x');
-  assert.deepEqual(run(work, 'tickets'), ['tickets: none']);
+  assert.equal(run(work, 'tickets').at(-2), 'plan: every ticket is done or abandoned: plans.js state s3-storage done');
   assert.equal(run(work, 'tickets', 's3-storage').at(-2), 'plan: every ticket is done or abandoned: plans.js state s3-storage done');
 });
 
@@ -211,4 +211,16 @@ gitTest('tickets: a feature name in another case is the same feature, as in a ta
   ready(work, 's3-storage', 1);
   assert.deepEqual(run(work, 'tickets', 'S3-Storage'), run(work, 'tickets', 's3-storage'));
   assert.deepEqual(run(work, 'tickets', 'S3-Storage/t1'), run(work, 'tickets', 's3-storage/T1'));
+});
+
+gitTest('tickets with no feature: an open plan whose tickets are all closed stays in the list with its plan: line', () => {
+  const { work } = setup({ remote: false });
+  ready(work, 's3-storage', 1);
+  run(work, 'status', 's3-storage', 'T1', 'in-progress');
+  run(work, 'status', 's3-storage', 'T1', 'done');
+  const out = run(work, 'tickets');
+  assert.ok(out.includes('plan: every ticket is done or abandoned: plans.js state s3-storage done'), out.join('\n'));
+  assert.equal(out.at(-1), 'next: none');
+  run(work, 'state', 's3-storage', 'done');
+  assert.deepEqual(run(work, 'tickets'), ['tickets: none']);
 });

@@ -415,9 +415,10 @@ the only status: keel never reads or writes a status in the tracker.
 
 ## End of a feature
 
-When the last ticket is `done` or `abandoned`, keel says "Feature <f> is complete" (also `/keel:tasks`
-when it finds one, and `plans.js check` and `plans.js tickets` print `plan: every ticket is done or
-abandoned`) and offers `plans.js state <feature> done`. Then it asks one question at a time, each step
+When the last ticket is `done` or `abandoned`, keel says "Feature <f> is complete" (`plans.js check`
+and `plans.js tickets` print `plan: every ticket is done or abandoned`; `plans.js tickets` with no
+feature lists such an open plan too, so `/keel:tasks` and `/keel:start-task` find it also when the last
+ticket was closed in another session or repository) and offers `plans.js state <feature> done`. Then it asks one question at a time, each step
 only on its yes, in both git modes: 1) onto the feature branch (a ticket branch first merges into it);
 2) keep the files (default) or remove them: the folder goes to keel's trash, and one in the repository
 leaves in its own commit on the feature branch, before the merge; 3) "Merge `<branch>` into

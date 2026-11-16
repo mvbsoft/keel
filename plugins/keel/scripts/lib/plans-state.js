@@ -64,8 +64,9 @@ function remoteLine(root, d, t) {
 // The feature's tickets, an elsewhere one as its file in its repository says.
 const featureTickets = (root, d) => (d.fm.home ? plans.tickets(d) : require('./plans-repos.js').withElsewhere(root, d, plans.tickets(d)));
 
-// arg: a feature, <feature>/T<n>, or nothing (every ready or in-progress feature with a ticket not done
-// or abandoned). `--fetch`: the remote first, so git's warning sees the merged branches.
+// arg: a feature, <feature>/T<n>, or nothing (every ready or in-progress feature with tickets; one whose
+// tickets are all closed shows its `plan:` line, also when the last one was closed in another session or
+// repository). `--fetch`: the remote first, so git's warning sees the merged branches.
 function ticketsCommand(root, arg, { fetch = false } = {}) {
   const notes = fetch ? require('./plans-git.js').fetched(root).notes : [];
   const all = plans.listDrafts(root).map((d) => ({ d, list: featureTickets(root, d) }));
@@ -73,7 +74,7 @@ function ticketsCommand(root, arg, { fetch = false } = {}) {
   // Feature names are lower case (lib/plans-drafts.js), so another case names the same one, as in ticket:.
   const name = (one ? one[1] : typeof arg === 'string' ? arg : '').toLowerCase() || null;
   const shown = name ? all.filter((f) => f.d.feature === name)
-    : all.filter((f) => OPEN_PLAN.includes(f.d.fm.status) && f.list.some((t) => !plans.CLOSED.includes(t.fm.status)));
+    : all.filter((f) => OPEN_PLAN.includes(f.d.fm.status) && f.list.length);
   if (name && !shown.length) return [`tickets: none (no feature ${clean(name, 60)})`, ...notes];
   if (!shown.length) return ['tickets: none', ...notes];
   const out = [];
