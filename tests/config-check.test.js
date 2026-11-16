@@ -240,7 +240,8 @@ test('keel 2.0.0 planning fields are named once: no longer used, and needed whil
   const lines = block(p.check());
   const legacy = lines.filter((l) => l.includes('no longer used'));
   assert.deepEqual(legacy.map((l) => l.split(' | ')[0]), ['- code [needed]: planning.ticket_prefix, planning.tickets in .keel/config.json are no longer used'], lines.join('\n'));
-  assert.ok(lines.some((l) => l.startsWith('- code [worth]: ticket ids in the git history: SHOP')), 'the old planning prefix is no ticket prefix any more');
+  assert.ok(!lines.some((l) => l.startsWith('- code [worth]: ticket ids in the git history: SHOP')), 'the old planning prefix is still checked in comments until configure moves it');
+  assert.ok(legacy[0].includes('moves planning.ticket_prefix into comments.ticket_prefixes'), legacy[0]);
   write(path.join(p.dir, '.keel', 'config.json'), JSON.stringify({ ...CONFIG, planning: { ticket_prefix: 'SHOP', place: 'repo' } }));
   assert.ok(block(p.check()).some((l) => l.startsWith('- code [worth]: planning.ticket_prefix in .keel/config.json is no longer used')), 'with place set it is only worth a look');
 });

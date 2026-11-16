@@ -261,8 +261,9 @@ Without them planning does not start. Ask in one call:
 - **Ticket language** (`planning.language`), detailed setup only: the language of `plan.md` and the
   tickets; recommend `repo_language` (the team reads them) and write it only when it differs. Quick
   setup takes `repo_language`.
-keel 2.0.0's `planning.ticket_prefix` and `planning.tickets` are no longer read: drop them when
-writing the config.
+keel 2.0.0's `planning.ticket_prefix` and `planning.tickets` are no longer read for planning: drop
+them when writing the config, after adding the prefix to `comments.ticket_prefixes` when it is not
+listed there, so comments are still checked for it.
 
 **Ids in comments and docs** (`comments.ticket_prefixes`, `comments.adr_refs`, `comments.refs_exempt`).
 A ticket id, a commit hash or a record code in a comment or doc points at something that may be

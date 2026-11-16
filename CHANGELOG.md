@@ -16,6 +16,9 @@ All notable changes to keel are listed here. The format follows
 - A stub shows `stub` in `plans.js tickets`, `plans.js status <feature> T<n> in-progress` refuses it,
   and `/keel:start-task <feature>/T<n>` for a stub says it is planned in full in its repository and
   stops, before any branch or status change.
+- Comments are checked for keel 2.0.0's `planning.ticket_prefix` again (`// TODO(CAN-123)` with
+  `planning.ticket_prefix: "CAN"`), and `/keel:configure` moves that prefix into
+  `comments.ticket_prefixes` instead of dropping it.
 
 ## [2.1.0] - 2026-11-16
 

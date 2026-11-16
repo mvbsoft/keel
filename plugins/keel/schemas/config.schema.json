@@ -298,7 +298,7 @@
       }
     },
     "planning": {
-      "description": "Optional. The team's planning settings (/keel:start-planning). Without place, planning does not start: /keel:configure planning asks it. keel 2.0.0's ticket_prefix and tickets are no longer read: a config that has them stays valid, and /keel:configure check names them.",
+      "description": "Optional. The team's planning settings (/keel:start-planning). Without place, planning does not start: /keel:configure planning asks it. keel 2.0.0's ticket_prefix and tickets are no longer read for planning: a config that has them stays valid, comments are still checked for ticket_prefix until /keel:configure moves it into comments.ticket_prefixes, and /keel:configure check names them.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
