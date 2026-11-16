@@ -109,7 +109,7 @@ gitTest('commit: a feature folder HEAD has and the working tree no longer has (d
   write(work, 'tickets/payments/plan.md', '---\ntype: plan\nstatus: draft\n---\n# payments\n');
   git(work, 'add', '-A');
   git(work, 'commit', '-q', '-m', 'payments');
-  for (const n of [1, 2]) run(work, 'status', 's3-storage', `T${n}`, 'done');
+  for (const n of [1, 2]) for (const to of ['in-progress', 'done']) run(work, 'status', 's3-storage', `T${n}`, to);
   const head = git(work, 'rev-parse', 'HEAD');
   assert.match(run(work, 'drop', 's3-storage')[0], /^drop: tickets\/s3-storage\/? -> trash /);
   assert.match(run(work, 'commit', 's3-storage')[0], /^committed: [0-9a-f]{7,} Remove the s3-storage plan$/);

@@ -11,7 +11,7 @@
 //   conversation). `page` is the feature's random code that names its page (feature-page.js) the same
 //   from every machine and repository.
 // - States, of the plan and of each ticket alike: draft -> ready -> in-progress -> done, and abandoned
-//   (with a reason) from any; only `status` holds them. An edit never changes a status: a change of an
+//   (with a reason) from any; only `status` holds them, and they move forward only (backward). An edit never changes a status: a change of an
 //   essential section marks a ticket or the plan as needing review (lib/plans-drafts.js).
 // - Settings: lib/plans-settings.js. The planning chat marks (in the main checkout, lib/chat-marks.js):
 //   .keel/local/plans/keel/sessions/<session id>.json = { "feature": "<name>" }.
@@ -281,6 +281,18 @@ function draftReviewed(root, feature, ids) {
 
 const unknownState = (what, to) => refuse(what, `unknown state "${clean(String(to))}": ${STATES.join(', ')}`);
 
+const FORWARD = ['draft', 'ready', 'in-progress', 'done'];
+// Why a status may not move from `from` to `to` (a plan's when `plan`), or null: forward along FORWARD,
+// abandoned from any. A plan also goes back from ready to draft (its planning reopened); a ticket is
+// taken again (in-progress) from done or abandoned: a finish whose git step stopped, or the user starts
+// it again. A status that is no state (check names it) may go anywhere.
+function backward(from, to, plan) {
+  if (from === to || to === 'abandoned' || !STATES.includes(from)) return null;
+  if (plan ? from === 'ready' && to === 'draft' : to === 'in-progress' && CLOSED.includes(from)) return null;
+  if (from !== 'abandoned' && FORWARD.indexOf(to) > FORWARD.indexOf(from)) return null;
+  return `${from} -> ${to}: a state moves forward only (${FORWARD.join(', ')}); abandoned from any`;
+}
+
 // Writes a ticket's front matter fields: an elsewhere ticket's in its file there (lib/plans-repos.js
 // withElsewhere), any other here. Returns the ticket as written.
 function writeStatus(root, d, t, updates) {
@@ -322,6 +334,8 @@ function draftState(root, feature, to, o = {}) {
   if (to === 'abandoned' && !reason) return refuse('state', 'abandoned needs --reason "<why>"');
   const from = d.fm.status;
   if (from === to) return [`status: ${to} (already)`];
+  if (from === 'draft' && ['in-progress', 'done'].includes(to)) return refuse('state', `the plan is a draft: plans.js state ${feature} ready first`);
+  if (backward(from, to, true)) return refuse('state', backward(from, to, true));
   const list = repos().withElsewhere(root, d, tickets(d));
   const out = [`status: ${to}`];
   try {
@@ -381,6 +395,8 @@ function ticketStatus(root, feature, id, to, o = {}) {
   if (o.branch !== undefined && (to !== 'in-progress' || typeof o.branch !== 'string' || !validBranch(root, o.branch))) return refuse('status', '--branch goes with in-progress and takes a valid branch name');
   const branch = o.branch !== undefined ? { branch: o.branch } : {};
   if (t.fm.status === to && to !== 'abandoned' && (o.branch === undefined || o.branch === t.fm.branch)) return [`status: ${t.id} ${to} (already)`];
+  if (to === 'done' && ['draft', 'ready'].includes(t.fm.status)) return refuse('status', `${t.id} is ${t.fm.status}: done only from in-progress (plans.js status ${feature} ${t.id} in-progress first)`);
+  if (backward(t.fm.status, to, false)) return refuse('status', backward(t.fm.status, to, false));
   const out = [`status: ${t.id} ${to}${o.branch !== undefined ? ` on ${o.branch}` : ''}`];
   let now;
   try {

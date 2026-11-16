@@ -245,7 +245,8 @@ gitTest('a feature: its texts, states from the status fields, sizes and terms go
   plans(api, 'status', FEATURE, 'T2', 'in-progress');
   assert.deepEqual(pageData(line(run(api, FEATURE), 'page')).data.tickets.map((t) => [t.state, t.next]), [['done', false], ['in progress', false]]);
   plans(api, 'status', FEATURE, 'T1', 'abandoned', '--reason', 'не треба');
-  plans(api, 'status', FEATURE, 'T2', 'ready');
+  // plans.js never moves a ticket back: the field by hand, as the page only reads it.
+  write(api, `${T}/tickets/T2-badge.md`, fs.readFileSync(path.join(api, T, 'tickets', 'T2-badge.md'), 'utf8').replace('status: in-progress', 'status: ready'));
   const after = pageData(line(run(api, FEATURE), 'page')).data.tickets;
   assert.deepEqual(after.map((t) => [t.state, t.next]), [['abandoned', false], ['to do', false]]);
   assert.deepEqual(after[1].depends, [{ key: 'T1', met: false, state: 'abandoned', feature: null, where: null }]);

@@ -483,7 +483,7 @@ test('ticket on a ready feature: a draft that needs review; the plan keeps its s
   assert.match(run(dir, 'state', 's3-connection', 'done')[0], /refused \(not every ticket is done or abandoned: T1 ready, T2 ready, T3 ready\)/);
 });
 
-test('status: a ticket moves to any state; in-progress takes a ready plan along; done of the last says the plan can be done', () => {
+test('status: a ticket moves forward; in-progress takes a ready plan along; done of the last says the plan can be done', () => {
   const dir = project();
   filled(dir, 's3-connection');
   run(dir, 'reviewed', 's3-connection', 'T1', 'T2');
@@ -499,7 +499,7 @@ test('status: a ticket moves to any state; in-progress takes a ready plan along;
   ]);
   assert.match(readRel(dir, `${LOCAL}/s3-connection/tickets/T2-ticket-2.md`), /^reason: the SDK does it$/m);
   assert.deepEqual(run(dir, 'check', 's3-connection').at(-1), 'plan: every ticket is done or abandoned: plans.js state s3-connection done');
-  assert.deepEqual(run(dir, 'status', 's3-connection', 'T2', 'ready'), ['status: T2 ready']);
+  assert.deepEqual(run(dir, 'status', 's3-connection', 'T2', 'in-progress'), ['status: T2 in-progress']);
   assert.doesNotMatch(readRel(dir, `${LOCAL}/s3-connection/tickets/T2-ticket-2.md`), /^reason:/m, 'the reason leaves with abandoned');
   assert.match(run(dir, 'status', 's3-connection', 'T2', 'closed')[0], /refused \(unknown state "closed": draft, ready, in-progress, done, abandoned\)/);
   assert.match(run(dir, 'status', 's3-connection', 'T9', 'done')[0], /refused \(no ticket T9 in s3-connection\)/);
@@ -516,9 +516,11 @@ test('status and state --project: a session in another folder updates the featur
   filled(dir, 's3-connection');
   run(dir, 'reviewed', 's3-connection', 'T1', 'T2');
   run(dir, 'state', 's3-connection', 'ready');
+  run(elsewhere, 'status', 's3-connection', 'T1', 'in-progress', '--project', dir);
   assert.deepEqual(run(elsewhere, 'status', 's3-connection', 'T1', 'done', '--project', dir), ['status: T1 done']);
   assert.match(readRel(dir, `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`), /^status: done$/m);
-  assert.deepEqual(run(elsewhere, 'state', 's3-connection', 'in-progress', '--project', dir), ['status: in-progress']);
+  // The taken ticket moved the plan there.
+  assert.deepEqual(run(elsewhere, 'state', 's3-connection', 'in-progress', '--project', dir), ['status: in-progress (already)']);
   assert.match(run(elsewhere, 'status', 's3-connection', 'T1', 'done', '--project')[0], /refused \(--project needs the project's folder\)/);
   const missing = path.join(dir, 'no-such-folder');
   assert.deepEqual(run(elsewhere, 'state', 's3-connection', 'done', '--project', missing), [`plans: state refused (--project: ${missing} is no folder)`]);
@@ -528,7 +530,7 @@ test('status and state --project: a session in another folder updates the featur
 test('state abandoned: needs a reason, abandons every open ticket with it, clears the chat marks; the files stay', () => {
   const dir = project();
   filled(dir, 's3-connection', 3);
-  run(dir, 'status', 's3-connection', 'T1', 'done');
+  front(dir, `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`, 'status', 'done');
   run(dir, 'mark', 'set', 's3-connection', '--session', 'chat-1');
   assert.match(run(dir, 'state', 's3-connection', 'abandoned')[0], /refused \(abandoned needs --reason "<why>"\)/);
   assert.deepEqual(run(dir, 'state', 's3-connection', 'abandoned', '--reason', 'the vendor does it'), ['status: abandoned', 'abandoned: T2, T3']);
@@ -611,4 +613,32 @@ test('plans.js: unknown commands are named, never thrown', () => {
   assert.equal(run(dir)[0], 'features: 0');
   assert.match(run(dir, 'export', 's3-connection')[0], /^plans: unknown command "export"/);
   assert.match(run(dir, 'done', 'PROJ-1')[0], /^plans: unknown command "done"/);
+});
+
+test('states move forward only: a plan goes back from ready to draft, a ticket is done only from in-progress and taken again from a closed state', () => {
+  const dir = project();
+  filled(dir, 's3-connection');
+  const moved = (out) => !/refused/.test(out[0]);
+  // The plan: in-progress or done only after ready; back only from ready to draft.
+  assert.match(run(dir, 'state', 's3-connection', 'in-progress')[0], /^plans: state refused \(the plan is a draft: plans\.js state s3-connection ready first\)/);
+  assert.match(run(dir, 'state', 's3-connection', 'done')[0], /^plans: state refused \(the plan is a draft/);
+  run(dir, 'reviewed', 's3-connection', 'T1', 'T2');
+  assert.ok(moved(run(dir, 'state', 's3-connection', 'ready')));
+  assert.deepEqual(run(dir, 'state', 's3-connection', 'draft'), ['status: draft']);
+  assert.ok(moved(run(dir, 'state', 's3-connection', 'ready')));
+  // A ticket: done only from in-progress; never back to draft or ready.
+  assert.equal(run(dir, 'status', 's3-connection', 'T1', 'done')[0], 'plans: status refused (T1 is ready: done only from in-progress (plans.js status s3-connection T1 in-progress first))');
+  assert.equal(run(dir, 'status', 's3-connection', 'T1', 'draft')[0], 'plans: status refused (ready -> draft: a state moves forward only (draft, ready, in-progress, done); abandoned from any)');
+  assert.ok(moved(run(dir, 'status', 's3-connection', 'T1', 'in-progress')));
+  assert.equal(run(dir, 'state', 's3-connection', 'ready')[0], 'plans: state refused (in-progress -> ready: a state moves forward only (draft, ready, in-progress, done); abandoned from any)');
+  assert.ok(moved(run(dir, 'status', 's3-connection', 'T1', 'done')));
+  assert.match(run(dir, 'status', 's3-connection', 'T1', 'ready')[0], /^plans: status refused \(done -> ready: a state moves forward only/);
+  // Taken again: a finish that did not complete, or the user starts a closed ticket again.
+  assert.ok(moved(run(dir, 'status', 's3-connection', 'T1', 'in-progress')));
+  run(dir, 'status', 's3-connection', 'T2', 'abandoned', '--reason', 'later');
+  assert.match(run(dir, 'status', 's3-connection', 'T2', 'ready')[0], /^plans: status refused \(abandoned -> ready: a state moves forward only/);
+  assert.ok(moved(run(dir, 'status', 's3-connection', 'T2', 'in-progress')));
+  // A closed plan does not open again.
+  run(dir, 'state', 's3-connection', 'abandoned', '--reason', 'no time');
+  assert.match(run(dir, 'state', 's3-connection', 'draft')[0], /^plans: state refused \(abandoned -> draft: a state moves forward only/);
 });

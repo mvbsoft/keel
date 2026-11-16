@@ -133,6 +133,7 @@ gitTest('drop: refused while a ticket is open and on the branch the feature merg
   ready(work, 's3-storage', 2, 'tickets/s3-storage');
   run(work, 'mark', 'set', 's3-storage', '--session', 'chat-1');
   assert.deepEqual(run(work, 'drop', 's3-storage'), ['plans: drop refused (not every ticket of s3-storage is done or abandoned: T1 ready, T2 ready)']);
+  run(work, 'status', 's3-storage', 'T1', 'in-progress');
   run(work, 'status', 's3-storage', 'T1', 'done');
   run(work, 'status', 's3-storage', 'T2', 'abandoned', '--reason', 'later');
   git(work, 'checkout', '-q', 'main');
@@ -148,6 +149,7 @@ gitTest('drop: refused while a ticket is open and on the branch the feature merg
 test('drop: a feature on this machine goes to keel\'s trash once its tickets are closed, on any branch', () => {
   const { work } = setup({ remote: false });
   ready(work, 's3-storage', 1);
+  run(work, 'status', 's3-storage', 'T1', 'in-progress');
   run(work, 'status', 's3-storage', 'T1', 'done');
   assert.match(run(work, 'drop', 's3-storage')[0], /^drop: \.keel\/local\/plans\/keel\/s3-storage\/? -> trash /);
   assert.ok(!exists(work, `${LOCAL}/s3-storage`));

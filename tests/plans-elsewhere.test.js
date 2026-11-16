@@ -95,6 +95,7 @@ gitTest('check, review, states, tickets and next read an elsewhere ticket in its
   assert.deepEqual(run(api, 'status', FEATURE, 'T1', 'done'), ['status: T1 done']);
   assert.match(readRel(web, `${THERE}/tickets/T1-badge.md`), /^status: done$/m);
   assert.equal(run(api, 'tickets', FEATURE).at(-1), `next: ${FEATURE}/T2`);
+  run(api, 'status', FEATURE, 'T2', 'in-progress');
   assert.deepEqual(run(api, 'status', FEATURE, 'T2', 'done'), ['status: T2 done', `plan: every ticket is done or abandoned: plans.js state ${FEATURE} done`]);
   assert.ok(run(api, 'check', FEATURE).includes(`plan: every ticket is done or abandoned: plans.js state ${FEATURE} done`));
 });
