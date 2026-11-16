@@ -290,13 +290,18 @@ function writeStatus(root, d, t, updates) {
 }
 
 // The plan's status into the other repositories' folders of the feature (their plan.md with home:), so
-// there the feature shows as the plan is; one that cannot be read is left as it is.
+// there the feature shows as the plan is; one that cannot be read is left as it is. Returns a `note:`
+// for each repository it changed: keel never commits there.
 function mirrorStatus(list, status) {
   const done = new Set();
+  const out = [];
   for (const t of list.filter((x) => x.there && !done.has(x.there.d.folder))) {
     done.add(t.there.d.folder);
+    if (t.there.d.fm.status === status) continue;
     writePlan(t.there.folder, t.there.d, { status });
+    out.push(`note: ${clean(t.there.name, 120)} has changes in its working tree: commit them there`);
   }
+  return out;
 }
 
 // The note for each elsewhere ticket a state left as it is: its file cannot be read.
@@ -350,7 +355,7 @@ function draftState(root, feature, to, o = {}) {
       }
       writePlan(root, d, { status: to, reason: null, ...(to === 'draft' ? { ready_hash: '-' } : {}) });
     }
-    mirrorStatus(list, to);
+    out.push(...mirrorStatus(list, to));
   } catch (e) { return refuse('state', e.message); }
   if (CLOSED.includes(to)) {
     try { clearMarks(root, (m) => m.feature === d.feature); } catch (e) { out.push(`chat marks not cleared: ${e.message}`); }
@@ -380,7 +385,7 @@ function ticketStatus(root, feature, id, to, o = {}) {
   let now;
   try {
     now = writeStatus(root, d, t, { status: to, reason: to === 'abandoned' ? reason : null, ...branch });
-    if (to === 'in-progress' && d.fm.status === 'ready' && !given(d.fm.home)) { writePlan(root, d, { status: 'in-progress' }); mirrorStatus(list, 'in-progress'); out.push('plan: in-progress'); }
+    if (to === 'in-progress' && d.fm.status === 'ready' && !given(d.fm.home)) { writePlan(root, d, { status: 'in-progress' }); out.push('plan: in-progress', ...mirrorStatus(list, 'in-progress')); }
   } catch (e) { return refuse('status', e.message); }
   if (to === 'abandoned') {
     for (const x of list.filter((x) => !CLOSED.includes(x.fm.status) && ticketIds(x.fm.depends_on).map((k) => k.toUpperCase()).includes(t.id))) {

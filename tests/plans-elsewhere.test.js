@@ -78,7 +78,7 @@ gitTest('check, review, states, tickets and next read an elsewhere ticket in its
   assert.deepEqual(run(api, 'reviewed', FEATURE, 'T1', 'T2'), ['reviewed: 2', '- T1: reviewed', '- T2: reviewed']);
   assert.match(readRel(web, `${THERE}/tickets/T1-badge.md`), /^review_hash: [0-9a-f]{12}$/m);
   assert.doesNotMatch(readRel(api, `${PLAN}/tickets/T1-badge.md`), /review_hash|status/);
-  assert.deepEqual(run(api, 'state', FEATURE, 'ready'), ['status: ready', 'ready: T1, T2']);
+  assert.deepEqual(run(api, 'state', FEATURE, 'ready'), ['status: ready', 'ready: T1, T2', 'note: web has changes in its working tree: commit them there']);
   assert.match(readRel(web, `${THERE}/tickets/T1-badge.md`), /^status: ready$/m);
   assert.match(readRel(web, `${THERE}/plan.md`), /^status: ready$/m, 'the plan\'s status goes there too');
 
@@ -131,7 +131,7 @@ gitTest('drop and abandon reach an elsewhere ticket; a ticket missing there is u
   const { api, web } = w;
   draft(w);
   assert.equal(run(api, 'drop', FEATURE)[0], `plans: drop refused (not every ticket of ${FEATURE} is done or abandoned: T1 draft, T2 draft)`);
-  assert.deepEqual(run(api, 'state', FEATURE, 'abandoned', '--reason', 'no time'), ['status: abandoned', 'abandoned: T1, T2']);
+  assert.deepEqual(run(api, 'state', FEATURE, 'abandoned', '--reason', 'no time'), ['status: abandoned', 'abandoned: T1, T2', 'note: web has changes in its working tree: commit them there']);
   assert.match(readRel(web, `${THERE}/tickets/T1-badge.md`), /^reason: no time$/m);
   assert.match(readRel(web, `${THERE}/plan.md`), /^status: abandoned$/m);
   fs.rmSync(path.join(web, THERE, 'tickets', 'T1-badge.md'));

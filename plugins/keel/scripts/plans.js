@@ -31,8 +31,9 @@
 //   check <feature>                      the structure (lib/plans-format.js): the "# [id] title" heading,
 //                                         sections once and in their order, the Boundaries labels, acceptance
 //                                         criteria as a list, no TBD or <...> (not in a closed ticket), the
-//                                         files Where to look names exist, status and depends_on valid, no cycles. Another repository's
-//                                         ticket (repo:) is checked in its folder, an elsewhere one there;
+//                                         files Where to look names exist, status and depends_on valid, no
+//                                         cycles. Another repository's ticket (repo:) is checked in its
+//                                         folder, an elsewhere one there;
 //                                         without one: a `note:`. Then `warn:` for a ticket whose branch is
 //                                         merged into merge_into while it is not done, and `plan:` when every
 //                                         ticket is done or abandoned (an elsewhere one whose status cannot
