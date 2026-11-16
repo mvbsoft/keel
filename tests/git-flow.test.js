@@ -410,12 +410,13 @@ gitTest('a checkout without .keel/config.json is not configured: git steps and v
   git(work, 'switch', '-q', '-c', 'prod');
   write(work, 'src/app.js', 'changed\n');
   write(work, '.keel/local/tmp/commit-message.txt', 'feat: x\n');
-  const missing = 'reason: keel is not configured here (config missing: no .keel/config.json); run /keel:configure';
+  // The refusal also names the flag, for a call in another repository's folder that forgot it.
+  const why = "keel is not configured here (config missing: no .keel/config.json); run /keel:configure; in the folder of another repository's ticket, add --other-repo";
   for (const args of [['status'], ['commit', '--message-file', '.keel/local/tmp/commit-message.txt']]) {
-    assert.deepEqual(flow(work, ...args), ['git-flow: unavailable', missing], args[0]);
+    assert.deepEqual(flow(work, ...args), ['git-flow: unavailable', `reason: ${why}`], args[0]);
   }
   const script = (name, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, name), work, ...args], { encoding: 'utf8' });
-  assert.equal(script('changes.js').stdout.trim(), 'changes: unavailable (keel is not configured here (config missing: no .keel/config.json); run /keel:configure)');
+  assert.equal(script('changes.js').stdout.trim(), `changes: unavailable (${why})`);
   for (const [name, ...args] of [['fingerprint.js', 'save', '--tier', 'basic'], ['votes.js', 'plan', '--tier', 'basic']]) {
     const r = script(name, ...args);
     assert.match(r.stdout + r.stderr, /keel is not configured here \(config missing/, name);

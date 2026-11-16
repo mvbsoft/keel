@@ -34,7 +34,9 @@ All notable changes to keel are listed here. The format follows
   `changes.js`, `fingerprint.js` and `votes.js` (`keel is not configured here ...; run
   /keel:configure`), as in 2.0.0, instead of running with defaults (no gates, manual git, the main
   branch from `origin/HEAD`, so commits on the real main branch were no longer refused). The defaults
-  apply only with `--other-repo`, which keel passes in the folder of another repository's ticket.
+  apply only with `--other-repo`, which keel passes in the folder of another repository's ticket
+  (verification, resuming such a task, and the hook's refusal of `task delete` name it; the refusal of a
+  call without it says to add it).
 
 ## [2.1.0] - 2026-11-16
 

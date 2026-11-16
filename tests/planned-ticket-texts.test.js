@@ -55,6 +55,8 @@ test('a ticket of another repository: every git and verification script there ru
   says(planned(), ['`git-flow.js "<its folder>" status --other-repo`']);
   says(skill('end-task'), ["its `repo:` → another repository", 'in place of `<project>`', '`--other-repo` as the last argument', ...scripts]);
   says(shared('git.md'), ['**A ticket of another repository**', 'every `git-flow.js` step', 'in place of `<project>`', 'with `--other-repo` last']);
+  says(shared('verify.md'), ["A ticket of another repository (the task's `repo:`)", "`<project>` below is that repository's folder", '`changes.js`, `fingerprint.js` and `votes.js`', 'ends with `--other-repo`']);
+  says(shared('task-resume.md'), ["repository's ticket (its `repo:`)", "run on that repository's", 'in place of `<project>`', 'each `git-flow.js` call with `--other-repo` last', '`notes.js` stays on `<project>`']);
   for (const name of ['git-flow.js', 'changes.js', 'fingerprint.js', 'votes.js']) assert.match(read('scripts', name), /opts\['other-repo'\]/, `${name} reads --other-repo`);
 });
 
