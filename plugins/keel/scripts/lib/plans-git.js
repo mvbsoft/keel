@@ -50,6 +50,8 @@ function refOf(root, branch, remote) {
 // Merged: the branch's last commit is in the target's history but not on its first-parent line, so a
 // branch just made from the target (no commit of its own yet) is not taken for merged.
 // shortcut: a fast-forward or squash merge is not seen; the task's base commit would show both.
+// shortcut: a ticket of another repository (repo:) has its branch there, so this repository finds no
+// merge of it and gives no warning; reading that repository's branches would show it.
 function mergedWarnings(root, d, list) {
   const open = list.filter((t) => !plans.CLOSED.includes(t.fm.status) && given(t.fm.branch));
   if (!open.length || readGit(root, ['rev-parse', '--git-dir']) === null) return [];
