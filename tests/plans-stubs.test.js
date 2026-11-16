@@ -162,3 +162,16 @@ gitTest('a stub is never next: it cannot be started until it is a full ticket', 
   const data = JSON.parse(/id="feature-data">([\s\S]*?)<\/script>/.exec(fs.readFileSync(line(page(w.api, FEATURE), 'page'), 'utf8'))[1]);
   assert.deepEqual(data.tickets.map((t) => t.next), [false, false, false]);
 });
+
+gitTest('check: a closed ticket or stub is not checked for placeholders', () => {
+  const w = world();
+  draft(w);
+  body(w.api, `${PLAN}/tickets/T2-admin-counter.md`, stubText('T2').replace('The admin shows', '<who> shows'));
+  body(w.api, `${PLAN}/tickets/T1-event.md`, ticketText('T1', 'src/app.js:1').replace('Do one thing.', 'Do <what>.'));
+  const open = run(w.api, 'check', FEATURE);
+  assert.ok(open.some((l) => /^- T2: placeholder /.test(l)) && open.some((l) => /^- T1: placeholder /.test(l)), open.join('\n'));
+  run(w.api, 'status', FEATURE, 'T2', 'abandoned', '--reason', 'the admin is out');
+  run(w.api, 'status', FEATURE, 'T1', 'abandoned', '--reason', 'not needed');
+  const closed = run(w.api, 'check', FEATURE);
+  assert.ok(!closed.some((l) => / placeholder /.test(l)), closed.join('\n'));
+});

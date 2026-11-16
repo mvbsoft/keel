@@ -251,7 +251,7 @@ there.
 | `/keel:end-planning` | Open questions or structure problems → hands over, with the reason in one line; otherwise asks "Final review and ready, or hand over?". |
 
 **Final.** 1) The gates: no open questions, a clean structure check (the `# [id] title` heading, each section
-once and in its order, headings inside code blocks being text, every code block closed, the three Boundaries labels, acceptance criteria as a `- [ ]` list, no TBD, the named files exist, no path of this machine in the plan, a ticket or a report (`C:\…`, `/mnt/c/…`, this machine's home folder, the project or a neighbouring repository by its folder: paths go from the repository's root; another `/home/<name>/…` or `/Users/<name>/…` is only a note, as a web route such as `/home/<page>` looks the same),
+once and in its order, headings inside code blocks being text, every code block closed, the three Boundaries labels, acceptance criteria as a `- [ ]` list, no TBD (a done or abandoned ticket is not checked for it), the named files exist, no path of this machine in the plan, a ticket or a report (`C:\…`, `/mnt/c/…`, this machine's home folder, the project or a neighbouring repository by its folder: paths go from the repository's root; another `/home/<name>/…` or `/Users/<name>/…` is only a note, as a web route such as `/home/<page>` looks the same),
 dependencies without cycles; style is the ticket reviewer's advice and never blocks), and a decision for every finding; else keel
 shows what blocks and offers to hand over. 2) Ticket reviews of the tickets not reviewed as they are
 (`keel:ticket-reviewer`, up to 4 tickets per call), then one review of the whole plan

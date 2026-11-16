@@ -140,13 +140,13 @@ function cycles(list) {
   return out;
 }
 
-// One ticket's text, a draft's or an exported one: its structure (lib/plans-format.js), no placeholders,
-// the files Where to look names exist in `filesRoot` (another repository's folder for its ticket; null:
-// not looked for).
-function ticketProblems(root, label, text, filesRoot = root) {
+// One ticket's text: its structure (lib/plans-format.js), no placeholders (unless `closed`: done or
+// abandoned, it is no longer written), the files Where to look names exist in `filesRoot` (another
+// repository's folder for its ticket; null: not looked for).
+function ticketProblems(root, label, text, filesRoot = root, closed = false) {
   const out = ticketStructure(label, text);
   const secs = sections(text);
-  for (const p of placeholders(text)) out.push(`${label}: placeholder ${p}`);
+  if (!closed) for (const p of placeholders(text)) out.push(`${label}: placeholder ${p}`);
   if (unclosedFence(text)) out.push(`${label}: the code block from line ${unclosedFence(text)} is never closed`);
   out.push(...localProblems(label, text, machineFolders(root)));
   if (filesRoot === null) return out;
@@ -202,11 +202,11 @@ function problems(root, d) {
       // A stub's repository is not on this machine: no Where to look to check.
       if (target.own || target.bad) out.push(`${t.id}: a stub's repo "${clean(String(here.fm.repo || ''), 120)}" is not another repository's name`);
       else if (target.folder) notes.push(require('./plans-stubs.js').offerNote(d.feature, t.id, target.name));
-      out.push(...ticketProblems(root, t.id, t.text, null));
+      out.push(...ticketProblems(root, t.id, t.text, null, CLOSED.includes(t.fm.status)));
     } else {
       if (target.bad) out.push(`${t.id}: repo "${clean(target.name, 120)}" is not a repository name`);
       if (!target.own && !target.bad && !target.folder) notes.push(`note: ${t.id}: Where to look not checked (${clean(target.why, 200)})`);
-      out.push(...ticketProblems(root, t.id, t.text, target.own ? root : target.folder));
+      out.push(...ticketProblems(root, t.id, t.text, target.own ? root : target.folder, CLOSED.includes(t.fm.status)));
     }
     if (away) continue;
     for (const dep of ticketIds(t.fm.depends_on)) {
