@@ -239,6 +239,8 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
    - `done` or `abandoned` → say so; start it again only on a yes (a done or abandoned plan opens again
      with it);
    - `in <name>` (it lives in another repository) → say "start it in <name>" and stop;
+   - `stub` → it is planned in full in its repository: once that repository is on this machine,
+     `plans.js ticket <feature> --from-stub T<n>` in `/keel:start-planning <feature>`; say so and stop;
    - a `depends:` ticket not `done`, or a `note:` line → say which and ask: take the next ticket /
      start anyway;
    - `next` or `ready` → read the ticket (`file:`), check its Goal, Acceptance criteria and Where to

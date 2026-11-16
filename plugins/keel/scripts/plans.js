@@ -53,7 +53,7 @@
 //                                         abandoned to in-progress
 //   status <feature> <T<n>> <draft|ready|in-progress|done|abandoned> [--reason <why>] [--branch <b>] [--project <path>]
 //                                         one ticket's status. ready waits for its review; abandoned needs
-//                                         --reason; in-progress (not from draft, again from done or abandoned;
+//                                         --reason; in-progress (not from draft, not for a stub, again from done or abandoned;
 //                                         --branch: the task's branch, into the ticket's branch field) moves a
 //                                         ready, done or abandoned plan to in-progress; done only from in-progress.
 //                                         --project: the project that holds the feature, for a session in

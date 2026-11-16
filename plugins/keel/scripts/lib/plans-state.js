@@ -41,10 +41,10 @@ function blockedNotes(list, shown) {
 }
 
 // An elsewhere ticket (lib/plans-repos.js withElsewhere) shows where it lives, and why its status is
-// unknown when its file there cannot be read.
+// unknown when its file there cannot be read; a stub says it is one (it cannot be started).
 function ticketLine(t, next) {
   if (t.unknown) return `  ${t.id} ${clean(heading(t.text)[1], 80)} — unknown (${clean(t.unknown, 300)})`;
-  const marks = [t === next ? 'next' : t.fm.status || 'no status', plans.needsReview(t) && !plans.CLOSED.includes(t.fm.status) ? 'needs review' : null, t.fm.status === 'in-progress' && t.fm.branch ? `on ${clean(t.fm.branch, 60)}` : null, t.there ? `in ${clean(t.there.name, 120)}` : null];
+  const marks = [t === next ? 'next' : t.fm.status || 'no status', plans.needsReview(t) && !plans.CLOSED.includes(t.fm.status) ? 'needs review' : null, t.fm.status === 'in-progress' && t.fm.branch ? `on ${clean(t.fm.branch, 60)}` : null, t.there ? `in ${clean(t.there.name, 120)}` : null, isStub(t.fm) ? 'stub' : null];
   return `  ${t.id} ${clean(heading(t.text)[1], 80)} — ${marks.filter(Boolean).join(' · ')}`;
 }
 

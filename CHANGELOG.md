@@ -6,6 +6,17 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- In a repository that holds a feature's tickets for another repository's plan (`home:` in its
+  `plan.md`), finishing its last ticket no longer prints `plan: every ticket is done or abandoned`:
+  the plan is done in its home repository, where `plans.js state` runs.
+- The next ticket (`next:` of `plans.js tickets`, the feature page) is one of this repository before one
+  that lives in another repository, so "next ticket" no longer stops at a ticket that must be started
+  there while one here could start.
+- A stub shows `stub` in `plans.js tickets`, `plans.js status <feature> T<n> in-progress` refuses it,
+  and `/keel:start-task <feature>/T<n>` for a stub says it is planned in full in its repository and
+  stops, before any branch or status change.
+
 ## [2.1.0] - 2026-11-16
 
 ### Upgrading from 2.0.0

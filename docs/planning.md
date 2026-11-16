@@ -352,7 +352,8 @@ a ticket back: `/keel:start-task` names it and asks: take the next ticket, or st
 `/keel:start-task <feature>/T<n>` ("next ticket" takes the one `plans.js tickets` names):
 
 1. keel fetches, reads the ticket and says if it is a `draft`, if it needs review, if it is already
-   taken, or if it lives in another repository (then: start it there).
+   taken, if it lives in another repository (then: start it there), or if it is a stub (planned in full
+   in its repository once that repository is on this machine; `plans.js status` refuses to take one).
 2. It reads the ticket, checks its Goal, Acceptance criteria and Where to look against the code, and
    goes on as for any task, with the ticket's acceptance criteria.
 3. The task works on the feature's branch unless you ask for a ticket branch; a ticket branch is the

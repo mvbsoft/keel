@@ -32,6 +32,8 @@ test('start-task: each ticket state has its answer; a draft stops, a changed tic
   says(p, ['`in-progress` here', '`remote: in-progress on <branch>`', 'who took it and where', 'continue it / start over / take another ticket']);
   says(p, ['`done` or `abandoned`', 'start it again only on a yes', 'a done or abandoned plan opens again with it']);
   says(p, ['`in <name>`', 'another repository', '"start it in <name>"', 'stop']);
+  says(p, ['`stub`', 'planned in full in its repository', '`plans.js ticket <feature> --from-stub T<n>`', 'say so and stop']);
+  order(p, '- `stub` →', '- `next` or `ready` →', 'a ready stub stops before it is read as a ticket to start');
   says(p, ['a `depends:` ticket not `done`', '`note:` line', 'take the next ticket /', 'start anyway']);
   says(p, ['`next` or `ready`', 'read the ticket (`file:`)', 'Goal, Acceptance criteria and Where to', 'steps 3-6 as for any task']);
 });
