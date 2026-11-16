@@ -36,16 +36,22 @@ function blockedNotes(list, shown) {
     .map((k) => `note: ${t.id} depends on ${k}, which is abandoned: remove the dependency or abandon ${t.id} too`));
 }
 
+// An elsewhere ticket (lib/plans-repos.js withElsewhere) shows where it lives, and why its status is
+// unknown when its file there cannot be read.
 function ticketLine(t, next) {
-  const marks = [t === next ? 'next' : t.fm.status || 'no status', plans.needsReview(t) && !plans.CLOSED.includes(t.fm.status) ? 'needs review' : null, t.fm.status === 'in-progress' && t.fm.branch ? `on ${clean(t.fm.branch, 60)}` : null];
+  if (t.unknown) return `  ${t.id} ${clean(heading(t.text)[1], 80)} — unknown (${clean(t.unknown, 300)})`;
+  const marks = [t === next ? 'next' : t.fm.status || 'no status', plans.needsReview(t) && !plans.CLOSED.includes(t.fm.status) ? 'needs review' : null, t.fm.status === 'in-progress' && t.fm.branch ? `on ${clean(t.fm.branch, 60)}` : null, t.there ? `in ${clean(t.there.name, 120)}` : null];
   return `  ${t.id} ${clean(heading(t.text)[1], 80)} — ${marks.filter(Boolean).join(' · ')}`;
 }
+
+// The feature's tickets, an elsewhere one as its file in its repository says.
+const featureTickets = (root, d) => (d.fm.home ? plans.tickets(d) : require('./plans-repos.js').withElsewhere(root, d, plans.tickets(d)));
 
 // arg: a feature, <feature>/T<n>, or nothing (every ready or in-progress feature with a ticket not done
 // or abandoned). `--fetch`: the remote first, so git's warning sees the merged branches.
 function ticketsCommand(root, arg, { fetch = false } = {}) {
   const notes = fetch ? require('./plans-git.js').fetched(root).notes : [];
-  const all = plans.listDrafts(root).map((d) => ({ d, list: plans.tickets(d) }));
+  const all = plans.listDrafts(root).map((d) => ({ d, list: featureTickets(root, d) }));
   const one = typeof arg === 'string' ? TICKET_ARG.exec(arg) : null;
   const name = one ? one[1] : typeof arg === 'string' && arg ? arg : null;
   const shown = name ? all.filter((f) => f.d.feature === name)
@@ -66,11 +72,12 @@ function ticketsCommand(root, arg, { fetch = false } = {}) {
     for (const t of lines) {
       out.push(ticketLine(t, own));
       if (!one) continue;
-      out.push(`  file: ${rel(root, t.file)}`);
+      out.push(`  file: ${t.there ? t.there.t.file.split(path.sep).join('/') : rel(root, t.file)}`);
       const deps = depsOf(t).map((k) => { const x = list.find((y) => y.id === k); return `${k} ${x ? x.fm.status || 'no status' : 'not found'}`; });
       if (deps.length) out.push(`  depends: ${deps.join(', ')}`);
     }
-    out.push(...require('./plans-git.js').mergedWarnings(root, d, lines), ...blockedNotes(list, lines), ...require('./plans-check.js').doneHint(d, list));
+    // An elsewhere ticket's branch is in its own repository.
+    out.push(...require('./plans-git.js').mergedWarnings(root, d, lines.filter((t) => !t.there)), ...blockedNotes(list, lines), ...require('./plans-check.js').doneHint(d, list));
     count += lines.length;
   }
   return [
@@ -89,7 +96,7 @@ function dropCommand(root, feature) {
   const what = 'drop';
   const { d, why } = plans.needDraft(root, feature, what);
   if (!d) return why;
-  const open = plans.tickets(d).filter((t) => !plans.CLOSED.includes(t.fm.status));
+  const open = featureTickets(root, d).filter((t) => !plans.CLOSED.includes(t.fm.status));
   if (open.length) return refuse(what, `not every ticket of ${feature} is done or abandoned: ${open.map((t) => `${t.id} ${t.fm.status || 'no status'}`).join(', ')}`);
   if (!d.local) {
     const branch = git(root, ['symbolic-ref', '-q', '--short', 'HEAD']);

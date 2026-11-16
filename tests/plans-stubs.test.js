@@ -1,22 +1,69 @@
 'use strict';
-// Stubs: tickets for a repository that is not on this machine. Planned in a draft, exported into this
-// project's feature folder as <PREFIX>-S<n>, shown on the feature page with state unknown, never holding
-// a ticket back, and turned into a full ticket once the repository is here. Throwaway repositories; no
-// network.
+// Stubs: tickets for a repository that is not on this machine, named by that repository's name. Planned
+// as T<n> of type stub, noted by check once the repository is here, and turned into a full ticket in
+// place. Throwaway repositories; no network.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  SCRIPTS, gitTest, FEATURE, PLAN, OUT, git, write, readRel, has, run, page, slash, line,
-  repo, ticketText, stubText, planText, body, world, draft, exported, adminHere,
-} = require('./fixtures/plans-stubs.js');
+  SCRIPTS, gitTest, CONFIG, FEATURE, PLAN, readRel, has, script, run, slash, head, repo, world, ticketText, planText, body,
+} = require('./fixtures/plans-repos.js');
 const { withCodeSections } = require(path.join(SCRIPTS, 'lib', 'plans-stubs.js'));
-const { byKey } = require(path.join(SCRIPTS, 'lib', 'plans-state-read.js'));
 const { ticketStructure } = require(path.join(SCRIPTS, 'lib', 'plans-format.js'));
 
+const page = script('feature-page.js');
+const line = (out, name) => (out.find((l) => l.startsWith(`${name}: `)) || '').slice(name.length + 2);
+
+const stubText = (id) => `# [${id}] Admin counter
+
+## In plain words
+The operator sees the number of new messages next to Chats.
+
+## Example
+- A client writes to support -> the admin shows 1 next to Chats.
+
+## Goal
+The admin shows the unread messages and updates them on the event.
+
+## Acceptance criteria
+- [ ] A client writes, then the number grows by one
+
+## How to check
+Open the admin as an operator, write to support from another account: 1 shows next to Chats.
+
+## Out of scope
+Sounds.
+
+## Why
+D1.
+
+## Dependencies
+Needs the event of T1.
+`;
+
+// A draft: T1 the event, T2 the admin's stub depending on it, T3 an api ticket that needs the stub.
+function draft(w) {
+  run(w.api, 'new', FEATURE);
+  run(w.api, 'ticket', FEATURE, '--title', 'Event');
+  const made = run(w.api, 'ticket', FEATURE, '--title', 'Admin counter', '--stub', 'admin-ui', '--depends', 'T1');
+  run(w.api, 'ticket', FEATURE, '--title', 'Event for the admin', '--slug', 'admin-event', '--depends', 'T2');
+  body(w.api, `${PLAN}/plan.md`, planText);
+  body(w.api, `${PLAN}/tickets/T1-event.md`, ticketText('T1', 'src/app.js:1'));
+  body(w.api, `${PLAN}/tickets/T2-admin-counter.md`, stubText('T2'));
+  body(w.api, `${PLAN}/tickets/T3-admin-event.md`, ticketText('T3', 'src/app.js:1'));
+  return made;
+}
+
+// The admin repository arrives: on this machine and in the repos map.
+function adminHere(w) {
+  const admin = repo(w.projects, 'admin-ui', CONFIG());
+  run(w.api, 'settings', 'set', '--repo', `admin-ui=${slash(admin)}`);
+  return admin;
+}
+
 test('a stub has the sections that need no code, and none of those that do', () => {
-  const stub = `---\nid: T2\ntype: stub\nrepo: ADM\n---\n\n${stubText('T2')}`;
+  const stub = `---\nid: T2\ntype: stub\nrepo: admin-ui\n---\n\n${stubText('T2')}`;
   assert.deepEqual(ticketStructure('T2', stub), []);
   const asTicket = ticketStructure('T2', stub.replace('type: stub\n', ''));
   assert.ok(asTicket.includes('T2: no section "## Boundaries"') && asTicket.includes('T2: no section "## Where to look"'), asTicket.join('\n'));
@@ -31,157 +78,73 @@ test('a stub has the sections that need no code, and none of those that do', () 
   assert.deepEqual(heads, ['In plain words', 'Example', 'Goal', 'Acceptance criteria', 'How to check', 'Boundaries', 'Correct the priors', 'Where to look', 'Out of scope', 'Why', 'Dependencies']);
   assert.deepEqual(ticketStructure('T2', `---\nid: T2\n---\n\n${full}`), []);
   assert.match(full, /^- always: <what to do every time in this ticket>/m, 'a placeholder check stops on');
-  assert.deepEqual(['ADM-S2', 'API-10', 'ADM-3', 'ADM-S1', 'API-9'].sort(byKey), ['ADM-3', 'ADM-S1', 'ADM-S2', 'API-9', 'API-10']);
 });
 
-gitTest('plans.js ticket --stub: a T-number of type stub for a repository not here; check takes it without the plan\'s repos', () => {
+gitTest('plans.js ticket --stub <name>: a T-number of type stub for a repository not here; check notes it once the repository is here', () => {
   const w = world();
   const made = draft(w);
   assert.deepEqual(made, [`created: ${PLAN}/tickets/T2-admin-counter.md`, 'ticket: T2']);
-  const stub = readRel(w.api, `${PLAN}/tickets/T2-admin-counter.md`);
-  assert.match(stub, /^---\nid: T2\ntype: stub\nrepo: ADM\ndepends_on: \[T1\]\nreview_hash: -\n---\n/);
-  assert.equal(run(w.api, 'check', FEATURE)[0], 'check: clean (plan.md and 3 tickets)', run(w.api, 'check', FEATURE).join('\n'));
-  // A stub with a section that needs the code is a problem.
-  body(w.api, `${PLAN}/tickets/T2-admin-counter.md`, `${stubText('T2')}\n## Where to look\n\`src/admin.js\`\n`);
+  assert.match(readRel(w.api, `${PLAN}/tickets/T2-admin-counter.md`), /^---\nid: T2\ntype: stub\nstatus: draft\nrepo: admin-ui\ndepends_on: T1\nreview_hash: -\n---\n/);
+  assert.doesNotMatch(readRel(w.api, `${PLAN}/plan.md`), /admin-ui/, 'a stub records no commit: its repository is not here');
+  assert.deepEqual(run(w.api, 'check', FEATURE), ['check: clean (plan.md and 3 tickets)']);
+  // A stub with a section that needs the code is a problem; so is a repo: of this project.
+  const stubFile = `${PLAN}/tickets/T2-admin-counter.md`;
+  body(w.api, stubFile, `${stubText('T2')}\n## Where to look\n\`src/admin.js\`\n`);
   assert.ok(run(w.api, 'check', FEATURE).includes('- T2: a stub has no "## Where to look" (it needs the code of the stub\'s repository)'));
-  // Refused: this project, a repository on this machine, no prefix, with --repo, and in an exported feature.
-  const web = repo(w.projects, 'web', 'WEB');
-  run(w.api, 'settings', 'set', '--repo', `WEB=${slash(web)}`);
+  body(w.api, stubFile, stubText('T2'));
+  fs.writeFileSync(path.join(w.api, stubFile), readRel(w.api, stubFile).replace('repo: admin-ui', 'repo: api'));
+  assert.ok(run(w.api, 'check', FEATURE).includes('- T2: a stub\'s repo "api" is not another repository\'s name'));
+  fs.writeFileSync(path.join(w.api, stubFile), readRel(w.api, stubFile).replace('repo: api', 'repo: admin-ui'));
+  // Refused: this project, a repository on this machine, no name, with --repo.
   const refused = (...args) => run(w.api, 'ticket', FEATURE, '--title', 'X', ...args)[0];
-  assert.equal(refused('--stub', 'API'), 'plans: ticket refused (--stub: API is this project: plan a ticket)');
-  assert.equal(refused('--stub', 'WEB'), `plans: ticket refused (--stub: WEB is on this machine (${slash(web)}): plan a ticket for it (plans.js set ${FEATURE} --repos, then --repo WEB))`);
-  assert.match(refused('--stub', 'x-1'), /^plans: ticket refused \(--stub: "X-1" is not a ticket prefix/);
-  assert.match(refused('--stub'), /^plans: ticket refused \(--stub needs the prefix/);
-  assert.equal(refused('--stub', 'ADM', '--repo', 'ADM'), 'plans: ticket refused (--stub names the repository itself: --stub WEB, without --repo)');
+  assert.equal(refused('--stub', 'api'), 'plans: ticket refused (--stub: api is this project: plan a ticket)');
+  assert.equal(refused('--stub', 'web'), `plans: ticket refused (--stub: web is on this machine (${slash(w.web)}): plan a ticket for it (--repo web))`);
+  assert.equal(refused('--stub', 'my admin'), 'plans: ticket refused (--stub: "my admin" is not a repository name)');
+  assert.equal(refused('--stub'), 'plans: ticket refused (--stub needs the name of the repository that is not here: --stub <name>)');
+  assert.equal(refused('--stub', 'admin-ui', '--repo', 'admin-ui'), 'plans: ticket refused (--repo and --stub: one of --repo, --elsewhere, --stub)');
   assert.ok(!has(w.api, `${PLAN}/tickets/T4-x.md`));
-  // Its repository arrives: check says to turn the stub into a ticket.
-  const admin = repo(w.projects, 'admin', 'ADM');
-  run(w.api, 'settings', 'set', '--repo', `ADM=${slash(admin)}`);
-  assert.ok(run(w.api, 'check', FEATURE).includes(`note: T2: ADM is on this machine now: turn the stub into a ticket (plans.js ticket ${FEATURE} --from-stub T2)`));
+  // Its repository arrives: check says the stub can become a full ticket; a stub is never a problem for it.
+  adminHere(w);
+  assert.deepEqual(run(w.api, 'check', FEATURE), ['check: clean (plan.md and 3 tickets)', `note: stub T2 can become a full ticket: admin-ui is on this machine now (plans.js ticket ${FEATURE} --from-stub T2)`]);
 });
 
-gitTest('export: a stub goes into this project\'s feature folder as <PREFIX>-S<n>, listed in the overview, and never holds a ticket back', () => {
-  const w = world();
-  const out = exported(w);
-  assert.equal(out[0], `exported: ${OUT}/ (2 tickets, 1 stub)`, out.join('\n'));
-  assert.ok(out.includes(`- T2 -> ADM-S1: ${OUT}/ADM-S1-admin-counter.md (stub)`), out.join('\n'));
-  assert.ok(out.includes(`- T3 -> API-2: ${OUT}/API-2-admin-event.md`), out.join('\n'));
-  const stub = readRel(w.api, `${OUT}/ADM-S1-admin-counter.md`);
-  assert.match(stub, /^---\ntype: stub\nkey: ADM-S1\nrepo: ADM\nfeature: message-notify\npage: [0-9a-f]{8}\ndepends_on: \[API-1\]\n---\n\n# \[ADM-S1\] Admin counter\n/);
-  assert.match(stub, /^Needs the event of API-1\.$/m);
-  assert.match(readRel(w.api, `${OUT}/API-2-admin-event.md`), /^depends_on: \[ADM-S1\]$/m);
-  const readme = readRel(w.api, `${OUT}/README.md`);
-  assert.match(readme, /^---\ntype: feature\n---\n/, 'the stub\'s repository is not one of the overview\'s repos');
-  assert.match(readme, /^## Tickets\n- API-1 Event \(api\)\n- ADM-S1 Admin counter \(ADM\)\n- API-2 Event \(api\)$/m);
-  assert.equal(run(w.api, 'check', FEATURE)[0], `check: clean (2 tickets in ${OUT}/)`, run(w.api, 'check', FEATURE).join('\n'));
-  // The stub is no ticket: no state, not counted; a dependency on it lets API-2 start.
-  write(w.api, `${OUT}/API-1-event.md`, readRel(w.api, `${OUT}/API-1-event.md`).replace('status: todo', 'status: done'));
-  git(w.api, 'add', '-A');
-  git(w.api, 'commit', '-q', '-m', 'Add the tickets');
-  const view = run(w.api, 'tickets', 'API-2');
-  assert.equal(view[1], `${FEATURE} (1 of 2 done)`, view.join('\n'));
-  assert.ok(view.includes('  depends: ADM-S1 stub'), view.join('\n'));
-  assert.equal(line(view, 'next'), `API-2 (${FEATURE})`);
-  assert.ok(run(w.api, 'tickets', FEATURE).includes('  ADM-S1 Admin counter — stub (its repository is not on this machine)'));
-  // A later stub of the same repository takes the next S-number.
-  const second = 'chat-archive';
-  run(w.api, 'new', second);
-  run(w.api, 'ticket', second, '--title', 'Event');
-  run(w.api, 'ticket', second, '--title', 'Admin archive', '--stub', 'ADM');
-  body(w.api, `.keel/local/plans/keel/${second}/plan.md`, planText.replace(`# ${FEATURE}`, `# ${second}`));
-  body(w.api, `.keel/local/plans/keel/${second}/tickets/T1-event.md`, ticketText('T1'));
-  body(w.api, `.keel/local/plans/keel/${second}/tickets/T2-admin-archive.md`, stubText('T2'));
-  run(w.api, 'reviewed', second, 'T1', 'T2');
-  run(w.api, 'state', second, 'ready');
-  assert.ok(run(w.api, 'export', second).includes(`- T2 -> ADM-S2: tickets/${second}/ADM-S2-admin-archive.md (stub)`));
-});
-
-gitTest('the feature page: a stub with its text, state unknown and its mark; a dependency on it unknown', () => {
-  const w = world();
-  exported(w);
-  const out = page(w.api, FEATURE);
-  const html = fs.readFileSync(line(out, 'page'), 'utf8');
-  const data = JSON.parse(/<script type="application\/json" id="feature-data">([\s\S]*?)<\/script>/.exec(html)[1]);
-  assert.match(data.title, /^\[API, ADM\] - /);
-  assert.deepEqual(data.tickets.map((t) => t.key), ['API-1', 'API-2', 'ADM-S1']);
-  const stub = data.tickets[2];
-  assert.equal(stub.stub, true);
-  assert.equal(stub.state, 'state unknown');
-  assert.equal(stub.repo, 'ADM');
-  assert.deepEqual(stub.sections.map((s) => s.name), ['In plain words', 'Example', 'Goal', 'Acceptance criteria', 'How to check', 'Out of scope', 'Why', 'Dependencies']);
-  assert.deepEqual(stub.depends.map((d) => [d.key, d.met]), [['API-1', false]]);
-  assert.deepEqual(data.tickets[1].depends, [{ key: 'ADM-S1', met: null, state: 'state unknown', feature: null, where: null }]);
-  assert.equal(data.labels.stub, 'stub');
-  assert.match(data.labels.stub_title, /\{repo\}/);
-  // A draft's stub is marked too.
-  const w2 = world();
-  draft(w2);
-  const drafted = JSON.parse(/id="feature-data">([\s\S]*?)<\/script>/.exec(fs.readFileSync(line(page(w2.api, FEATURE), 'page'), 'utf8'))[1]);
-  assert.deepEqual(drafted.tickets.map((t) => [t.key, Boolean(t.stub)]), [['T1', false], ['T2', true], ['T3', false]]);
-  // As on the exported page: its state unknown, and a dependency on it unknown.
-  assert.equal(drafted.tickets[1].state, 'state unknown');
-  assert.deepEqual(drafted.tickets[2].depends, [{ key: 'T2', met: null, state: 'state unknown', feature: null, where: null }]);
-});
-
-gitTest('--from-stub in a draft: the stub becomes a ticket in place, its repository joins the plan, and check stops until the code sections are written', () => {
+gitTest('--from-stub: the stub becomes a full ticket in place once its repository is here; check stops until the code sections are written; the plan keeps its state', () => {
   const w = world();
   draft(w);
-  assert.equal(run(w.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], 'plans: ticket refused (--from-stub: ADM is not on this machine yet: plans.js settings set --repo ADM=<folder>)');
+  run(w.api, 'reviewed', FEATURE, 'T1', 'T2', 'T3');
+  assert.deepEqual(run(w.api, 'state', FEATURE, 'ready'), ['status: ready', 'ready: T1, T2, T3']);
+  assert.equal(run(w.api, 'ticket', FEATURE, '--from-stub', 'T2')[0], 'plans: ticket refused (--from-stub: admin-ui is not on this machine yet: plans.js settings set --repo admin-ui=<folder>)');
   assert.equal(run(w.api, 'ticket', FEATURE, '--from-stub', 'T1')[0], 'plans: ticket refused (--from-stub: T1 is no stub)');
+  assert.equal(run(w.api, 'ticket', FEATURE, '--from-stub', 'T9')[0], `plans: ticket refused (--from-stub: no ticket T9 in ${FEATURE})`);
   const admin = adminHere(w);
   const out = run(w.api, 'ticket', FEATURE, '--from-stub', 't2');
-  assert.equal(out[0], 'converted: T2 (stub -> ticket for ADM)', out.join('\n'));
-  assert.ok(out.includes('repos: [API, ADM]'), out.join('\n'));
-  assert.equal(out[out.length - 1], `next: write Boundaries, Correct the priors, Where to look from ${slash(admin)}, then plans.js check ${FEATURE} and a review of T2`);
+  assert.deepEqual(out, [
+    'converted: T2 (stub -> ticket for admin-ui)',
+    `file: ${PLAN}/tickets/T2-admin-counter.md`,
+    `next: write Boundaries, Correct the priors, Where to look from ${slash(admin)}, then plans.js check ${FEATURE} and a review of T2`,
+  ]);
   const ticket = readRel(w.api, `${PLAN}/tickets/T2-admin-counter.md`);
-  assert.match(ticket, /^---\nid: T2\nrepo: ADM\ndepends_on: \[T1\]\nreview_hash: -\n---\n/);
+  assert.match(ticket, /^---\nid: T2\nstatus: ready\nrepo: admin-ui\ndepends_on: T1\nreview_hash: [0-9a-f]{12}\n---\n/);
   assert.match(ticket, /^## Where to look\n<file:line/m);
-  assert.match(readRel(w.api, `${PLAN}/plan.md`), /^repos: \[API, ADM\]$/m);
+  const plan = readRel(w.api, `${PLAN}/plan.md`);
+  assert.match(plan, /^status: ready$/m, 'the plan keeps its state');
+  assert.match(plan, new RegExp(`^after_commit_repos: admin-ui=${head(admin)}$`, 'm'));
   const check = run(w.api, 'check', FEATURE);
   assert.ok(check.some((l) => /^- T2: placeholder /.test(l)), check.join('\n'));
+  assert.ok(run(w.api, 'review', FEATURE).includes(`- T2: changed since review (admin-ui: ${slash(admin)})`), 'the ticket needs a review');
 });
 
-gitTest('--from-stub in an exported feature: the ticket goes to the stub\'s repository with replaces:, the overview follows, and a dependency on the stub reads it', () => {
+gitTest('the feature page marks a stub', () => {
   const w = world();
-  exported(w);
-  git(w.api, 'add', '-A');
-  git(w.api, 'commit', '-q', '-m', 'Add the tickets');
-  assert.equal(line(run(w.api, 'tickets', FEATURE), 'next'), `API-1 (${FEATURE})`);
-  assert.equal(run(w.api, 'ticket', FEATURE, '--from-stub', 'ADM-S9')[0], `plans: ticket refused (--from-stub: no stub ADM-S9 in ${OUT}/)`);
-  const admin = adminHere(w);
-  assert.ok(run(w.api, 'check', FEATURE).includes(`note: ADM-S1: ADM is on this machine now: turn the stub into a ticket (plans.js ticket ${FEATURE} --from-stub ADM-S1)`));
-  assert.ok(run(w.api, 'tickets', FEATURE).includes(`  ADM-S1 Admin counter — stub (ADM is on this machine now: plans.js ticket ${FEATURE} --from-stub ADM-S1)`));
-  // Not ready there: uncommitted changes stop it, nothing is written.
-  write(admin, 'src/wip.js', '1;\n');
-  const stopped = run(w.api, 'ticket', FEATURE, '--from-stub', 'ADM-S1');
-  assert.equal(stopped[0], 'plans: ticket refused (--from-stub: ADM is not ready)', stopped.join('\n'));
-  assert.ok(has(w.api, `${OUT}/ADM-S1-admin-counter.md`) && !has(admin, OUT));
-  fs.rmSync(path.join(admin, 'src', 'wip.js'));
+  draft(w);
+  const data = JSON.parse(/id="feature-data">([\s\S]*?)<\/script>/.exec(fs.readFileSync(line(page(w.api, FEATURE), 'page'), 'utf8'))[1]);
+  assert.deepEqual(data.tickets.map((t) => [t.key, Boolean(t.stub)]), [['T1', false], ['T2', true], ['T3', false]]);
+  assert.equal(data.tickets[1].repo, 'admin-ui');
+  assert.deepEqual(data.tickets[1].sections.map((s) => s.name), ['In plain words', 'Example', 'Goal', 'Acceptance criteria', 'How to check', 'Out of scope', 'Why', 'Dependencies']);
+});
 
-  const out = run(w.api, 'ticket', FEATURE, '--from-stub', 'ADM-S1');
-  assert.equal(out[0], 'converted: ADM-S1 -> ADM-1', out.join('\n'));
-  assert.ok(out.includes(`created: ${slash(admin)}/${OUT}/ADM-1-admin-counter.md`), out.join('\n'));
-  assert.match(line(out, 'stub'), /^moved to keel's trash: batch \d{8}-\d{6}/);
-  const ticket = readRel(admin, `${OUT}/ADM-1-admin-counter.md`);
-  assert.match(ticket, /^---\ntype: ticket\nkey: ADM-1\nstatus: todo\nfeature: message-notify\npage: [0-9a-f]{8}\nbranch: message-notify\nmerge_into: main\ndepends_on: \[API-1\]\nreplaces: ADM-S1\n---\n\n# \[ADM-1\] Admin counter\n/);
-  assert.match(ticket, /^## Boundaries\n- always: </m);
-  assert.ok(!has(w.api, `${OUT}/ADM-S1-admin-counter.md`), 'the stub left');
-  const overview = readRel(w.api, `${OUT}/README.md`);
-  assert.equal(readRel(admin, `${OUT}/README.md`), overview, 'the same overview in both');
-  assert.match(overview, /^---\ntype: feature\nrepos: \[API, ADM\]\n---\n/);
-  assert.match(overview, /^- ADM-1 Admin counter \(admin\)$/m);
-  assert.doesNotMatch(overview, /ADM-S1/);
-  // API-2 still says ADM-S1: it now waits for ADM-1, which is to do. ADM-1 is still the template, and
-  // the check reads it in its repository.
-  const checked = run(w.api, 'check', FEATURE);
-  assert.match(checked[0], /^check: \d+ problems$/, checked.join('\n'));
-  assert.deepEqual(checked.filter((l) => l.startsWith('- ') && !l.startsWith('- ADM-1: placeholder ')), [], checked.join('\n'));
-  write(w.api, `${OUT}/API-1-event.md`, readRel(w.api, `${OUT}/API-1-event.md`).replace('status: todo', 'status: done'));
-  git(w.api, 'add', '-A');
-  git(w.api, 'commit', '-q', '-m', 'Convert the stub');
-  git(admin, 'add', '-A');
-  git(admin, 'commit', '-q', '-m', 'Add the ticket');
-  const view = run(w.api, 'tickets', 'API-2');
-  assert.ok(view.some((l) => /^ {2}depends: ADM-1 to do \(/.test(l)), view.join('\n'));
-  assert.equal(line(view, 'next'), 'none');
+test('the page template draws a stub\'s mark and note', () => {
+  // The page's script lives in page.js beside index.html.
+  const script = fs.readFileSync(path.join(SCRIPTS, '..', 'templates', 'feature-page', 'page.js'), 'utf8');
+  for (const key of ["'stub'", "'stub_title'", "'stub_note'"]) assert.ok(script.includes(key), key);
 });

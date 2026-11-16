@@ -1,10 +1,9 @@
 'use strict';
-// The formats of keel's planning files, read by their English headings: a ticket (a draft's
-// T<n>-<slug>.md or an exported <KEY>-<slug>.md), a draft's plan.md and the feature overview README.md
-// that export builds from plan.md. plans.js check stops a review or an export on what ticketStructure
-// and planStructure find; style is the ticket reviewer's advice, never checked here.
+// The formats of keel's planning files, read by their English headings: a ticket (T<n>-<slug>.md) and
+// a plan.md. plans.js check stops a review on what ticketStructure and planStructure find; style is the
+// ticket reviewer's advice, never checked here.
 // A stub (front matter `type: stub`) is a ticket for a repository that is not on this machine: only the
-// sections that need no code of that repository (STUB_SECTIONS); its exported key is <PREFIX>-S<n>.
+// sections that need no code of that repository (STUB_SECTIONS).
 const path = require('node:path');
 const { git, clean, frontmatter } = require('./repo-read.js');
 const { sections } = require('./tasks.js');
@@ -14,13 +13,9 @@ const TICKET_SECTIONS = ['In plain words', 'Example', 'Goal', 'Acceptance criter
 const CODE_SECTIONS = ['Boundaries', 'Correct the priors', 'Where to look'];
 const STUB_SECTIONS = TICKET_SECTIONS.filter((n) => !CODE_SECTIONS.includes(n));
 const PLAN_SECTIONS = ['In plain words', 'Level', 'Decisions', 'Contract', 'Out of scope', 'Design sketch', 'Terms', 'What was gathered', 'Open questions', 'Tickets', 'Next action'];
-// plan.md's sections the overview takes, in its order; Tickets is built from the exported tickets and
-// Parts (a feature on several repositories) from Design sketch.
-const README_SECTIONS = ['In plain words', 'Level', 'Decisions', 'Contract', 'Out of scope', 'Terms', 'Tickets', 'Parts'];
 // May be left out; when present they keep their place.
 const OPTIONAL = new Set(['Example', 'Correct the priors']);
 const BOUNDARIES = ['always', 'ask first', 'never'];
-const STUB_KEY = /^[A-Za-z][A-Za-z0-9]+-S\d+$/;
 const isStub = (fm) => Boolean(fm) && fm.type === 'stub';
 
 const missing = (label, secs, names) => names.filter((n) => !OPTIONAL.has(n) && !(n in secs)).map((n) => `${label}: no section "## ${n}"`);
@@ -103,56 +98,30 @@ function ticketStructure(label, text) {
   return out;
 }
 
-// A plan written before stubs were tickets has "## Stubs": export would drop it, so check stops on it.
+// A plan written before stubs were tickets has "## Stubs", which no command reads: check stops on it.
 const planStructure = (text) => {
   const secs = sectionsOutsideFences(text);
   const all = [...headingText(text).matchAll(/^##\s+(.*\S)\s*$/gm)].map((m) => m[1]).filter((n) => PLAN_SECTIONS.includes(n));
   const twice = [...new Set(all.filter((n, i) => all.indexOf(n) !== i))].map((n) => `plan.md: "## ${n}" appears twice`);
-  return [...missing('plan.md', secs, PLAN_SECTIONS), ...twice, ...('Stubs' in secs ? ['plan.md: "## Stubs" is no section any more: make each stub a ticket (plans.js ticket <feature> --title <t> --stub <PREFIX>), then remove the section'] : [])];
+  return [...missing('plan.md', secs, PLAN_SECTIONS), ...twice, ...('Stubs' in secs ? ['plan.md: "## Stubs" is no section any more: make each stub a ticket (plans.js ticket <feature> --title <t> --stub <name>), then remove the section'] : [])];
 };
 
-// One ticket's line in the overview's Tickets.
-const ticketLine = (key, title, repo) => `- ${key} ${title} (${repo})`;
-
-// Design sketch's "### <PREFIX>" parts as "### <repository> (<PREFIX>)", in the order of `repos`
-// ([{ prefix, name }]); a part the sketch lacks is left out.
-function partsText(sketch, repos) {
-  const parts = new Map();
-  const plain = outsideFences(sketch).split('\n');
-  let at = null;
-  sketch.split(/\r?\n/).forEach((line, i) => {
-    // A "### API" inside a code block is text; so is a heading that names no repository (### DB).
-    const m = /^###\s+([A-Z][A-Z0-9]*)\s*$/.exec(plain[i]);
-    if (m && repos.some((r) => r.prefix === m[1])) { at = m[1]; parts.set(at, []); } else if (at) parts.get(at).push(line);
-  });
-  return repos.filter((r) => parts.has(r.prefix) && parts.get(r.prefix).join('\n').trim())
-    .map((r) => `### ${r.name} (${r.prefix})\n${parts.get(r.prefix).join('\n').trim()}`).join('\n');
-}
-
-// The overview's sections from plan.md: the ones with text, T-numbers swapped for keys; Tickets: one line
-// per exported ticket ({ key, text, repo }) with its key, title and repository, no states (each ticket
-// carries its own); Parts only for a feature on several repositories (`repos`).
-function overviewSections(planText, tickets, swap, repos = null) {
-  const secs = sectionsOutsideFences(planText);
-  const text = (n) => {
-    if (n === 'Tickets') return tickets.map((t) => ticketLine(t.key, heading(t.text)[1], t.repo)).join('\n');
-    if (n === 'Parts') return repos ? swap(partsText(secs['Design sketch'] || '', repos)) : '';
-    return swap(secs[n] || '');
-  };
-  return README_SECTIONS.map((n) => [n, text(n)]).filter(([, t]) => t).map(([n, t]) => `## ${n}\n${t}\n`).join('\n');
-}
-
-// The repository's name as the overview gives it, the same on every machine: the last part of the
-// remote's URL (git@host:team/web.git and https://host/team/web -> web), else the project folder's name.
-function repoName(root) {
+// The repository's names, the same on every machine: `name`, the last part of the remote's URL
+// (git@host:team/web.git and https://host/team/web -> web), else the folder's name; `full`, owner/name
+// (team/web; without a remote the parent folder's name/the folder's name), for two repositories of one
+// name.
+function repoNames(root) {
   const remote = require('../git-flow.js').pickRemote((git(root, ['remote']) || '').split('\n').filter(Boolean));
   const url = remote ? git(root, ['remote', 'get-url', remote]) : null;
-  const m = url && /([^/\\:]+?)(?:\.git)?[/\\]*$/.exec(url.trim());
-  return clean(m ? m[1] : path.basename(path.resolve(root)), 60);
+  const m = url && /(?:([^/\\:]+)[/\\:])?([^/\\:]+?)(?:\.git)?[/\\]*$/.exec(url.trim());
+  const folder = path.resolve(root);
+  const name = clean(m ? m[2] : path.basename(folder), 60);
+  const owner = m ? m[1] : path.basename(path.dirname(folder));
+  return { name, full: owner ? clean(`${owner}/${name}`, 120) : name };
 }
 
-// An exported ticket's file: its front matter as `key: value` lines, and its text below the front matter.
-const frontText = (front) => `---\n${Object.entries(front).map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n`;
+const repoName = (root) => repoNames(root).name;
+
 const bodyOf = (text) => String(text).replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n?/, '').trimStart();
 
-module.exports = { frontText, bodyOf, TICKET_SECTIONS, CODE_SECTIONS, STUB_SECTIONS, STUB_KEY, isStub, PLAN_SECTIONS, README_SECTIONS, ticketStructure, planStructure, overviewSections, ticketLine, repoName, outsideFences, headingText, sectionsOutsideFences, unclosedFence, heading };
+module.exports = { bodyOf, TICKET_SECTIONS, CODE_SECTIONS, STUB_SECTIONS, isStub, PLAN_SECTIONS, ticketStructure, planStructure, repoName, repoNames, outsideFences, headingText, sectionsOutsideFences, unclosedFence, heading };

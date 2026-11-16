@@ -4,8 +4,9 @@
 //   feature's folder goes), tickets_dir, language. /keel:configure asks them; without place planning
 //   does not start.
 // - .keel/local/plans/keel/settings.json (this machine): repos, where the neighbouring repositories are
-//   on this machine: { "<PREFIX>": "<absolute folder>" }. keel 2.0.0's draft and draft_dir there are
-//   not read.
+//   on this machine: { "<name>": "<absolute folder>" }, the name as lib/plans-format.js repoNames gives
+//   it (web, or team/web when two repositories share a name). keel 2.0.0's draft and draft_dir there
+//   are not read.
 const path = require('node:path');
 const { checkConfig } = require('./config.js');
 const { read } = require('./repo-read.js');
@@ -14,7 +15,10 @@ const { mainOf } = require('./project-dir.js');
 
 const DEFAULTS = { tickets_dir: 'tickets' };
 const PROJECT_KEYS = ['place', 'tickets_dir', 'language'];
-const PREFIX = /^[A-Z][A-Z0-9]{1,9}$/;
+// A repository's name: its remote's last part or its folder's name, owner/name for two of one name.
+const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)?$/;
+const NAME_MAX = 120;
+const validName = (name) => typeof name === 'string' && name.length <= NAME_MAX && NAME.test(name);
 const NOT_SET_UP = 'planning is not set up in .keel/config.json: /keel:configure planning';
 
 const refuse = (what, why) => [`plans: ${what} refused (${why})`];
@@ -39,8 +43,8 @@ function badFolder(root, dir) {
   return null;
 }
 
-function repoProblem(prefix, folder) {
-  if (!PREFIX.test(prefix)) return 'the prefix is 2-10 capital letters and digits, starting with a letter';
+function repoProblem(name, folder) {
+  if (!validName(name)) return 'the name is the repository name: letters, digits, . _ -, or owner/name for two of one name';
   if (typeof folder !== 'string' || !path.isAbsolute(folder.trim())) return 'the folder is an absolute path';
   return null;
 }
@@ -99,16 +103,25 @@ function settingsShow(root) {
   ];
 }
 
+// Why `name` does not name the git repository at `folder` (its name or owner/name), or null; a folder
+// that is not on this machine or not a repository is taken as given.
+function nameProblem(name, folder) {
+  const repos = require('./plans-repos.js');
+  if (!repos.isFolder(folder) || !repos.isRepoTop(folder)) return null;
+  const n = require('./plans-format.js').repoNames(folder);
+  return name === n.name || name === n.full ? null : `${slashes(folder)} is named ${n.name} (or ${n.full}): --repo ${n.name}=<folder>`;
+}
+
 function settingsSet(root, opts) {
   const updates = {};
   const { saved } = readSettings(root);
   if (opts.repo !== undefined) {
     const m = /^([^=]*)=(.*)$/.exec(typeof opts.repo === 'string' ? opts.repo : '');
-    const why = m ? repoProblem(m[1], m[2]) : 'give <PREFIX>=<absolute folder>';
+    const why = m ? repoProblem(m[1], m[2]) || nameProblem(m[1], m[2].trim()) : 'give <name>=<absolute folder>';
     if (why) return refuse('settings set', `--repo: ${why}`);
     updates.repos = { ...saved.repos, [m[1]]: slashes(m[2]) };
   }
-  if (!Object.keys(updates).length) return refuse('settings set', 'nothing to set: --repo <PREFIX>=<absolute folder>');
+  if (!Object.keys(updates).length) return refuse('settings set', 'nothing to set: --repo <name>=<absolute folder>');
   try {
     safeLocalWrite(mainOf(root), ['plans', 'keel', 'settings.json'], JSON.stringify({ ...saved, ...updates }, null, 2) + '\n');
   } catch (e) { return refuse('settings set', e.message); }
@@ -121,4 +134,4 @@ function repoDir(root, s = settings(root)) {
   return badFolder(root, s.tickets_dir) ? null : path.join(root, s.tickets_dir);
 }
 
-module.exports = { base, settingsFile, badFolder, settings, setUp, notSetUp, settingsShow, settingsSet, repoDir, PREFIX };
+module.exports = { base, settingsFile, badFolder, settings, setUp, notSetUp, settingsShow, settingsSet, repoDir, validName };

@@ -1,8 +1,9 @@
 'use strict';
 // keel's planned features (/keel:start-planning, /keel:end-planning): one folder per feature, on this
 // machine (.keel/local/plans/keel/<feature>/) or in the repository (<tickets_dir>/<feature>/), as
-// planning.place says (lib/plans.js). Writes only the feature's files, the settings and the chat marks;
-// a dropped feature folder goes to keel's trash. Every command is a script: the same result each time,
+// planning.place says (lib/plans.js). Writes only the feature's files (an elsewhere ticket's in its
+// repository's folder of the feature), the settings and the chat marks; a dropped feature folder goes
+// to keel's trash. Every command is a script: the same result each time,
 // no agent. git beyond reading runs only in `tickets --fetch` (a fetch, not confirmed), commit and push
 // (lib/plans-git.js); Claude Code confirms each commit and push (hooks/own-files.js).
 // The result is the first output line; a refusal is `plans: <command> refused (<why>)`. Exit code 0.
@@ -13,12 +14,17 @@
 //                                         one match, several, or none (then all features)
 //   new <feature> [--place repo|pc]       a feature folder with plan.md (status draft) where --place, else
 //                                         planning.place, else pc says; refused for an invalid or taken name
-//   ticket <feature> --title <t> [--slug <english-words>] [--depends "T1,T2"] [--repo <PREFIX>]
+//   ticket <feature> --title <t> [--slug <english-words>] [--depends "T1,T2"] [--repo <name>]
 //                                         tickets/T<n>-<slug>.md, status draft, not reviewed; T-numbers are
 //                                         never reused; depends_on names tickets of the feature; --repo:
-//                                         the ticket is for another repository of the plan's repos. The
-//                                         plan's status stays
-//   ticket <feature> --title <t> [--slug ...] [--depends ...] --stub <PREFIX>
+//                                         planned here for another repository on this machine (its name in
+//                                         the repos map, plans.js repos). The plan's status stays
+//   ticket <feature> --title <t> [--slug ...] [--depends ...] --elsewhere <name>
+//                                         the ticket in that repository (keel set up there):
+//                                         <its tickets_dir>/<feature>/tickets/T<n>-<slug>.md, with a plan.md
+//                                         that names this project as home when there is none; here a
+//                                         type: elsewhere file with the same T<n> (lib/plans-repos.js)
+//   ticket <feature> --title <t> [--slug ...] [--depends ...] --stub <name>
 //                                         a stub (type: stub) for a repository not on this machine
 //                                         (lib/plans-stubs.js)
 //   ticket <feature> --from-stub <T<n>>   the stub as a full ticket once its repository is here
@@ -26,34 +32,37 @@
 //                                         sections once and in their order, the Boundaries labels, acceptance
 //                                         criteria as a list, no TBD or <...>, the files Where to look names
 //                                         exist, status and depends_on valid, no cycles. Another repository's
-//                                         ticket (repo:) is checked in its folder; without one:
-//                                         `note: ... Where to look not checked`. Then `warn:` for a ticket
-//                                         whose branch is merged into merge_into while it is not done, and
-//                                         `plan:` when every ticket is done or abandoned
+//                                         ticket (repo:) is checked in its folder, an elsewhere one there;
+//                                         without one: a `note:`. Then `warn:` for a ticket whose branch is
+//                                         merged into merge_into while it is not done, and `plan:` when every
+//                                         ticket is done or abandoned (an elsewhere one whose status cannot
+//                                         be read: confirmation needed)
 //   review <feature>                      the plan and each ticket: never reviewed, changed since review
 //                                         (an essential section or depends_on), unchanged
 //   reviewed <feature> <T1|plan> [...]    record the review hashes after the review (plan: its ready hash)
-//   state <feature> <draft|ready|in-progress|done|abandoned> [--reason <why>] [--project <path>]
+//   state <feature> <draft|ready|in-progress|done|abandoned> [--reason <why>] [--confirm] [--project <path>]
 //                                         the plan's status. ready needs a clean check, a ticket and no
 //                                         open question, and readies every draft ticket that needs no
 //                                         review; abandoned needs --reason and abandons every open ticket
 //                                         with it; done waits for every ticket to be done or abandoned
+//                                         (--confirm: the user said so for an elsewhere ticket whose status
+//                                         cannot be read). Elsewhere tickets change in their repository
 //   status <feature> <T<n>> <draft|ready|in-progress|done|abandoned> [--reason <why>] [--project <path>]
 //                                         one ticket's status. ready waits for its review; abandoned needs
 //                                         --reason; in-progress moves a ready plan to in-progress.
 //                                         --project: the project that holds the feature, for a session in
 //                                         another repository
-//   set <feature> [--branch <b>] [--merge-into <b>] [--repos "WEB,MOB" | -] [--after-commit]
+//   set <feature> [--branch <b>] [--merge-into <b>] [--after-commit]
 //                                         the feature branch and where it merges (plan.md branch,
-//                                         merge_into); the repositories of a feature on several (repos:,
-//                                         from the repos map); after_commit and each other repository's
-//                                         HEAD (after_commit_repos). The status stays
+//                                         merge_into); after_commit and the HEAD of each other repository
+//                                         the tickets name (after_commit_repos). The status stays
 //   stale <feature>                       which files the tickets name in Where to look changed since
 //                                         plan.md after_commit (commits and uncommitted changes); another
 //                                         repository's tickets in its folder since its after_commit_repos
 //   repos                                 this project and the repositories a feature may also touch: the
 //                                         repos map and the git repositories next to this project, each
-//                                         with its planning prefix
+//                                         with its name (owner/name when two share one) and whether keel is
+//                                         set up there
 //   report <file>                         a planning reviewer's reply under .keel/local/tmp/planning/
 //                                         (absolute, or relative to the project): its
 //                                         findings, or `report: failed` and why (never "no findings")
@@ -67,10 +76,7 @@
 //                                         one feature (and its branch); one ticket (and its file and
 //                                         dependencies). `next:` the ticket to take next: ready, reviewed,
 //                                         every dependency done. --fetch: git fetch --prune first
-//   align <feature> [--take <PREFIX>]     the versions of a feature's overview in its repositories on this
-//                                         machine, the sections where they differ and the default one;
-//                                         --take: that version into the others' working trees (not committed)
-//   drop <feature>                        a feature whose every ticket is done or abandoned: its folder to
+//   drop <feature>                       a feature whose every ticket is done or abandoned: its folder to
 //                                         keel's trash (a repository folder only off the branch it merges
 //                                         into; then commit <feature>)
 //   brief <feature> <file>                a brief of /keel:start-task
@@ -82,8 +88,9 @@
 //                                         (.keel/local/plans/keel/settings.json) and the project's
 //                                         (.keel/config.json planning); `planning: planning is not set up`
 //                                         without planning.place
-//   settings set --repo <PREFIX>=<absolute folder>
-//                                         this machine's: where a neighbouring repository is (one per call)
+//   settings set --repo <name>=<absolute folder>
+//                                         this machine's: where a neighbouring repository is (one per call);
+//                                         the name is that repository's (plans.js repos)
 //   mark set <feature> --session <id>     this chat plans the feature (not a done or abandoned one)
 //   mark get --session <id>               the feature this chat plans, or none
 //   mark clear --session <id>             this chat plans nothing
@@ -91,7 +98,7 @@ const path = require('node:path');
 const { parseArgs } = require('./lib/project.js');
 const plans = require('./lib/plans.js');
 
-const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, status, set, stale, repos, report, commit, push, tickets, align, drop, brief, settings, mark';
+const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, status, set, stale, repos, report, commit, push, tickets, drop, brief, settings, mark';
 
 // A flag followed by a word takes it as its value (lib/project.js): `tickets --fetch f` names f.
 const flagged = (pos, opts, flag) => ({ on: opts[flag] !== undefined, arg: pos[2] ?? (typeof opts[flag] === 'string' ? opts[flag] : undefined) });
@@ -110,7 +117,7 @@ function run(root, pos, opts) {
   if (command === 'check') return plans.draftCheck(root, feature);
   if (command === 'review') return plans.draftReview(root, feature);
   if (command === 'reviewed') return plans.draftReviewed(root, feature, pos.slice(3).map((x) => x.toUpperCase()));
-  if (command === 'state') return plans.draftState(root, feature, pos[3], { reason: opts.reason });
+  if (command === 'state') return plans.draftState(root, feature, pos[3], { reason: opts.reason, confirm: opts.confirm });
   if (command === 'status') return plans.ticketStatus(root, feature, pos[3], pos[4], { reason: opts.reason });
   if (command === 'set') return plans.draftSet(root, feature, opts);
   if (command === 'stale') return plans.draftStale(root, feature);
@@ -121,7 +128,6 @@ function run(root, pos, opts) {
     return step(root, feature, { repo: opts.repo });
   }
   if (command === 'tickets') { const f = flagged(pos, opts, 'fetch'); return require('./lib/plans-state.js').ticketsCommand(root, f.arg, { fetch: f.on }); }
-  if (command === 'align') return require('./lib/plans-linked.js').alignCommand(root, feature, { take: opts.take });
   if (command === 'drop') return require('./lib/plans-state.js').dropCommand(root, feature);
   if (command === 'brief') return require('./lib/plans-brief.js').briefCommand(root, feature, pos[3]);
   if (command === 'settings') {

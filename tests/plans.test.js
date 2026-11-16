@@ -345,7 +345,7 @@ test('check: headings in a code block are text; a section twice, a missing or em
   ]);
 });
 
-test('check: a mermaid diagram and a table in In plain words pass, and the overview keeps them as they are', () => {
+test('check: a mermaid diagram and a table in In plain words pass', () => {
   const dir = project();
   filled(dir, 's3-connection');
   const diagram = 'Three messages in 10 s become one push:\n```mermaid\nsequenceDiagram\n  participant O as Olya\n  participant S as Server\n  O->>S: 3 messages in 10 s\n  S-->>O: one push after 30 s\n```';
@@ -354,9 +354,6 @@ test('check: a mermaid diagram and a table in In plain words pass, and the overv
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(plain));
   body(dir, `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`, TICKET_BODY('T1').replace('A file you upload lands in the bucket, and you can download it again.', plain));
   assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)']);
-  const { overviewSections } = require(path.join(SCRIPTS, 'lib', 'plans-format.js'));
-  const overview = overviewSections(PLAN_BODY(plain), [], (s) => s.replace(/\bT1\b/g, 'PROJ-1'));
-  assert.ok(overview.startsWith(`## In plain words\n${diagram}\n\n${table.replace('T1', 'PROJ-1')}\n`), overview);
 });
 
 test('check: a comparison with < and > on one line is not a placeholder, a <name> still is', () => {
@@ -366,7 +363,7 @@ test('check: a comparison with < and > on one line is not a placeholder, a <name
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(table));
   assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)']);
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(`${table}\n\nSent by <who>.`));
-  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 27)']);
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 26)']);
 });
 
 test('check: an indented code block and "<30 s" are not placeholders, a <name> still is', () => {
@@ -378,9 +375,9 @@ test('check: an indented code block and "<30 s" are not placeholders, a <name> s
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(`${text}\n\nSent by <who>.\nEnter the <2fa code>.\n<1-2 sentences: what changes>`));
   assert.deepEqual(run(dir, 'check', 's3-connection'), [
     'check: 3 problems',
-    '- plan.md: placeholder <who> (line 34)',
-    '- plan.md: placeholder <2fa code> (line 35)',
-    '- plan.md: placeholder <1-2 sentences: what changes> (line 36)',
+    '- plan.md: placeholder <who> (line 33)',
+    '- plan.md: placeholder <2fa code> (line 34)',
+    '- plan.md: placeholder <1-2 sentences: what changes> (line 35)',
   ]);
 });
 
@@ -391,14 +388,14 @@ test('check: a diagram fenced with ~~~ is code, not a placeholder; the line numb
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(text));
   assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)']);
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(`${text}\n\nSent by <who>.`));
-  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 27)']);
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 26)']);
 });
 
 test('check: a code block that is never closed is a problem, so the text it hides is not taken as clean', () => {
   const dir = project();
   filled(dir, 's3-connection');
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY('The states:\n\n~~~mermaid\nflowchart TD\n\nSent by <who>.'));
-  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: the code block from line 22 is never closed']);
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: the code block from line 21 is never closed']);
 });
 
 test('check: the unfilled templates show only their placeholders', () => {
@@ -556,7 +553,7 @@ test('settings: this machine keeps only the repos map; the project has place, ti
   const web = path.join(path.dirname(dir), 'web');
   run(dir, 'settings', 'set', '--repo', `WEB=${web}`);
   assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { repos: { WEB: web.replace(/\\/g, '/') } });
-  for (const k of ['--draft', '--draft-dir', '--language']) assert.match(run(dir, 'settings', 'set', k, 'x')[0], /^plans: settings set refused \(nothing to set: --repo <PREFIX>=<absolute folder>\)$/, k);
+  for (const k of ['--draft', '--draft-dir', '--language']) assert.match(run(dir, 'settings', 'set', k, 'x')[0], /^plans: settings set refused \(nothing to set: --repo <name>=<absolute folder>\)$/, k);
   write(dir, '.keel/config.json', JSON.stringify({ ...CONFIG, planning: { place: 'repo', tickets_dir: 'work/tickets', language: 'en', ticket_prefix: 'OLD' } }));
   const out = run(dir, 'settings');
   for (const l of ['planning: .keel/config.json', 'place: repo', 'tickets_dir: work/tickets', 'language: en']) assert.ok(out.includes(l), l);
@@ -569,23 +566,23 @@ test('settings: this machine keeps only the repos map; the project has place, ti
   assert.match(run(dir, 'settings')[0], /\(unreadable: defaults in use\)$/);
 });
 
-test('settings: the repos map, one --repo <PREFIX>=<absolute folder> per call', () => {
+test('settings: the repos map, one --repo <name>=<absolute folder> per call', () => {
   const dir = project();
   const web = path.join(path.dirname(dir), 'web');
   const mob = path.join(path.dirname(dir), 'mobile') + path.sep;
   const slash = (p) => p.replace(/\\/g, '/').replace(/\/+$/, '');
-  assert.ok(run(dir, 'settings', 'set', '--repo', `WEB=${web}`).includes(`repos: WEB=${slash(web)}`));
-  const out = run(dir, 'settings', 'set', '--repo', `MOB=${mob}`);
-  assert.ok(out.includes(`repos: WEB=${slash(web)}, MOB=${slash(mob)}`), out.join('\n'));
-  assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { repos: { WEB: slash(web), MOB: slash(mob) } });
-  assert.ok(run(dir, 'settings', 'set', '--repo', `WEB=${mob}`).includes(`repos: WEB=${slash(mob)}, MOB=${slash(mob)}`), 'a prefix set again moves');
-  for (const [v, why] of [['web=/x', 'the prefix is 2-10 capital letters'], ['W=/x', 'the prefix is 2-10 capital letters'], ['WEB=../web', 'the folder is an absolute path'], ['WEB=', 'the folder is an absolute path'], ['WEB', 'give <PREFIX>=<absolute folder>']]) {
+  assert.ok(run(dir, 'settings', 'set', '--repo', `web=${web}`).includes(`repos: web=${slash(web)}`));
+  const out = run(dir, 'settings', 'set', '--repo', `team/mobile=${mob}`);
+  assert.ok(out.includes(`repos: web=${slash(web)}, team/mobile=${slash(mob)}`), out.join('\n'));
+  assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { repos: { web: slash(web), 'team/mobile': slash(mob) } });
+  assert.ok(run(dir, 'settings', 'set', '--repo', `web=${mob}`).includes(`repos: web=${slash(mob)}, team/mobile=${slash(mob)}`), 'a name set again moves');
+  for (const [v, why] of [['my web=/x', 'the name is the repository name'], ['-web=/x', 'the name is the repository name'], ['a/b/c=/x', 'the name is the repository name'], ['web=../web', 'the folder is an absolute path'], ['web=', 'the folder is an absolute path'], ['web', 'give <name>=<absolute folder>']]) {
     assert.match(run(dir, 'settings', 'set', '--repo', v)[0], new RegExp(`^plans: settings set refused \\(--repo: ${why}`), v);
   }
-  assert.match(run(dir, 'settings', 'set', '--repo')[0], /refused \(--repo: give <PREFIX>=<absolute folder>\)/);
+  assert.match(run(dir, 'settings', 'set', '--repo')[0], /refused \(--repo: give <name>=<absolute folder>\)/);
   // Entries edited by hand into something else are left out.
-  write(dir, `${LOCAL}/settings.json`, JSON.stringify({ repos: { WEB: web, bad: web, API: 'relative/api', MOB: 7 } }));
-  assert.ok(run(dir, 'settings').includes(`repos: WEB=${web}`));
+  write(dir, `${LOCAL}/settings.json`, JSON.stringify({ repos: { web, 'my web': web, api: 'relative/api', mobile: 7 } }));
+  assert.ok(run(dir, 'settings').includes(`repos: web=${web}`));
 });
 
 test('mark: set, get and clear this chat\'s planning mark', () => {
@@ -608,7 +605,7 @@ test('mark: set, get and clear this chat\'s planning mark', () => {
 
 test('plans.js: unknown commands are named, never thrown', () => {
   const dir = project();
-  assert.equal(run(dir, 'import')[0], 'plans: unknown command "import" (list, find, new, ticket, check, review, reviewed, state, status, set, stale, repos, report, commit, push, tickets, align, drop, brief, settings, mark)');
+  assert.equal(run(dir, 'import')[0], 'plans: unknown command "import" (list, find, new, ticket, check, review, reviewed, state, status, set, stale, repos, report, commit, push, tickets, drop, brief, settings, mark)');
   assert.equal(run(dir)[0], 'features: 0');
   assert.match(run(dir, 'export', 's3-connection')[0], /^plans: unknown command "export"/);
   assert.match(run(dir, 'done', 'PROJ-1')[0], /^plans: unknown command "done"/);

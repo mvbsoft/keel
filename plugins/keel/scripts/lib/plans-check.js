@@ -6,8 +6,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { git, read, clean } = require('./repo-read.js');
 const { sections } = require('./tasks.js');
-const { ticketStructure, planStructure, isStub, outsideFences, unclosedFence } = require('./plans-format.js');
-const { settings, PREFIX } = require('./plans-settings.js');
+const { ticketStructure, planStructure, isStub, outsideFences, unclosedFence, heading } = require('./plans-format.js');
+const { settings } = require('./plans-settings.js');
 const { PLAN_FILE, STATES, CLOSED, needDraft, tickets, ticketIds } = require('./plans-drafts.js');
 // The kinds of ticket file: a ticket, a stub (lib/plans-stubs.js), one that lives in another repository.
 const TYPES = ['ticket', 'stub', 'elsewhere'];
@@ -160,7 +160,8 @@ function ticketProblems(root, label, text, filesRoot = root) {
 }
 
 function problems(root, d) {
-  const out = planStructure(d.text);
+  // A plan.md with `home:` holds no plan, only the front matter that names its home.
+  const out = given(d.fm.home) ? [] : planStructure(d.text);
   for (const p of placeholders(d.text)) out.push(`plan.md: placeholder ${p}`);
   if (unclosedFence(d.text)) out.push(`plan.md: the code block from line ${unclosedFence(d.text)} is never closed`);
   const folders = machineFolders(root);
@@ -171,41 +172,51 @@ function problems(root, d) {
     notes.push(...homeNotes(r.name, r.text, folders));
   }
   const s = settings(root);
-  out.push(...repos().planReposProblems(d.fm, s.ticket_prefix));
-  const planned = repos().planRepos(d.fm);
-  const list = tickets(d);
+  // In another repository's folder of a feature planned elsewhere (`home:`): its tickets depend on the
+  // home plan's, which are checked there.
+  const away = given(d.fm.home);
+  const files = tickets(d);
+  const list = away ? files : repos().withElsewhere(root, d, files, s);
   const ids = new Set(list.map((t) => t.id));
   for (const id of ids) {
     const same = list.filter((t) => t.id === id);
     if (same.length > 1) out.push(`${id}: two files have this number: ${same.map((t) => t.name).sort().join(', ')}`);
   }
-  for (const t of list) {
-    notes.push(...homeNotes(t.id, t.text, folders));
-    if (t.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(t.fm.id || '')}", the file name says ${t.id}`);
-    if (given(t.fm.type) && !TYPES.includes(t.fm.type)) out.push(`${t.id}: type is "${clean(t.fm.type, 20)}"; ${TYPES.join(', ')}`);
+  for (const [i, t] of list.entries()) {
+    const here = files[i];
+    notes.push(...homeNotes(t.id, here.text, folders));
+    if (here.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(here.fm.id || '')}", the file name says ${t.id}`);
+    if (given(here.fm.type) && !TYPES.includes(here.fm.type)) out.push(`${t.id}: type is "${clean(here.fm.type, 20)}"; ${TYPES.join(', ')}`);
+    const target = repos().targetOf(root, here, s);
+    const elsewhere = here.fm.type === 'elsewhere' && !away;
+    if (elsewhere) {
+      // The file here is a heading and a line; the ticket is read in its repository.
+      if (heading(here.text)[0] !== t.id) out.push(`${t.id}: no "# [${t.id}] <title>" heading`);
+      if (target.own || target.bad) { out.push(`${t.id}: an elsewhere ticket's repo "${clean(String(here.fm.repo || ''), 120)}" is not another repository's name`); continue; }
+      if (t.unknown) { notes.push(`note: ${t.id}: in ${target.name}, not checked (${clean(t.unknown, 300)})`); continue; }
+      if (t.there.t.fm.id !== t.id) out.push(`${t.id}: front matter id in ${target.name} is "${clean(t.there.t.fm.id || '')}"`);
+    }
     if (!STATES.includes(t.fm.status)) out.push(`${t.id}: status is "${clean(t.fm.status || '', 20)}"; ${STATES.join(', ')}`);
     else if (t.fm.status === 'abandoned' && !given(t.fm.reason)) out.push(`${t.id}: abandoned without a reason`);
     if (isStub(t.fm)) {
-      // A stub's repository is not on this machine: never in the plan's repos, no Where to look to check.
-      const r = given(t.fm.repo) ? t.fm.repo.trim().toUpperCase() : '';
-      if (!PREFIX.test(r) || r === s.ticket_prefix) out.push(`${t.id}: a stub's repo "${clean(r, 20)}" is not another repository's ticket prefix`);
-      else if (s.repos[r] && repos().isFolder(s.repos[r])) notes.push(require('./plans-stubs.js').offerNote(d.feature, t.id, r));
+      // A stub's repository is not on this machine: no Where to look to check.
+      if (target.own || target.bad) out.push(`${t.id}: a stub's repo "${clean(String(here.fm.repo || ''), 120)}" is not another repository's name`);
+      else if (target.folder) notes.push(require('./plans-stubs.js').offerNote(d.feature, t.id, target.name));
       out.push(...ticketProblems(root, t.id, t.text, null));
     } else {
-      const target = repos().targetOf(root, t, s);
-      if (target.bad) out.push(`${t.id}: repo "${clean(target.prefix, 20)}" is not a ticket prefix`);
-      else if (!target.own && !planned.includes(target.prefix)) out.push(`${t.id}: repo ${target.prefix} is not in the plan's repos`);
+      if (target.bad) out.push(`${t.id}: repo "${clean(target.name, 120)}" is not a repository name`);
       if (!target.own && !target.bad && !target.folder) notes.push(`note: ${t.id}: Where to look not checked (${clean(target.why, 200)})`);
       out.push(...ticketProblems(root, t.id, t.text, target.own ? root : target.folder));
     }
+    if (away) continue;
     for (const dep of ticketIds(t.fm.depends_on)) {
       const k = dep.toUpperCase();
       if (k === t.id) out.push(`${t.id}: depends on itself`);
       else if (!ids.has(k)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist in this feature`);
     }
   }
-  for (const c of cycles(list)) out.push(`dependency cycle: ${c}`);
-  return { out, count: list.length, notes };
+  if (!away) for (const c of cycles(list)) out.push(`dependency cycle: ${c}`);
+  return { out, count: list.length, notes, list };
 }
 
 // plan.md and the tickets; then git's one warning (a ticket whose branch is merged and that is not done)
@@ -213,16 +224,22 @@ function problems(root, d) {
 function draftCheck(root, feature) {
   const { d, why } = needDraft(root, feature, 'check');
   if (!d) return why;
-  const { out, count, notes } = problems(root, d);
-  const list = tickets(d);
-  const after = [...require('./plans-git.js').mergedWarnings(root, d, list), ...doneHint(d, list)];
+  const { out, count, notes, list } = problems(root, d);
+  // An elsewhere ticket's branch is in its own repository.
+  const after = [...require('./plans-git.js').mergedWarnings(root, d, list.filter((t) => !t.there)), ...doneHint(d, list)];
   if (!out.length) return [`check: clean (plan.md and ${count} tickets)`, ...notes, ...after];
   return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`), ...notes, ...after];
 }
 
 // The line that says the plan can be done: every ticket is done or abandoned, the plan is still open.
-const doneHint = (d, list) => (list.length && !CLOSED.includes(d.fm.status) && list.every((t) => CLOSED.includes(t.fm.status))
-  ? [`plan: every ticket is done or abandoned: plans.js state ${d.feature} done`] : []);
+// An elsewhere ticket whose status cannot be read (lib/plans-repos.js withElsewhere) is left to the user.
+function doneHint(d, list) {
+  if (!list.length || CLOSED.includes(d.fm.status)) return [];
+  const open = list.filter((t) => !CLOSED.includes(t.fm.status));
+  if (!open.length) return [`plan: every ticket is done or abandoned: plans.js state ${d.feature} done`];
+  if (open.some((t) => !t.unknown)) return [];
+  return [`plan: every other ticket is done or abandoned; the status of ${open.map((t) => `${t.id} is unknown (${clean(t.unknown, 300)})`).join(', ')}: confirmation needed, ask the user whether it is done, then plans.js state ${d.feature} done --confirm`];
+}
 
 // --- staleness ---
 
@@ -247,8 +264,9 @@ function staleLine(folder, after, list, tag) {
   return `stale${tag}: ${hit.length} of ${files.length} named files changed since ${after}: ${shown}`;
 }
 
-// This project's tickets against after_commit; each other repository's tickets in its folder against
-// its commit in after_commit_repos, one `stale (<PREFIX>):` line each.
+// This project's tickets against after_commit; each other repository's tickets (an elsewhere ticket's
+// text read there) in its folder against its commit in after_commit_repos, one `stale (<name>):` line
+// each.
 function draftStale(root, feature) {
   const { d, why } = needDraft(root, feature, 'stale');
   if (!d) return why;
@@ -256,18 +274,18 @@ function draftStale(root, feature) {
   const own = [];
   const other = new Map();
   // A stub has no Where to look.
-  for (const t of tickets(d).filter((x) => !isStub(x.fm))) {
+  for (const t of repos().withElsewhere(root, d, tickets(d), s).filter((x) => !isStub(x.fm))) {
     const target = repos().targetOf(root, t, s);
     if (target.own) own.push(t);
-    else other.set(target.prefix, { target, list: [...(other.has(target.prefix) ? other.get(target.prefix).list : []), t] });
+    else other.set(target.name, { target, list: [...(other.has(target.name) ? other.get(target.name).list : []), t] });
   }
   const commits = repos().commitsOf(d.fm);
   const out = [staleLine(root, d.fm.after_commit, own, '')];
-  for (const [prefix, { target, list }] of other) {
-    const tag = ` (${clean(prefix, 20)})`;
-    if (target.bad || !target.folder) out.push(`stale${tag}: not checked (${target.bad ? 'repo is not a ticket prefix' : clean(target.why, 200)})`);
-    else if (!commits.has(prefix)) out.push(`stale${tag}: not checked (no commit recorded for ${prefix}: plans.js set ${d.feature} --after-commit)`);
-    else out.push(staleLine(target.folder, commits.get(prefix), list, tag));
+  for (const [name, { target, list }] of other) {
+    const tag = ` (${clean(name, 120)})`;
+    if (target.bad || !target.folder) out.push(`stale${tag}: not checked (${target.bad ? 'repo is not a repository name' : clean(target.why, 200)})`);
+    else if (!commits.has(name)) out.push(`stale${tag}: not checked (no commit recorded for ${name}: plans.js set ${d.feature} --after-commit)`);
+    else out.push(staleLine(target.folder, commits.get(name), list, tag));
   }
   return out;
 }
