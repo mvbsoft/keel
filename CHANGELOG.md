@@ -60,7 +60,7 @@ All notable changes to keel are listed here. The format follows
   repository as it is; refused when the target exists, a ticket is `in-progress`, a task names a ticket of
   the feature or the folder has uncommitted changes.
 - `tracker` and `tracker_url` fields on the plan and on tickets, written only when you ask, and a tracker
-  skill that links a ticket, creates it through your tracker's connector or moves a whole feature, looking
+  skill (`tracker`, loaded on such a request in any conversation) that links a ticket, creates it through your tracker's connector or moves a whole feature, looking
   for each item by name first so a second run makes no duplicates. keel never reads or writes the tracker's
   status.
 - `docs/planning.md` describes every `plans.js` command (what it does, when to run it, what it changes

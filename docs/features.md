@@ -619,4 +619,6 @@ Advisory skills the model pulls in by itself in a configured project: `architect
 `adr-required`, `documentation-philosophy`, `git`, `migration-safety`, `performance-review`,
 `postgres-best-practices`, `production-readiness`, `python-conventions`, `root-cause-analysis`,
 `when-tests-are-owed`. They can ask too: whether to write an ADR, whether your uncommitted change
-was intentional, whether to fix old failing tests first or continue.
+was intentional, whether to fix old failing tests first or continue. The `tracker` skill, on your
+request in any conversation, links a planned ticket or feature to your tracker (Jira, Linear,
+Asana), creates its item there or moves the whole feature there.

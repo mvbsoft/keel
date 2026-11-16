@@ -428,6 +428,18 @@ test('/keel:help: user-only, static, short, and its table names every keel comma
   says(body, ['/keel:cleanup', 'restore', 'empty-trash'], 'the cleanup row names restore and empty-trash');
 });
 
+test('tracker: a skill the model loads in any conversation when the user asks to link planned work to an issue tracker', () => {
+  const { fields, body } = parse('tracker');
+  assert.equal(fields.name, 'tracker');
+  assert.equal(fields['disable-model-invocation'], undefined, 'the model loads it on what the user asks');
+  assert.match(fields.description, /^Use when/);
+  says(fields.description, ['link a planned ticket or feature', 'issue tracker', 'create its item there', 'move a whole planned feature']);
+  assert.ok(fields.description.length <= 240, `description is ${fields.description.length} characters`);
+  says(body, ['plans.js" "<project>" tickets <feature>/T<n>`', '`file:`']);
+  says(body, ['`plans.js commit <feature>`', '`plans.js push <feature>`', 'Claude Code asks each']);
+  assert.ok(!fs.existsSync(path.join(SKILLS, '_shared', 'planning-tracker.md')), 'one place for the tracker rules');
+});
+
 test('every command the user runs has its section in docs/commands.md', () => {
   const commands = fs.readdirSync(SKILLS).filter((n) => fs.existsSync(path.join(SKILLS, n, 'SKILL.md')) && parse(n).fields['disable-model-invocation'] === 'true');
   assert.ok(commands.includes('feature-page') && commands.length >= 12, commands.join(', '));

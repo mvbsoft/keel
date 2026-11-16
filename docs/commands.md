@@ -1,7 +1,8 @@
 # Commands
 
 Every keel command, how to call it and what happens in each case. Only you start these commands; the
-model never runs them on its own.
+model never runs them on its own. Linking planned work to your issue tracker is no command: ask in
+plain words ("link T3 to Jira"), and keel's `tracker` skill does it ([the tracker](planning.md#the-tracker)).
 
 **How instructions work.** After the task, session and planning commands you write what you want in plain
 words; there are no keyword arguments. `/keel:tasks` (`drop`), `/keel:cleanup` (`restore`,

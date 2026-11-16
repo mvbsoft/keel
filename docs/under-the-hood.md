@@ -243,7 +243,8 @@ above remind it:
 `architecture`, `adr-required`, `documentation-philosophy`, `git`, `migration-safety`,
 `performance-review`, `postgres-best-practices`, `production-readiness`, `python-conventions`,
 `root-cause-analysis`, `when-tests-are-owed`. `/keel:configure` also suggests checked plugins for your
-stack (you run the install commands yourself).
+stack (you run the install commands yourself). The `tracker` skill is loaded when you ask to link
+planned work to your issue tracker, in any conversation ([the tracker](planning.md#the-tracker)).
 
 ## Languages
 

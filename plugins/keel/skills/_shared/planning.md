@@ -26,7 +26,7 @@ in and the feature `<f>` once it is known. Talk in plain words. Read only the se
   `plans.js state` and `plans.js status` change it. keel never reads or writes a status in the
   tracker.
 - **Tracker.** The user asks to link a ticket or the plan to the tracker, create it there, or move the
-  whole feature there → read `<keel>/skills/_shared/planning-tracker.md` and follow it.
+  whole feature there → load keel's tracker skill (`keel:tracker`) and follow it.
 
 ## Work
 - **One question per message** (AskUserQuestion when it exists), answerable in a line; options come

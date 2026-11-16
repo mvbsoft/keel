@@ -402,8 +402,9 @@ each, with no type: the plan may be an epic or a parent task in your tracker and
 below it; keel does not store which. keel writes them only when you ask:
 
 - "Here is the link for this ticket" → keel writes `tracker` and `tracker_url`.
-- "Create this in Jira" → keel's tracker skill creates it through your tracker's connector and writes
-  the fields.
+- "Create this in Jira" → keel's tracker skill (`tracker`, loaded on such a request in any
+  conversation, not only while planning) creates it through your tracker's connector and writes the
+  fields.
 - "Move this whole feature to the tracker" → the same skill reads the plan and the tickets, asks only
   what the files do not say (project, type of the plan and of the tickets, version, sprint, assignee,
   labels), looks for each item by name before creating it, then creates the plan's item, then the

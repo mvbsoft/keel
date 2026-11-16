@@ -594,4 +594,6 @@ Code підтверджує кожне видалення в `/keel:usage clear`
 `documentation-philosophy`, `git`, `migration-safety`, `performance-review`,
 `postgres-best-practices`, `production-readiness`, `python-conventions`, `root-cause-analysis`,
 `when-tests-are-owed`. Вони теж можуть спитати: написати ADR, чи ваша незакомічена зміна була
-навмисна, лагодити спершу старі тести, що не проходять, чи продовжити.
+навмисна, лагодити спершу старі тести, що не проходять, чи продовжити. Навичка `tracker` на ваше
+прохання в будь-якій розмові прив'язує запланований тікет чи фічу до трекера (Jira, Linear, Asana),
+створює там задачу або переносить туди всю фічу.

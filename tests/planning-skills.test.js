@@ -12,7 +12,7 @@ const read = (...p) => fs.readFileSync(path.join(PLUGIN, ...p), 'utf8');
 const start = () => read('skills', 'start-planning', 'SKILL.md');
 const end = () => read('skills', 'end-planning', 'SKILL.md');
 const flow = () => read('skills', '_shared', 'planning.md');
-const tracker = () => read('skills', '_shared', 'planning-tracker.md');
+const tracker = () => read('skills', 'tracker', 'SKILL.md');
 const all = () => [start(), end(), flow(), tracker()];
 // One section of planning.md, by its heading.
 const section = (name) => {
@@ -238,7 +238,7 @@ test('after ready: an edit keeps the status, its weight is its section, review n
 
 test('status lives in the files and the tracker is linked only on request', () => {
   says(section('Rules'), ['`status` field', 'only source of a state', 'never reads or writes a status in the', 'tracker']);
-  says(section('Rules'), ['**Tracker.**', '`<keel>/skills/_shared/planning-tracker.md`', 'follow it']);
+  says(section('Rules'), ['**Tracker.**', "keel's tracker skill (`keel:tracker`)", 'follow it']);
   const t = tracker();
   says(t, ['`tracker: <key>`', '`tracker_url: <link>`', 'written only when the user asks']);
   says(t, ['keel never reads or writes a status in the tracker']);
