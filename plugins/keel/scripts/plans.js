@@ -85,7 +85,8 @@
 //                                         when it is not in the repository); one ticket (and its file, its
 //                                         status on the remote's plan branch, `remote:`, and its
 //                                         dependencies). `next:` the ticket to take next: ready, no stub,
-//                                         reviewed, every dependency done. --fetch: git fetch --prune first
+//                                         reviewed, every dependency done, one of this repository before an
+//                                         elsewhere one. --fetch: git fetch --prune first
 //   move <feature> --to repo|pc           the feature folder as it is between the repository
 //                                         (<tickets_dir>/<feature>/) and this machine
 //                                         (.keel/local/plans/keel/<feature>/); refused when the target

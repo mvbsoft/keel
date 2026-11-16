@@ -330,7 +330,8 @@ is taken again (`in-progress`) from `done` or `abandoned`: a finish whose git st
 start it again. A `done` or `abandoned` plan goes back to `in-progress` with it, so a plan marked done
 before a commit that stopped does not stay done with an open ticket. `/keel:tasks` and `/keel:start-task` print each ticket's state, `on <branch>` for one in
 progress, and the one to take next, with `plans.js tickets` (a script, no tokens): the first ticket by
-number that is `ready`, is no stub, needs no review and whose dependencies are all `done`. A ticket that depends on
+number that is `ready`, is no stub, needs no review and whose dependencies are all `done`; one of this
+repository comes before one that lives in another repository. A ticket that depends on
 an abandoned one waits for your answer: remove the dependency, or abandon it too. A ticket in another
 repository is read there; one that cannot be read shows `unknown`.
 

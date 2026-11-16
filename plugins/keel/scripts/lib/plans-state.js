@@ -23,12 +23,13 @@ const depsOf = (t) => plans.ticketIds(t.fm.depends_on).map((k) => k.toUpperCase(
 
 // The ticket to take next in one feature, or null: the first by number that is ready, no stub (it
 // cannot be started), needs no review and whose dependencies are all done. One that depends on an
-// abandoned ticket waits for the user: remove the dependency or abandon it too. An elsewhere ticket
-// may be next: it is started in its repository.
+// abandoned ticket waits for the user: remove the dependency or abandon it too. A ticket started here
+// comes first; an elsewhere ticket (started in its repository) is next only when none of those can start.
 function nextOf(list) {
   const byId = new Map(list.map((t) => [t.id, t]));
-  return list.find((t) => t.fm.status === 'ready' && !isStub(t.fm) && !plans.needsReview(t)
-    && depsOf(t).every((k) => byId.has(k) && byId.get(k).fm.status === 'done')) || null;
+  const eligible = list.filter((t) => t.fm.status === 'ready' && !isStub(t.fm) && !plans.needsReview(t)
+    && depsOf(t).every((k) => byId.has(k) && byId.get(k).fm.status === 'done'));
+  return eligible.find((t) => t.fm.type !== 'elsewhere') || eligible[0] || null;
 }
 
 // The open tickets of `shown` that depend on an abandoned one of `list`: `note:` lines.

@@ -100,6 +100,23 @@ gitTest('check, review, states, tickets and next read an elsewhere ticket in its
   assert.ok(run(api, 'check', FEATURE).includes(`plan: every ticket is done or abandoned: plans.js state ${FEATURE} done`));
 });
 
+gitTest('next prefers a ticket of this repository; an elsewhere ticket is next only when none here can start', () => {
+  const w = world();
+  const { api, web } = w;
+  draft(w);
+  write(api, `${PLAN}/tickets/T2-event.md`, readRel(api, `${PLAN}/tickets/T2-event.md`).replace(/^depends_on: T1$/m, 'depends_on:'));
+  run(api, 'reviewed', FEATURE, 'T1', 'T2');
+  run(api, 'state', FEATURE, 'ready');
+  let out = run(api, 'tickets', FEATURE);
+  assert.ok(out.includes('  T1 Ticket T1 — ready · in web') && out.includes('  T2 Ticket T2 — next'), out.join('\n'));
+  assert.equal(out.at(-1), `next: ${FEATURE}/T2`);
+  run(api, 'status', FEATURE, 'T2', 'in-progress');
+  out = run(api, 'tickets', FEATURE);
+  assert.ok(out.includes('  T1 Ticket T1 — next · in web'), out.join('\n'));
+  assert.equal(out.at(-1), `next: ${FEATURE}/T1`);
+  assert.equal(readRel(web, `${THERE}/tickets/T1-badge.md`).match(/^status: (.*)$/m)[1], 'ready');
+});
+
 gitTest('in the repository an elsewhere ticket lives in, its last ticket done gives no plan: line: the plan is done at home', () => {
   const w = world();
   const { api, web } = w;
