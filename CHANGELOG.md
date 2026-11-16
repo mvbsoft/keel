@@ -6,6 +6,8 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-16
+
 ### Fixed
 - End of feature commits and pushes the plan on the feature branch before the merge when it was marked
   done outside a task's finish (`/keel:tasks`, `/keel:start-task`): uncommitted, it stopped the merge
@@ -812,7 +814,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/mvbsoft/keel/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/mvbsoft/keel/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/mvbsoft/keel/compare/v1.4.0...v2.0.0
 [1.4.0]: https://github.com/mvbsoft/keel/compare/v1.3.0...v1.4.0
