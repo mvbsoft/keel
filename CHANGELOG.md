@@ -6,6 +6,8 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-16
+
 ### Upgrading from 2.0.0
 - Features planned with 2.0.0 are not supported, and nothing converts them: the exported tickets with
   keys such as `PROJ-12`, their `README.md` overview and the drafts of 2.0.0 are not read. Plan such a
@@ -778,7 +780,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/mvbsoft/keel/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/mvbsoft/keel/compare/v1.4.0...v2.0.0
 [1.4.0]: https://github.com/mvbsoft/keel/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/mvbsoft/keel/compare/v1.2.1...v1.3.0
