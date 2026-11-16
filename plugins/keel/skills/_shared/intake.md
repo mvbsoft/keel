@@ -228,8 +228,9 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
    <feature>/T<n>" under the step 2 list (`next: none` or `tickets: none` → nothing). "next ticket" →
    `tickets --fetch`, take its `next:` line (`next: none` → say so and show its list). Either list's
    `plan: ... plans.js state <f> done` line (its last ticket closed elsewhere) → "Feature <f> is
-   complete. Mark the plan done?"; yes → run it, then "End of feature" in git.md. Then (also for a
-   `<feature>/T<n>` given) `tickets <feature>/T<n> --fetch`; `tickets: none (...)` → say so and stop.
+   complete. Mark the plan done?"; yes → run it, then "End of feature" in git.md (it first commits and
+   pushes the plan). Then (also for a `<feature>/T<n>` given) `tickets <feature>/T<n> --fetch`;
+   `tickets: none (...)` → say so and stop.
 2. **Its state** (its line, `branch: <b> -> <merge_into>`, `file:`, `remote:`, `depends:`):
    - `draft` → still being planned: say so (`/keel:start-planning <feature>` finishes it) and stop;
    - `needs review` (its text changed since its review) → show it and ask: start anyway / review it
@@ -255,8 +256,12 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
    confirms); a subagent (`--execution delegate`) stops on a decision and returns it as a question.
    A separate session: step 5 with `--branch <b>-T<n>`, then print exactly
    `cd <its folder> && claude --add-dir <project> "<prompt>"`, the prompt naming the ticket file's
-   absolute path and, as its last step once the work is verified,
-   `node <keel>/scripts/plans.js <its folder> status <feature> T<n> done --project <project>`; stop here.
+   absolute path, this project's feature branch `<b>` and, as its last steps once the work is verified,
+   `node <keel>/scripts/plans.js <its folder> status <feature> T<n> done --project <project>`, then (a
+   feature in the repository) the line for the user "In <project>, on `<b>`, run
+   `node <keel>/scripts/plans.js <project> commit <feature> --tickets T<n>`, then
+   `node <keel>/scripts/plans.js <project> push <feature>`" (keel's hook lets a session commit only in
+   its own project); stop here.
 4. **Branch** (step 6's options for a ticket), "Before any branch change" first: the `branch:` line's
    `<b>` (its feature branch) is offered first. It exists (local or on the remote) →
    `git-flow.js switch --name <b>`; missing → `start --name <b> --from <current>`. A ticket branch

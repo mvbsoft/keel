@@ -516,7 +516,7 @@ step you asked for. In both modes it does not add secret files to a commit.
 | a conflict while merging in the base branch's commits | Resolve together or leave it to you? | together / you |
 | after that tests or the linter fail | Fix now or stop? | fix / stop |
 | the branch is protected | Create a pull request now? | yes / no |
-| the feature is ready (one question at a time) | Switch to the feature branch; keep or delete the feature's files; merge the feature; delete the branch after merging | yes / no; keep / delete |
+| the feature is ready (one question at a time) | Switch to the feature branch; keep or delete the feature's files; merge the feature; delete the branch after merging. A feature on this machine only: only keep or delete its files | yes / no; keep / delete |
 
 ### Implementer agents
 

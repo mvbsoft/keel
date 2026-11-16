@@ -7,6 +7,17 @@ All notable changes to keel are listed here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- End of feature commits and pushes the plan on the feature branch before the merge when it was marked
+  done outside a task's finish (`/keel:tasks`, `/keel:start-task`): uncommitted, it stopped the merge
+  (`could not switch to <merge_into>`). It runs for a feature on this machine as only its keep or
+  delete step, since such a feature has no branch of its own.
+- `/keel:tasks` offers End of feature only while the feature's branch can still merge: `plans.js list`
+  ends a done feature's line with `branch <b> merged into <m>` or `branch <b> not found`, and then
+  nothing is offered. `plans.js drop` on the branch a feature merged into says to drop it on a branch
+  of its own.
+- A separate session for another repository's ticket names this project's feature branch and ends with
+  the two commands that commit and push the ticket's status in this project; before, nothing committed
+  it.
 - In a repository that holds a feature's tickets for another repository's plan (`home:` in its
   `plan.md`), finishing its last ticket no longer prints `plan: every ticket is done or abandoned`:
   the plan is done in its home repository, where `plans.js state` runs.
