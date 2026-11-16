@@ -75,7 +75,8 @@ class Stop extends Error {
   constructor(reason, details = []) { super(reason); this.details = details; }
 }
 
-// `git status --porcelain -z`: [{ xy, path, orig }]
+// `git status --porcelain -z`: [{ xy, path, orig }]. keel's own untracked .keel/local files are left
+// out, also where no .gitignore leaves them out yet (a repository without keel).
 function changedFiles(root) {
   const r = git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']);
   if (!r.ok) throw new Stop(`git status failed: ${firstLines(r.err)}`);
@@ -86,6 +87,7 @@ function changedFiles(root) {
     if (e.length < 4) continue;
     const f = { xy: e.slice(0, 2), path: e.slice(3), orig: null };
     if (f.xy[0] === 'R' || f.xy[0] === 'C') f.orig = parts[++i];
+    if (f.xy === '??' && f.path.startsWith('.keel/local/')) continue;
     files.push(f);
   }
   return files;

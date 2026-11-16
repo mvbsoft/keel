@@ -693,3 +693,22 @@ gitTest('trust covers the git settings it was given: a branch that changes them 
   fs.writeFileSync(path.join(usageDir, 'trusted-git.json'), JSON.stringify({ projects: [process.platform === 'win32' ? bare.toLowerCase() : bare] }));
   assert.doesNotMatch(line(run(work, 'status'), 'autonomous on this machine:'), /: confirmed/);
 });
+
+gitTest('a repository without keel: keel\'s own files under .keel/local are no change there and leave git status clean', () => {
+  const { tmp, server } = setup();
+  const plain = path.join(tmp, 'plain');
+  execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', server, plain]);
+  git(plain, 'config', 'user.name', 'Test');
+  git(plain, 'config', 'user.email', 'test@example.com');
+  git(plain, 'rm', '-q', '-r', '.keel');
+  git(plain, 'commit', '-q', '-m', 'no keel here');
+  // A scratch file written before any keel script runs there, as a commit message is.
+  write(plain, '.keel/local/tmp/commit-message.txt', 'Message\n');
+  const fingerprint = (...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'fingerprint.js'), plain, ...args], { encoding: 'utf8' }).stdout.trim();
+  assert.match(fingerprint('snapshot', 'x'), /^snapshot x: 0 changed files recorded$/);
+  assert.equal(fingerprint('compare', 'x'), 'same');
+  assert.equal(git(plain, 'status', '--porcelain', '--untracked-files=all'), '');
+  const out = flow(plain, 'start', '--name', 'feature');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.ok(!out.some((l) => l.startsWith('carried:')), out.join('\n'));
+});

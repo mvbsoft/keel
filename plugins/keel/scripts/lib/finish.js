@@ -8,7 +8,7 @@
 // (lib/tasks.js workRoot) in that repository's folder, with `project`, the folder that holds the task.
 const fs = require('node:fs');
 const path = require('node:path');
-const { safeLocalPath } = require('./safe-path.js');
+const { safeLocalPath, safeLocalWrite } = require('./safe-path.js');
 const { validId, validSid } = require('./ids.js');
 
 const STALE_MS = 24 * 60 * 60 * 1000;
@@ -30,9 +30,7 @@ function readFinish(root, sid) {
 // recorded must not start. `project`: the folder that holds the task, when it is not `root`.
 function writeFinish(root, sid, id, state, project) {
   if (!validSid(sid) || !validId(id)) throw new Error('invalid session or task id');
-  const f = file(root, sid);
-  fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(f, `${JSON.stringify({ id, state, at: new Date().toISOString(), ...(project ? { project } : {}) })}\n`);
+  safeLocalWrite(root, ['finish', `${sid}.json`], `${JSON.stringify({ id, state, at: new Date().toISOString(), ...(project ? { project } : {}) })}\n`);
 }
 
 function clearFinish(root, sid) {

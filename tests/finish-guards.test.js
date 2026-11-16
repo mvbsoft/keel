@@ -444,4 +444,5 @@ gitTest('a ticket of another repository records its finish where its git steps r
   // The task here stays finished; keel's scratch files in web never went into its commit.
   assert.ok(!exists(work, '.keel/local/tasks/csv-export-T1'));
   assert.ok(!git(web, 'show', '--name-only', '--format=', 'HEAD').includes('.keel'));
+  assert.equal(git(web, 'status', '--porcelain', '--untracked-files=all'), '', 'nor are they untracked noise there');
 });
