@@ -23,7 +23,7 @@ const { git, clean, validBranchName } = require('./repo-read.js');
 const { isSecretName } = require('./secret-names.js');
 const { secretCheck } = require('./project.js');
 const { realPath, samePath, linkOnWay } = require('./safe-path.js');
-const { readFinish, writeFinish, clearFinish, ownItem } = require('./finish.js');
+const { findFinish, writeFinish, clearFinish, ownItem } = require('./finish.js');
 const { validId, validSid: validSession } = require('./ids.js');
 const { mainOf } = require('./project-dir.js');
 const {
@@ -256,16 +256,18 @@ function verifiedGuard(root, t) {
 
 function taskDelete(root, id, sid) {
   const record = sid !== undefined && settings(root).mode === 'autonomous';
-  let recorded = false;
-  // The finish record comes before the move: a finish that cannot be recorded does not start.
+  let recorded = null;
+  // The finish record comes before the move: a finish that cannot be recorded does not start. It goes
+  // where the finish's git steps run (lib/finish.js).
   const guard = (task) => {
     const notVerified = verifiedGuard(root, task);
     if (notVerified || !record) return notVerified;
-    try { writeFinish(root, sid, task.id, 'deleted'); recorded = true; return null; } catch (e) { return `the finish record cannot be written: ${e.message}`; }
+    const home = workRoot(root, task).folder;
+    try { writeFinish(home, sid, task.id, 'deleted', home === root ? undefined : root); recorded = home; return null; } catch (e) { return `the finish record cannot be written: ${e.message}`; }
   };
   const { why, t, target, batch, tracked } = toTrash(root, id, sid, 'task delete', guard);
   if (why) {
-    if (recorded) clearFinish(root, sid);
+    if (recorded) clearFinish(recorded, sid);
     return why;
   }
   return [`deleted: ${rel(root, target)}${t.folder ? '/' : ''} (moved to keel's trash)`, `trash batch: ${batch}`, 'active task: none', ...(tracked ? [TRACKED_NOTE] : [])];
@@ -306,8 +308,8 @@ function taskRestore(root, id, sid, now = new Date()) {
     try { if (was) writeClosed(root, (c) => { c[id] = was; }); } catch { /* the task then lists again; the batch still holds it */ }
     return refuse('task restore', r.refused || `nothing put back: ${r.kept.map((k) => `${k.path} (${k.reason})`).join(', ')}`);
   }
-  const pending = readFinish(root, sid);
-  if (pending && sameId(pending.id, id)) clearFinish(root, sid);
+  const pending = findFinish(root, sid);
+  if (pending && sameId(pending.r.id, id)) clearFinish(pending.home, sid);
   return [`restored: ${r.restored.map((i) => i.path).join(', ')} (trash batch ${b.batch})`, ...taskActivate(root, id, sid, now)];
 }
 

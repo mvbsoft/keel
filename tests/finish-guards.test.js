@@ -393,3 +393,55 @@ gitTest('a finish goes on past a secret file the commit left out, and a stop aft
   assert.ok(stopped.some((l) => /^restore: not needed \(the removal of task T-4 is committed/.test(l)), stopped.join('\n'));
   assert.ok(!exists(work, '.keel/tasks/T-4'));
 });
+
+gitTest('a ticket of another repository records its finish where its git steps run: the Stop hook, a stop and a push there all find it', () => {
+  const { work } = setup();
+  const tmp = path.dirname(work);
+  // web: a repository without keel, its main branch named by origin/HEAD.
+  const web = path.join(tmp, 'web');
+  fs.mkdirSync(web);
+  git(web, 'init', '-q', '-b', 'main');
+  git(web, 'config', 'user.name', 'Test');
+  git(web, 'config', 'user.email', 'test@example.com');
+  write(web, 'index.js', 'x\n');
+  git(web, 'add', '-A');
+  git(web, 'commit', '-q', '-m', 'init');
+  const webServer = path.join(tmp, 'web.git');
+  execFileSync('git', ['init', '-q', '--bare', '-b', 'main', webServer]);
+  git(web, 'remote', 'add', 'origin', webServer);
+  git(web, 'push', '-q', '-u', 'origin', 'main');
+  git(web, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main');
+  const plans = (...args) => run('plans.js', work, ...args);
+  plans('new', 'csv-export');
+  plans('settings', 'set', '--repo', `web=${web.split(path.sep).join('/')}`);
+  plans('ticket', 'csv-export', '--title', 'Badge', '--repo', 'web');
+  assert.match(notes(work, 'task', 'new', 'csv-export-T1', '--title', 'Badge', '--source', 'file', '--ticket', 'csv-export/T1', '--session', 's1')[0], /^created: \.keel\/local\/tasks\//);
+  write(web, 'index.js', 'x\ny\n');
+  save(web);
+  const input = { session_id: 's1', stop_hook_active: false, last_assistant_message: 'Done.', cwd: work };
+
+  // A step that stops there puts the task back here.
+  assert.match(notes(work, 'task', 'delete', 'csv-export-T1', '--session', 's1')[0], /^deleted: /);
+  assert.equal(marker(work), null, 'not in this project');
+  assert.equal(marker(web).state, 'deleted');
+  assert.equal(stopDecision(input, work, PLUGIN).decision, 'block');
+  const stopped = flow(web, 'commit', '--message-file', message(web), '--finish', 'csv-export-T1', '--session', 's1');
+  assert.equal(stopped[0], 'git-flow: stopped');
+  assert.ok(stopped.some((l) => /^restored: \.keel\/local\/tasks\/csv-export-T1/.test(l)), stopped.join('\n'));
+  assert.ok(exists(work, '.keel/local/tasks/csv-export-T1/task.md'));
+  assert.equal(marker(web), null);
+  assert.equal(stopDecision(input, work, PLUGIN), null);
+
+  // A commit there holds the finish, a push there ends it.
+  notes(work, 'task', 'delete', 'csv-export-T1', '--session', 's1');
+  assert.equal(stopDecision(input, work, PLUGIN).decision, 'block');
+  assert.equal(flow(web, 'start', '--name', 'csv-export-T1', '--finish', 'csv-export-T1', '--session', 's1')[0], 'git-flow: ok');
+  assert.equal(flow(web, 'commit', '--message-file', message(web), '--finish', 'csv-export-T1', '--session', 's1')[0], 'git-flow: ok');
+  assert.equal(marker(web).state, 'committed');
+  assert.equal(stopDecision(input, work, PLUGIN), null);
+  assert.equal(flow(web, 'push', '--finish', 'csv-export-T1', '--session', 's1')[0], 'git-flow: ok');
+  assert.equal(marker(web), null, 'a completed push ends the finish');
+  // The task here stays finished; keel's scratch files in web never went into its commit.
+  assert.ok(!exists(work, '.keel/local/tasks/csv-export-T1'));
+  assert.ok(!git(web, 'show', '--name-only', '--format=', 'HEAD').includes('.keel'));
+});

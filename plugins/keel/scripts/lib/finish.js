@@ -1,9 +1,11 @@
 'use strict';
 // The record of a finish in progress, one file per session: .keel/local/finish/<session id>.json
-// { id, state, at }. `task delete` writes state `deleted` (autonomous git only: in manual mode keel runs
-// no git) before it moves the folder; a git-flow commit turns it into `committed`; a restore or a push
-// after that commit removes it. The Stop hook (hooks/finish-check.js) keeps the model working while a
-// session's record says `deleted`, for at most a day and only while keel's trash still holds the task.
+// { id, state, at, project? }. `task delete` writes state `deleted` (autonomous git only: in manual mode
+// keel runs no git) before it moves the folder; a git-flow commit turns it into `committed`; a restore or
+// a push after that commit removes it. The Stop hook (hooks/finish-check.js) keeps the model working while
+// a session's record says `deleted`, for at most a day and only while keel's trash still holds the task.
+// The record lives where the finish's git steps run: for a planned ticket of another repository
+// (lib/tasks.js workRoot) in that repository's folder, with `project`, the folder that holds the task.
 const fs = require('node:fs');
 const path = require('node:path');
 const { safeLocalPath } = require('./safe-path.js');
@@ -18,17 +20,19 @@ function readFinish(root, sid) {
   if (!validSid(sid)) return null;
   try {
     const r = JSON.parse(fs.readFileSync(path.join(root, '.keel', 'local', 'finish', `${sid}.json`), 'utf8'));
-    return r && validId(r.id) && typeof r.state === 'string' ? r : null;
+    if (!r || !validId(r.id) || typeof r.state !== 'string') return null;
+    if (r.project !== undefined && !(typeof r.project === 'string' && path.isAbsolute(r.project))) delete r.project;
+    return r;
   } catch { return null; }
 }
 
 // Throws when the record cannot be written (a link on the way, a full disk): a finish that cannot be
-// recorded must not start.
-function writeFinish(root, sid, id, state) {
+// recorded must not start. `project`: the folder that holds the task, when it is not `root`.
+function writeFinish(root, sid, id, state, project) {
   if (!validSid(sid) || !validId(id)) throw new Error('invalid session or task id');
   const f = file(root, sid);
   fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(f, `${JSON.stringify({ id, state, at: new Date().toISOString() })}\n`);
+  fs.writeFileSync(f, `${JSON.stringify({ id, state, at: new Date().toISOString(), ...(project ? { project } : {}) })}\n`);
 }
 
 function clearFinish(root, sid) {
@@ -43,7 +47,7 @@ function markCommitted(root) {
   for (const n of names) {
     const sid = n.slice(0, -5);
     const r = readFinish(root, sid);
-    if (r && r.state === 'deleted') { try { writeFinish(root, sid, r.id, 'committed'); } catch { /* left as it was */ } }
+    if (r && r.state === 'deleted') { try { writeFinish(root, sid, r.id, 'committed', r.project); } catch { /* left as it was */ } }
   }
 }
 
@@ -55,10 +59,23 @@ function ownItem(item, id) {
   return !!m && item.kind === 'folder' && m[1].toLowerCase() === id.toLowerCase();
 }
 
+// The session's finish record of a task of `root`: { r, home } (home: the folder that holds the record),
+// or null. Beside root's own, a record in a repository of the repos map that names root as its project.
+function findFinish(root, sid) {
+  const own = readFinish(root, sid);
+  if (own) return { r: own, home: root };
+  const { samePath } = require('./safe-path.js');
+  for (const home of Object.values(require('./plans-settings.js').settings(root).repos)) {
+    const r = readFinish(home, sid);
+    if (r && r.project && samePath(path.resolve(r.project), path.resolve(root))) return { r, home };
+  }
+  return null;
+}
+
 // The session's finish that still waits for a commit, or null: a record older than a day, or one whose
 // task is no longer in keel's trash (restored by hand, the trash emptied), no longer holds the session.
 function pendingFinish(root, sid, now = Date.now()) {
-  const r = readFinish(root, sid);
+  const r = (findFinish(root, sid) || {}).r;
   if (!r || r.state !== 'deleted') return null;
   const at = Date.parse(r.at);
   if (!Number.isFinite(at) || now - at > STALE_MS || at - now > SKEW_MS) return null;
@@ -66,4 +83,4 @@ function pendingFinish(root, sid, now = Date.now()) {
   return listBatches(root).some((b) => b.by === 'task' && b.items.some((i) => ownItem(i, r.id))) ? r : null;
 }
 
-module.exports = { readFinish, writeFinish, clearFinish, markCommitted, pendingFinish, ownItem, validSid };
+module.exports = { readFinish, findFinish, writeFinish, clearFinish, markCommitted, pendingFinish, ownItem, validSid };

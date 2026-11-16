@@ -530,7 +530,8 @@ function afterFinishStep(root, command, opts, ok) {
   // The removal is already committed: putting the folder back would undo the commit's work; the finish
   // goes on from the stopped step once its reason is fixed.
   if (pending.state === 'committed') return [`restore: not needed (the removal of task ${id} is committed; fix the reason above, then run this step again)`];
-  const back = require('./lib/tasks.js').taskRestore(root, id, sid);
+  // A ticket of another repository: its task is in the project that planned it (lib/finish.js).
+  const back = require('./lib/tasks.js').taskRestore(pending.project || root, id, sid);
   if (back[0].startsWith('restored: ')) back.push(`task: ${id} is back and active; the finish did not complete (see reason above): fix it, then /keel:end-task again`);
   return back;
 }

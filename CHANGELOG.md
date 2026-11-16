@@ -53,7 +53,7 @@ All notable changes to keel are listed here. The format follows
   (`plans.js ticket --elsewhere <name>`: its own `plan.md` with `home:`, here a pointer file with
   `type: elsewhere`) or, for a repository not on this machine, a stub (`--stub <name>`, later
   `--from-stub T<n>`). A repository on this machine without keel gets a full ticket here, and its git
-  steps and verification run there. For a separate session keel prints the command,
+  steps, their finish record and its verification run there. For a separate session keel prints the command,
   `cd <folder> && claude --add-dir <project> "<prompt>"`.
 - `plans.js move <feature> --to repo|pc` moves a whole feature folder between this machine and the
   repository as it is; refused when the target exists, a ticket is `in-progress`, a task names a ticket of
