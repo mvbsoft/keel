@@ -359,7 +359,8 @@ function draftState(root, feature, to, o = {}) {
 }
 
 // plans.js status: one ticket's status. ready waits for its review; abandoned needs a reason and names
-// the tickets that depend on it; in-progress moves a ready plan to in-progress.
+// the tickets that depend on it; in-progress (not from draft, with the task's branch when given) moves a
+// ready plan to in-progress.
 function ticketStatus(root, feature, id, to, o = {}) {
   const { d, why } = needDraft(root, feature, 'status');
   if (!d) return why;
@@ -371,11 +372,14 @@ function ticketStatus(root, feature, id, to, o = {}) {
   const reason = reasonOf(o);
   if (to === 'abandoned' && !reason) return refuse('status', 'abandoned needs --reason "<why>"');
   if (to === 'ready' && needsReview(t)) return refuse('status', `${t.id} needs review: plans.js reviewed ${feature} ${t.id} after its review`);
-  if (t.fm.status === to && to !== 'abandoned') return [`status: ${t.id} ${to} (already)`];
-  const out = [`status: ${t.id} ${to}`];
+  if (to === 'in-progress' && t.fm.status === 'draft') return refuse('status', `${t.id} is a draft: plans.js status ${feature} ${t.id} ready after its review`);
+  if (o.branch !== undefined && (to !== 'in-progress' || typeof o.branch !== 'string' || !validBranch(root, o.branch))) return refuse('status', '--branch goes with in-progress and takes a valid branch name');
+  const branch = o.branch !== undefined ? { branch: o.branch } : {};
+  if (t.fm.status === to && to !== 'abandoned' && (o.branch === undefined || o.branch === t.fm.branch)) return [`status: ${t.id} ${to} (already)`];
+  const out = [`status: ${t.id} ${to}${o.branch !== undefined ? ` on ${o.branch}` : ''}`];
   let now;
   try {
-    now = writeStatus(root, d, t, { status: to, reason: to === 'abandoned' ? reason : null });
+    now = writeStatus(root, d, t, { status: to, reason: to === 'abandoned' ? reason : null, ...branch });
     if (to === 'in-progress' && d.fm.status === 'ready' && !given(d.fm.home)) { writePlan(root, d, { status: 'in-progress' }); mirrorStatus(list, 'in-progress'); out.push('plan: in-progress'); }
   } catch (e) { return refuse('status', e.message); }
   if (to === 'abandoned') {

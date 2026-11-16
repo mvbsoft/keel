@@ -1,9 +1,13 @@
 'use strict';
-// plans.js tickets and drop: the states come from the status fields; git adds one warning (a ticket's
-// branch merged into merge_into while the ticket is not done). Throwaway projects, no network.
+// plans.js tickets, status and drop, and the task of a planned ticket: the states come from the status
+// fields; git adds one warning (a ticket's branch merged into merge_into while the ticket is not done).
+// Throwaway projects, no network.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { gitTest, LOCAL, git, write, readRel, exists, run, front, planning, setup, ready, trashed } = require('./fixtures/plans-git.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { gitTest, SCRIPTS, LOCAL, git, write, readRel, exists, run, front, planning, setup, ready, trashed } = require('./fixtures/plans-git.js');
 
 const T = (n, folder = `${LOCAL}/s3-storage`) => `${folder}/tickets/T${n}-ticket-${n}.md`;
 
@@ -91,6 +95,30 @@ gitTest('the one git warning: a ticket whose branch is merged into merge_into wh
   assert.equal(run(work, 'tickets', '--fetch', 's3-storage').at(-1), 'fetch: no remote, skipped');
 });
 
+gitTest('status in-progress: --branch names the task\'s branch, a draft is refused; one ticket shows its status on the remote\'s plan branch', () => {
+  const { work } = setup();
+  planning(work, { place: 'repo' });
+  ready(work, 's3-storage', 2, 'tickets/s3-storage');
+  run(work, 'ticket', 's3-storage', '--title', 'Later');
+  const t1 = T(1, 'tickets/s3-storage');
+  assert.deepEqual(run(work, 'status', 's3-storage', 'T3', 'in-progress'), ['plans: status refused (T3 is a draft: plans.js status s3-storage T3 ready after its review)']);
+  assert.deepEqual(run(work, 'status', 's3-storage', 'T1', 'done', '--branch', 'x'), ['plans: status refused (--branch goes with in-progress and takes a valid branch name)']);
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  assert.deepEqual(run(work, 'status', 's3-storage', 'T1', 'in-progress', '--branch', 'other-T1'), ['status: T1 in-progress on other-T1', 'plan: in-progress']);
+  assert.match(readRel(work, t1), /^branch: other-T1$/m);
+  assert.deepEqual(run(work, 'status', 's3-storage', 'T1', 'in-progress', '--branch', 'other-T1'), ['status: T1 in-progress (already)']);
+  run(work, 'commit', 's3-storage');
+  run(work, 'push', 's3-storage');
+  // Here the ticket looks free again; the remote's plan branch shows who took it.
+  front(work, t1, 'status', 'ready');
+  const out = run(work, 'tickets', 's3-storage/T1', '--fetch');
+  assert.equal(out[3], '  T1 Title of T1 — next', out.join('\n'));
+  assert.deepEqual(out.slice(4, 6), [`  file: ${t1}`, '  remote: in-progress on other-T1 (origin/s3-storage)']);
+  assert.deepEqual(run(work, 'status', 's3-storage', 'T1', 'in-progress', '--branch', 's3-storage-T1'), ['status: T1 in-progress on s3-storage-T1']);
+  run(work, 'ticket', 's3-storage', '--title', 'Newer');
+  assert.ok(!run(work, 'tickets', 's3-storage/T4').some((l) => l.startsWith('  remote:')), 'a ticket the remote does not have yet: no line');
+});
+
 gitTest('drop: refused while a ticket is open and on the branch the feature merges into; then the folder goes to keel\'s trash', () => {
   const { work } = setup({ remote: false });
   planning(work, { place: 'repo' });
@@ -116,4 +144,37 @@ test('drop: a feature on this machine goes to keel\'s trash once its tickets are
   run(work, 'status', 's3-storage', 'T1', 'done');
   assert.match(run(work, 'drop', 's3-storage')[0], /^drop: \.keel\/local\/plans\/keel\/s3-storage\/? -> trash /);
   assert.ok(!exists(work, `${LOCAL}/s3-storage`));
+});
+
+gitTest('task new --ticket: the task <feature>-T<n> with ticket:, on this machine for a feature kept here or a ticket of another repository', () => {
+  const { tmp, work } = setup({ remote: false });
+  const notes = (...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'notes.js'), work, ...args], { encoding: 'utf8' }).stdout.trim().split('\n');
+  const task = (id, ...args) => notes('task', 'new', id, '--title', 'Upload', '--source', 'file', ...args);
+  ready(work, 's3-storage', 2);
+  assert.deepEqual(task('upload', '--ticket', 's3-storage/T1'), ['notes: task new refused (the task of s3-storage/T1 is s3-storage-T1)']);
+  assert.deepEqual(task('s3-storage-T9', '--ticket', 's3-storage/T9'), ['notes: task new refused (no ticket T9 in s3-storage)']);
+  assert.deepEqual(task('x-T1', '--ticket', 'PROJ-1'), ['notes: task new refused (--ticket takes <feature>/T<n>, not "PROJ-1")']);
+  // A feature on this machine: its task too, whatever tasks.in_git says.
+  assert.equal(task('s3-storage-T1', '--ticket', 's3-storage/T1')[0], 'created: .keel/local/tasks/s3-storage-T1/task.md');
+  assert.match(readRel(work, '.keel/local/tasks/s3-storage-T1/task.md'), /^ticket: s3-storage\/T1$/m);
+  assert.equal(notes('lane', 's3-storage/T1')[0], 'lane: task (s3-storage-T1 is an unfinished keel task, on this machine only: /keel:start-task leads it)');
+  // A feature in the repository: the task where tasks.in_git puts it.
+  planning(work, { place: 'repo' });
+  ready(work, 'csv-export', 1, 'tickets/csv-export');
+  assert.equal(task('csv-export-T1', '--ticket', 'csv-export/T1')[0], 'created: .keel/tasks/csv-export-T1/task.md');
+  // A ticket of another repository: repo: and that repository's start commit, on this machine.
+  const web = path.join(tmp, 'web');
+  fs.mkdirSync(web);
+  git(web, 'init', '-q', '-b', 'main');
+  git(web, 'config', 'user.name', 'Test');
+  git(web, 'config', 'user.email', 'test@example.com');
+  write(web, 'index.js', 'x\n');
+  git(web, 'add', '-A');
+  git(web, 'commit', '-q', '-m', 'init');
+  run(work, 'settings', 'set', '--repo', `web=${web.split(path.sep).join('/')}`);
+  run(work, 'ticket', 'csv-export', '--title', 'Badge', '--repo', 'web');
+  assert.equal(task('csv-export-T2', '--ticket', 'csv-export/T2')[0], 'created: .keel/local/tasks/csv-export-T2/task.md');
+  const text = readRel(work, '.keel/local/tasks/csv-export-T2/task.md');
+  assert.match(text, /^repo: web$/m);
+  assert.match(text, new RegExp(`^started: ${git(web, 'rev-parse', 'HEAD')}$`, 'm'));
 });

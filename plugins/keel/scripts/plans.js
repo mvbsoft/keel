@@ -47,9 +47,10 @@
 //                                         with it; done waits for every ticket to be done or abandoned
 //                                         (--confirm: the user said so for an elsewhere ticket whose status
 //                                         cannot be read). Elsewhere tickets change in their repository
-//   status <feature> <T<n>> <draft|ready|in-progress|done|abandoned> [--reason <why>] [--project <path>]
+//   status <feature> <T<n>> <draft|ready|in-progress|done|abandoned> [--reason <why>] [--branch <b>] [--project <path>]
 //                                         one ticket's status. ready waits for its review; abandoned needs
-//                                         --reason; in-progress moves a ready plan to in-progress.
+//                                         --reason; in-progress (not from draft; --branch: the task's branch,
+//                                         into the ticket's branch field) moves a ready plan to in-progress.
 //                                         --project: the project that holds the feature, for a session in
 //                                         another repository
 //   set <feature> [--branch <b>] [--merge-into <b>] [--after-commit]
@@ -73,7 +74,8 @@
 //   tickets [<feature> | <feature>/T<n>] [--fetch]
 //                                         the tickets' states from their status fields: no argument, every
 //                                         ready or in-progress feature with a ticket not done or abandoned;
-//                                         one feature (and its branch); one ticket (and its file and
+//                                         one feature (and its branch); one ticket (and its file, its
+//                                         status on the remote's plan branch, `remote:`, and its
 //                                         dependencies). `next:` the ticket to take next: ready, reviewed,
 //                                         every dependency done. --fetch: git fetch --prune first
 //   move <feature> --to repo|pc           the feature folder as it is between the repository
@@ -124,7 +126,7 @@ function run(root, pos, opts) {
   if (command === 'review') return plans.draftReview(root, feature);
   if (command === 'reviewed') return plans.draftReviewed(root, feature, pos.slice(3).map((x) => x.toUpperCase()));
   if (command === 'state') return plans.draftState(root, feature, pos[3], { reason: opts.reason, confirm: opts.confirm });
-  if (command === 'status') return plans.ticketStatus(root, feature, pos[3], pos[4], { reason: opts.reason });
+  if (command === 'status') return plans.ticketStatus(root, feature, pos[3], pos[4], { reason: opts.reason, branch: opts.branch });
   if (command === 'set') return plans.draftSet(root, feature, opts);
   if (command === 'stale') return plans.draftStale(root, feature);
   if (command === 'repos') return require('./lib/plans-repos.js').reposCommand(root);

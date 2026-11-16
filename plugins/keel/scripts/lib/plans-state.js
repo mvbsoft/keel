@@ -6,9 +6,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const plans = require('./plans.js');
-const { git, clean } = require('./repo-read.js');
+const { git, clean, frontmatter, noBom } = require('./repo-read.js');
 const { moveToTrash } = require('./trash.js');
-const { sameBranch } = require('../git-flow.js');
+const { sameBranch, pickRemote } = require('../git-flow.js');
 const { heading } = require('./plans-format.js');
 
 // The ticket states, in their order.
@@ -46,6 +46,20 @@ function ticketLine(t, next) {
   return `  ${t.id} ${clean(heading(t.text)[1], 80)} — ${marks.filter(Boolean).join(' · ')}`;
 }
 
+// The ticket as the remote's copy of the plan's branch has it: the main copy, where a start elsewhere
+// shows. Nothing for a feature on this machine, an elsewhere ticket, or a branch or file the remote does
+// not have (as of the last fetch).
+function remoteLine(root, d, t) {
+  const remote = d.local || t.there ? null : pickRemote((git(root, ['remote']) || '').split('\n').filter(Boolean));
+  if (!remote) return [];
+  const ref = `${remote}/${plans.branchesOf(root, d).branch}`;
+  const text = git(root, ['show', `${ref}:./${rel(root, t.file)}`]);
+  if (text === null) return [];
+  const fm = frontmatter(noBom(text));
+  const on = fm.status === 'in-progress' && fm.branch && fm.branch !== '-' ? ` on ${clean(fm.branch, 60)}` : '';
+  return [`  remote: ${clean(fm.status || 'no status', 20)}${on} (${clean(ref, 80)})`];
+}
+
 // The feature's tickets, an elsewhere one as its file in its repository says.
 const featureTickets = (root, d) => (d.fm.home ? plans.tickets(d) : require('./plans-repos.js').withElsewhere(root, d, plans.tickets(d)));
 
@@ -74,7 +88,7 @@ function ticketsCommand(root, arg, { fetch = false } = {}) {
     for (const t of lines) {
       out.push(ticketLine(t, own));
       if (!one) continue;
-      out.push(`  file: ${t.there ? t.there.t.file.split(path.sep).join('/') : rel(root, t.file)}`);
+      out.push(`  file: ${t.there ? t.there.t.file.split(path.sep).join('/') : rel(root, t.file)}`, ...remoteLine(root, d, t));
       const deps = depsOf(t).map((k) => { const x = list.find((y) => y.id === k); return `${k} ${x ? x.fm.status || 'no status' : 'not found'}`; });
       if (deps.length) out.push(`  depends: ${deps.join(', ')}`);
     }
