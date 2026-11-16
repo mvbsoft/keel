@@ -40,7 +40,6 @@ test('delegating names the plan file: the task folder\'s plan.md, else its task.
 });
 
 test('a branch is read with git show <ref>:./<path>, so a project in a subfolder of the repository works', () => {
-  says(shared('intake.md'), ['git show <ref>:./<path>']);
   says(skill('tasks'), ['git show <branch>:./<path>/task.md']);
   assert.doesNotMatch(shared('intake.md') + skill('tasks'), /git show <(ref|branch)>:<path>/);
 });

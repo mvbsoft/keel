@@ -2,7 +2,7 @@
 name: start-task
 description: Start or continue one task (ticket, bug, small feature) from a link, a key or your own words - retell, new or continuation, plan, then code. Finish or hand off with /keel:end-task.
 disable-model-invocation: true
-argument-hint: "<link | task key | what to do, in your words>"
+argument-hint: "<link | task key | <feature>/T<n> | what to do, in your words>"
 allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" *), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" *)
 ---
 

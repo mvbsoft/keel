@@ -51,19 +51,20 @@ Current state of this project:
    step 6, otherwise after it.
 6. Git: read `<keel>/skills/_shared/git.md` and follow it: **finish** when the line is finished, else
    **handoff**, with the actions from the instruction (merging and red verification: as git.md says).
-   Planned tickets first: a passed full verification (not gates only, not red) → for each key in the
-   note's `keys:` whose Plan items are all ✅, `node "<keel>/scripts/plans.js" "<project>" done <KEY>`
-   (`done: <KEY> (<path>)`; `done: none (no ticket <KEY> here)` for a key `plans.js tickets <KEY>`
-   knows → warn that its status is not written). git.md's `save` then adds `--tickets "<those keys>"`
-   (comma-separated, quoted), so their ticket files go into the commit; `done: feature <f> complete (<n> tickets)`
-   → git-end-of-feature.md after the push; `done: feature <f> has stubs left: ...` → say it in the
-   report (the feature is not complete). Gates only or red → no `plans.js done` call. git stops
-   before the commit holds them (`save` stopped with `commit` not in its `done:` line, or never
-   ran) → `plans.js done <KEY> --undo` for each (the tickets are `todo` again); a stop after the
-   commit (`commit` in `done:`: sync, push) → no undo: the commit holds them, say the push is left. Manual git → one line: "The ticket files <paths> are marked
-   done: commit them with the code." (not for tickets under `.keel/local/`: they are outside git);
-   with `done: feature <f> complete` also "Feature <f> is complete; /keel:tasks offers its end once
-   you have committed and pushed."
+   Planned tickets first: a passed full verification (not gates only, not red) → for each
+   `<f>/<t>` in the note's `keys:` whose Plan items are all ✅,
+   `node "<keel>/scripts/plans.js" "<project>" status <f> <t> done`, then
+   `node "<keel>/scripts/plans.js" "<project>" reviewed <f> <t>` (`status: <t> done`; a
+   `plans: status refused (...)` → warn with its reason). git.md's `save` then adds
+   `--tickets "<those f/t>"` (comma-separated, quoted), so their ticket files go into the commit; a
+   `plan: every ticket is done or abandoned: plans.js state <f> done` line → ask "Mark the plan <f>
+   done?" (yes → `plans.js state <f> done`, then git-end-of-feature.md after the push). Gates only or
+   red → no `plans.js status` call. git stops before the commit holds them (`save` stopped with
+   `commit` not in its `done:` line, or never ran) → `plans.js status <f> <t> in-progress` for each; a
+   stop after the commit (`commit` in `done:`: sync, push) → no undo: the commit holds them, say the
+   push is left. Manual git → one line: "The ticket files <paths> are marked done: commit them with
+   the code." (not for tickets under `.keel/local/`: they are outside git); with the plan marked done
+   also "Feature <f> is complete; /keel:tasks offers its end once you have committed and pushed."
 7. Costs: read `<keel>/skills/_shared/usage-sync.md` and start its sync agent (steps 1-3) with session id
    `${CLAUDE_SESSION_ID}` and the level and findings from step 4; its step 4 runs in step 8, right
    before the report.

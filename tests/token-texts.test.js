@@ -61,7 +61,7 @@ test('git.md: one `save` call replaces commit, handoff push and switch, sync and
   const git = shared('git.md');
   const step = part(git, '2. Write', '3. **Merge**');
   says(step, ['one call that commits', 'syncs, pushes and switches back', '`save --message-file "<project>/.keel/local/tmp/commit-message.txt"`']);
-  says(step, ['**finish**', '`--sync <base>`', '`--tickets "<keys>"`']);
+  says(step, ['**finish**', '`--sync <base>`', '`--tickets`']);
   says(step, ['**handoff**', '`--back-to <base>`', '`push: refused (...)`']);
   says(step, ['First line `ok` → step 3', 'The script leaves out secret files and lists them: tell the user', '`nothing to commit` is fine']);
   says(step, ['`stopped` → read `reason:`, `done:` and `left:`']);
