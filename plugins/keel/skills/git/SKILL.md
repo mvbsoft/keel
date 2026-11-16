@@ -8,8 +8,8 @@ description: Use when branching, committing, writing a commit message, comment o
 ## Branches
 - Follow the project's convention first. Without one, keel names a branch `<KEY>-<short-name>`
   (ticket key, then a few words), created from the main branch or the one the user names. A planned
-  ticket (`<feature>/T<n>`) works on `<plan's branch>-T<n>`, made from its plan's branch (plan.md
-  `branch:`) and merged back into it, not from the main branch.
+  ticket (`<feature>/T<n>`) works on its feature branch (plan.md `branch:`), not from the main branch;
+  a ticket branch, when one is needed, is `<feature branch>-T<n>` from the feature branch.
 - Never commit straight to the main branch unless the project's convention allows it.
 - Need isolation from work in progress → a git worktree in a git-ignored folder, removed after merge.
 

@@ -247,20 +247,25 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
    `<project>`, its own rules (CLAUDE.md, AGENTS.md, `.keel/config.json`) first; without keel there git
    is manual and its checks are proposed from its `package.json` / `composer.json` (the user
    confirms); a subagent (`--execution delegate`) stops on a decision and returns it as a question.
-   A separate session: step 4 without the task branch, then print exactly
+   A separate session: step 5 with `--branch <b>-T<n>`, then print exactly
    `cd <its folder> && claude --add-dir <project> "<prompt>"`, the prompt naming the ticket file's
    absolute path and, as its last step once the work is verified,
    `node <keel>/scripts/plans.js <its folder> status <feature> T<n> done --project <project>`; stop here.
-4. **Take it**, "Before any branch change" first. `<b>` is the `branch:` line's; the task branch is
-   `<b>-T<n>`. A feature in the repository (`file:` not under `.keel/local/`): onto `<b>` (exists,
-   local or remote → `git-flow.js switch --name <b>`; missing → `start --name <b> --from <current>`),
-   then `plans.js status <feature> T<n> in-progress --branch <b>-T<n>`, then `plans.js commit <feature>`
-   and `plans.js push <feature>` (Claude Code asks each): autonomous git runs them, manual git offers
-   them ("so others see the ticket is taken"). A feature on this machine: only that `status` call.
-   Then the task branch as step 6 says, `<b>-T<n>` from `<b>` (a feature on this machine: from the
-   current branch; another repository: from its main branch, `git-flow.js "<its folder>" status`).
-5. **Task file** (step 7 item 2): id `<feature>-T<n>`, `--ticket <feature>/T<n>`; `--branch <b>-T<n>`,
-   `--base` and `--merge-into` its base, the branch step 4 started it from.
+4. **Branch** (step 6's options for a ticket), "Before any branch change" first: the `branch:` line's
+   `<b>` (its feature branch) is offered first. It exists (local or on the remote) →
+   `git-flow.js switch --name <b>`; missing → `start --name <b> --from <current>`. A ticket branch
+   (rare: the user asks for one) → `<b>-T<n>`, always from `<b>`, after the status below. A feature
+   on this machine: the branch as step 6 for any task; another repository: in that repository,
+   `<b>-T<n>` from its main branch (`git-flow.js "<its folder>" status`).
+5. **Take it**: `plans.js status <feature> T<n> in-progress --branch <the branch it works on>`. A
+   feature in the repository (`file:` not under `.keel/local/`): this project on `<b>` (step 4, also
+   for another repository), then `plans.js commit <feature>` and `plans.js push <feature>` (Claude
+   Code asks each): autonomous git runs them, manual git offers them ("so others see the ticket is
+   taken"). A feature on this machine: only that call.
+6. **Task file** (step 7 item 2): id `<feature>-T<n>`, `--ticket <feature>/T<n>`; on the feature
+   branch `--branch` = `--base` = `<b>` and `--merge-into` = its `merge_into`; on a ticket branch
+   `--branch <b>-T<n>` and `--base` = `--merge-into` = `<b>`; another repository: `--base` =
+   `--merge-into` = its main branch.
 
 ## Task to planning
 **Task to planning** (the task is too big, step 3: the user asks to split it or plan it as a feature,

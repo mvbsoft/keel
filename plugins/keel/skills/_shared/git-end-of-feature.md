@@ -9,14 +9,14 @@ instruction): say "Feature <f> is complete: all its tickets are done or abandone
 `<merge_into>` come from the `branch: <b> -> <m>` line of
 `node "<keel>/scripts/plans.js" "<project>" tickets <f>`, never from the task file. Then one question
 at a time:
-0. Onto `<branch>`. Already on it → nothing. On the branch the last ticket finished on (`<branch>-<t>`)
-   → first its usual merge into `<branch>` (step 3; it leaves you on `<branch>`); declined or refused
+0. Onto `<branch>`. Already on it → nothing. On the ticket branch the last ticket finished on
+   (`<branch>-<t>`) → first its usual merge into `<branch>` (step 3; it leaves you on `<branch>`); declined or refused
    → say the feature waits for that merge and stop here. Anywhere else (e.g. the main branch) → "Switch to
    `<branch>`?" → `switch --name <branch>` (a clean tree); no → stop here.
 1. The tickets: keep them (default) or delete them. Delete →
    `node "<keel>/scripts/plans.js" "<project>" drop <f>` (`plans: drop refused (...)` → say why; the
    tickets stay) → `drop: <folder> -> trash <batch>`; a
-   folder in the repository then leaves in its own commit on the plan's branch, before the merge
+   folder in the repository then leaves in its own commit on the feature branch, before the merge
    (keel never commits on the main branch): "Claude Code will now ask you to allow it.", then
    `node "<keel>/scripts/plans.js" "<project>" commit <f>`, then `git-flow.js push`.
 2. "Merge `<branch>` into `<merge_into>`?" → step 3 (Merge) with that target.

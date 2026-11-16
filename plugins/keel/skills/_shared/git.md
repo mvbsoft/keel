@@ -6,19 +6,22 @@ handing off; other end-session runs), and the actions from the user's instructio
 branch bug/FIX-123, push, merge into main"). Mode: `.keel/config.json` `git.mode`. Base and merge
 target: `base` and `merge_into` of the task file (end-task), else of the note (end-session), else
 `git.main_branch`. One branch per task; a task folder in git lives on its task branch and is never on
-the main branch. A planned ticket's branch starts from its plan's branch, not from the main branch
-(below).
+the main branch. A planned ticket works on its feature branch, not from the main branch (below).
 **Merging** into the main branch (or any target) happens only when the instruction asks for it, or in
 a **finish** when `git.ask_before_merge` is false; otherwise the branch stays pushed and the report
 says "merge it when ready". Claude Code confirms each merge keel was told to do, except when
 `git.ask_before_merge` is false in a confirmed autonomous mode.
 **A planned ticket** (the task file's `ticket: <f>/<t>`; a session: the `<f>/<t>` in its note's
-`keys`): its branch merges into the plan's branch (its `base` = `merge_into`) like any task. The
-plan's branch itself is never merged by a task or a session, also when `git.ask_before_merge` is
-false or the instruction asks (say why in one line: it holds the whole feature): only "End of
-feature" below merges it, after the plan is marked done and a yes. `save` adds `--tickets "<f>/<t>"`
-(a session: each ticket it marked done, comma-separated), finish and handoff alike, so the ticket
-file and `plan.md` go into the commit with the code.
+`keys`): `save` adds `--tickets "<f>/<t>"` (a session: each ticket it marked done, comma-separated),
+finish and handoff alike, so the ticket file and `plan.md` go into the commit with the code.
+**A planned ticket on its feature branch** (the task file's or the note's `branch` equals its `base`,
+and `plans.js tickets <f>/<t>` prints `branch: <that branch> -> <merge_into>`): no `start`, `sync`
+pulls the shared branch, then `push`. Its feature branch is never merged, also when
+`git.ask_before_merge` is false or the instruction asks (say why in one line: other tickets of the
+feature are not done): only "End of feature" below merges it, after the plan is marked done and a
+yes. Its report says "the feature merges at End of feature, after its last ticket", not "merge it
+when ready"; manual mode: commit and push, no merge advice. A ticket branch `<feature branch>-<t>`
+(`base` = `merge_into` = the feature branch) merges into the feature branch like any task.
 **A ticket of another repository** (the task's `repo:`): every `git-flow.js` step runs on that
 repository's folder in place of `<project>` (no keel there: manual mode, git-manual.md); the ticket
 file and `plan.md` here then go in with `node "<keel>/scripts/plans.js" "<project>" commit <f>` and
@@ -32,9 +35,15 @@ the task instead, or merge anyway?". Finish → stop here and run it as a finish
 a branch of its own and pushes it, so another machine goes on from that branch. Uncommitted changes
 or a stash exist on one machine only. The user's own instruction (e.g. "do not commit") wins.
 **A task handoff without its own branch** (the task's `branch:` is the base, the main branch or `-`:
-the work sits in a branch other work shares) and no instruction about git: no question: a new branch `<id>-<short-name>` from here (a planned ticket: `<plan's branch>-<t>`), `start --name <it> --from <current>` (it carries the
+the work sits in a branch other work shares) and no instruction about git: no question: a new branch `<id>-<short-name>` from here, `start --name <it> --from <current>` (it carries the
 changes), commit and push there, then back on `<current>`. Say it in one line, naming the new branch
 (manual mode: the same steps as commands, git-manual.md).
+A planned ticket on its feature branch, when the feature has 2 or more tickets
+(`plans.js tickets <f>`; one ticket → the usual commit and push to its branch), also no
+question: a new ticket branch `<feature branch>-<t>` from the feature branch (later merged back
+into it): `start --name <it> --from <the feature branch>` carries the changes; set the task file's
+`branch` to it and `base` and `merge_into` to the feature branch, and the ticket's branch
+(`plans.js status <f> <t> in-progress --branch <it>`), before the commit.
 
 **Default steps** in autonomous mode (manual mode: below). Never ask which git
 steps to take (except the merge question above): the instruction only adds or changes steps.
@@ -70,7 +79,8 @@ the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<proj
    `node "<keel>/scripts/git-flow.js" "<project>" trust` now (the user confirms once in Claude Code's
    prompt), or each git step asks; on a yes run it yourself; never give the user a command with
    `<project>` or `<keel>` left in it. On the main branch (or the base) with changes → `start --name <branch>` (it carries the
-   changes). The branch is the one the instruction, the task file or the note
+   changes); not for a planned ticket on its feature branch (no `start`, see above), except its
+   task handoff when the feature has 2 or more tickets (a new ticket branch, above). The branch is the one the instruction, the task file or the note
    names; only when none is named, make one as in `<keel>/skills/_shared/intake.md` step 6. An
    instruction naming another branch (e.g. `bug/FIX-123`) → `start --name <it>` (it carries the
    changes).
@@ -78,8 +88,8 @@ the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<proj
    syncs, pushes and switches back: `save --message-file "<project>/.keel/local/tmp/commit-message.txt"`
    plus
    - **finish**: `--sync <base>`, with `--tickets` for a planned ticket (above). On the base itself
-     (a session on a shared branch) the sync merges `<remote>/<base>`: the teammates' commits of that
-     shared branch;
+     (a planned ticket on its feature branch) the sync merges `<remote>/<base>`: the teammates'
+     commits of that shared branch;
    - **handoff**: a task adds `--back-to <base>`, except when the instruction asks to merge: no
      `--back-to` then, merge in step 3 first, then `switch --name <base>`. A refused push shows as
      `push: refused (...)` and does not stop the handoff: say the work is on this machine only (a
@@ -111,11 +121,11 @@ the finish marked done goes back with it: `node "<keel>/scripts/plans.js" "<proj
 
 ## End of feature
 **End of feature** (the plan marked `done` after its last ticket, after the push, or `/keel:tasks`
-offers it: the plan's branch may be merged) → read
+offers it: the feature branch may be merged) → read
 `<keel>/skills/_shared/git-end-of-feature.md` and follow it.
 
 ## Never
 Force-push, rebase pushed work, delete branches (only `/keel:tasks drop` does, with
-`git-flow.js delete-branch`, which Claude Code confirms), except the plan's branch in "End of
+`git-flow.js delete-branch`, which Claude Code confirms), except the feature branch in "End of
 feature" above and the task's own branch in task-to-planning.md, each on its yes; commit
 secret files, or commit to the main branch directly in autonomous mode.

@@ -58,7 +58,7 @@ Current state of this project:
    advice) the user chooses it (verify.md step 3): ask it as your next message and end your turn.
    The task is verified as a whole: when it has its own branch (`branch:` differs from `base:` and we
    are on it), step 1 uses `--base <the task's base branch>`, so commits of earlier sessions are
-   covered; a task whose `branch:` equals its `base:` (a branch shared with others, such as a plan's branch) and
+   covered; a task whose `branch:` equals its `base:` (a planned ticket on its feature branch) and
    that has `started:` (not a task step 2 created just now: that one uses `session start:` below) →
    `--base <started>`: say in one line that teammates' commits pulled into
    that branch since are covered too; only without a task branch (manual git on the main branch) and

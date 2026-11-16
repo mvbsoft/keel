@@ -11,12 +11,12 @@ before each, since autonomous git is not confirmed; everything else stays with t
 - the changed files (from `node "<keel>/scripts/git-flow.js" "<project>" status`);
 - the commit message, ready to copy;
 - **finish**: the task folder's removal (it is in keel's trash) is part of that commit; then merge as
-  they usually do (a planned ticket: into its plan's branch, never the plan's branch itself, see
-  git.md above; its ticket file and `plan.md` go into that commit);
+  they usually do (a planned ticket on its feature branch: commit and push only, see git.md above;
+  its ticket file and `plan.md` go into that commit);
 - **handoff of a task**: commit the work and the task folder on the task branch, push it,
   then `git switch <base>`. A task without its own branch: first `git switch -c <id>-<short-name>`
-  (it carries the changes; a planned ticket: `<plan's branch>-<t>`, as git.md above says); keel runs
-  no `start` here, so set the task file's `branch:` to that new branch before the task file is
-  written;
+  (it carries the changes; a planned ticket: `<feature branch>-<t>`, as git.md above says); keel
+  runs no `start` here, so set the task file's `branch:` to that new branch before the task file is
+  written (a planned ticket: `base` and `merge_into` to the feature branch);
 - **handoff of a session**: "Commit and push when convenient; the note is part of the commit" (when
   `git.state_in_git`).
