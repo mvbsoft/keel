@@ -96,10 +96,8 @@ function briefCommand(root, feature, file) {
   const brief = sections(text);
   if (!brief.Goal) return refuse(`${r} has no Goal section`);
 
-  const { d: found, why: missing } = plans.needDraft(root, feature, 'brief');
-  if (!found) return missing;
-  let d;
-  try { d = plans.settle(root, found); } catch (e) { return refuse(e.message); }
+  const { d, why: missing } = plans.needDraft(root, feature, 'brief');
+  if (!d) return missing;
   if (d.fm.status !== 'draft') return refuse(`the plan is ${d.fm.status}`);
 
   let plan = d.text.replace(/\r\n/g, '\n');

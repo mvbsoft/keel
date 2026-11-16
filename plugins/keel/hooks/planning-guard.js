@@ -1,9 +1,7 @@
 'use strict';
 // PreToolUse hook on Edit, Write, NotebookEdit, Bash and PowerShell: while the conversation plans a
 // feature (its chat mark, scripts/lib/plans.js), project files stay unchanged. Allowed: the feature's
-// draft folder, its exported feature folder in the repository (<tickets_dir>/<feature>/: export writes it
-// and the conversation edits the exported tickets; also the folder plans.js mark set recorded in the chat
-// mark when it reopened an exported feature, wherever tickets_dir points), the planning settings, keel's
+// folder in either place (<tickets_dir>/<feature>/ or .keel/local/plans/keel/<feature>/), the planning settings, keel's
 // working files in .keel/local/tmp/, Claude Code's Plan Mode files in .keel/local/plans/claude/ (Plan
 // Mode writes its plan with Write and Edit) and anything outside the project (memory, temporary files).
 // A safeguard against slips, not a wall: shell commands are read with skill-hints.js shell(), which sees redirections,
@@ -28,16 +26,12 @@ const fold = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
 const within = (file, place) => fold(norm(file)) === fold(norm(place)) || fold(norm(file)).startsWith(`${fold(norm(place))}/`);
 
 // The places a planning conversation may write in the project. The feature's folder counts by its name
-// in both draft places and in the export folder, so a plan.md the conversation broke can still be fixed.
-function allowedPlaces(root, feature, sid) {
+// in both feature places, so a plan.md the conversation broke can still be fixed.
+function allowedPlaces(root, feature) {
   const local = path.join(root, '.keel', 'local');
   const plans = require('../scripts/lib/plans.js');
-  const exported = require('../scripts/lib/plans-settings.js').exportDir(root);
-  const marked = plans.markedFolder(root, sid);
   return [
     ...plans.draftDirs(root).map((d) => path.join(d.dir, feature)),
-    ...(exported ? [path.join(exported, feature)] : []),
-    ...(marked ? [marked] : []),
     require('../scripts/lib/plans-settings.js').settingsFile(root),
     path.join(local, 'tmp'),
     path.join(local, 'plans', 'claude'),
@@ -72,7 +66,7 @@ function main() {
   const roots = [...new Set([root, mainOf(root)])];
   const feature = require('../scripts/lib/plans.js').planningMark(root, sid);
   if (!feature) return null;
-  const places = roots.flatMap((r) => allowedPlaces(r, feature, sid));
+  const places = roots.flatMap((r) => allowedPlaces(r, feature));
   const blocked = written(input.tool_name, input.tool_input || {}, input.cwd || root)
     .find((f) => roots.some((r) => within(f, r)) && !places.some((p) => within(f, p)));
   if (!blocked) return null;

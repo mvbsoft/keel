@@ -14,7 +14,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { git, noBom, frontmatter } = require('./repo-read.js');
 
-const PLAN_STATES = new Set(['draft', 'ready', 'exported', 'abandoned']);
+// The plan states of lib/plans-drafts.js, written out here so a task's every step does not load it.
+const PLAN_STATES = new Set(['draft', 'ready', 'in-progress', 'done', 'abandoned']);
 const HEAD_BYTES = 4096;
 
 // The start of a file: enough for its front matter. fromHead: read a file gone from the working tree

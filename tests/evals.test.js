@@ -169,7 +169,7 @@ const STATE = {
     const check = script('notes.js', work, 'check');
     assert.match(check, /^note: missing$/m);
     assert.match(check, /^tasks: 0 unfinished$/m);
-    assert.match(script('plans.js', work, 'list'), /^drafts: 0$/m);
+    assert.match(script('plans.js', work, 'list'), /^features: 0$/m);
     // Not .keel/: its config holds 1000 as line limits.
     for (const f of git('ls-files').split('\n').filter((f) => !f.startsWith('.keel/'))) assert.doesNotMatch(read(work, f), /discount|1000/i, f);
   },

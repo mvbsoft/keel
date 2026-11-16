@@ -1,7 +1,6 @@
 'use strict';
-// plans.js check and stale: the structure check of a draft and of one ticket (also for exported tickets,
-// lib/plans-export.js, and feature-page.js), and which files the tickets name changed since the plan
-// was made.
+// plans.js check and stale: the structure check of a feature and of one ticket (also for feature-page.js),
+// and which files the tickets name changed since the plan was made.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -9,18 +8,17 @@ const { git, read, clean } = require('./repo-read.js');
 const { sections } = require('./tasks.js');
 const { ticketStructure, planStructure, isStub, outsideFences, unclosedFence } = require('./plans-format.js');
 const { settings, PREFIX } = require('./plans-settings.js');
-const { PLAN_FILE, needDraft, exportedHere, settle, tickets, ticketIds } = require('./plans-drafts.js');
+const { PLAN_FILE, STATES, CLOSED, needDraft, tickets, ticketIds } = require('./plans-drafts.js');
+// The kinds of ticket file: a ticket, a stub (lib/plans-stubs.js), one that lives in another repository.
+const TYPES = ['ticket', 'stub', 'elsewhere'];
 
 // Files a ticket names in "Where to look" without a folder or a line count only with a known extension:
 // `obj.id` or `fs.readFileSync` are code, not files.
 const FILE_EXT = new Set(['js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'py', 'go', 'rs', 'java', 'kt', 'rb', 'php', 'cs', 'c', 'h', 'cpp', 'hpp', 'swift', 'dart', 'ex', 'exs', 'scala', 'md', 'json', 'yml', 'yaml', 'toml', 'xml', 'sql', 'sh', 'ps1', 'html', 'css', 'scss', 'vue', 'svelte', 'txt', 'ini', 'cfg', 'gradle', 'lock', 'proto', 'graphql']);
 
-const refuse = (what, why) => [`plans: ${what} refused (${why})`];
-const rel = (root, file) => path.relative(root, file).split(path.sep).join('/');
 const lf = (text) => String(text).replace(/\r\n/g, '\n');
 const given = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '-';
 
-const neighbours = () => require('./plans-neighbours.js');
 const repos = () => require('./plans-repos.js');
 
 // --- the structure check ---
@@ -181,11 +179,12 @@ function problems(root, d) {
     const same = list.filter((t) => t.id === id);
     if (same.length > 1) out.push(`${id}: two files have this number: ${same.map((t) => t.name).sort().join(', ')}`);
   }
-  const other = require('./plans-export.js').draftMissing(root, d, list.flatMap((t) => ticketIds(t.fm.depends_on)).filter((x) => !ids.has(x)));
-  const missing = new Set(other.missing);
   for (const t of list) {
     notes.push(...homeNotes(t.id, t.text, folders));
     if (t.fm.id !== t.id) out.push(`${t.id}: front matter id is "${clean(t.fm.id || '')}", the file name says ${t.id}`);
+    if (given(t.fm.type) && !TYPES.includes(t.fm.type)) out.push(`${t.id}: type is "${clean(t.fm.type, 20)}"; ${TYPES.join(', ')}`);
+    if (!STATES.includes(t.fm.status)) out.push(`${t.id}: status is "${clean(t.fm.status || '', 20)}"; ${STATES.join(', ')}`);
+    else if (t.fm.status === 'abandoned' && !given(t.fm.reason)) out.push(`${t.id}: abandoned without a reason`);
     if (isStub(t.fm)) {
       // A stub's repository is not on this machine: never in the plan's repos, no Where to look to check.
       const r = given(t.fm.repo) ? t.fm.repo.trim().toUpperCase() : '';
@@ -201,33 +200,29 @@ function problems(root, d) {
     }
     for (const dep of ticketIds(t.fm.depends_on)) {
       const k = dep.toUpperCase();
-      if (dep === t.id) out.push(`${t.id}: depends on itself`);
-      else if (ids.has(dep)) continue;
-      else if (missing.has(k)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist${other.where.has(k) ? ` ${other.where.get(k)}` : ''}`);
-      else if (other.notes.has(k)) notes.push(neighbours().noteLine(t.id, dep, other.notes.get(k)));
+      if (k === t.id) out.push(`${t.id}: depends on itself`);
+      else if (!ids.has(k)) out.push(`${t.id}: depends on ${clean(dep)}, which does not exist in this feature`);
     }
   }
   for (const c of cycles(list)) out.push(`dependency cycle: ${c}`);
   return { out, count: list.length, notes };
 }
 
-// A draft: plan.md and its tickets. An exported feature: its tickets, whose depends_on are keys.
+// plan.md and the tickets; then git's one warning (a ticket whose branch is merged and that is not done)
+// and, when every ticket is done or abandoned, that the plan can be done.
 function draftCheck(root, feature) {
-  const { d: found, why } = needDraft(root, feature, 'check');
-  const ex = exportedHere(root, feature, found);
-  if (ex) {
-    const { out, count, notes } = require('./plans-export.js').exportedProblems(root, ex);
-    if (!out.length) return [`check: clean (${count} tickets in ${rel(root, ex.folder)}/)`, ...notes];
-    return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`), ...notes];
-  }
-  if (!found) return why;
-  let d;
-  try { d = settle(root, found); } catch (e) { return refuse('check', e.message); }
+  const { d, why } = needDraft(root, feature, 'check');
+  if (!d) return why;
   const { out, count, notes } = problems(root, d);
-  const back = d !== found ? ['status: draft (the plan changed after ready)'] : [];
-  if (!out.length) return [`check: clean (plan.md and ${count} tickets)`, ...notes, ...back];
-  return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`), ...notes, ...back];
+  const list = tickets(d);
+  const after = [...require('./plans-git.js').mergedWarnings(root, d, list), ...doneHint(d, list)];
+  if (!out.length) return [`check: clean (plan.md and ${count} tickets)`, ...notes, ...after];
+  return [`check: ${out.length} problems`, ...out.map((p) => `- ${p}`), ...notes, ...after];
 }
+
+// The line that says the plan can be done: every ticket is done or abandoned, the plan is still open.
+const doneHint = (d, list) => (list.length && !CLOSED.includes(d.fm.status) && list.every((t) => CLOSED.includes(t.fm.status))
+  ? [`plan: every ticket is done or abandoned: plans.js state ${d.feature} done`] : []);
 
 // --- staleness ---
 
@@ -278,6 +273,6 @@ function draftStale(root, feature) {
 }
 
 module.exports = {
-  draftCheck, draftStale, problems, ticketProblems, cycles,
+  draftCheck, draftStale, problems, doneHint, ticketProblems, cycles,
   mentionedFiles, machineFolders, localPaths, localProblems, homeNotes, researchTexts,
 };

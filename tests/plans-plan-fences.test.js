@@ -1,12 +1,11 @@
 'use strict';
 // plan.md reads its "## " headings as tickets do: a line inside a code block is text, and a section
-// that stands twice is a problem. The overview export builds from plan.md keeps the whole section.
+// that stands twice is a problem.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { LOCAL, write, readRel, run, planning, setup, ready, gitTest } = require('./fixtures/plans-export.js');
+const { LOCAL, write, readRel, run, setup, ready, gitTest } = require('./fixtures/plans-git.js');
 
 const PLAN = `${LOCAL}/s3-storage/plan.md`;
-const SAMPLE = 'Sample file:\n\n```md\n## Decisions\nD9. fake\n## Terms\n```\n\nAfter the sample, more words.';
 
 function draft() {
   const { work } = setup({ remote: false });
@@ -15,18 +14,6 @@ function draft() {
 }
 const check = (work) => run(work, 'check', 's3-storage').filter((l) => !l.startsWith('status:'));
 const edit = (work, from, to) => write(work, PLAN, readRel(work, PLAN).replace(from, to));
-
-gitTest('export: a "## " line inside a code block of plan.md stays in its section of the overview', () => {
-  const work = draft();
-  edit(work, 'Upload and download files on S3; T1 comes first.', `Upload and download files on S3; T1 comes first.\n\n${SAMPLE}`);
-  assert.deepEqual(check(work), ['check: clean (plan.md and 2 tickets)']);
-  assert.deepEqual(run(work, 'state', 's3-storage', 'ready'), ['status: ready']);
-  planning(work, { tickets: 'pc', ticket_prefix: 'PROJ' });
-  assert.match(run(work, 'export', 's3-storage')[0], /^exported: /);
-  const readme = readRel(work, `${LOCAL}/s3-storage/tickets/README.md`);
-  assert.ok(readme.includes(`${SAMPLE.replace('T1', 'PROJ-1')}\n\n## Level`), readme);
-  assert.match(readme, /^## Decisions\nD1\. Use the SDK/m);
-});
 
 gitTest('check: a section of plan.md that stands twice is a problem; a heading only in a code block is no section', () => {
   const work = draft();

@@ -104,11 +104,10 @@ function fromStubDraft(root, feature, d, id) {
   const list = planRepos(d.fm);
   const set = list.includes(prefix) ? [] : plans.draftSet(root, feature, { repos: [...list, prefix].join(',') });
   if (set.length && set[0].startsWith('plans: ')) return refuse(`--from-stub: ${set[0].replace(/^plans: set refused \((.*)\)$/, '$1')}`);
-  if (set.length) d = plans.settle(root, plans.needDraft(root, feature, 'ticket').d);
+  if (set.length) d = plans.needDraft(root, feature, 'ticket').d;
   const front = lf(t.text).match(/^---\n[\s\S]*?\n---\n?/)[0].replace(/^type:.*\n/m, '');
   try {
     plans.writeFile(root, d, t.file, `${front}\n${withCodeSections(bodyOf(t.text))}`);
-    if (d.fm.status === 'ready') plans.writePlan(root, d, { status: 'draft', ready_hash: '-' });
   } catch (e) { return refuse(e.message); }
   return [
     `converted: ${t.id} (stub -> ticket for ${prefix})`,

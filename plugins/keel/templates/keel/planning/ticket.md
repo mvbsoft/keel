@@ -1,8 +1,12 @@
 ---
 id: <T-number, as in the file name>
+type: ticket
+status: <draft | ready | in-progress | done | abandoned; plans.js status changes it>
 repo: <only for another repository of the plan's repos: its ticket prefix; none means this project>
-depends_on: <[T1, T2] or []>
-review_hash: <set by plans.js reviewed; a different text means the ticket changed since its review, or ->
+depends_on: <T1, T2, or empty>
+branch: <the task's branch, written when the ticket is taken>
+reason: <only for abandoned: why>
+review_hash: <set by plans.js reviewed over Goal, Acceptance criteria, How to check, Boundaries, Correct the priors, Out of scope, Dependencies and depends_on; a later change there marks the ticket as needing review, its status stays; or ->
 ---
 <!-- A draft ticket (plans.js ticket). The sections stay in this order; Example and Correct the priors
 may be removed when there is nothing to say. Every section is for a reader who has not seen the

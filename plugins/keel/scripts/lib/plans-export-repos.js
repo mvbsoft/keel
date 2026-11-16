@@ -30,7 +30,7 @@ const { moveToTrash, restore } = require('./trash.js');
 const { overviewSections, repoName, isStub, frontText, bodyOf } = require('./plans-format.js');
 const { namedRepos, planRepos, isFolder, isRepoTop } = require('./plans-repos.js');
 const { busyTasks } = require('./tasks.js');
-const { fetched, highestKey, TEMP, safe, folderFiles, featureFolder } = require('./plans-export.js');
+const { fetched, highestKey, TEMP, safe, folderFiles, featureFolder } = require('./plans-git.js');
 const flow = require('../git-flow.js');
 
 const README = 'README.md';

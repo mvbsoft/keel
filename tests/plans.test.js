@@ -1,5 +1,5 @@
 'use strict';
-// Planning drafts: plans.js (lib/plans.js) on throwaway projects.
+// Planned features: plans.js (lib/plans.js) on throwaway projects.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -138,36 +138,43 @@ test('new: a draft on this machine with plan.md (type plan, status draft), refus
   assert.match(plan, /^feature: s3-connection\npage: [0-9a-f]{8}$/m);
   run(dir, 'new', 'csv-report');
   assert.notEqual(/^page: (\w+)$/m.exec(readRel(dir, `${LOCAL}/csv-report/plan.md`))[1], /^page: (\w+)$/m.exec(plan)[1]);
-  assert.match(run(dir, 'new', 's3-connection')[0], /refused \(a draft "s3-connection" exists \(draft, .*this machine only/);
-  // A feature folder in the repository takes the name for a draft on this machine too.
-  write(dir, 'tickets/csv-export/PROJ-1-x.md', '---\ntype: ticket\nkey: PROJ-1\n---\n');
+  assert.match(run(dir, 'new', 's3-connection')[0], /refused \(a feature "s3-connection" exists \(draft, .*this machine only/);
+  assert.doesNotMatch(plan, /^(export|tracker|tracker_url):/m, 'no export field; the tracker fields come only when the user asks');
+  // A folder of that name in the repository takes the name for one on this machine too.
+  write(dir, 'tickets/csv-export/notes.md', 'x\n');
   assert.match(run(dir, 'new', 'csv-export')[0], /refused \(tickets\/csv-export\/ exists/);
   assert.ok(!exists(dir, `${LOCAL}/csv-export`));
+  assert.match(run(dir, 'new', 'csv-report', '--place', 'cloud')[0], /refused \(--place is repo or pc\)/);
 });
 
-gitTest('new in the repository: draft_dir/<feature>/, which tasks see as planning files; a folder there is taken', () => {
+gitTest('new in the repository: planning.place repo or --place repo puts it in tickets_dir/<feature>/, which tasks see as planning files', () => {
   const dir = project();
   execFileSync('git', ['-C', dir, 'init', '-q']);
-  assert.match(run(dir, 'settings', 'set', '--draft', 'repo', '--draft-dir', 'plans/features').join('\n'), /draft: repo/);
-  assert.equal(run(dir, 'new', 's3-connection')[0], 'created: plans/features/s3-connection/plan.md');
+  write(dir, '.keel/config.json', JSON.stringify({ ...CONFIG, planning: { place: 'repo', tickets_dir: 'plans/features' } }));
+  assert.deepEqual(run(dir, 'new', 's3-connection').slice(0, 2), ['created: plans/features/s3-connection/plan.md', 'folder: plans/features/s3-connection/']);
   run(dir, 'ticket', 's3-connection', '--title', 'Client');
   const isPlanning = planningFiles(dir);
   assert.equal(isPlanning('plans/features/s3-connection/tickets/T1-client.md').kind, 'draft');
   assert.equal(isPlanning('src/app.js'), null);
-  // An exported feature folder (no draft plan.md) still takes the name.
-  write(dir, 'plans/features/csv-export/PROJ-1-x.md', '---\ntype: ticket\nkey: PROJ-1\n---\n');
+  write(dir, 'plans/features/csv-export/notes.md', 'x\n');
   assert.match(run(dir, 'new', 'csv-export')[0], /refused \(plans\/features\/csv-export\/ exists/);
   assert.match(line(run(dir, 'list'), '- s3-connection'), /draft · open Q 0 · tickets 1 · changed \d{4}-\d\d-\d\d · plans\/features\/s3-connection\/$/);
+  // --place takes this feature to the other place; without planning.place a new one goes to this machine.
+  assert.equal(run(dir, 'new', 'csv-report', '--place', 'pc')[0], `created: ${LOCAL}/csv-report/plan.md`);
+  write(dir, '.keel/config.json', JSON.stringify(CONFIG));
+  assert.equal(run(dir, 'new', 'pdf-report')[0], `created: ${LOCAL}/pdf-report/plan.md`);
+  assert.equal(run(dir, 'new', 'png-report', '--place', 'repo')[0], 'created: tickets/png-report/plan.md');
 });
 
-test('ticket: T<n>-<slug>.md with id, depends_on and review_hash; numbers are never reused', () => {
+test('ticket: T<n>-<slug>.md with id, type, status draft, a flat depends_on and review_hash; numbers are never reused', () => {
   const dir = project();
   run(dir, 'new', 's3-connection');
   assert.equal(run(dir, 'ticket', 's3-connection', '--title', 'Add S3 client')[1], 'ticket: T1');
-  assert.equal(run(dir, 'ticket', 's3-connection', '--title', 'Upload', '--depends', 'T1')[1], 'ticket: T2');
+  assert.equal(run(dir, 'ticket', 's3-connection', '--title', 'Upload', '--depends', 't1')[1], 'ticket: T2');
   assert.equal(run(dir, 'ticket', 's3-connection', '--title', 'Download')[1], 'ticket: T3');
   const t2 = readRel(dir, `${LOCAL}/s3-connection/tickets/T2-upload.md`);
-  for (const f of ['id: T2', 'depends_on: \\[T1\\]', 'review_hash: -']) assert.match(t2, new RegExp(`^${f}$`, 'm'), f);
+  assert.ok(t2.startsWith('---\nid: T2\ntype: ticket\nstatus: draft\ndepends_on: T1\nreview_hash: -\n---\n'), t2);
+  assert.match(readRel(dir, `${LOCAL}/s3-connection/tickets/T1-add-s3-client.md`), /^depends_on:$/m, 'no dependency: an empty value');
   assert.match(t2, /^# \[T2\] Upload$/m);
   fs.rmSync(path.join(dir, LOCAL, 's3-connection', 'tickets', 'T3-download.md'));
   assert.equal(run(dir, 'ticket', 's3-connection', '--title', 'Delete')[1], 'ticket: T4', 'deleted T3 keeps its number');
@@ -175,10 +182,10 @@ test('ticket: T<n>-<slug>.md with id, depends_on and review_hash; numbers are ne
   // A ticket file made by hand past last_ticket moves the count on too.
   write(dir, `${LOCAL}/s3-connection/tickets/T9-manual.md`, '---\nid: T9\n---\n');
   assert.equal(run(dir, 'ticket', 's3-connection', '--title', 'Next')[1], 'ticket: T10');
-  assert.match(run(dir, 'ticket', 's3-connection', '--title', 'X', '--depends', 'T3')[0], /refused \(--depends: no ticket T3\)/);
+  assert.match(run(dir, 'ticket', 's3-connection', '--title', 'X', '--depends', 'T3')[0], /refused \(--depends: no ticket T3 in s3-connection\)/);
   assert.match(run(dir, 'ticket', 's3-connection', '--title', 'Завантаження')[0], /refused \(the title has no English words .*--slug/);
   assert.equal(run(dir, 'ticket', 's3-connection', '--title', 'Завантаження', '--slug', 'upload-big')[0], `created: ${LOCAL}/s3-connection/tickets/T11-upload-big.md`);
-  assert.match(run(dir, 'ticket', 'no-such-draft', '--title', 'X')[0], /refused \(no draft "no-such-draft"/);
+  assert.match(run(dir, 'ticket', 'no-such-draft', '--title', 'X')[0], /refused \(no feature "no-such-draft"/);
 });
 
 test('list: feature, state, open questions, tickets, last change; find by words in names and In plain words', () => {
@@ -187,7 +194,7 @@ test('list: feature, state, open questions, tickets, last change; find by words 
   filled(dir, 'csv-export', 1, 'Export invoices as CSV.');
   body(dir, `${LOCAL}/csv-export/plan.md`, PLAN_BODY('Export invoices as CSV.', '- Q1. Which columns?\n- Q2. Which encoding?'));
   const list = run(dir, 'list');
-  assert.equal(list[0], 'drafts: 2');
+  assert.equal(list[0], 'features: 2');
   assert.match(line(list, '- csv-export'), /^- csv-export: draft · open Q 2 · tickets 1 · changed \d{4}-\d\d-\d\d · \.keel\/local\/plans\/keel\/csv-export\/ \(this machine only\)$/);
   assert.match(line(list, '- s3-connection'), /open Q 0 · tickets 2/);
   const one = run(dir, 'find', 'продовжуємо', 'планувати', 'підключенням', 'до', 'S3');
@@ -198,7 +205,7 @@ test('list: feature, state, open questions, tickets, last change; find by words 
   const several = run(dir, 'find', 'файлів', 'invoices');
   assert.equal(several[0], 'find: 2 matches');
   const none = run(dir, 'find', 'payments');
-  assert.equal(none[0], 'find: no match (all drafts: 2)');
+  assert.equal(none[0], 'find: no match (all features: 2)');
   assert.equal(none.length, 3);
 });
 
@@ -287,21 +294,6 @@ test('localPaths: a folder of this machine counts only as a whole path part; web
   assert.deepEqual(at(`Read ${'/home'}/olya/api/x.js.`, [`${'/home'}/olya`]), [`${'/home'}/olya/api/x.js`]);
 });
 
-test('check: an exported feature with a path of this machine in a ticket, its overview or a report', () => {
-  const home = os.homedir().replace(/\\/g, '/');
-  const dir = project();
-  const folder = `${LOCAL}/s3-connection/tickets`;
-  write(dir, `${folder}/PROJ-1-client.md`, EXPORTED('PROJ-1').replace('Do one thing.', `Do it as ${home}/api/client.js does.`));
-  write(dir, `${folder}/README.md`, '---\ntype: feature\n---\n\n# S3\n\nThe old code: D:\\work\\api\\s3.\n');
-  write(dir, `${folder}/research/sdk.md`, `# SDK\n\nSee ${home}/notes/sdk.md\n`);
-  assert.deepEqual(run(dir, 'check', 's3-connection'), [
-    'check: 3 problems',
-    `- PROJ-1: local path ${home}/api/client.js (line ${EXPORTED('PROJ-1').split('\n').indexOf('Do one thing.') + 1})`,
-    '- README.md: local path D:\\work\\api\\s3 (line 7)',
-    `- research/sdk.md: local path ${home}/notes/sdk.md (line 3)`,
-  ]);
-});
-
 test('check: the ticket sections in their order, the three Boundaries labels, criteria as a "- [ ]" list; Example and Correct the priors are optional', () => {
   const dir = project();
   filled(dir, 's3-connection', 4);
@@ -374,7 +366,7 @@ test('check: a comparison with < and > on one line is not a placeholder, a <name
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(table));
   assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)']);
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(`${table}\n\nSent by <who>.`));
-  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 28)']);
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 27)']);
 });
 
 test('check: an indented code block and "<30 s" are not placeholders, a <name> still is', () => {
@@ -386,9 +378,9 @@ test('check: an indented code block and "<30 s" are not placeholders, a <name> s
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(`${text}\n\nSent by <who>.\nEnter the <2fa code>.\n<1-2 sentences: what changes>`));
   assert.deepEqual(run(dir, 'check', 's3-connection'), [
     'check: 3 problems',
-    '- plan.md: placeholder <who> (line 35)',
-    '- plan.md: placeholder <2fa code> (line 36)',
-    '- plan.md: placeholder <1-2 sentences: what changes> (line 37)',
+    '- plan.md: placeholder <who> (line 34)',
+    '- plan.md: placeholder <2fa code> (line 35)',
+    '- plan.md: placeholder <1-2 sentences: what changes> (line 36)',
   ]);
 });
 
@@ -399,14 +391,14 @@ test('check: a diagram fenced with ~~~ is code, not a placeholder; the line numb
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(text));
   assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)']);
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY(`${text}\n\nSent by <who>.`));
-  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 28)']);
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: placeholder <who> (line 27)']);
 });
 
 test('check: a code block that is never closed is a problem, so the text it hides is not taken as clean', () => {
   const dir = project();
   filled(dir, 's3-connection');
   body(dir, `${LOCAL}/s3-connection/plan.md`, PLAN_BODY('The states:\n\n~~~mermaid\nflowchart TD\n\nSent by <who>.'));
-  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: the code block from line 23 is never closed']);
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: 1 problems', '- plan.md: the code block from line 22 is never closed']);
 });
 
 test('check: the unfilled templates show only their placeholders', () => {
@@ -418,125 +410,163 @@ test('check: the unfilled templates show only their placeholders', () => {
   for (const l of out.slice(1)) assert.match(l, /^- (plan\.md|T1): placeholder </, out.join('\n'));
 });
 
-test('review: never reviewed, unchanged after reviewed, changed after an edit; the hash line itself does not count', () => {
+test('review: never reviewed, unchanged after reviewed, changed after an essential edit; descriptive sections and fields do not count', () => {
   const dir = project();
   filled(dir, 's3-connection');
-  assert.deepEqual(run(dir, 'review', 's3-connection'), ['review: 2 of 2 tickets to review', '- T1: never reviewed', '- T2: never reviewed']);
+  assert.deepEqual(run(dir, 'review', 's3-connection'), ['review: 2 of 2 tickets to review', '- plan: draft', '- T1: never reviewed', '- T2: never reviewed']);
   assert.deepEqual(run(dir, 'reviewed', 's3-connection', 't1', 'T2'), ['reviewed: 2', '- T1: reviewed', '- T2: reviewed']);
   const t1 = `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`;
   assert.match(readRel(dir, t1), /^review_hash: [0-9a-f]{12}$/m);
-  assert.deepEqual(run(dir, 'review', 's3-connection'), ['review: 0 of 2 tickets to review', '- T1: unchanged', '- T2: unchanged']);
+  assert.deepEqual(run(dir, 'review', 's3-connection'), ['review: 0 of 2 tickets to review', '- plan: draft', '- T1: unchanged', '- T2: unchanged']);
+  // In plain words, Why, Where to look and the fields are descriptive: still unchanged.
+  write(dir, t1, readRel(dir, t1).replace('lands in the bucket', 'lands in the S3 bucket').replace('D1.', 'D1, the SDK.').replace(/^status: .*$/m, 'status: in-progress\nbranch: s3-T1\ntracker: PROJ-7\ntracker_url: https://example.com/PROJ-7'));
+  assert.equal(run(dir, 'review', 's3-connection')[2], '- T1: unchanged');
   write(dir, t1, readRel(dir, t1).replace('Do one thing.', 'Do one other thing.'));
-  assert.equal(run(dir, 'review', 's3-connection')[1], '- T1: changed since review');
-  assert.equal(plans.ticketHash('---\nid: T1\nreview_hash: abc\n---\nx\n'), plans.ticketHash('---\nid: T1\nreview_hash: -\n---\nx\n'));
-  assert.notEqual(plans.ticketHash('---\nid: T1\n---\nx\n'), plans.ticketHash('---\nid: T1\n---\ny\n'));
+  assert.equal(run(dir, 'review', 's3-connection')[2], '- T1: changed since review');
+  const hash = (fm, text) => plans.ticketHash(`---\nid: T1\n${fm}---\n# [T1] X\n\n${text}`);
+  assert.equal(hash('review_hash: abc\nstatus: ready\n', '## Goal\nx\n'), hash('review_hash: -\nstatus: done\nreason: gone\n', '## Goal\nx\n'));
+  assert.notEqual(hash('', '## Goal\nx\n'), hash('', '## Goal\ny\n'));
+  assert.notEqual(hash('depends_on: T2\n', '## Goal\nx\n'), hash('depends_on:\n', '## Goal\nx\n'), 'depends_on counts');
+  assert.equal(hash('depends_on: T2, T3\n', '## Goal\nx\n'), hash('depends_on: [T2,T3]\n', '## Goal\nx\n'), 'as a list of tickets');
+  assert.equal(hash('', '## Goal\nx\n\n## Example\na\n'), hash('', '## Goal\nx\n\n## Example\nb\n'));
   assert.match(run(dir, 'reviewed', 's3-connection', 'T5')[0], /refused \(no ticket T5\)/);
 });
 
-test('state: ready only when clean, no open questions and all reviewed; an edit after ready makes it a draft again', () => {
+test('state ready: only when clean with no open questions; readies the plan and every draft ticket that needs no review', () => {
   const dir = project();
-  filled(dir, 's3-connection');
+  filled(dir, 's3-connection', 3);
   const plan = `${LOCAL}/s3-connection/plan.md`;
-  assert.match(run(dir, 'state', 's3-connection', 'ready')[0], /refused \(not ready: not reviewed as they are: T1, T2\)/);
-  run(dir, 'reviewed', 's3-connection', 'T1', 'T2');
+  const t = (n) => `${LOCAL}/s3-connection/tickets/T${n}-ticket-${n}.md`;
   body(dir, plan, PLAN_BODY('Upload files.', '- Q1. Which region?'));
   assert.match(run(dir, 'state', 's3-connection', 'ready')[0], /refused \(not ready: 1 open questions\)/);
   body(dir, plan, PLAN_BODY('Upload files.'));
-  assert.deepEqual(run(dir, 'state', 's3-connection', 'ready'), ['status: ready']);
+  run(dir, 'reviewed', 's3-connection', 'T1', 'T2');
+  assert.deepEqual(run(dir, 'state', 's3-connection', 'ready'), [
+    'status: ready', 'ready: T1, T2', 'draft: T3 (needs review: plans.js reviewed s3-connection <ids>, then plans.js status s3-connection <id> ready)',
+  ]);
   assert.match(readRel(dir, plan), /^ready_hash: [0-9a-f]{12}$/m);
+  for (const [n, s] of [[1, 'ready'], [2, 'ready'], [3, 'draft']]) assert.match(readRel(dir, t(n)), new RegExp(`^status: ${s}$`, 'm'), `T${n}`);
   assert.match(line(run(dir, 'list'), '- s3-connection'), /^- s3-connection: ready · /);
-  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 2 tickets)'], 'check leaves an unchanged ready plan alone');
-  // The page's code is no edit of the plan.
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 3 tickets)']);
+  // The page's code and a descriptive section are no edit that needs review.
   write(dir, plan, readRel(dir, plan).replace(/^page: .*$/m, 'page: 0badc0de'));
-  assert.match(line(run(dir, 'list'), '- s3-connection'), /^- s3-connection: ready · /);
-  // An edit after ready: the list shows a draft, check writes it.
   body(dir, plan, PLAN_BODY('Upload and list files.'));
-  assert.match(line(run(dir, 'list'), '- s3-connection'), /^- s3-connection: draft \(changed after ready\) · /);
-  assert.equal(run(dir, 'check', 's3-connection').at(-1), 'status: draft (the plan changed after ready)');
-  assert.match(readRel(dir, plan), /^status: draft$/m);
-  assert.match(readRel(dir, plan), /^ready_hash: -$/m);
-  // A new ticket after ready is an edit too.
-  run(dir, 'state', 's3-connection', 'ready');
-  run(dir, 'ticket', 's3-connection', '--title', 'Later');
-  assert.match(readRel(dir, plan), /^status: draft$/m);
+  assert.match(line(run(dir, 'list'), '- s3-connection'), /^- s3-connection: ready · /);
+  // An essential section edited after ready: the plan needs review and stays ready; so does a ticket.
+  write(dir, plan, readRel(dir, plan).replace('D1. Use the SDK.', 'D1. Use the SDK v3.'));
+  write(dir, t(1), readRel(dir, t(1)).replace('Do one thing.', 'Do two things.'));
+  assert.match(line(run(dir, 'list'), '- s3-connection'), /^- s3-connection: ready \(needs review\) · /);
+  assert.deepEqual(run(dir, 'check', 's3-connection'), ['check: clean (plan.md and 3 tickets)']);
+  assert.match(readRel(dir, plan), /^status: ready$/m);
+  assert.match(readRel(dir, t(1)), /^status: ready$/m);
+  assert.equal(run(dir, 'review', 's3-connection')[1], '- plan: changed since ready');
+  assert.deepEqual(run(dir, 'reviewed', 's3-connection', 'plan'), ['reviewed: 1', '- plan: reviewed']);
+  assert.match(line(run(dir, 'list'), '- s3-connection'), /^- s3-connection: ready · /);
+  // set never changes the status either.
+  run(dir, 'set', 's3-connection', '--branch', 'feat/s3');
+  assert.match(readRel(dir, plan), /^status: ready$/m);
 });
 
-test('state: the moves between states; exported and abandoned are final', () => {
+test('ticket on a ready feature: a draft that needs review; the plan keeps its state; status ready waits for the review', () => {
   const dir = project();
   filled(dir, 's3-connection');
   run(dir, 'reviewed', 's3-connection', 'T1', 'T2');
-  assert.match(run(dir, 'state', 's3-connection', 'exported')[0], /refused \(draft -> exported is not a move/);
-  assert.match(run(dir, 'state', 's3-connection', 'done')[0], /refused \(unknown state "done"/);
-  assert.deepEqual(run(dir, 'state', 's3-connection', 'draft'), ['status: draft (already)']);
   run(dir, 'state', 's3-connection', 'ready');
-  assert.deepEqual(run(dir, 'state', 's3-connection', 'draft'), ['status: draft']);
-  run(dir, 'state', 's3-connection', 'ready');
-  assert.deepEqual(run(dir, 'state', 's3-connection', 'exported'), ['status: exported']);
-  assert.match(run(dir, 'state', 's3-connection', 'draft')[0], /refused \(exported -> draft is not a move/);
-  assert.match(run(dir, 'ticket', 's3-connection', '--title', 'X')[0], /refused \(the plan is exported\)/);
+  const plan = `${LOCAL}/s3-connection/plan.md`;
+  assert.deepEqual(run(dir, 'ticket', 's3-connection', '--title', 'Later'), [
+    `created: ${LOCAL}/s3-connection/tickets/T3-later.md`, 'ticket: T3',
+    'note: T3 is a draft until its review: plans.js reviewed s3-connection T3, then plans.js status s3-connection T3 ready',
+  ]);
+  assert.match(readRel(dir, plan), /^status: ready$/m);
+  assert.match(readRel(dir, `${LOCAL}/s3-connection/tickets/T3-later.md`), /^status: draft$/m);
+  body(dir, `${LOCAL}/s3-connection/tickets/T3-later.md`, TICKET_BODY('T3'));
+  assert.match(run(dir, 'status', 's3-connection', 'T3', 'ready')[0], /refused \(T3 needs review: plans.js reviewed s3-connection T3 after its review\)/);
+  run(dir, 'reviewed', 's3-connection', 'T3');
+  assert.deepEqual(run(dir, 'status', 's3-connection', 'T3', 'ready'), ['status: T3 ready']);
+  assert.match(run(dir, 'state', 's3-connection', 'done')[0], /refused \(not every ticket is done or abandoned: T1 ready, T2 ready, T3 ready\)/);
 });
 
-test('abandoned: a draft on this machine goes to keel\'s trash and its chat marks go; one in the repository stays', () => {
+test('status: a ticket moves to any state; in-progress takes a ready plan along; done of the last says the plan can be done', () => {
   const dir = project();
   filled(dir, 's3-connection');
-  run(dir, 'mark', 'set', 's3-connection', '--session', 'chat-1');
-  const out = run(dir, 'state', 's3-connection', 'abandoned');
-  assert.equal(out[0], 'status: abandoned');
-  assert.match(out[1], /^moved to keel's trash: batch \d{8}-\d{6}/);
-  assert.ok(!exists(dir, `${LOCAL}/s3-connection`));
-  const batch = fs.readdirSync(path.join(dir, '.keel', 'local', 'trash'))[0];
-  assert.match(fs.readFileSync(path.join(dir, '.keel', 'local', 'trash', batch, 'files', LOCAL, 's3-connection', 'plan.md'), 'utf8'), /^status: abandoned$/m);
-  assert.deepEqual(run(dir, 'mark', 'get', '--session', 'chat-1'), ['planning: none']);
-
-  run(dir, 'settings', 'set', '--draft', 'repo');
-  run(dir, 'new', 'csv-export');
-  const repo = run(dir, 'state', 'csv-export', 'abandoned');
-  assert.equal(repo[1], 'tickets/csv-export/ stays: the user removes it, or a commit removes it after the user\'s yes');
-  assert.match(readRel(dir, 'tickets/csv-export/plan.md'), /^status: abandoned$/m);
-  assert.match(run(dir, 'mark', 'set', 'csv-export', '--session', 'chat-2')[0], /refused \(the plan is abandoned\)/);
+  run(dir, 'reviewed', 's3-connection', 'T1', 'T2');
+  run(dir, 'state', 's3-connection', 'ready');
+  const plan = `${LOCAL}/s3-connection/plan.md`;
+  assert.deepEqual(run(dir, 'status', 's3-connection', 't1', 'in-progress'), ['status: T1 in-progress', 'plan: in-progress']);
+  assert.match(readRel(dir, plan), /^status: in-progress$/m);
+  assert.deepEqual(run(dir, 'status', 's3-connection', 'T1', 'in-progress'), ['status: T1 in-progress (already)']);
+  assert.deepEqual(run(dir, 'status', 's3-connection', 'T1', 'done'), ['status: T1 done']);
+  assert.match(run(dir, 'status', 's3-connection', 'T2', 'abandoned')[0], /refused \(abandoned needs --reason "<why>"\)/);
+  assert.deepEqual(run(dir, 'status', 's3-connection', 'T2', 'abandoned', '--reason', 'the SDK does it'), [
+    'status: T2 abandoned', 'plan: every ticket is done or abandoned: plans.js state s3-connection done',
+  ]);
+  assert.match(readRel(dir, `${LOCAL}/s3-connection/tickets/T2-ticket-2.md`), /^reason: the SDK does it$/m);
+  assert.deepEqual(run(dir, 'check', 's3-connection').at(-1), 'plan: every ticket is done or abandoned: plans.js state s3-connection done');
+  assert.deepEqual(run(dir, 'status', 's3-connection', 'T2', 'ready'), ['status: T2 ready']);
+  assert.doesNotMatch(readRel(dir, `${LOCAL}/s3-connection/tickets/T2-ticket-2.md`), /^reason:/m, 'the reason leaves with abandoned');
+  assert.match(run(dir, 'status', 's3-connection', 'T2', 'closed')[0], /refused \(unknown state "closed": draft, ready, in-progress, done, abandoned\)/);
+  assert.match(run(dir, 'status', 's3-connection', 'T9', 'done')[0], /refused \(no ticket T9 in s3-connection\)/);
+  assert.match(run(dir, 'status', 's3-connection')[0], /refused \(needs a ticket: T<n>\)/);
+  // A check problem: a status that is no state, an abandoned ticket without a reason.
+  front(dir, `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`, 'status', 'todo');
+  front(dir, `${LOCAL}/s3-connection/tickets/T2-ticket-2.md`, 'status', 'abandoned');
+  assert.deepEqual(run(dir, 'check', 's3-connection').slice(0, 3), ['check: 2 problems', '- T1: status is "todo"; draft, ready, in-progress, done, abandoned', '- T2: abandoned without a reason']);
 });
 
-test('settings: this machine keeps only the draft place and the repos map; the old planning keys are dropped, not carried over', () => {
+test('status and state --project: a session in another folder updates the feature where it lives', () => {
   const dir = project();
-  assert.deepEqual(run(dir, 'settings').slice(0, 4), ['settings: none yet (the first planning here asks where the draft lives)', 'draft: pc (default)', 'draft_dir: tickets (default)', 'repos: -']);
-  // A settings file of keel 1.4: its language, export and prefix count nowhere and leave with the next write.
-  write(dir, `${LOCAL}/settings.json`, JSON.stringify({ language: 'en', draft: 'pc', export: 'repo', export_dir: 'features', prefix: 'OLD' }));
-  const old = run(dir, 'settings');
-  for (const l of ['planning: planning is not set up in .keel/config.json: /keel:configure planning', 'ticket_prefix: -', 'tickets: -', 'tickets_dir: tickets (default)', 'language: uk (default)']) assert.ok(old.includes(l), l);
-  const out = run(dir, 'settings', 'set', '--draft', 'repo', '--draft-dir', 'docs/tickets/');
-  assert.equal(out[0], `settings: ${LOCAL}/settings.json`);
-  for (const l of ['draft: repo', 'draft_dir: docs/tickets']) assert.ok(out.includes(l), l);
-  assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { draft: 'repo', draft_dir: 'docs/tickets' });
-  for (const k of ['--language', '--export', '--export-dir', '--prefix']) assert.match(run(dir, 'settings', 'set', k, 'x')[0], /^plans: settings set refused \(nothing to set: --draft, --draft-dir, --repo\)$/, k);
-  assert.match(run(dir, 'settings', 'set', '--draft', 'cloud')[0], /^plans: settings set refused \(--draft: pc or repo\)/);
-  for (const d of ['.hidden/t', 'work/handoff', 'handoffs', 'docs/plans/x', '../elsewhere', 'C:/abs']) {
-    assert.match(run(dir, 'settings', 'set', '--draft-dir', d)[0], /^plans: settings set refused \(--draft-dir: /, d);
-  }
-  assert.match(run(dir, 'settings', 'set')[0], /refused \(nothing to set/);
-  assert.match(run(dir, 'settings', 'set', '--draft')[0], /refused \(--draft: pc or repo\)/);
-  // A broken file: the defaults, said so.
+  const elsewhere = project();
+  filled(dir, 's3-connection');
+  run(dir, 'reviewed', 's3-connection', 'T1', 'T2');
+  run(dir, 'state', 's3-connection', 'ready');
+  assert.deepEqual(run(elsewhere, 'status', 's3-connection', 'T1', 'done', '--project', dir), ['status: T1 done']);
+  assert.match(readRel(dir, `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`), /^status: done$/m);
+  assert.deepEqual(run(elsewhere, 'state', 's3-connection', 'in-progress', '--project', dir), ['status: in-progress']);
+  assert.match(run(elsewhere, 'status', 's3-connection', 'T1', 'done', '--project')[0], /refused \(--project needs the project's folder\)/);
+  assert.match(run(elsewhere, 'status', 's3-connection', 'T1', 'done')[0], /refused \(no feature "s3-connection"/);
+});
+
+test('state abandoned: needs a reason, abandons every open ticket with it, clears the chat marks; the files stay', () => {
+  const dir = project();
+  filled(dir, 's3-connection', 3);
+  run(dir, 'status', 's3-connection', 'T1', 'done');
+  run(dir, 'mark', 'set', 's3-connection', '--session', 'chat-1');
+  assert.match(run(dir, 'state', 's3-connection', 'abandoned')[0], /refused \(abandoned needs --reason "<why>"\)/);
+  assert.deepEqual(run(dir, 'state', 's3-connection', 'abandoned', '--reason', 'the vendor does it'), ['status: abandoned', 'abandoned: T2, T3']);
+  const plan = readRel(dir, `${LOCAL}/s3-connection/plan.md`);
+  assert.match(plan, /^status: abandoned\n[\s\S]*^reason: the vendor does it$/m);
+  assert.match(readRel(dir, `${LOCAL}/s3-connection/tickets/T1-ticket-1.md`), /^status: done$/m, 'a done ticket stays done');
+  for (const n of [2, 3]) assert.match(readRel(dir, `${LOCAL}/s3-connection/tickets/T${n}-ticket-${n}.md`), /^status: abandoned\n[\s\S]*^reason: the vendor does it$/m);
+  assert.deepEqual(run(dir, 'mark', 'get', '--session', 'chat-1'), ['planning: none']);
+  assert.match(run(dir, 'mark', 'set', 's3-connection', '--session', 'chat-2')[0], /refused \(the plan is abandoned\)/);
+  assert.match(run(dir, 'ticket', 's3-connection', '--title', 'X')[0], /refused \(the plan is abandoned\)/);
+  assert.match(run(dir, 'state', 's3-connection', 'finished')[0], /refused \(unknown state "finished"/);
+  assert.deepEqual(run(dir, 'state', 's3-connection', 'abandoned', '--reason', 'x'), ['status: abandoned (already)']);
+});
+
+test('settings: this machine keeps only the repos map; the project has place, tickets_dir and language', () => {
+  const dir = project();
+  assert.deepEqual(run(dir, 'settings'), [
+    'settings: none yet', 'repos: -', 'planning: planning is not set up in .keel/config.json: /keel:configure planning',
+    'place: -', 'tickets_dir: tickets (default)', 'language: uk (default)',
+  ]);
+  // keel 2.0.0's draft and draft_dir on this machine count nowhere and leave with the next write.
+  write(dir, `${LOCAL}/settings.json`, JSON.stringify({ draft: 'repo', draft_dir: 'plans' }));
+  assert.ok(!run(dir, 'settings').some((l) => l.startsWith('draft')));
+  const web = path.join(path.dirname(dir), 'web');
+  run(dir, 'settings', 'set', '--repo', `WEB=${web}`);
+  assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { repos: { WEB: web.replace(/\\/g, '/') } });
+  for (const k of ['--draft', '--draft-dir', '--language']) assert.match(run(dir, 'settings', 'set', k, 'x')[0], /^plans: settings set refused \(nothing to set: --repo <PREFIX>=<absolute folder>\)$/, k);
+  write(dir, '.keel/config.json', JSON.stringify({ ...CONFIG, planning: { place: 'repo', tickets_dir: 'work/tickets', language: 'en', ticket_prefix: 'OLD' } }));
+  const out = run(dir, 'settings');
+  for (const l of ['planning: .keel/config.json', 'place: repo', 'tickets_dir: work/tickets', 'language: en']) assert.ok(out.includes(l), l);
+  assert.ok(!out.some((l) => l.includes('OLD')), 'the old prefix is not read');
+  assert.equal(line(run(dir, 'new', 'csv-export'), 'language: '), 'language: en', 'a new plan takes the ticket language');
+  // A config the check rejects is not used: the line names the config problem.
+  write(dir, '.keel/config.json', JSON.stringify({ ...CONFIG, docs: { profile: 99 }, planning: { place: 'pc' } }));
+  assert.match(line(run(dir, 'settings'), 'planning: '), /^planning: \.keel\/config\.json is invalid \(.*docs.*\), so its planning section is not used: \/keel:configure$/);
   write(dir, `${LOCAL}/settings.json`, '{oops');
   assert.match(run(dir, 'settings')[0], /\(unreadable: defaults in use\)$/);
-  assert.equal(run(dir, 'settings')[1], 'draft: pc (default)');
-});
-
-test('settings: the project\'s planning section in .keel/config.json; the ticket language defaults to repo_language', () => {
-  const dir = project();
-  const config = (planning) => write(dir, '.keel/config.json', JSON.stringify({ ...CONFIG, planning }));
-  config({ ticket_prefix: 'API', tickets: 'repo' });
-  const out = run(dir, 'settings');
-  for (const l of ['planning: .keel/config.json', 'ticket_prefix: API', 'tickets: repo', 'tickets_dir: tickets (default)', 'language: uk (default)']) assert.ok(out.includes(l), l);
-  config({ ticket_prefix: 'API', tickets: 'pc', tickets_dir: 'work/tickets', language: 'en' });
-  for (const l of ['tickets: pc', 'tickets_dir: work/tickets', 'language: en']) assert.ok(run(dir, 'settings').includes(l), l);
-  assert.equal(line(run(dir, 'new', 'csv-export'), 'language: '), 'language: en', 'a new plan takes the ticket language');
-  // A section the config check rejects (here without tickets), or a valid one in a config invalid
-  // elsewhere, is not used: the line names the config problem, not a missing section.
-  config({ ticket_prefix: 'API' });
-  assert.match(line(run(dir, 'settings'), 'planning: '), /^planning: \.keel\/config\.json is invalid \(.*tickets.*\), so its planning section is not used: \/keel:configure$/);
-  write(dir, '.keel/config.json', JSON.stringify({ ...CONFIG, docs: { profile: 99 }, planning: { ticket_prefix: 'API', tickets: 'pc' } }));
-  assert.match(line(run(dir, 'settings'), 'planning: '), /^planning: \.keel\/config\.json is invalid \(.*docs.*\), so its planning section is not used: \/keel:configure$/);
-  write(dir, '.keel/config.json', JSON.stringify(CONFIG));
-  assert.equal(line(run(dir, 'settings'), 'planning: '), 'planning: planning is not set up in .keel/config.json: /keel:configure planning');
 });
 
 test('settings: the repos map, one --repo <PREFIX>=<absolute folder> per call', () => {
@@ -545,10 +575,9 @@ test('settings: the repos map, one --repo <PREFIX>=<absolute folder> per call', 
   const mob = path.join(path.dirname(dir), 'mobile') + path.sep;
   const slash = (p) => p.replace(/\\/g, '/').replace(/\/+$/, '');
   assert.ok(run(dir, 'settings', 'set', '--repo', `WEB=${web}`).includes(`repos: WEB=${slash(web)}`));
-  run(dir, 'settings', 'set', '--draft', 'repo');
   const out = run(dir, 'settings', 'set', '--repo', `MOB=${mob}`);
   assert.ok(out.includes(`repos: WEB=${slash(web)}, MOB=${slash(mob)}`), out.join('\n'));
-  assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { repos: { WEB: slash(web), MOB: slash(mob) }, draft: 'repo' });
+  assert.deepEqual(JSON.parse(readRel(dir, `${LOCAL}/settings.json`)), { repos: { WEB: slash(web), MOB: slash(mob) } });
   assert.ok(run(dir, 'settings', 'set', '--repo', `WEB=${mob}`).includes(`repos: WEB=${slash(mob)}, MOB=${slash(mob)}`), 'a prefix set again moves');
   for (const [v, why] of [['web=/x', 'the prefix is 2-10 capital letters'], ['W=/x', 'the prefix is 2-10 capital letters'], ['WEB=../web', 'the folder is an absolute path'], ['WEB=', 'the folder is an absolute path'], ['WEB', 'give <PREFIX>=<absolute folder>']]) {
     assert.match(run(dir, 'settings', 'set', '--repo', v)[0], new RegExp(`^plans: settings set refused \\(--repo: ${why}`), v);
@@ -570,59 +599,17 @@ test('mark: set, get and clear this chat\'s planning mark', () => {
   assert.equal(plans.planningMark(dir, 'chat-1'), 's3-connection');
   assert.deepEqual(run(dir, 'mark', 'clear', '--session', 'chat-1'), ['planning: none']);
   assert.ok(!exists(dir, `${LOCAL}/sessions/chat-1.json`));
-  assert.match(run(dir, 'mark', 'set', 'csv-export', '--session', 'chat-1')[0], /refused \(no draft "csv-export"/);
+  assert.match(run(dir, 'mark', 'set', 'csv-export', '--session', 'chat-1')[0], /refused \(no feature "csv-export"/);
   assert.match(run(dir, 'mark', 'set', 's3-connection', '--session', '../x')[0], /refused \(needs --session <id>\)/);
   assert.match(run(dir, 'mark', 'set', 's3-connection')[0], /refused \(needs --session <id>\)/);
   assert.match(run(dir, 'mark', 'drop', '--session', 'chat-1')[0], /refused \(unknown "drop"/);
   assert.equal(plans.planningMark(dir, '../x'), null);
 });
 
-// An exported ticket as export writes it.
-const EXPORTED = (key, deps = '', status = 'todo') => `---\ntype: ticket\nkey: ${key}\nstatus: ${status}\nfeature: s3-connection\npage: 5e7a01c3\nbranch: feat/s3\nmerge_into: main\ndepends_on: [${deps}]\n---\n\n${TICKET_BODY(key)}`;
-
-test('an exported feature on this machine: mark set, ticket with the next key and check work in its folder', () => {
-  const dir = project();
-  const folder = `${LOCAL}/s3-connection/tickets`;
-  write(dir, `${folder}/PROJ-1-client.md`, EXPORTED('PROJ-1'));
-  write(dir, `${folder}/PROJ-2-upload.md`, EXPORTED('PROJ-2', 'PROJ-1'));
-  write(dir, `${folder}/README.md`, '---\ntype: feature\n---\n\n# S3\n');
-  write(dir, `${LOCAL}/other-thing/tickets/PROJ-5-x.md`, EXPORTED('PROJ-5'));
-  assert.deepEqual(run(dir, 'mark', 'set', 's3-connection', '--session', 'chat-1'), [`planning: s3-connection (exported: ${folder}/)`]);
-  assert.equal(plans.planningMark(dir, 'chat-1'), 's3-connection');
-  assert.deepEqual(run(dir, 'check', 's3-connection'), [`check: clean (2 tickets in ${folder}/)`]);
-
-  assert.match(run(dir, 'ticket', 's3-connection')[0], /refused \(needs --title\)/);
-  assert.deepEqual(run(dir, 'ticket', 's3-connection', '--title', 'X', '--depends', 'PROJ-9,T1'), ['plans: ticket refused (--depends: no ticket PROJ-9, T1)']);
-  // The next key after every key here (PROJ-5 of another feature); depends_on are keys, any case.
-  assert.deepEqual(run(dir, 'ticket', 's3-connection', '--title', 'Delete files', '--depends', 'proj-2,PROJ-5'), [
-    `created: ${folder}/PROJ-6-delete-files.md`, 'ticket: PROJ-6', `overview: ${folder}/README.md`, 'fetch: not a git repository; keys from the files here only',
-  ]);
-  const t = readRel(dir, `${folder}/PROJ-6-delete-files.md`);
-  assert.ok(t.startsWith('---\ntype: ticket\nkey: PROJ-6\nstatus: todo\nfeature: s3-connection\npage: 5e7a01c3\nbranch: feat/s3\nmerge_into: main\ndepends_on: [PROJ-2, PROJ-5]\n---\n\n# [PROJ-6] Delete files\n\n## In plain words\n'), t);
-  const unfilled = run(dir, 'check', 's3-connection');
-  assert.match(unfilled[0], /^check: \d+ problems$/);
-  assert.ok(unfilled.some((l) => /^- PROJ-6: placeholder /.test(l)), 'the template\'s placeholders are problems, as in a draft');
-
-  write(dir, `${folder}/PROJ-1-client.md`, EXPORTED('PROJ-1', 'PROJ-2'));
-  write(dir, `${folder}/PROJ-2-upload.md`, EXPORTED('PROJ-2', 'PROJ-1', 'started').replace('## Out of scope\n', ''));
-  write(dir, `${folder}/PROJ-3-renamed.md`, EXPORTED('PROJ-4'));
-  write(dir, `${folder}/PROJ-6-delete-files.md`, EXPORTED('PROJ-6', 'PROJ-6, PROJ-9'));
-  assert.deepEqual(run(dir, 'check', 's3-connection'), [
-    'check: 6 problems',
-    '- PROJ-2: status is "started"; todo or done',
-    '- PROJ-2: no section "## Out of scope"',
-    '- PROJ-4: the file name PROJ-3-renamed.md does not start with the key',
-    '- PROJ-6: depends on itself',
-    '- PROJ-6: depends on PROJ-9, which does not exist',
-    '- dependency cycle: PROJ-1 -> PROJ-2 -> PROJ-1',
-  ]);
-  // Not exported, no draft: refused as before.
-  assert.match(run(dir, 'mark', 'set', 'csv-export', '--session', 'chat-2')[0], /refused \(no draft "csv-export"/);
-  assert.match(run(dir, 'ticket', 'csv-export', '--title', 'X')[0], /refused \(no draft "csv-export"/);
-});
-
 test('plans.js: unknown commands are named, never thrown', () => {
   const dir = project();
-  assert.match(run(dir, 'import')[0], /^plans: unknown command "import" \(list, find, new, .*set, stale, repos, report, export, commit, push/);
-  assert.equal(run(dir)[0], 'drafts: 0');
+  assert.equal(run(dir, 'import')[0], 'plans: unknown command "import" (list, find, new, ticket, check, review, reviewed, state, status, set, stale, repos, report, commit, push, tickets, align, drop, brief, settings, mark)');
+  assert.equal(run(dir)[0], 'features: 0');
+  assert.match(run(dir, 'export', 's3-connection')[0], /^plans: unknown command "export"/);
+  assert.match(run(dir, 'done', 'PROJ-1')[0], /^plans: unknown command "done"/);
 });

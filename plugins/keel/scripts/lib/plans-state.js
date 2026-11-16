@@ -1,187 +1,106 @@
 'use strict';
-// plans.js tickets, done and drop: the state of exported tickets, worked out from git and the files
-// (no tokens), and the two steps that end a ticket and a feature.
-// - Finding and reading the tickets: lib/plans-state-read.js; the state of each key and the next
-//   ticket: lib/plans-state-rules.js.
-// Reads only, except `done` (one status line of a ticket in the working tree) and `drop` (the feature
-// folder to keel's trash).
+// plans.js tickets and drop: the planned tickets' states as their `status` fields say (no tokens), the
+// ticket to take next, and the step that ends a feature. Reads only, except `drop` (the feature folder
+// to keel's trash).
 const path = require('node:path');
 const plans = require('./plans.js');
-const { git, read, clean } = require('./repo-read.js');
+const { git, clean } = require('./repo-read.js');
 const { moveToTrash } = require('./trash.js');
-const { setFront } = require('./tasks.js');
 const { sameBranch } = require('../git-flow.js');
-const { collect, serverData, pickTickets, workPaths, pcTickets, KEY, dirOf, upper, prefixOf, byKey } = require('./plans-state-read.js');
-const { STATES, short, states, doneInHistory, stateIn, keysHere, metBy, depWhere, whereLine, nextOf } = require('./plans-state-rules.js');
-// Loaded when used: lib/plans-neighbours.js reads other repositories with this file's code.
-const neighbours = () => require('./plans-neighbours.js');
+const { heading } = require('./plans-format.js');
+
+// The ticket states, in their order.
+const STATES = plans.STATES;
+const OPEN_PLAN = ['ready', 'in-progress'];
+const TICKET_ARG = /^([a-z][a-z0-9-]*)\/(T\d+)$/i;
 
 const refuse = (what, why) => [`plans: ${what} refused (${why})`];
 const rel = (root, file) => path.relative(root, file).split(path.sep).join('/');
-const given = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() !== '-';
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const depsOf = (t) => plans.ticketIds(t.fm.depends_on).map((k) => k.toUpperCase());
 
-// --- tickets ---
-
-function ticketLine(e, next, marks = []) {
-  const state = e === next ? 'next' : STATES[e.state];
-  return `  ${clean(e.shown, 40)}${e.title ? ` ${clean(e.title, 80)}` : ''} — ${[state, e.hint, ...e.marks, ...marks].filter(Boolean).join(' · ')}`;
+// The ticket to take next in one feature, or null: the first by number that is ready, needs no review
+// and whose dependencies are all done. One that depends on an abandoned ticket waits for the user:
+// remove the dependency or abandon it too.
+function nextOf(list) {
+  const byId = new Map(list.map((t) => [t.id, t]));
+  return list.find((t) => t.fm.status === 'ready' && !plans.needsReview(t)
+    && depsOf(t).every((k) => byId.has(k) && byId.get(k).fm.status === 'done')) || null;
 }
 
-// Every key's state here, and what nextOf needs: the other repositories' dependencies and the ones
-// found in history.
-function readStates(root, now) {
-  const d = collect(root, now);
-  const keys = states(d);
-  const isForeign = neighbours().foreignTest(root, [...keys.keys()]);
-  const foreign = (k) => !keys.has(k) && isForeign(k);
-  const others = neighbours().neighbourStates(root, [...new Set([...keys.values()].flatMap((e) => e.depends.filter(foreign)))], now);
-  // A stub's key is read in its repository too: a ticket there may replace it (lib/plans-stubs.js).
-  const stubKeys = [...new Set([...keys.values()].flatMap((e) => e.stubs))];
-  if (stubKeys.length) for (const [k, s] of neighbours().stubStates(root, stubKeys, { now, here: [...keys.keys()], d })) others.set(k, s);
-  const gone = d.inRepo ? doneInHistory(d, keys, null, foreign) : new Map();
-  return { d, keys, others, gone };
+// The open tickets of `shown` that depend on an abandoned one of `list`: `note:` lines.
+function blockedNotes(list, shown) {
+  const byId = new Map(list.map((t) => [t.id, t]));
+  return shown.filter((t) => !plans.CLOSED.includes(t.fm.status)).flatMap((t) => depsOf(t)
+    .filter((k) => byId.has(k) && byId.get(k).fm.status === 'abandoned')
+    .map((k) => `note: ${t.id} depends on ${k}, which is abandoned: remove the dependency or abandon ${t.id} too`));
 }
 
-// `--fetch`: the remote first (lib/plans-export.js fetched); other repositories are read as they are,
-// never fetched. arg: a feature, a key, or nothing (every feature with a ticket not done).
-function ticketsCommand(root, arg, { fetch = false, now = new Date() } = {}) {
-  const notes = fetch ? require('./plans-export.js').fetched(root).notes.map((n) => n.replace(/; keys .*$/, '')) : [];
-  const { d, keys, others, gone } = readStates(root, now);
-  if (!keys.size && !arg) return ['tickets: none', ...notes];
-  const features = new Map();
-  for (const e of [...keys.values()].sort((a, b) => byKey(a.key, b.key))) {
-    if (!features.has(e.feature)) features.set(e.feature, []);
-    features.get(e.feature).push(e);
-  }
-  const asKey = typeof arg === 'string' && KEY.test(arg) ? upper(arg) : null;
-  let shown;
-  if (asKey) shown = keys.has(asKey) ? [keys.get(asKey).feature] : [];
-  else if (typeof arg === 'string' && arg) shown = features.has(arg) ? [arg] : [];
-  else shown = [...features.keys()].filter((f) => features.get(f).some((e) => e.state !== 0));
-  if (typeof arg === 'string' && arg && !shown.length) return [`tickets: none (no ticket or feature ${clean(arg, 60)})`, ...notes];
+function ticketLine(t, next) {
+  const marks = [t === next ? 'next' : t.fm.status || 'no status', plans.needsReview(t) && !plans.CLOSED.includes(t.fm.status) ? 'needs review' : null, t.fm.status === 'in-progress' && t.fm.branch ? `on ${clean(t.fm.branch, 60)}` : null];
+  return `  ${t.id} ${clean(heading(t.text)[1], 80)} — ${marks.filter(Boolean).join(' · ')}`;
+}
+
+// arg: a feature, <feature>/T<n>, or nothing (every ready or in-progress feature with a ticket not done
+// or abandoned). `--fetch`: the remote first, so git's warning sees the merged branches.
+function ticketsCommand(root, arg, { fetch = false } = {}) {
+  const notes = fetch ? require('./plans-git.js').fetched(root).notes : [];
+  const all = plans.listDrafts(root).map((d) => ({ d, list: plans.tickets(d) }));
+  const one = typeof arg === 'string' ? TICKET_ARG.exec(arg) : null;
+  const name = one ? one[1] : typeof arg === 'string' && arg ? arg : null;
+  const shown = name ? all.filter((f) => f.d.feature === name)
+    : all.filter((f) => OPEN_PLAN.includes(f.d.fm.status) && f.list.some((t) => !plans.CLOSED.includes(t.fm.status)));
+  if (name && !shown.length) return [`tickets: none (no feature ${clean(name, 60)})`, ...notes];
+  if (!shown.length) return ['tickets: none', ...notes];
   const out = [];
   let count = 0;
   let next = null;
-  for (const f of shown) {
-    const list = features.get(f);
-    const own = nextOf(keys, list, gone, others);
-    if (!next && own) next = own;
-    const done = list.filter((e) => e.state === 0).length;
-    const waiting = list.filter((e) => e.state === 1 || e.state === 2).length;
-    out.push(`${f} (${done} of ${list.length} done${waiting ? `, ${waiting} waiting for merge` : ''})`);
-    const lines = asKey ? list.filter((e) => e.key === asKey) : list;
-    if (arg) out.push(`  branch: ${lines[0].branch} -> ${lines[0].mergeInto}`);
-    // A to do ticket's dependencies that are not checked, or whose code waits in another branch.
-    const marks = (e) => (e.state !== 4 ? [] : e.depends.map((k) => {
-      if (others.has(k) && others.get(k).state === neighbours().NOT_CHECKED) return `${k} not checked`;
-      const w = depWhere(keys, others, e, k);
-      return w && (w.kind === 'feature' || w.kind === 'ticket') ? `${k} only in ${w.word} ${w.branch}` : null;
-    }).filter(Boolean));
-    // A feature's view lists its stubs too (lib/plans-stubs.js): no state, maybe their repository here now.
-    const stubRows = arg && !asKey ? require('./plans-stubs.js').stubLines(root, f) : [];
-    for (const e of lines) {
-      out.push(ticketLine(e, own, marks(e)));
-      if (!asKey) continue;
-      for (const p of e.paths) {
-        const where = e.found.find((x) => x.path === p && x.view.work) || e.pc.find((x) => x.path === p) ? null : e.found.find((x) => x.path === p).view.ref;
-        out.push(`  file: ${where ? `${short(where)}:./` : ''}${p}`);
-      }
-      const dep = (k) => (others.has(k) ? neighbours().stateText(k, others.get(k)) : `${keys.has(k) ? keys.get(k).shown : k} ${keys.has(k) ? STATES[keys.get(k).state] : gone.get(`${e.target} ${k}`) || 'not found'}`);
-      // A stub no ticket replaces yet: its state is never read.
-      const stub = (k) => {
-        const s = neighbours().stubState(others.get(k), e.feature, !e.stubsGone.includes(k));
-        return s ? neighbours().stateText(k, s) : `${k} stub`;
-      };
-      if (e.depends.length || e.stubs.length) out.push(`  depends: ${[...e.depends.map(dep), ...e.stubs.map(stub)].join(', ')}`);
-      for (const k of e.state === 4 ? e.depends : []) {
-        const w = depWhere(keys, others, e, k);
-        if (w) out.push(`  where: ${whereLine(keys.has(k) ? keys.get(k).shown : others.get(k).shown || k, w, e, others.has(k) ? others.get(k).folder : null)}`);
-      }
+  for (const { d, list } of shown) {
+    const own = OPEN_PLAN.includes(d.fm.status) ? nextOf(list) : null;
+    if (!next && own) next = { t: own, feature: d.feature };
+    const lines = one ? list.filter((t) => t.id === one[2].toUpperCase()) : list;
+    if (one && !lines.length) return [`tickets: none (no ticket ${clean(arg, 60)})`, ...notes];
+    const done = list.filter((t) => t.fm.status === 'done').length;
+    out.push(`${d.feature} (${d.fm.status}; ${done} of ${list.length} done)`);
+    if (name) { const b = plans.branchesOf(root, d); out.push(`  branch: ${b.branch} -> ${b.merge_into || '-'}`); }
+    for (const t of lines) {
+      out.push(ticketLine(t, own));
+      if (!one) continue;
+      out.push(`  file: ${rel(root, t.file)}`);
+      const deps = depsOf(t).map((k) => { const x = list.find((y) => y.id === k); return `${k} ${x ? x.fm.status || 'no status' : 'not found'}`; });
+      if (deps.length) out.push(`  depends: ${deps.join(', ')}`);
     }
-    out.push(...stubRows);
+    out.push(...require('./plans-git.js').mergedWarnings(root, d, lines), ...blockedNotes(list, lines), ...require('./plans-check.js').doneHint(d, list));
     count += lines.length;
   }
   return [
-    `tickets: ${plural(shown.length, 'feature')}, ${plural(count, 'ticket')}; ${serverData(d)}`,
+    `tickets: ${plural(shown.length, 'feature')}, ${plural(count, 'ticket')}`,
     ...out,
-    next ? `next: ${next.shown} (${next.feature})` : 'next: none',
-    // Only with no argument: a feature or key view is read for its own repository's tickets.
-    ...(arg ? [] : require('./plans-linked.js').linkedLines(d, keys, now)),
+    next ? `next: ${next.feature}/${next.t.id}` : 'next: none',
     ...notes,
   ];
 }
 
-// --- done ---
-
-// The tickets in this working tree, the repository's and this machine's.
-function workTickets(root) {
-  const inRepo = git(root, ['rev-parse', '--git-dir']) !== null;
-  return [...pickTickets(workPaths(root, inRepo), (p) => read(path.join(root, p))), ...pcTickets(root)];
-}
-
-const folderOf = (t) => dirOf(t.path);
-const openStubs = (root, folder) => require('./plans-stubs.js').stubFiles(path.join(root, folder)).map((st) => upper(st.fm.key)).sort();
-
-function doneCommand(root, key, undo = false) {
-  const what = 'done';
-  if (typeof key !== 'string' || !KEY.test(key)) return refuse(what, key === undefined ? 'needs a ticket key' : `invalid key "${clean(String(key), 60)}"`);
-  const all = workTickets(root);
-  const found = all.filter((t) => t.key === upper(key));
-  if (!found.length) return [`done: none (no ticket ${clean(key, 60)} here)`];
-  if (found.length > 1) return refuse(what, `${found.length} files have ${found[0].shown}: ${found.map((t) => t.path).join(', ')}; keep one`);
-  const t = found[0];
-  const to = undo ? 'todo' : 'done';
-  const shown = undo ? `${t.shown} -> todo` : t.shown;
-  if (t.fm.status === to) return [`done: ${shown} (already)`];
-  const file = path.join(root, t.path);
-  const text = setFront(read(file), { status: to });
-  if (text === null) return refuse(what, `${t.path} has no front matter`);
-  try { plans.writeFile(root, { local: Boolean(t.pc) }, file, text); } catch (e) { return refuse(what, e.message); }
-  const out = [`done: ${shown} (${t.path})`];
-  const mates = all.filter((x) => folderOf(x) === folderOf(t));
-  if (undo || !mates.every((x) => x === t || x.fm.status === 'done')) return out;
-  const feature = t.pc ? t.feature : given(t.fm.feature) ? t.fm.feature : path.posix.basename(folderOf(t));
-  // A stub is work another repository still owes: the feature is not complete while one is left.
-  const left = openStubs(root, folderOf(t));
-  out.push(left.length ? `done: feature ${feature} has stubs left: ${left.join(', ')} (plans.js ticket ${feature} --from-stub <key> once its repository is here)` : `done: feature ${feature} complete (${plural(mates.length, 'ticket')})`);
-  return out;
-}
-
 // --- drop ---
 
+// A feature whose every ticket is done or abandoned: its folder to keel's trash. A folder in the
+// repository goes only off the branch it merges into (then plans.js commit <feature>).
 function dropCommand(root, feature) {
   const what = 'drop';
-  if (!plans.validFeature(feature)) return refuse(what, `invalid feature name "${clean(String(feature), 60)}"`);
-  const d = collect(root, new Date());
-  const keys = [...states(d).values()].filter((e) => e.feature === feature);
-  const here = workTickets(root).filter((t) => (t.pc ? t.feature : given(t.fm.feature) ? t.fm.feature : path.posix.basename(folderOf(t))) === feature);
-  if (!here.length) return refuse(what, `no tickets of ${feature} in this working tree`);
-  const open = keys.filter((e) => (e.found.length ? e.state > 1 : e.state !== 0));
-  if (open.length) return refuse(what, `not every ticket of ${feature} is done: ${open.map((e) => `${e.shown} ${STATES[e.state]}`).join(', ')}`);
-  const left = [...new Set(here.map(folderOf))].flatMap((f) => openStubs(root, f));
-  if (left.length) return refuse(what, `${feature} still has stubs: ${left.join(', ')}; turn each into a ticket once its repository is here (plans.js ticket ${feature} --from-stub <key>), or remove it`);
-  const repo = here.filter((t) => !t.pc);
-  const folders = [...new Set(here.map((t) => (t.pc ? rel(root, path.join(plans.base(root), feature)) : folderOf(t))))];
-  if (repo.length) {
-    if (folders.includes('')) return refuse(what, 'a ticket of the feature is in the project\'s top folder, not in a feature folder');
-    // Only the feature's own folder goes: one shared with other features or with code is never moved.
-    const shared = [...new Set(repo.map(folderOf))].find((f) => path.posix.basename(f) !== feature);
-    if (shared) return refuse(what, `${shared}/ is not the feature's own folder ${feature}/; move its tickets into one first`);
-    if (!d.current) return refuse(what, 'HEAD is detached; switch to the feature branch first');
-    const branch = short(d.current);
-    const mainLine = [d.main, ...new Set(keys.map((e) => e.mergeInto))].filter(Boolean);
-    if (mainLine.some((b) => sameBranch(b, branch))) return refuse(what, `on ${branch}, where the feature merges; the tickets are removed on the feature branch before its merge`);
+  const { d, why } = plans.needDraft(root, feature, what);
+  if (!d) return why;
+  const open = plans.tickets(d).filter((t) => !plans.CLOSED.includes(t.fm.status));
+  if (open.length) return refuse(what, `not every ticket of ${feature} is done or abandoned: ${open.map((t) => `${t.id} ${t.fm.status || 'no status'}`).join(', ')}`);
+  if (!d.local) {
+    const branch = git(root, ['symbolic-ref', '-q', '--short', 'HEAD']);
+    if (!branch) return refuse(what, 'HEAD is detached; switch to the feature branch first');
+    const b = plans.branchesOf(root, d);
+    if ([plans.mainBranch(root), b.merge_into].filter(Boolean).some((x) => sameBranch(x, branch))) return refuse(what, `on ${branch}, where the feature merges; the folder is removed on the feature branch before its merge`);
   }
-  const r = moveToTrash(root, folders, 'planning');
+  const r = moveToTrash(root, [rel(root, d.folder)], 'planning');
   if (!r.batch || r.failed.length) return refuse(what, `not moved to keel's trash: ${r.failed.map((f) => `${f.path}: ${f.reason}`).join(', ')}`);
+  try { plans.clearMarks(root, (m) => m.feature === feature); } catch { /* a mark left is harmless: its feature is gone */ }
   return r.moved.map((m) => `drop: ${m.path}/ -> trash ${r.batch}`);
 }
 
-module.exports = {
-  ticketsCommand, doneCommand, dropCommand, stateIn, keysHere, metBy, depWhere, KEY, prefixOf, STATES,
-  // for lib/plans-linked.js
-  collect, states, ticketLine, serverData,
-  // for feature-page.js
-  readStates, nextOf, byKey,
-};
+module.exports = { ticketsCommand, dropCommand, nextOf, STATES };

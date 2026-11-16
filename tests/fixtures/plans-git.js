@@ -1,6 +1,6 @@
 'use strict';
-// Throwaway projects for the plans.js export, commit and push tests: a bare repository plays the
-// server, a second clone plays a colleague. No network.
+// Throwaway projects for the plans.js commit and push tests: a bare repository plays the server, a
+// second clone plays a colleague. No network.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -51,7 +51,7 @@ src/app.js has no upload yet.
 T1 client
 
 ## Next action
-Export.
+Commit.
 `;
 
 const TICKET_BODY = (id, where = '`src/app.js:1`') => `# [${id}] Title of ${id}
@@ -86,7 +86,7 @@ D1.
 
 // A project with keel's config, src/app.js, one commit on main and, when asked, a remote with main pushed.
 function setup({ remote = true, config = {} } = {}) {
-  const tmp = tempDir('keel-export-');
+  const tmp = tempDir('keel-plans-git-');
   const work = path.join(tmp, 'work');
   fs.mkdirSync(work);
   git(work, 'init', '-q', '-b', 'main');
@@ -122,7 +122,7 @@ function otherPush(server, tmp, branch, rel, text) {
   git(other, 'push', '-q', 'origin', branch);
 }
 
-// A ready draft with `n` tickets (T2 depends on T1) in the folder plans.js new picks.
+// A ready feature with `n` tickets (T2 depends on T1) in the folder plans.js new picks.
 function ready(dir, feature, n = 2, folder = `${LOCAL}/${feature}`) {
   run(dir, 'new', feature);
   body(dir, `${folder}/plan.md`, PLAN_BODY);
@@ -131,7 +131,7 @@ function ready(dir, feature, n = 2, folder = `${LOCAL}/${feature}`) {
     body(dir, `${folder}/tickets/T${i}-ticket-${i}.md`, TICKET_BODY(`T${i}`));
   }
   run(dir, 'reviewed', feature, ...Array.from({ length: n }, (_, i) => `T${i + 1}`));
-  assert.deepEqual(run(dir, 'state', feature, 'ready'), ['status: ready']);
+  assert.deepEqual(run(dir, 'state', feature, 'ready'), ['status: ready', `ready: ${Array.from({ length: n }, (_, i) => `T${i + 1}`).join(', ')}`]);
 }
 
 const trashed = (dir) => { try { return fs.readdirSync(path.join(dir, '.keel', 'local', 'trash')); } catch { return []; } };
