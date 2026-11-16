@@ -197,3 +197,10 @@ gitTest('task new --ticket: the task <feature>-T<n> with ticket:, on this machin
   assert.equal(hookDecision(work, del), 'ask');
   assert.equal(notes('task', 'delete', 'csv-export-T2')[0], 'deleted: .keel/local/tasks/csv-export-T2/ (moved to keel\'s trash)');
 });
+
+gitTest('tickets: a feature name in another case is the same feature, as in a task ticket', () => {
+  const { work } = setup({ remote: false });
+  ready(work, 's3-storage', 1);
+  assert.deepEqual(run(work, 'tickets', 'S3-Storage'), run(work, 'tickets', 's3-storage'));
+  assert.deepEqual(run(work, 'tickets', 'S3-Storage/t1'), run(work, 'tickets', 's3-storage/T1'));
+});

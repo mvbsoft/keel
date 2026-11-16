@@ -70,7 +70,8 @@ function ticketsCommand(root, arg, { fetch = false } = {}) {
   const notes = fetch ? require('./plans-git.js').fetched(root).notes : [];
   const all = plans.listDrafts(root).map((d) => ({ d, list: featureTickets(root, d) }));
   const one = typeof arg === 'string' ? TICKET_ARG.exec(arg) : null;
-  const name = one ? one[1] : typeof arg === 'string' && arg ? arg : null;
+  // Feature names are lower case (lib/plans-drafts.js), so another case names the same one, as in ticket:.
+  const name = (one ? one[1] : typeof arg === 'string' ? arg : '').toLowerCase() || null;
   const shown = name ? all.filter((f) => f.d.feature === name)
     : all.filter((f) => OPEN_PLAN.includes(f.d.fm.status) && f.list.some((t) => !plans.CLOSED.includes(t.fm.status)));
   if (name && !shown.length) return [`tickets: none (no feature ${clean(name, 60)})`, ...notes];
