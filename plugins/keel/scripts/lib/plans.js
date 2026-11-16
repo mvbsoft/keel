@@ -190,9 +190,10 @@ const stubs = () => require('./plans-stubs.js');
 // reads as an option.
 const validBranch = (root, name) => validBranchName(root, name) && /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(name);
 
-// The feature branch and where it merges: plan.md's values, else the feature name and the main branch.
-function branchesOf(root, d) {
-  return { branch: given(d.fm.branch) ? d.fm.branch : d.feature, merge_into: given(d.fm.merge_into) ? d.fm.merge_into : mainBranch(root) };
+// The feature branch and where it merges: plan.md's values, else the feature name and the main branch
+// (`main`, when the caller has read it already).
+function branchesOf(root, d, main) {
+  return { branch: given(d.fm.branch) ? d.fm.branch : d.feature, merge_into: given(d.fm.merge_into) ? d.fm.merge_into : main === undefined ? mainBranch(root) : main };
 }
 
 // plans.js set: the plan's branch and merge_into; and --after-commit: after_commit and the

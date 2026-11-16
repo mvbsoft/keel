@@ -5,7 +5,7 @@
 // gone, so End of feature is no longer offered for it. No network.
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawnSync, execFileSync } = require('node:child_process');
 const { SCRIPTS, gitTest, git, run, planning, setup, ready } = require('./fixtures/plans-git.js');
 
 const flow = (dir, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'git-flow.js'), dir, ...args], { encoding: 'utf8' }).stdout.trim().split('\n');
@@ -54,14 +54,39 @@ gitTest('End of feature: the plan marked done is committed and pushed on the fea
   assert.equal(listed(work, 's3-storage'), '', 'the feature is gone from the list');
 });
 
-gitTest('plans.js list: no branch mark for an open feature, a feature on this machine or a branch not merged yet', () => {
+gitTest('plans.js list: a branch merged on the server counts before main is pulled', () => {
+  const { tmp, work, server } = setup();
+  planning(work, { place: 'repo' });
+  git(work, 'commit', '-q', '-am', 'Plan in the repository');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  ready(work, 's3-storage', 1, 'tickets/s3-storage');
+  run(work, 'status', 's3-storage', 'T1', 'in-progress');
+  run(work, 'status', 's3-storage', 'T1', 'done');
+  run(work, 'state', 's3-storage', 'done');
+  run(work, 'commit', 's3-storage');
+  run(work, 'push', 's3-storage');
+  // A pull request merged on the server: a colleague's clone plays it.
+  const other = path.join(tmp, 'merger');
+  execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', server, other]);
+  git(other, 'config', 'user.name', 'Other');
+  git(other, 'config', 'user.email', 'other@example.com');
+  git(other, 'merge', '-q', '--no-ff', '--no-edit', 'origin/s3-storage');
+  git(other, 'push', '-q', 'origin', 'main');
+  git(work, 'fetch', '-q', 'origin');
+  assert.notEqual(git(work, 'rev-parse', 'main'), git(work, 'rev-parse', 'origin/main'), 'local main is behind');
+  assert.match(listed(work, 's3-storage'), / · branch s3-storage merged into main$/);
+});
+
+gitTest('plans.js list: no branch mark for an open feature or a branch not merged yet; a done feature on this machine is kept there', () => {
   const { work } = setup({ remote: false });
   ready(work, 'csv-export', 1);
   run(work, 'status', 'csv-export', 'T1', 'in-progress');
   run(work, 'status', 'csv-export', 'T1', 'done');
+  assert.match(listed(work, 'csv-export'), /^- csv-export: in-progress · .* \(this machine only\)$/);
   run(work, 'state', 'csv-export', 'done');
-  // A feature on this machine: its tasks had their own branches, there is no feature branch.
-  assert.match(listed(work, 'csv-export'), /^- csv-export: done · .* \(this machine only\)$/);
+  // A feature on this machine has no feature branch; its keep or delete was asked when it was marked done.
+  assert.match(listed(work, 'csv-export'), /^- csv-export: done · .* \(this machine only\) · kept on this machine$/);
   planning(work, { place: 'repo' });
   // A branch made from main with no commit of its own is not taken for merged.
   git(work, 'checkout', '-q', '-b', 's3-storage');
