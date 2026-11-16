@@ -118,3 +118,19 @@ gitTest('commit: a feature folder HEAD has and the working tree no longer has (d
   assert.ok(exists(work, 'tickets/payments/plan.md'), 'another feature\'s folder stays');
   assert.deepEqual(run(work, 'commit', 's3-storage'), ['plans: commit refused (no feature "s3-storage" in the repository)']);
 });
+
+gitTest('commit --tickets: only those ticket files and plan.md, the rest of the folder stays out', () => {
+  const { work } = setup({ remote: false });
+  planning(work, { place: 'repo' });
+  git(work, 'checkout', '-q', '-b', 's3-storage');
+  ready(work, 's3-storage', 2, 'tickets/s3-storage');
+  assert.match(run(work, 'commit', 's3-storage')[0], /^committed: /);
+  run(work, 'status', 's3-storage', 'T1', 'in-progress', '--branch', 's3-storage');
+  write(work, 'tickets/s3-storage/tickets/T2-ticket-2.md', `${readRel(work, 'tickets/s3-storage/tickets/T2-ticket-2.md')}\nA draft line.\n`);
+  write(work, 'tickets/s3-storage/reviews/plan.md', '# Plan review\n');
+  assert.deepEqual(run(work, 'commit', 's3-storage', '--tickets', 'T9'), ['plans: commit refused (--tickets: no ticket T9 in s3-storage)']);
+  assert.match(run(work, 'commit', 's3-storage', '--tickets', 't1')[0], /^committed: [0-9a-f]{7,} Update T1 of the s3-storage plan$/);
+  assert.deepEqual(git(work, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['tickets/s3-storage/plan.md', 'tickets/s3-storage/tickets/T1-ticket-1.md']);
+  assert.deepEqual(git(work, 'status', '--porcelain', '--', 'tickets').split('\n').map((l) => l.trim()).sort(), ['?? tickets/s3-storage/reviews/', 'M tickets/s3-storage/tickets/T2-ticket-2.md']);
+  assert.deepEqual(run(work, 'commit', 's3-storage', '--tickets', 'T1'), ['commit: nothing to commit']);
+});

@@ -299,7 +299,7 @@ agents.
 | `list`, `find <words>` | The features; the ones a few words name | to pick a feature | nothing |
 | `repos` | This project and the repositories next to it | before asking about other repositories | nothing |
 | `settings`, `settings set --repo <name>=<folder>` | The planning settings; this machine's repos map | `set` when you name where a repository is | `settings set` writes `.keel/local/plans/keel/settings.json` |
-| `commit <feature>` **script only** | Commits the feature's folder | after planning, after a status changed | one git commit of the folder as it is, on the current branch; never on the main branch; removes nothing |
+| `commit <feature> [--tickets T1,T2]` **script only** | Commits the feature's folder | after planning, after a status changed | one git commit of the folder as it is, on the current branch; never on the main branch; removes nothing. `--tickets`: only those ticket files and `plan.md` (tickets taken) |
 | `push <feature>` **script only** | Pushes the current branch | after the commit | a git push; after a network or access failure `retry:` and the command |
 | `move <feature> --to repo\|pc` **script only** | Moves the whole folder between this machine and the repository | only when you ask | the folder moves as it is; no file is rewritten. Refused when the target exists, a ticket is `in-progress`, a task names a ticket of the feature (`ticket:` in its `task.md`) or the folder has uncommitted changes. `--to pc`: once committed, the folder leaves git for everyone |
 | `drop <feature>` | Ends a feature | only when you say so, once every ticket is done or abandoned | the folder goes to keel's trash; one in the repository only off the branch it merges into, then `commit <feature>` records the removal |
@@ -357,7 +357,8 @@ a ticket back: `/keel:start-task` names it and asks: take the next ticket, or st
    plan's branch plus `-T<n>` (`csv-export-T3`), made from the plan's branch, and merges back into it.
 4. `plans.js status <feature> T<n> in-progress --branch <the branch>` writes `status` and `branch`
    (and moves a `ready` plan to `in-progress`). For a feature in the repository keel then offers the
-   commit and push of that change, so others see the ticket is taken; in autonomous git it runs them.
+   commit and push of that change (only the ticket file and `plan.md`), so others see the ticket is
+   taken; in autonomous git it runs them. `/keel:start-session` does the same for the tickets it takes.
 5. The task is `.keel/tasks/<feature>-T<n>/`, with `ticket: <feature>/T<n>` in its `task.md`.
 
 `/keel:end-task`:

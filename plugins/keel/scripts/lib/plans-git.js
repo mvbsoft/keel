@@ -112,7 +112,8 @@ function localInChanges(root, paths) {
 // --repo (another repository's folder) is not taken here: a feature lives in one repository's folder.
 const noRepo = (what, repo) => (repo !== undefined ? refuse(what, '--repo: a feature is committed and pushed in the repository that holds its folder; run it there') : null);
 
-function commitFeature(root, feature, { repo } = {}) {
+// `tickets` ("T1,T2"): only those ticket files and plan.md, as when tickets are taken.
+function commitFeature(root, feature, { repo, tickets } = {}) {
   const what = 'commit';
   const other = noRepo(what, repo);
   if (other) return other;
@@ -120,16 +121,26 @@ function commitFeature(root, feature, { repo } = {}) {
   if (!ctx) return why;
   const c = featureFiles(root, feature, what);
   if (c.why) return c.why;
-  const p = rel(root, c.folder);
-  const local = c.removed ? [] : localInChanges(root, [p]);
+  const folder = rel(root, c.folder);
+  let paths = [folder];
+  let ids = [];
+  if (tickets !== undefined) {
+    ids = typeof tickets === 'string' ? plans.ticketIds(tickets).map((x) => x.toUpperCase()) : [];
+    if (!ids.length || c.removed) return refuse(what, c.removed ? `--tickets: ${feature} was dropped` : '--tickets needs the tickets: --tickets T1,T2');
+    const files = plans.tickets({ folder: c.folder });
+    const unknown = ids.filter((x) => !files.some((t) => t.id === x));
+    if (unknown.length) return refuse(what, `--tickets: no ticket ${unknown.map((x) => clean(x, 40)).join(', ')} in ${feature}`);
+    paths = [`${folder}/${plans.PLAN_FILE}`, ...files.filter((t) => ids.includes(t.id)).map((t) => rel(root, t.file))];
+  }
+  const local = c.removed ? [] : localInChanges(root, paths);
   if (local.length) return [...refuse(what, `${local.length} paths of this machine in the files to commit; write them from the repository's root`), ...local.map((x) => `- ${x}`)];
-  let r = flow.git(root, ['add', '-A', '--', p]);
+  let r = flow.git(root, ['add', '-A', '--', ...paths]);
   if (!r.ok) return refuse(what, `git add failed: ${gitText(r)}`);
-  if (!flow.git(root, ['diff', '--cached', '--name-only', '--', p]).out) return ['commit: nothing to commit'];
-  const inHead = gitPaths(root, ['ls-tree', '--name-only', 'HEAD', '--', `${p}/`]).length > 0;
-  const message = c.removed ? `Remove the ${feature} plan` : inHead ? `Update the ${feature} plan` : `Plan ${feature}`;
+  if (!flow.git(root, ['diff', '--cached', '--name-only', '--', ...paths]).out) return ['commit: nothing to commit'];
+  const inHead = gitPaths(root, ['ls-tree', '--name-only', 'HEAD', '--', `${folder}/`]).length > 0;
+  const message = c.removed ? `Remove the ${feature} plan` : ids.length ? `Update ${ids.join(', ')} of the ${feature} plan` : inHead ? `Update the ${feature} plan` : `Plan ${feature}`;
   // Only these paths: changes staged before stay staged and out of this commit.
-  r = flow.git(root, ['commit', '-q', '-m', message, '--', p]);
+  r = flow.git(root, ['commit', '-q', '-m', message, '--', ...paths]);
   if (!r.ok) return refuse(what, `git commit failed (a project hook?): ${gitText(r)}`);
   return [`committed: ${flow.git(root, ['rev-parse', '--short', 'HEAD']).out} ${message}`];
 }

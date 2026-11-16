@@ -259,7 +259,8 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
    `<b>-T<n>` from its main branch (`git-flow.js "<its folder>" status`).
 5. **Take it**: `plans.js status <feature> T<n> in-progress --branch <the branch it works on>`. A
    feature in the repository (`file:` not under `.keel/local/`): this project on `<b>` (step 4, also
-   for another repository), then `plans.js commit <feature>` and `plans.js push <feature>` (Claude
+   for another repository), then `plans.js commit <feature> --tickets T<n>` (only the ticket file and
+   `plan.md`) and `plans.js push <feature>` (Claude
    Code asks each): autonomous git runs them, manual git offers them ("so others see the ticket is
    taken"). A feature on this machine: only that call.
 6. **Task file** (step 7 item 2): id `<feature>-T<n>`, `--ticket <feature>/T<n>`; on the feature

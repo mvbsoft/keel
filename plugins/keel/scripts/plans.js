@@ -71,8 +71,9 @@
 //   report <file>                         a planning reviewer's reply under .keel/local/tmp/planning/
 //                                         (absolute, or relative to the project): its
 //                                         findings, or `report: failed` and why (never "no findings")
-//   commit <feature>                      the feature folder into git as it is, on the current branch, also
-//                                         a feature folder removed by drop; never on the main branch
+//   commit <feature> [--tickets T1,T2]    the feature folder into git as it is, on the current branch, also
+//                                         a feature folder removed by drop; never on the main branch.
+//                                         --tickets: only those ticket files and plan.md (tickets taken)
 //   push <feature>                        the current branch to the remote; a push failed on the network or
 //                                         access: `retry:` and the command
 //   tickets [<feature> | <feature>/T<n>] [--fetch]
@@ -138,7 +139,7 @@ function run(root, pos, opts) {
   if (command === 'report') return require('./lib/plans-report.js').reportCheck(root, pos[2]);
   if (command === 'commit' || command === 'push') {
     const step = require('./lib/plans-git.js')[command === 'commit' ? 'commitFeature' : 'pushFeature'];
-    return step(root, feature, { repo: opts.repo });
+    return step(root, feature, { repo: opts.repo, ...(command === 'commit' ? { tickets: opts.tickets } : {}) });
   }
   if (command === 'tickets') { const f = flagged(pos, opts, 'fetch'); return require('./lib/plans-state.js').ticketsCommand(root, f.arg, { fetch: f.on }); }
   if (command === 'move') return require('./lib/plans-state.js').moveCommand(root, feature, opts.to);

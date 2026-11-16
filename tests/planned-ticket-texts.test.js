@@ -52,8 +52,9 @@ test('start-task: a ticket works on its feature branch by default; a ticket bran
   says(p, ['**Branch**', '"Before any branch change" first', '`<b>` (its feature branch) is offered first', '`git-flow.js switch --name <b>`', '`start --name <b> --from <current>`']);
   says(p, ['A ticket branch', '(rare: the user asks for one)', '`<b>-T<n>`', 'always from `<b>`']);
   order(p, 'git-flow.js switch --name <b>', '`plans.js status <feature> T<n> in-progress --branch <the branch it works on>`', 'onto the feature branch first, so the status lands there');
-  order(p, 'in-progress --branch <the branch it works on>', '`plans.js commit <feature>`', 'the status is committed');
-  order(p, '`plans.js commit <feature>`', '`plans.js push <feature>`', 'then pushed, so others see it');
+  order(p, 'in-progress --branch <the branch it works on>', '`plans.js commit <feature> --tickets T<n>`', 'the status is committed');
+  says(p, ['`plans.js commit <feature> --tickets T<n>`', 'only the ticket file and', '`plan.md`']);
+  order(p, '`plans.js commit <feature> --tickets T<n>`', '`plans.js push <feature>`', 'then pushed, so others see it');
   says(p, ['autonomous git runs them', 'manual git offers them', 'so others see the ticket is', 'taken']);
   says(p, ['A feature on this machine: only that call']);
   says(p, ['**Task file**', 'id `<feature>-T<n>`', '`--ticket <feature>/T<n>`', 'on the feature', 'branch `--branch` = `--base` = `<b>`', '`--merge-into` = its `merge_into`', 'on a ticket branch', '`--branch <b>-T<n>`', '`--base` = `--merge-into` = `<b>`']);
@@ -128,6 +129,9 @@ test('start-session: a feature\'s planned tickets become the Plan, their referen
   // The note is tracked: a switch needs a clean tree, so the branch comes before the note.
   says(row, ['on yes the branch first', 'then write the note', 'a switch needs a clean tree']);
   says(row, ['`start --name <b> --from <current>`', 'manual: give `git switch <b>` and wait', '`plans.js status <feature> T<n> in-progress --branch <b>` for each ticket of the Plan']);
+  // The taken tickets reach the remote at once, only their files and plan.md.
+  order(row, 'in-progress --branch <b>` for each ticket', '`plans.js commit <feature> --tickets <its T<n>s, comma-separated>`', 'the statuses are committed after they are set');
+  says(row, ['a feature in the repository', 'not under `.keel/local/`', '`plans.js push <feature>`', 'Claude Code asks each', 'the remote shows the tickets taken']);
   const h = shared('handoff-resume.md');
   order(h, '+ a feature\'s name or folder', '| no note (or `status: done`) + a description |', 'a feature name is tried before it is read as a description');
   assert.match(skill('start-session'), /a feature's planned tickets/);
