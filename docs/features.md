@@ -132,7 +132,7 @@ Questions shared by the start of a task and of a session:
 | languages | Conversation language and language of files in the repository | keep / another |
 | verification commands | Accept, change or remove each found command; run them once as a trial? | accept / change / remove; yes / no |
 | git | Git mode and base branch; detailed also: ask before merging, keep keel's notes and tasks in git | manual (for a first project) / autonomous |
-| planning | Ticket prefix and where tickets live; detailed also the ticket language | in the repository / only on this computer |
+| planning | Where features live; detailed also the ticket language | in the repository / only on this computer |
 | ADRs exist or will exist (short records of why an architectural decision was made) | ADR style | "living" (one record per topic, always current) / "journal" (old records are not edited, a new decision is a new record) / your own way |
 | Claude Code settings | All recommended, one by one, or none | all / one by one / none |
 | cost tracking (when this computer does not have it yet) | What you pay with; status line; keep a usage page (not with an API key) | subscription / API key / both; keel's line / wrap yours / skip (then no plan limit percentages); yes / no |
@@ -181,8 +181,9 @@ Questions shared by the start of a task and of a session:
   plan), with a table of steps.
 - Creates a branch and a task folder. Works here, through implementer agents, or in a new
   conversation from a saved plan.
-- A planned ticket: checks its state, who else works on it and whether the tickets it depends on are
-  ready (also in other repositories); takes the feature branch.
+- A planned ticket (`<feature>/T<n>`): checks its `status`, whether its text changed since its
+  review, who has already taken it and whether the tickets it depends on are done; takes the feature
+  branch and writes `status: in-progress` and `branch` into the ticket.
 - Coming back to a task: switches to its branch, says if new commits appeared in the base branch,
   runs the gates once, rereads the task in the tracker and says what changed.
 - A task too big for one it offers to plan first as a feature. For a new conversation it writes a
@@ -201,8 +202,9 @@ Questions shared by the start of a task and of a session:
 | a simple plan | "Start?" and the branch in the same question; on the main branch it warns | new branch / current / your own git steps |
 | a complex plan | Approve the plan and the table of steps; if the plan is big (8+ steps or 15+ files), also how to carry it out | yes / change; new conversation / implementer agents / here |
 | there are uncommitted changes before changing the branch | Hand off the current task or commit the changes? | hand off / commit |
-| the ticket is already in progress | Continue, start over or take another? If nobody touched it for 30 days: treat as free? | continue / start over / another; yes / no |
-| the ticket this one depends on is not ready | What to do? | depends on the case: take the next ticket / wait / merge its branch in (if it is in this repository) / start anyway |
+| the ticket is already in progress | Continue, start over or take another? keel says on which branch it was taken | continue / start over / another |
+| the ticket's text changed since its review | Start anyway or review it first? | start / review |
+| the ticket this one depends on is not done | What to do? | take the next ticket / start anyway |
 | the task is too big (10+ steps or 40+ files) | How to go on? | new conversation from planning / plan here / do not split |
 
 <details>
@@ -211,8 +213,8 @@ Questions shared by the start of a task and of a session:
 | When | What it asks | Options |
 |---|---|---|
 | only keel's settings files changed | Take them into this task's branch? | yes / no |
-| the ticket is already done | Start again? | yes / no |
-| the ticket branch was just created | Push it so others see that the ticket is taken? | yes / no |
+| the ticket is already done or closed without doing | Start again? | yes / no |
+| the ticket was just taken | Commit and push it so others see that the ticket is taken? | yes / no |
 | the task is too big and code already exists | The finished part works on its own: finish it and plan the rest. No: continue in the task branch as in a feature branch, or finish first? | depends on the case |
 | the task goes to planning and has its own branch | Delete the branch? | yes / no |
 | coming back: new commits in the base branch | Merge them into the task branch (commit unsaved work first)? | yes / skip |
@@ -232,8 +234,8 @@ Questions shared by the start of a task and of a session:
   tests or the linter fail, that goes into the open questions and is not fixed.
 - The git steps above keel does itself in autonomous mode; in manual mode it gives ready commands in
   the report.
-- After a passed verification it marks the planned ticket as done in the same commit; says when the
-  whole feature is ready.
+- After a passed verification it sets `status: done` on the planned ticket in the same commit as the
+  code; a hand off leaves it `in-progress`. After the last ticket it asks whether to mark the plan done.
 - If a git step stopped before the commit, it restores the task itself and says what happened.
 - At the end the [report and costs](#report-and-costs).
 
@@ -294,12 +296,12 @@ Questions shared by the start of a task and of a session:
 
 ### `/keel:start-planning`: plan a feature
 
-While you plan, the tickets lie in a draft (T1, T2…). The export at the end turns them into real
-tickets with numbers (PROJ-12) in the feature folder.
+A feature is one folder: `plan.md` and the tickets T1, T2… in `tickets/`. Nothing is copied or
+exported, and keel does not invent tracker keys; the state of a plan or a ticket is its `status` field.
 
 **What it does:**
 - Plans a feature in a separate conversation: one question at a time, decisions and short tickets in
-  the draft. It writes no code: in this conversation keel blocks changes to project files except the
+  the feature's folder. It writes no code: in this conversation keel blocks changes to project files except the
   plan files.
 - Reads a link or file, retells the goal, who it helps and what is out of scope, and checks in the
   code that what the feature needs really exists.
@@ -311,17 +313,20 @@ tickets with numbers (PROJ-12) in the feature folder.
 - Looks at the plan from three sides: product, architecture, operations and security.
 - Writes tickets by a template: in plain words, acceptance criteria, how to verify, limits, where to
   look.
-- Plans across several repositories of this computer. For a repository that is not here it can put a
-  stub ticket: a short ticket that becomes a full one when the repository appears.
-- Continues an already exported feature: edit tickets that are not started yet, add new ones.
+- Plans across several repositories of this computer: a ticket for another repository lies here, or in
+  that repository when keel is set up there and you say so. For a repository that is not here it can
+  put a stub ticket: a short ticket that becomes a full one when the repository appears.
+- Edits after `ready` do not change a status: an edit to an essential section only marks the ticket
+  "needs review", and a new ticket in a ready feature starts as `draft`.
+- Moves the feature's folder between this computer and the repository (`plans.js move`) and writes a
+  tracker ticket link (`tracker`, `tracker_url`) only when you ask.
 
 **What it asks:**
 
 | When | What it asks | Options |
 |---|---|---|
-| the first time | Where does the draft live? | on this computer / in the repository |
-| no words | Which draft to continue or what do we plan? | list / new |
-| the words matched a draft | "Continue X?" or which of several | yes / choice / new |
+| no words | Which feature to continue or what do we plan? | list / new |
+| the words matched a feature's name | "Continue X?" or which of several | yes / choice / new |
 | a new feature | Name; where tasks will be merged (if there are several branches) | proposed / your own |
 | a one-task feature | Recommends `/keel:start-task`; you decide | task / planning |
 | briefly described, big or across several repositories | Gather information first (each with a price)? | all / part / nothing |
@@ -329,21 +334,21 @@ tickets with numbers (PROJ-12) in the feature folder.
 | a package could be used | Own code, an existing package or a new one; check up to 2 packages on the internet? | choice; yes / no |
 | a risky data or API change | An option from [Risky changes](#risky-changes) | see there |
 | before the tickets | Proposals from three viewpoints, each separately | take / skip |
-| a draft in the repository | Create a branch for it or switch to it; then "Commit the planning files?" and "Push the branch?" | yes / no |
+| a feature in the repository | Create a branch for it or switch to it; then "Commit the planning files?" and "Push the branch?" | yes / no |
 
 <details>
-<summary>Several repositories, an exported feature and rare cases</summary>
+<summary>Several repositories, a ready feature and rare cases</summary>
 
 | When | What it asks | Options |
 |---|---|---|
-| the feature seems to touch other repositories | Which other projects; what to do with a repository that is not here; ticket prefix of the new repository | yes / some / path / no; similar from the list / stubs / without it |
+| the feature seems to touch other repositories | Which other repositories; one question per repository: where it is and whether its tickets go there or stay here; what to do with a repository that is not here | yes / some / path / no; here / there; stubs / without it |
 | a stub ticket, and the repository is now here | Make a full ticket from it? | yes / no |
-| an exported feature | Switch to its branch; every ticket change; delete a ticket that is not started yet | yes / no |
-| another conversation of this project has an active task | Draft stays on the computer for now, a separate copy of the repository (worktree) or at your own risk? | these three |
+| an essential section edited in a ready feature | Review the changed ticket now, and the tickets that depend on it? | yes / later |
+| another conversation of this project has an active task | The feature stays on the computer for now, a separate copy of the repository (worktree) or at your own risk? | these three |
 | a project rule contradicts keel's choice | Quotes the rule and asks | as in the project / keel's choice / your own |
 | a new dependency, datastore, protocol, module boundary | Write a short ADR? | yes / no |
 | over ≈15 tickets | Split the feature in two? | yes / no |
-| an unresolved reviewer finding is left in the draft | What to do with it? | fix / park as a question / reject with a reason |
+| an unresolved reviewer finding is left in the reviews | What to do with it? | fix / park as a question / reject with a reason |
 | the link cannot be read | Paste the text | text |
 | you abandon the plan | Confirm | yes / no |
 
@@ -352,16 +357,16 @@ new conversation.
 
 </details>
 
-### `/keel:end-planning`: park a plan or finish and export
+### `/keel:end-planning`: park a plan or finish
 
 **What it does:**
 - Park: reviews the changed tickets, records the findings, updates the open questions and the next
   action.
 - Finish: checks that there are no open questions, reviews the tickets (fixed ones again, up to 2
-  rounds) and the whole plan once, then exports the tickets to the feature folder with numbers by
-  prefix.
-- A multi-repository feature: each repository's tickets go into it, with its prefix and numbers; all
-  of them or none.
+  rounds) and the whole plan once, then sets `status: ready` on the plan and its tickets. Fields only:
+  no file is copied or moved.
+- A multi-repository feature: a ticket that lives in another repository is reviewed there, and its
+  status is read there.
 - Picks the mode itself from your words ("continue tomorrow" or "final") or from the state of the
   plan.
 - Commits and pushes the planning files only after a "yes"; does not open a pull request.
@@ -372,21 +377,19 @@ new conversation.
 
 | When | What it asks | Options |
 |---|---|---|
-| no instruction and no open questions | Final and export, or park? | final / park |
+| no instruction and no open questions | Final, or park? | final / park |
 | a reviewer finding | What to do with it? | fix / record as a question / reject |
 | the final is blocked | Shows what blocks it; park? | yes / no |
 | big fixes in the final | One more review of the plan? | yes / no |
 | a fix after the second round | Accept as verified or park? | accept / park |
-| export | Names where and with what prefix: "Export N tickets now?" | yes / no |
-| the branch is not ready in one of the repositories | Create or switch it, wait, or export as is? | these options |
-| commit and push | "Commit the planning files?", "Push the branch?" (one question for several repositories) | yes / no |
+| commit and push | "Commit the planning files?", "Push the branch?" | yes / no |
 
 ### `/keel:tasks`: list of tasks and tickets
 
 **What it does:** shows unfinished tasks (on all branches) and planned tickets by feature, with the
-state and the next ticket; one task in 3–6 lines; tickets of the same feature in other
-repositories. keel reads the states (to do, in progress, waits for merge, done) from git and files,
-with no tokens. So work that has not been pushed yet shows as "in progress" only on your computer.
+state and the next ticket; one task in 3–6 lines. A ticket's state is its `status` field (`draft`,
+`ready`, `in-progress`, `done`, `abandoned`); keel reads it with no tokens and marks a ticket "needs
+review" when its text changed since its review.
 `drop <id>` shows everything the task left behind (folder, branch, commits, code, documents) and
 removes only what you choose; the folder goes to the trash.
 
@@ -395,15 +398,14 @@ removes only what you choose; the folder goes to the trash.
 | When | What it asks | Options |
 |---|---|---|
 | a task was handed off 30 or more days ago | Proposes to remove or finish it | remove / finish |
-| all tickets of a feature are done or wait for merge, no stubs | Proposes to complete the feature | yes / no |
-| the view of a feature differs across repositories | Which version is right; then commit and push | choice; yes / no |
+| all tickets of a feature are done or closed without doing (`abandoned`) | Proposes to complete the feature | yes / no |
 | `drop` | What to remove; Claude Code confirms the folder and the task's own branch separately; roll back commits already in the base branch? | all / part; yes / no |
 
 ### `/keel:feature-page`: feature page
 
 **What it does:** creates a private page of a planned feature in your claude.ai account (overview,
 tickets with states, research) and on a repeat run updates the same page from any computer. It
-first fetches the fresh state from the remote repository. `--lang` sets the page language,
+takes the states from the `status` fields. `--lang` sets the page language,
 translations are kept. It never overwrites someone else's page. With only an API key and no
 claude.ai there will be no page.
 The page opens dark, and a switch in the header turns on the light theme; the choice is remembered in
@@ -513,7 +515,7 @@ step you asked for. In both modes it does not add secret files to a commit.
 | a conflict while merging in the base branch's commits | Resolve together or leave it to you? | together / you |
 | after that tests or the linter fail | Fix now or stop? | fix / stop |
 | the branch is protected | Create a pull request now? | yes / no |
-| the feature is ready (one question at a time) | Switch to the feature branch; keep or delete the tickets; merge the feature; delete the branch after merging | yes / no; keep / delete |
+| the feature is ready (one question at a time) | Switch to the feature branch; keep or delete the feature's files; merge the feature; delete the branch after merging | yes / no; keep / delete |
 
 ### Implementer agents
 
@@ -570,7 +572,7 @@ commands `/keel:help`, `/keel:usage` and `/keel:configure` remain, when you type
 | skill hints | at the right moment (migration, Python, documents, a new file, dependencies, ADR, git) adds the rules of one of 6 skills, each once per conversation |
 | unfinished ending | in autonomous git, if the task folder was removed and there is no commit, it returns keel to work once: do the git or restore the task |
 | language protection | in a Ukrainian conversation a reply with Russian letters or words is sent back to be rewritten |
-| separate copies (worktree) | a conversation in a separate copy of the repository keeps its own task, note and git apart; plan drafts, the trash and settings are shared by all copies |
+| separate copies (worktree) | a conversation in a separate copy of the repository keeps its own task, note and git apart; features on this computer, the trash and settings are shared by all copies |
 | own scripts | most of keel's own scripts run without permission prompts; steps that change Claude Code settings or move files ask |
 | safeguards in scripts | work even with hooks off: do not delete the main or current branch, do not rewrite history, do not finish a task without verifying the current code |
 | secrets and agents | secret files (`.env`, keys, certificates) keel knows only by path: it does not show their content to agents and does not commit them. Reviewer agents only read; after agents that run code, keel compares the files and stops if anything changed |
@@ -591,8 +593,8 @@ you turn off all hooks there are no confirmations at all, but the safeguards in 
 | `.keel/config.json`, `.keel/profile.json` | project settings and the scan result | yes, shared by the team |
 | `.keel/tasks/<id>/` | an unfinished task: goal, state, next step | yes, only in the task branch (can be turned off) |
 | `.keel/next-session.md`, `.keel/memory/`, `.keel/sessions/` | session note, project memory, log | yes (can be turned off) |
-| `tickets/<feature>/` | planned tickets and the feature overview | yes, in the feature branch, after your "yes" |
-| `.keel/local/` | the trash, plan drafts, temporary files | no, only this computer |
+| `tickets/<feature>/` | the feature's folder: plan, tickets, reviews, research | yes, in the feature branch, after your "yes" |
+| `.keel/local/` | the trash, features kept only on this computer, temporary files | no, only this computer |
 | `~/.claude/keel/` (`<CLAUDE_CONFIG_DIR>/keel/` when that variable is set) | computer settings, usage data, prices | no |
 
 What leaves the computer:
