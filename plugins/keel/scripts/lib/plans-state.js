@@ -164,4 +164,4 @@ function moveCommand(root, feature, to) {
   ];
 }
 
-module.exports = { ticketsCommand, dropCommand, moveCommand, nextOf, STATES };
+module.exports = { ticketsCommand, dropCommand, moveCommand, nextOf, featureTickets, STATES };

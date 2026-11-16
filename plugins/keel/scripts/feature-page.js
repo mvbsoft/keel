@@ -2,7 +2,8 @@
 // /keel:feature-page: a feature's md files and its tickets' states as data in a fixed HTML template
 // (templates/feature-page/: index.html, style.css and page.js, with the keel design system of
 // templates/design/ beside them), for the Artifact tool to publish. The texts go in as they are: the page renders the markdown and highlights the code itself, with libraries from cdnjs.
-// - A feature folder (plan.md, tickets/T<n>-*.md, research/); each ticket's state is its status field.
+// - A feature folder (plan.md, tickets/T<n>-*.md, research/); each ticket's state is its status field,
+//   an elsewhere ticket's as its file in its repository says (as plans.js tickets reads it).
 //   A stub (lib/plans-stubs.js) is shown with its text and marked; a ticket of another repository
 //   (repo:) under that repository's name.
 // - The page's title, the same from every machine and repository of the feature: <the plan's heading>
@@ -21,7 +22,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const plans = require('./lib/plans.js');
-const { nextOf } = require('./lib/plans-state.js');
+const { nextOf, featureTickets } = require('./lib/plans-state.js');
 const { settings } = require('./lib/plans-settings.js');
 const { headOf } = require('./lib/plans-repos.js');
 const { outsideFences, heading, repoName, isStub } = require('./lib/plans-format.js');
@@ -115,7 +116,7 @@ const pageState = (status) => PAGE_STATE[status] || UNKNOWN;
 function featureData(root, found) {
   // A feature made before plans carried the code gets one; it is keel's own field and no edit of the plan.
   const d = codeIn(found.fm) ? found : plans.writePlan(root, found, { page: plans.pageCode() });
-  const all = plans.tickets(d);
+  const all = featureTickets(root, d);
   const repos = reposOf(root, all);
   const byId = new Map(all.map((t) => [t.id, t]));
   const next = OPEN_PLAN.includes(d.fm.status) ? nextOf(all) : null;

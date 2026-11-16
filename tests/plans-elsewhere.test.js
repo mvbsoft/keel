@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  FEATURE, PLAN, THERE, gitTest, git, write, readRel, has, run, slash, head, repo, world, ticketText, planText, body,
+  FEATURE, PLAN, THERE, gitTest, git, write, readRel, has, run, script, slash, head, repo, world, ticketText, planText, body,
 } = require('./fixtures/plans-repos.js');
 
 // A draft in api: T1 lives in web (src/badge.js is only there), T2 here depends on it.
@@ -138,4 +138,16 @@ gitTest('drop and abandon reach an elsewhere ticket; a ticket missing there is u
   assert.ok(run(api, 'check', FEATURE).includes(`note: T1: in web, not checked (no T1 in ${slash(web)}/${THERE}/tickets/)`));
   write(web, `${THERE}/plan.md`, readRel(web, `${THERE}/plan.md`).replace('home: api', 'home: shop'));
   assert.ok(run(api, 'check', FEATURE).includes(`note: T1: in web, not checked (${FEATURE} in ${slash(web)} belongs to shop)`));
+});
+
+gitTest('the feature page reads an elsewhere ticket in its repository, as plans.js tickets does', () => {
+  const w = world();
+  draft(w);
+  run(w.api, 'reviewed', FEATURE, 'T1', 'T2');
+  run(w.api, 'state', FEATURE, 'ready');
+  const out = script('feature-page.js')(w.api, FEATURE);
+  const file = (out.find((l) => l.startsWith('page: ')) || '').slice(6);
+  const data = JSON.parse(/id="feature-data">([\s\S]*?)<\/script>/.exec(fs.readFileSync(file, 'utf8'))[1]);
+  assert.deepEqual(data.tickets.map((t) => [t.key, t.state, t.next, t.repo]), [['T1', 'to do', true, 'web'], ['T2', 'to do', false, 'api']]);
+  assert.equal(run(w.api, 'tickets', FEATURE).at(-1), `next: ${FEATURE}/T1`);
 });
