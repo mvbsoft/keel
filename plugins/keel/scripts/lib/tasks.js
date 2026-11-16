@@ -255,14 +255,15 @@ function verifiedGuard(root, t) {
 }
 
 function taskDelete(root, id, sid) {
-  const record = sid !== undefined && settings(root).mode === 'autonomous';
   let recorded = null;
   // The finish record comes before the move: a finish that cannot be recorded does not start. It goes
-  // where the finish's git steps run (lib/finish.js).
+  // where the finish's git steps run (lib/finish.js), only when keel runs them there: autonomous git
+  // in that folder's config (none: manual).
   const guard = (task) => {
     const notVerified = verifiedGuard(root, task);
-    if (notVerified || !record) return notVerified;
+    if (notVerified || sid === undefined) return notVerified;
     const home = workRoot(root, task).folder;
+    if (settings(home).mode !== 'autonomous') return null;
     try { writeFinish(home, sid, task.id, 'deleted', home === root ? undefined : root); recorded = home; return null; } catch (e) { return `the finish record cannot be written: ${e.message}`; }
   };
   const { why, t, target, batch, tracked } = toTrash(root, id, sid, 'task delete', guard);

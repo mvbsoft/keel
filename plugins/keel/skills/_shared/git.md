@@ -23,8 +23,8 @@ yes. Its report says "the feature merges at End of feature, after its last ticke
 when ready"; manual mode: commit and push, no merge advice. A ticket branch `<feature branch>-<t>`
 (`base` = `merge_into` = the feature branch) merges into the feature branch like any task.
 **A ticket of another repository** (the task's `repo:`): every `git-flow.js` step runs on that
-repository's folder in place of `<project>`, with `--finish` too: the finish is recorded there (no
-keel there: manual mode, git-manual.md); `task restore` and `plans.js` stay on `<project>`; the ticket
+repository's folder in place of `<project>`, with `--finish` too: the finish is recorded there when
+its git is autonomous (no keel there: manual mode, git-manual.md, and no record); `task restore` and `plans.js` stay on `<project>`; the ticket
 file and `plan.md` here then go in with `node "<keel>/scripts/plans.js" "<project>" commit <f>` and
 `push <f>` (Claude Code asks each; not for a feature under `.keel/local/`).
 Red verification and an instruction to push or merge → stop and ask before any git step.

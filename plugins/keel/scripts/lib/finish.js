@@ -1,7 +1,7 @@
 'use strict';
 // The record of a finish in progress, one file per session: .keel/local/finish/<session id>.json
-// { id, state, at, project? }. `task delete` writes state `deleted` (autonomous git only: in manual mode
-// keel runs no git) before it moves the folder; a git-flow commit turns it into `committed`; a restore or
+// { id, state, at, project? }. `task delete` writes state `deleted` (autonomous git only, in the folder
+// the git steps run in: in manual mode keel runs no git) before it moves the folder; a git-flow commit turns it into `committed`; a restore or
 // a push after that commit removes it. The Stop hook (hooks/finish-check.js) keeps the model working while
 // a session's record says `deleted`, for at most a day and only while keel's trash still holds the task.
 // The record lives where the finish's git steps run: for a planned ticket of another repository
@@ -58,22 +58,26 @@ function ownItem(item, id) {
 }
 
 // The session's finish record of a task of `root`: { r, home } (home: the folder that holds the record),
-// or null. Beside root's own, a record in a repository of the repos map that names root as its project.
+// or null. Beside root's own, a record in a repository of the repos map that names root as its project;
+// one still `deleted` comes first, so an older committed record here hides no finish waiting there.
 function findFinish(root, sid) {
-  const own = readFinish(root, sid);
-  if (own) return { r: own, home: root };
   const { samePath } = require('./safe-path.js');
+  const found = [];
+  const own = readFinish(root, sid);
+  if (own) found.push({ r: own, home: root });
   for (const home of Object.values(require('./plans-settings.js').settings(root).repos)) {
     const r = readFinish(home, sid);
-    if (r && r.project && samePath(path.resolve(r.project), path.resolve(root))) return { r, home };
+    if (r && r.project && samePath(path.resolve(r.project), path.resolve(root))) found.push({ r, home });
   }
-  return null;
+  return found.find((f) => f.r.state === 'deleted') || found[0] || null;
 }
 
 // The session's finish that still waits for a commit, or null: a record older than a day, or one whose
 // task is no longer in keel's trash (restored by hand, the trash emptied), no longer holds the session.
+// The record comes with `home`, the folder its git steps run in.
 function pendingFinish(root, sid, now = Date.now()) {
-  const r = (findFinish(root, sid) || {}).r;
+  const f = findFinish(root, sid);
+  const r = f && { ...f.r, home: f.home };
   if (!r || r.state !== 'deleted') return null;
   const at = Date.parse(r.at);
   if (!Number.isFinite(at) || now - at > STALE_MS || at - now > SKEW_MS) return null;

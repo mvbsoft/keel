@@ -394,16 +394,22 @@ gitTest('a finish goes on past a secret file the commit left out, and a stop aft
   assert.ok(!exists(work, '.keel/tasks/T-4'));
 });
 
-gitTest('a ticket of another repository records its finish where its git steps run: the Stop hook, a stop and a push there all find it', () => {
+// work plans csv-export/T1 for web, another repository (with keel's config in `mode`, or none), whose
+// change is verified; the task csv-export-T1 is active for session s1.
+function otherRepoTask(mode) {
   const { work } = setup();
   const tmp = path.dirname(work);
-  // web: a repository without keel, its main branch named by origin/HEAD.
+  // web: its main branch named by origin/HEAD when it has no keel.
   const web = path.join(tmp, 'web');
   fs.mkdirSync(web);
   git(web, 'init', '-q', '-b', 'main');
   git(web, 'config', 'user.name', 'Test');
   git(web, 'config', 'user.email', 'test@example.com');
   write(web, 'index.js', 'x\n');
+  if (mode) {
+    write(web, '.keel/config.json', JSON.stringify(CONFIG(mode)));
+    write(web, '.keel/.gitignore', 'local/\n');
+  }
   git(web, 'add', '-A');
   git(web, 'commit', '-q', '-m', 'init');
   const webServer = path.join(tmp, 'web.git');
@@ -418,13 +424,29 @@ gitTest('a ticket of another repository records its finish where its git steps r
   assert.match(notes(work, 'task', 'new', 'csv-export-T1', '--title', 'Badge', '--source', 'file', '--ticket', 'csv-export/T1', '--session', 's1')[0], /^created: \.keel\/local\/tasks\//);
   write(web, 'index.js', 'x\ny\n');
   save(web);
-  const input = { session_id: 's1', stop_hook_active: false, last_assistant_message: 'Done.', cwd: work };
+  return { work, web, input: { session_id: 's1', stop_hook_active: false, last_assistant_message: 'Done.', cwd: work } };
+}
+
+gitTest('a ticket of another repository without keel or with manual git records no finish: keel runs no git there', () => {
+  for (const mode of [null, 'manual']) {
+    const { work, web, input } = otherRepoTask(mode);
+    assert.match(notes(work, 'task', 'delete', 'csv-export-T1', '--session', 's1')[0], /^deleted: /);
+    assert.equal(marker(web), null, String(mode));
+    assert.equal(marker(work), null, String(mode));
+    assert.equal(stopDecision(input, work, PLUGIN), null, String(mode));
+  }
+});
+
+gitTest('a ticket of another repository records its finish where its git steps run: the Stop hook, a stop and a push there all find it', () => {
+  const { work, web, input } = otherRepoTask('autonomous');
 
   // A step that stops there puts the task back here.
   assert.match(notes(work, 'task', 'delete', 'csv-export-T1', '--session', 's1')[0], /^deleted: /);
   assert.equal(marker(work), null, 'not in this project');
   assert.equal(marker(web).state, 'deleted');
-  assert.equal(stopDecision(input, work, PLUGIN).decision, 'block');
+  const block = stopDecision(input, work, PLUGIN);
+  assert.equal(block.decision, 'block');
+  assert.ok(block.reason.includes(`in "${web.split(path.sep).join('/')}"`), 'it names the folder the git steps run in');
   const stopped = flow(web, 'commit', '--message-file', message(web), '--finish', 'csv-export-T1', '--session', 's1');
   assert.equal(stopped[0], 'git-flow: stopped');
   assert.ok(stopped.some((l) => /^restored: \.keel\/local\/tasks\/csv-export-T1/.test(l)), stopped.join('\n'));
@@ -445,4 +467,14 @@ gitTest('a ticket of another repository records its finish where its git steps r
   assert.ok(!exists(work, '.keel/local/tasks/csv-export-T1'));
   assert.ok(!git(web, 'show', '--name-only', '--format=', 'HEAD').includes('.keel'));
   assert.equal(git(web, 'status', '--porcelain', '--untracked-files=all'), '', 'nor are they untracked noise there');
+});
+
+gitTest('a finish waiting elsewhere is found though this project keeps an older committed record of the session', () => {
+  const { work, web, input } = otherRepoTask('autonomous');
+  const { writeFinish, findFinish } = require(path.join(SCRIPTS, 'lib', 'finish.js'));
+  writeFinish(work, 's1', 'older-task', 'committed');
+  notes(work, 'task', 'delete', 'csv-export-T1', '--session', 's1');
+  const found = findFinish(work, 's1');
+  assert.deepEqual([found.r.id, found.r.state, found.home], ['csv-export-T1', 'deleted', web.split(path.sep).join('/')]);
+  assert.equal(stopDecision(input, work, PLUGIN).decision, 'block');
 });
