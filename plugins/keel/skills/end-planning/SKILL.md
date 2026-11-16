@@ -1,8 +1,8 @@
 ---
 name: end-planning
-description: End this conversation's planning as you say - hand over to continue later (review changed tickets), or the final review and export of the tickets into the feature folder; git only with your yes.
+description: End this conversation's planning as you say - hand over to continue later (review changed tickets), or the final review that marks the plan and its tickets ready; commit and push only with your yes.
 disable-model-invocation: true
-argument-hint: "[what to do, e.g. we continue tomorrow | final review and export]"
+argument-hint: "[what to do, e.g. we continue tomorrow | final review]"
 allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" *), PowerShell(node "${CLAUDE_PLUGIN_ROOT}/scripts/check-config.js" *)
 ---
 
@@ -33,23 +33,24 @@ Current state of this project:
    other sections when a step names them.
 3. Run `plans.js check <f>` first.
 4. **Mode**, from the instruction: handing over in any words ("we continue tomorrow", "save for
-   later") → **A**; final words ("final", "done", "export the tickets") → **B**. No instruction →
+   later") → **A**; final words ("final", "done", "the tickets are ready") → **B**. No instruction →
    by the state: open questions (the `open Q` of `plans.js list`) or `check` problems → **A**, say why
-   in one line; else ask "Final review and export, or hand over?". Ambiguous → ask, never guess.
-   **An exported feature** (its tickets in the feature folder; planning-exported.md) → neither
-   mode: no plan gates and no plan review. `plans.js check <f>` (step 3) → `check: clean`, or fix its
-   problems with the user (each write on a yes); then the repository → planning.md "Commit and push"
-   (this machine: nothing to commit); then step 7.
+   in one line; else ask "Final review and ready, or hand over?". Ambiguous → ask, never guess.
+   **A plan already `ready` or `in-progress`** (edited after ready: planning.md "After ready") →
+   neither mode: no plan gates. `plans.js check <f>` (step 3) → `check: clean`, or fix its problems
+   with the user (each write on a yes); then `plans.js review <f>`: what needs review gets its review
+   on a yes ("After ready" item 1), a new ticket reviewed → `plans.js status <f> <T> ready`; then
+   B.5; then step 7.
 5. **A. Hand over.**
    1. Reviews of the changed tickets only: planning.md "Reviews", steps 1-3, 5 and 6 (no plan
       review). Nothing changed → no review.
    2. Each finding: fix now or record it as a Q.
    3. Update `plan.md`: Open questions; Next action (where planning stands and the next step, so the
       next conversation starts from it); then `plans.js set <f> --after-commit` (`after_commit:`, and
-      `after_commit_repos:` for the plan's other repositories).
-   4. A repository draft → planning.md "Commit and push".
-6. **B. Final.** A plan already `ready` in `plans.js list` (not "changed after ready") was reviewed
-   as it is: go straight to Export (B.5).
+      `after_commit_repos:` for the other repositories its tickets name).
+   4. A feature in the repository → planning.md "Commit and push".
+6. **B. Final.** A plan already `ready` in `plans.js list` (no `(needs review)`) was reviewed as it is:
+   go straight to B.5.
    1. **Gates**: `open Q 0`, `check: clean`, and every finding in `reviews/` has a decision (none is
       `undecided`). Else
       show what blocks and offer mode A (yes → A; no → go to step 7).
@@ -58,21 +59,13 @@ Current state of this project:
       end-planning. Big plan fixes (a new ticket, a changed decision) → offer the plan review once
       more. A finding deferred to a Q → the gates fail: offer mode A. Fixes after the last round →
       the user chooses: accept them as reviewed (`plans.js reviewed <f> <tickets>`) or mode A.
-   4. `plans.js state <f> ready` → `status: ready`; refused → show its reason and offer mode A.
-   5. **Export.** `plans.js settings`: say the target (`tickets: repo` → `<tickets_dir>/<f>/`;
-      `tickets: pc` → this machine only) and the prefix (`ticket_prefix`) in one line, then
-      planning.md "Project rules" for that target. `planning: planning is not set up ...` → say
-      "Run `/keel:configure planning` in a new conversation (it does not run while this one plans),
-      then `/keel:start-planning <f>` and `/keel:end-planning`." and go to step 7: the plan stays
-      `ready`. A change of target or prefix is the team's setting: `/keel:configure planning`, the
-      same way. A plan on several repositories: also name its other repositories; each takes its own
-      settings. Ask "Export the <n> tickets now?"; no → the plan stays `ready`; later
-      `/keel:start-planning <f>`, then `/keel:end-planning`.
-   6. `plans.js export <f>`: show `exported:`, its `- T<n> -> <KEY>: <file>` lines, `readme:` and
-      `research:`. Refused → its reason; the plan stays `ready`; `not ready:` lines → planning.md
-      "Several repositories" item 8. On this machine → say "These tickets are seen on
-      this machine only." In the repository → planning.md "Commit and push" (the files its `draft:` line names
-      leave with that commit; without it they stay).
+   4. `plans.js state <f> ready` → `status: ready` and `ready: <tickets>` (the plan and every reviewed
+      draft ticket; a `draft: ...` line names those still waiting for a review: review them, then
+      `plans.js status <f> <T> ready`). Refused (`not ready: ...`) → show its reason and offer mode A.
+   5. **Share.** A feature in the repository → planning.md "Commit and push": ask "Commit the planning
+      files?" and then "Push `<branch>`?". On this machine → say "These tickets are seen on
+      this machine only." and that `plans.js move <f> --to repo` puts the folder into the repository
+      on request (planning.md "Commit and push").
 7. **Always**, whatever happened above (also after a stop or a no):
    `plans.js mark clear --session <sid>` → `planning: none`. A question waiting for the user's answer
    ends the turn, not the command: steps 7-9 run once the answer is handled.
@@ -82,8 +75,8 @@ Current state of this project:
 9. Report, one message in the conversation language, short: **Done** (mode, the plan's state, tickets,
    what changed); **Reviews** (found, fixed, deferred to Q, rejected; failed reviews named; or "no
    review: nothing changed"); **Git** (commit, branch, pushed or not; or nothing); **What next** (A:
-   "Continue with `/keel:start-planning <f>`: <Next action>"; B or an exported feature: the feature
-   folder, "a ticket starts with `/keel:start-task <KEY>`" and "`/keel:feature-page <f>` makes a page of
+   "Continue with `/keel:start-planning <f>`: <Next action>"; B or a plan already ready: the feature
+   folder, "a ticket starts with `/keel:start-task <f>/T<n>`" and "`/keel:feature-page <f>` makes a page of
    the feature in your claude.ai account" (the user types it); all: "/clear before other work keeps
    it apart and costs less"); **Costs**: run usage-sync.md step 4 last and give its text as
    `<keel>/skills/_shared/final-report.md` block 5 says (read only that block).

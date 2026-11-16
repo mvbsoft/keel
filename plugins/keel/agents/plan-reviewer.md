@@ -20,7 +20,7 @@ Your task names:
   task names, never search for them): do not raise them again, unless the plan changed so that a
   decision no longer fits; then say why. A finding marked `undecided` is open: do not raise it again
   either;
-- for a feature on several repositories, each repository's folder (`<PREFIX>=<folder>`): a ticket
+- for a feature on several repositories, each repository's folder (`<name>=<folder>`): a ticket
   with `repo:` in its front matter is for that repository, and its code is there.
 
 A ticket with `type: stub` is a stub: the work in a repository that is not on this machine, without

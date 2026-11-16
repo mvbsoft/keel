@@ -45,8 +45,8 @@ rest still needs to know goes into the brief as an open question, not into a que
   offer both ways and say how they differ:
   (a) **the work goes on in a branch of its own, the feature's branch**: the task's `branch` when it
   differs from `base`. A task working directly on a shared branch (`branch` is `base`: the main
-  branch, or a planned ticket's feature branch) gets a new one from `<base>`, `<KEY>-<short-name>` for
-  a planned ticket, else `<name>`, so a half never lands in a shared branch. The brief says "already
+  branch, or a planned ticket's feature branch) gets a new one from `<base>`, `<base>-T<n>` for
+  a planned ticket (`<feature>/T<n>`), else `<name>`, so a half never lands in a shared branch. The brief says "already
   done on branch <branch>: ..." and that the feature goes on in `<branch>` and merges into the task's
   `merge_into` (a new branch: into `<base>`). Then say "<id> goes to keel's trash
   (its code and branch stay)" and run `task drop <id>` (as above, never the branch). Then, with no
