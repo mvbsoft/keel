@@ -97,7 +97,8 @@ test('feature-page: may run the scripts it names, finds its page by the feature\
     for (const shell of ['Bash', 'PowerShell']) assert.ok(fields['allowed-tools'].includes(`${shell}(node "\${CLAUDE_PLUGIN_ROOT}/scripts/${run} *)`), `${shell}: ${run} is allowed`);
   }
   says(body, ["This feature's page is the one whose title", 'ends with ` (<code>)`', 'the `code:` line']);
-  says(body, ['`code written: <files> (...)`', 'commit and push them', 'every machine finds this page']);
+  // The page reads the status fields of this working tree: no fetch and no code-written line any more.
+  assert.doesNotMatch(body, /code written|--fetch|fetch failed/);
   assert.doesNotMatch(body, /--taken|marker|title if taken/);
   const build = fs.readFileSync(path.join(SKILLS, '_shared', 'feature-page-build.md'), 'utf8');
   says(build, ["its title is not the `title:` line", 'takes that title too', "the tool's title"]);
@@ -123,8 +124,9 @@ test('feature-page: the questions stay in the session, the page is built and pub
   says(body, ['the `code:` line and the page from step 4']);
   says(build, ['read it into a file', 'never into the conversation']);
   says(build, ['`published: <link> <new|updated>; <n> tickets; as of <the as of hashes>; language <code>`']);
-  says(build, ['`; fetch failed: <its reason>`', '`; no labels for <code>`']);
-  says(body, ["the reply's `published:` line", '`fetch failed: <reason>`', '`no labels for <code>`']);
+  says(build, ['`; no labels for <code>`']);
+  says(body, ["the reply's `published:` line", '`no labels for <code>`']);
+  assert.doesNotMatch(build, /--fetch|fetch failed/);
   const runs = [...build.matchAll(/node "<keel>\/scripts\/([\w-]+\.js)"/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(runs)], ['feature-page.js'], 'the agent runs only the page script');
 });
