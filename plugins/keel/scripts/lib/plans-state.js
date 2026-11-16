@@ -112,7 +112,8 @@ function ticketsCommand(root, arg, { fetch = false } = {}) {
 // --- drop ---
 
 // A feature whose every ticket is done or abandoned: its folder to keel's trash. A folder in the
-// repository goes only off the branch it merges into (then plans.js commit <feature>).
+// repository goes only off the branch it merges into (then plans.js commit <feature>): keel never
+// commits there.
 function dropCommand(root, feature) {
   const what = 'drop';
   const { d, why } = plans.needDraft(root, feature, what);
@@ -123,7 +124,7 @@ function dropCommand(root, feature) {
     const branch = git(root, ['symbolic-ref', '-q', '--short', 'HEAD']);
     if (!branch) return refuse(what, 'HEAD is detached; switch to the feature branch first');
     const b = plans.branchesOf(root, d);
-    if ([plans.mainBranch(root), b.merge_into].filter(Boolean).some((x) => sameBranch(x, branch))) return refuse(what, `on ${branch}, where the feature merges; the folder is removed on the feature branch before its merge`);
+    if ([plans.mainBranch(root), b.merge_into].filter(Boolean).some((x) => sameBranch(x, branch))) return refuse(what, `on ${branch}, where the feature merges; the folder is removed on the feature branch before its merge, or after it on a branch of its own (then plans.js commit ${feature} there)`);
   }
   const r = moveToTrash(root, [rel(root, d.folder)], 'planning');
   if (!r.batch || r.failed.length) return refuse(what, `not moved to keel's trash: ${r.failed.map((f) => `${f.path}: ${f.reason}`).join(', ')}`);

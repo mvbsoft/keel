@@ -9,7 +9,9 @@
 // The result is the first output line; a refusal is `plans: <command> refused (<why>)`. Exit code 0.
 // Usage: node plans.js <projectDir> <command>
 //   list                                  the features: name, state (needs review), open questions,
-//                                         tickets, last change, folder
+//                                         tickets, last change, folder; a done one in the repository
+//                                         whose branch is merged or gone: `branch <b> merged into <m>`,
+//                                         `branch <b> not found`
 //   find <words...>                       the features whose folder name or In plain words has the words:
 //                                         one match, several, or none (then all features)
 //   new <feature> [--place repo|pc]       a feature folder with plan.md (status draft) where --place, else

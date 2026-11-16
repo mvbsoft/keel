@@ -146,7 +146,7 @@ gitTest('drop: refused while a ticket is open and on the branch the feature merg
   run(work, 'status', 's3-storage', 'T1', 'done');
   run(work, 'status', 's3-storage', 'T2', 'abandoned', '--reason', 'later');
   git(work, 'checkout', '-q', 'main');
-  assert.deepEqual(run(work, 'drop', 's3-storage'), ['plans: drop refused (on main, where the feature merges; the folder is removed on the feature branch before its merge)']);
+  assert.deepEqual(run(work, 'drop', 's3-storage'), ['plans: drop refused (on main, where the feature merges; the folder is removed on the feature branch before its merge, or after it on a branch of its own (then plans.js commit s3-storage there))']);
   git(work, 'checkout', '-q', 's3-storage');
   assert.match(run(work, 'drop', 's3-storage')[0], /^drop: tickets\/s3-storage\/? -> trash \d{8}-\d{6}/);
   assert.ok(!exists(work, 'tickets/s3-storage'));

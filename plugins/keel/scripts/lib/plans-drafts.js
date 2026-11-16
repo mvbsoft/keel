@@ -189,7 +189,7 @@ function where(root, d) {
 
 function draftLine(root, d) {
   const note = planNeedsReview(d) ? ' (needs review)' : '';
-  return `- ${d.feature}: ${d.fm.status}${note} · open Q ${openQuestions(d.text)} · tickets ${tickets(d).length} · changed ${lastChange(d.folder)} · ${where(root, d)}`;
+  return `- ${d.feature}: ${d.fm.status}${note} · open Q ${openQuestions(d.text)} · tickets ${tickets(d).length} · changed ${lastChange(d.folder)} · ${where(root, d)}${require('./plans-git.js').endedMark(root, d)}`;
 }
 
 function draftList(root) {

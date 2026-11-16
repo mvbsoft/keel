@@ -72,6 +72,22 @@ function mergedWarnings(root, d, list) {
   return out;
 }
 
+// For plans.js list: a done feature in the repository whose End of feature has nothing left to merge:
+// ` · branch <b> merged into <m>` (read as mergedWarnings reads a merge), or ` · branch <b> not found`
+// (neither here nor on the remote, as of the last fetch). '' for any other feature.
+function endedMark(root, d) {
+  if (d.local || d.fm.status !== 'done' || readGit(root, ['rev-parse', '--git-dir']) === null) return '';
+  const remote = flow.pickRemote((readGit(root, ['remote']) || '').split('\n').filter(Boolean));
+  const b = plans.branchesOf(root, d);
+  const ref = refOf(root, b.branch, remote);
+  if (!ref) return ` · branch ${clean(b.branch, 80)} not found`;
+  const into = given(b.merge_into) && b.merge_into !== b.branch ? refOf(root, b.merge_into, remote) : null;
+  const tip = readGit(root, ['rev-parse', `${ref}^{commit}`]);
+  if (!into || !tip || readGit(root, ['merge-base', '--is-ancestor', tip, into]) === null) return '';
+  if ((readGit(root, ['rev-list', '--first-parent', into]) || '').split('\n').includes(tip)) return '';
+  return ` · branch ${clean(b.branch, 80)} merged into ${clean(b.merge_into, 80)}`;
+}
+
 // --- commit and push ---
 
 // git-flow's checks: a repository whose top folder is the project, no merge, rebase or cherry-pick in
@@ -168,4 +184,4 @@ function pushFeature(root, feature, { repo } = {}) {
   return [...refused, `retry: node "${script}" "${root.split(path.sep).join('/')}" push ${feature}`];
 }
 
-module.exports = { commitFeature, pushFeature, fetched, mergedWarnings };
+module.exports = { commitFeature, pushFeature, fetched, mergedWarnings, endedMark };
