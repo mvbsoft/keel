@@ -1,7 +1,9 @@
 'use strict';
-// plans.js tickets and drop: the planned tickets' states as their `status` fields say (no tokens), the
-// ticket to take next, and the step that ends a feature. Reads only, except `drop` (the feature folder
-// to keel's trash).
+// plans.js tickets, drop and move: the planned tickets' states as their `status` fields say (no
+// tokens), the ticket to take next, the step that ends a feature, and the move of a feature folder
+// between this machine and the repository. Reads only, except `drop` (the feature folder to keel's
+// trash) and `move`.
+const fs = require('node:fs');
 const path = require('node:path');
 const plans = require('./plans.js');
 const { git, clean } = require('./repo-read.js');
@@ -110,4 +112,41 @@ function dropCommand(root, feature) {
   return r.moved.map((m) => `drop: ${m.path}/ -> trash ${r.batch}`);
 }
 
-module.exports = { ticketsCommand, dropCommand, nextOf, STATES };
+// --- move ---
+
+// plans.js move <feature> --to repo|pc: the feature folder as it is between this machine
+// (.keel/local/plans/keel/<feature>/) and the repository (<tickets_dir>/<feature>/); no file is
+// rewritten. Refused while the target exists, a ticket is in progress, a task names a ticket of the
+// feature (`ticket: <feature>/T<n>` in its task.md) or the folder has uncommitted changes.
+function moveCommand(root, feature, to) {
+  const what = 'move';
+  const { d, why } = plans.needDraft(root, feature, what);
+  if (!d) return why;
+  if (!['repo', 'pc'].includes(to)) return refuse(what, '--to repo or --to pc');
+  if (d.local === (to === 'pc')) return [`move: ${feature} is already in ${rel(root, d.folder)}/ (${to})`];
+  const s = require('./plans-settings.js').settings(root);
+  const bad = require('./plans-settings.js').badFolder(root, s.tickets_dir);
+  if (to === 'repo' && bad) return refuse(what, `tickets_dir "${clean(s.tickets_dir)}": ${bad}`);
+  const { localLink, linkOnWay } = require('./safe-path.js');
+  if (to === 'pc' && localLink(root)) return refuse(what, `${localLink(root)}: keel does not write through it`);
+  const target = path.join(to === 'pc' ? plans.base(root) : path.join(root, s.tickets_dir), feature);
+  if (to === 'repo' && linkOnWay(root, target)) return refuse(what, `${linkOnWay(root, target)}: keel does not write through it`);
+  if (fs.existsSync(target)) return refuse(what, `${rel(root, target)}/ exists`);
+  const busy = featureTickets(root, d).filter((t) => t.fm.status === 'in-progress').map((t) => t.id);
+  if (busy.length) return refuse(what, `in progress: ${busy.join(', ')}`);
+  const tasks = require('./tasks.js').treeTasks(root).filter((t) => String(t.fm.ticket || '').trim().startsWith(`${feature}/`)).map((t) => t.id);
+  if (tasks.length) return refuse(what, `tasks work on its tickets: ${tasks.join(', ')}`);
+  if (!d.local && git(root, ['status', '--porcelain', '--', rel(root, d.folder)])) return refuse(what, `${rel(root, d.folder)}/ has uncommitted changes: plans.js commit ${feature} first`);
+  try {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.renameSync(d.folder, target);
+  } catch (e) { return refuse(what, e.message); }
+  return [
+    `moved: ${rel(root, d.folder)}/ -> ${rel(root, target)}/`,
+    ...(to === 'pc'
+      ? [`warn: once committed (plans.js commit ${feature}), the folder leaves git for everyone: only this machine keeps it`]
+      : [`next: plans.js commit ${feature}`]),
+  ];
+}
+
+module.exports = { ticketsCommand, dropCommand, moveCommand, nextOf, STATES };

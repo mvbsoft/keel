@@ -36,8 +36,9 @@
 //   the trash cannot).
 // - plans.js: everything but `commit` and `push`; its other steps write only the planning files (the
 //   feature folders, also another repository's folder of a feature for its elsewhere tickets, settings
-//   and chat marks), `drop` moves a feature folder whose tickets are all done to keel's trash and
-//   `brief` a brief of /keel:start-task, both of which can be undone. commit or push anywhere
+//   and chat marks), `move` moves a feature folder between this machine and the repository, `drop` one
+//   whose tickets are all done to keel's trash and `brief` a brief of /keel:start-task, all of which can
+//   be undone. commit or push anywhere
 //   else in its command asks too (the shell may pass that step in another order).
 // Refused with the reason, so the model sends the plain form: a command joined with shell operators
 // (outside quotes) that names keel's folder; a keel script whose arguments the hook cannot read; a step

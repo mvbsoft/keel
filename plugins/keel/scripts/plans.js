@@ -76,6 +76,12 @@
 //                                         one feature (and its branch); one ticket (and its file and
 //                                         dependencies). `next:` the ticket to take next: ready, reviewed,
 //                                         every dependency done. --fetch: git fetch --prune first
+//   move <feature> --to repo|pc           the feature folder as it is between the repository
+//                                         (<tickets_dir>/<feature>/) and this machine
+//                                         (.keel/local/plans/keel/<feature>/); refused when the target
+//                                         exists, a ticket is in progress, a task names a ticket of it
+//                                         (task.md `ticket: <feature>/T<n>`) or the folder has uncommitted
+//                                         changes. --to pc: once committed, the folder leaves git for everyone
 //   drop <feature>                       a feature whose every ticket is done or abandoned: its folder to
 //                                         keel's trash (a repository folder only off the branch it merges
 //                                         into; then commit <feature>)
@@ -98,7 +104,7 @@ const path = require('node:path');
 const { parseArgs } = require('./lib/project.js');
 const plans = require('./lib/plans.js');
 
-const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, status, set, stale, repos, report, commit, push, tickets, drop, brief, settings, mark';
+const COMMANDS = 'list, find, new, ticket, check, review, reviewed, state, status, set, stale, repos, report, commit, push, tickets, move, drop, brief, settings, mark';
 
 // A flag followed by a word takes it as its value (lib/project.js): `tickets --fetch f` names f.
 const flagged = (pos, opts, flag) => ({ on: opts[flag] !== undefined, arg: pos[2] ?? (typeof opts[flag] === 'string' ? opts[flag] : undefined) });
@@ -128,6 +134,7 @@ function run(root, pos, opts) {
     return step(root, feature, { repo: opts.repo });
   }
   if (command === 'tickets') { const f = flagged(pos, opts, 'fetch'); return require('./lib/plans-state.js').ticketsCommand(root, f.arg, { fetch: f.on }); }
+  if (command === 'move') return require('./lib/plans-state.js').moveCommand(root, feature, opts.to);
   if (command === 'drop') return require('./lib/plans-state.js').dropCommand(root, feature);
   if (command === 'brief') return require('./lib/plans-brief.js').briefCommand(root, feature, pos[3]);
   if (command === 'settings') {

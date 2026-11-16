@@ -605,7 +605,7 @@ test('mark: set, get and clear this chat\'s planning mark', () => {
 
 test('plans.js: unknown commands are named, never thrown', () => {
   const dir = project();
-  assert.equal(run(dir, 'import')[0], 'plans: unknown command "import" (list, find, new, ticket, check, review, reviewed, state, status, set, stale, repos, report, commit, push, tickets, drop, brief, settings, mark)');
+  assert.equal(run(dir, 'import')[0], 'plans: unknown command "import" (list, find, new, ticket, check, review, reviewed, state, status, set, stale, repos, report, commit, push, tickets, move, drop, brief, settings, mark)');
   assert.equal(run(dir)[0], 'features: 0');
   assert.match(run(dir, 'export', 's3-connection')[0], /^plans: unknown command "export"/);
   assert.match(run(dir, 'done', 'PROJ-1')[0], /^plans: unknown command "done"/);
