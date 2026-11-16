@@ -385,6 +385,23 @@ gitTest('sync on the main branch pulls it only forward: local commits there stop
   assert.equal(git(work, 'rev-parse', 'HEAD'), before);
 });
 
+gitTest('a repository without keel: manual git, the main branch from origin/HEAD; a broken config still stops', () => {
+  const { tmp, server } = setup();
+  const other = path.join(tmp, 'other');
+  execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', server, other]);
+  fs.rmSync(path.join(other, '.keel'), { recursive: true, force: true });
+  let out = flow(other, 'status');
+  assert.equal(out[0], 'git-flow: ok', out.join('\n'));
+  assert.ok(out.includes('main branch: main') && out.includes('mode: manual'), out.join('\n'));
+  assert.ok(!out.some((l) => l.startsWith('autonomous on this machine')), out.join('\n'));
+  assert.equal(flow(other, 'trust')[1], 'reason: the git mode is not autonomous; nothing to confirm');
+  git(other, 'remote', 'set-head', 'origin', '--delete');
+  out = flow(other, 'status');
+  assert.deepEqual(out, ['git-flow: unavailable', 'reason: keel is not configured here and origin/HEAD names no main branch (git remote set-head origin --auto sets it)']);
+  write(other, '.keel/config.json', '{');
+  assert.match(flow(other, 'status')[1], /^reason: keel is not configured here \(config broken/);
+});
+
 gitTest('commit --tickets lets exactly those tickets and their plan.md in (references without case); --finish carries none', () => {
   const { work } = setup();
   const plan = (title) => `---\ntype: plan\nstatus: in-progress\nlanguage: en\n---\n# ${title}\n`;

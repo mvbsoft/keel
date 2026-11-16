@@ -34,11 +34,13 @@
 // went to keel's trash: when a step stops, the task is put back at once (`restored:`), so a finish
 // never ends without a commit and without its task. A commit records the finish as committed
 // (lib/finish.js); a push that completes after that commit ends it.
+// A repository without keel (a planned ticket of another repository) runs in manual git mode, its main
+// branch the one origin/HEAD names.
 // First output line: `git-flow: ok | stopped | unavailable`; then `reason:` and details. Exit code 0.
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { loadProject, parseArgs } = require('./lib/project.js');
+const { loadGitProject, parseArgs } = require('./lib/project.js');
 const { trustState, trust } = require('./lib/trust.js');
 const { linkOnWay, safeLocalWrite, realPath, samePath } = require('./lib/safe-path.js');
 const { readFinish, clearFinish, markCommitted, validSid } = require('./lib/finish.js');
@@ -93,7 +95,7 @@ function changedFiles(root) {
 const pickRemote = (remotes) => (remotes.includes('origin') ? 'origin' : remotes[0] || null);
 
 function context(root) {
-  const { config, isSecret } = loadProject(root);
+  const { config, isSecret } = loadGitProject(root);
   const repo = git(root, ['rev-parse', '--git-dir']);
   if (!repo.ok) throw new Stop(/dubious ownership/i.test(repo.err) ? `git does not trust this folder's owner: ${firstLines(repo.err)}` : 'not a git repository');
   const branch = git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).out || null;

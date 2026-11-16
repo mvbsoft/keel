@@ -15,6 +15,18 @@ function loadProject(root) {
   return { config, profile, isSecret };
 }
 
+// loadProject for git steps (git-flow.js). A repository without keel (a planned ticket of another
+// repository) gets manual git and the main branch origin/HEAD names; a config keel cannot use still
+// throws.
+function loadGitProject(root) {
+  if (checkConfig(root).state !== 'missing') return loadProject(root);
+  const head = require('./repo-read.js').git(root, ['symbolic-ref', '--short', '-q', 'refs/remotes/origin/HEAD']);
+  const main = head && head.includes('/') ? head.slice(head.indexOf('/') + 1) : null;
+  if (!main) throw new Error('keel is not configured here and origin/HEAD names no main branch (git remote set-head origin --auto sets it)');
+  const { profile, isSecret } = secretCheck(root);
+  return { config: { git: { mode: 'manual', main_branch: main } }, profile, isSecret };
+}
+
 // The secret test without requiring a config: catalog patterns plus the profile's secret_paths.
 function secretCheck(root) {
   let profile = null;
@@ -49,4 +61,4 @@ function parseArgs(argv) {
   return { opts, pos };
 }
 
-module.exports = { loadProject, secretCheck, localDir, writeLocal, readJson, parseArgs };
+module.exports = { loadProject, loadGitProject, secretCheck, localDir, writeLocal, readJson, parseArgs };
