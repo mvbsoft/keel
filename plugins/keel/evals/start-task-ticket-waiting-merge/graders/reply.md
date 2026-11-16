@@ -2,9 +2,10 @@
 type: llm
 ---
 
-INV-3 is a planned ticket done on its own ticket branch and waiting for merge into the feature
-branch csv-export.
-PASS if the reply says INV-3 waits for merge into the feature branch (its branch or author may be
-named) and asks what to do (for example continue it, start over, or take another ticket), without
+csv-export/T3 is a planned ticket taken on its own ticket branch csv-export-T3: origin/csv-export, the
+feature branch, says in-progress on csv-export-T3; the work is done there but not merged into
+csv-export yet.
+PASS if the reply says T3 is in progress on csv-export-T3 (taken by someone, its work maybe not merged
+yet) and asks what to do (for example continue it, start over, or take another ticket), without
 offering it as a free ticket to start.
-FAIL if it treats INV-3 as free or to do, creates a task, switches or creates a branch, or starts coding.
+FAIL if it treats T3 as free or ready, creates a task, switches or creates a branch, or starts coding.

@@ -221,8 +221,7 @@ const STATE = {
   'planning-ready': (work, git) => {
     draftState('ready · open Q 0', '\\.keel/local/plans/keel/csv-export/ \\(this machine only\\)')(work);
     const settings = script('plans.js', work, 'settings');
-    assert.match(settings, /^tickets: repo$/m);
-    assert.match(settings, /^ticket_prefix: INV$/m);
+    assert.match(settings, /^place: pc$/m);
     assert.match(git('show', 'HEAD:AGENTS.md'), /^No ticket or backlog files in this repository: tickets live in Jira\.$/m);
   },
   'planning-repo': draftState('draft · open Q 0', 'tickets/csv-export/'),
@@ -239,13 +238,15 @@ const STATE = {
     assert.match(plan, /^- src\/payment\.js:4 charge\(\) returns status paid/m, 'Files went into What was gathered');
     assert.ok(!fs.existsSync(path.join(work, '.keel', 'local', 'plans', 'briefs', 'notification-system-brief.md')), 'the brief left for the trash');
   },
-  planned: (work) => {
-    const out = script('plans.js', work, 'tickets', '--fetch');
-    assert.match(out, /^ {2}INV-1 .* — done$/m, out);
-    assert.match(out, /^ {2}INV-2 .* — in progress · branch INV-2-[\w-]+, Dana Smith, /m, out);
-    assert.match(out, /^ {2}INV-3 .* — waiting for merge into the feature branch · /m, out);
-    assert.match(out, /^ {2}INV-4 .* — to do · INV-3 only in ticket branch INV-3-[\w-]+$/m, out);
-    assert.match(script('plans.js', work, 'tickets', 'INV-4', '--fetch'), /^ {2}depends: INV-3 waiting for merge into the feature branch$/m);
+  // On main the files say T1 done and the rest ready; origin/csv-export, the main copy, says who took T2 and T3.
+  planned: (work, git) => {
+    assert.equal(git('symbolic-ref', '--short', 'HEAD'), 'main');
+    const out = script('plans.js', work, 'tickets', 'csv-export', '--fetch');
+    assert.match(out, /^ {2}T1 .* — done$/m, out);
+    assert.match(script('plans.js', work, 'tickets', 'csv-export/T2', '--fetch'), /^ {2}remote: in-progress on csv-export-T2 \(origin\/csv-export\)$/m);
+    assert.match(script('plans.js', work, 'tickets', 'csv-export/T3', '--fetch'), /^ {2}remote: in-progress on csv-export-T3 \(origin\/csv-export\)$/m);
+    assert.match(script('plans.js', work, 'tickets', 'csv-export/T4', '--fetch'), /^ {2}depends: T3 ready$/m);
+    assert.equal(git('log', '-1', '--format=%an', 'origin/csv-export-T2'), 'Dana Smith');
   },
   // The level is only in the note, never in the command: the run must still ask it.
   'session-level': (work, git) => {
@@ -283,9 +284,9 @@ const STATE = {
   },
   // The same on a shared feature branch, where the rule against committing on main does not reach.
   'ticket-on-feature': (work, git) => {
-    assert.match(script('notes.js', work, 'task', 'active', '--session', SID), /^active task: INV-1$/m);
-    assert.match(fs.readFileSync(path.join(work, '.keel', 'tasks', 'INV-1', 'task.md'), 'utf8'), /^status: active\nbranch: csv-export\nbase: csv-export\nmerge_into: main$/m);
-    assert.match(script('plans.js', work, 'tickets', 'INV-1'), /^  branch: csv-export -> main$/m);
+    assert.match(script('notes.js', work, 'task', 'active', '--session', SID), /^active task: csv-export-T1$/m);
+    assert.match(fs.readFileSync(path.join(work, '.keel', 'tasks', 'csv-export-T1', 'task.md'), 'utf8'), /^status: active\nbranch: csv-export\nbase: csv-export\nmerge_into: main$/m);
+    assert.match(script('plans.js', work, 'tickets', 'csv-export/T1'), /^  branch: csv-export -> main$/m);
     assert.match(script('plans.js', work, 'mark', 'get', '--session', SID), /^planning: none$/m, 'the chat works on a task, it plans nothing');
     assert.equal(git('rev-parse', 'origin/csv-export'), git('rev-parse', 'csv-export'), 'the task is pushed');
   },

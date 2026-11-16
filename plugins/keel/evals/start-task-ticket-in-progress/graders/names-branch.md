@@ -1,4 +1,4 @@
 ---
 type: regex
-pattern: 'INV-2-\w'
+pattern: 'csv-export-T2'
 ---

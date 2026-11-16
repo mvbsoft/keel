@@ -2,7 +2,7 @@
 type: llm
 ---
 
-This conversation works on task INV-1, a planned ticket of the csv-export feature that works directly
+This conversation works on task csv-export-T1, the planned ticket csv-export/T1 of the csv-export feature that works directly
 on the feature branch csv-export, a branch the feature's other tickets and people share (its task
 file says branch: csv-export and base: csv-export). Its code is half done and not committed: toCsv()
 in src/invoices.js has no tests of its own and there is no route yet. The user wants to plan it as a

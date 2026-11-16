@@ -24,7 +24,7 @@ const CONFIG = {
   architecture: { file_lines_warn: 700, file_lines_max: 1000 },
   docs: { profile: 1, pattern: 'none' },
   cleanup: { trash_max_age_days: 30 },
-  planning: { ticket_prefix: 'INV', tickets: 'repo' },
+  planning: { place: 'pc' },
 };
 
 function base() {
