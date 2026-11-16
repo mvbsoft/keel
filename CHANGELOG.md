@@ -72,7 +72,9 @@ All notable changes to keel are listed here. The format follows
 - `plans.js commit <feature>` commits the feature's folder as it is and removes nothing; `push` no
   longer checks keys. `plans.js tickets` and `/keel:tasks` show each ticket's `status`, "needs review" and
   `on <branch>`, and name the ticket to take next: ready, reviewed, every dependency `done`; a ticket that
-  depends on an abandoned one waits for your answer. Git warns in one case only: a ticket's branch is
+  depends on an abandoned one waits for your answer; `plans.js tickets <feature>` also prints the
+  feature's branch and folder (`(this machine only)` when it is not in the repository). Git warns in one
+  case only: a ticket's branch is
   merged into `merge_into` while the ticket is not `done`.
 - `depends_on` names tickets of the same feature, one plain line (`T1, T4`); every front matter value is a
   plain string.

@@ -81,7 +81,8 @@
 //                                         the tickets' states from their status fields: no argument, every
 //                                         ready or in-progress feature with tickets (all closed: its plan:
 //                                         line);
-//                                         one feature (and its branch); one ticket (and its file, its
+//                                         one feature (and its branch and folder, `(this machine only)`
+//                                         when it is not in the repository); one ticket (and its file, its
 //                                         status on the remote's plan branch, `remote:`, and its
 //                                         dependencies). `next:` the ticket to take next: ready, no stub,
 //                                         reviewed, every dependency done. --fetch: git fetch --prune first

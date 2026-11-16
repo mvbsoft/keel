@@ -48,10 +48,12 @@ gitTest('tickets: a draft is never next; a ticket that depends on an abandoned o
   run(work, 'ticket', 's3-storage', '--title', 'Later');
   run(work, 'status', 's3-storage', 'T1', 'abandoned', '--reason', 'not needed');
   const out = run(work, 'tickets', 's3-storage');
+  // The feature view says where its folder is: on this machine only, or in the repository (below).
   assert.deepEqual(out, [
     'tickets: 1 feature, 4 tickets',
     's3-storage (ready; 0 of 4 done)',
     '  branch: s3-storage -> main',
+    `  folder: ${LOCAL}/s3-storage/ (this machine only)`,
     '  T1 Title of T1 — abandoned',
     '  T2 Title of T2 — ready',
     '  T3 Title of T3 — ready',
@@ -97,6 +99,7 @@ gitTest('the one git warning: a ticket whose branch is merged while it is not do
   const warn = 'warn: T1: its branch s3-storage-T1 is merged into s3-storage, but the ticket is in-progress: plans.js status s3-storage T1 done once its work is finished';
   assert.ok(run(work, 'check', 's3-storage').includes(warn), run(work, 'check', 's3-storage').join('\n'));
   assert.ok(run(work, 'tickets', 's3-storage').includes(warn));
+  assert.ok(run(work, 'tickets', 's3-storage').includes('  folder: tickets/s3-storage/'));
   run(work, 'status', 's3-storage', 'T1', 'done');
   assert.ok(!run(work, 'tickets', 's3-storage').some((l) => l.startsWith('warn:')));
   // A ticket on the feature branch: merged with the feature into merge_into.

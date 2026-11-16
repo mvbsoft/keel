@@ -458,7 +458,7 @@ module.exports = {
   draftCheck, draftReview, draftReviewed, draftState, ticketStatus, planningMark, markCommand, ticketHash, draftDirs,
   draftSet, draftStale,
   // for lib/plans-state.js, lib/plans-git.js, lib/plans-stubs.js and lib/plans-brief.js
-  base, needDraft, tickets, ticketIds, writePlan, writeFile, clearMarks,
+  base, needDraft, tickets, ticketIds, writePlan, writeFile, clearMarks, where,
   branchesOf, mainBranch, PLAN_FILE, TICKET_FILE, STATES, CLOSED, fromTemplate, ticketProblems, cycles, homeNotes, needsReview,
   // for feature-page.js
   mentionedFiles, pageCode, PAGE_CODE, machineFolders, localPaths, localProblems, researchTexts,

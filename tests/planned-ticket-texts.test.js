@@ -131,9 +131,12 @@ test('start-session: a feature\'s planned tickets become the Plan, their referen
   // The note is tracked: a switch needs a clean tree, so the branch comes before the note.
   says(row, ['on yes the branch first', 'then write the note', 'a switch needs a clean tree']);
   says(row, ['`start --name <b> --from <current>`', 'manual: give `git switch <b>` and wait', '`plans.js status <feature> T<n> in-progress --branch <b>` for each ticket of the Plan']);
+  // The feature view prints no file: lines; its folder: line says whether the feature is in the repository.
+  says(row, ['a feature in the repository', 'its `folder:` line without `(this machine only)`']);
+  assert.match(read('scripts', 'lib', 'plans-state.js'), /`  folder: \$\{plans\.where\(root, d\)\}`/, 'the feature view prints that line');
   // The taken tickets reach the remote at once, only their files and plan.md.
   order(row, 'in-progress --branch <b>` for each ticket', '`plans.js commit <feature> --tickets <its T<n>s, comma-separated>`', 'the statuses are committed after they are set');
-  says(row, ['a feature in the repository', 'not under `.keel/local/`', '`plans.js push <feature>`', 'Claude Code asks each', 'the remote shows the tickets taken']);
+  says(row, ['a feature in the repository', '`plans.js push <feature>`', 'Claude Code asks each', 'the remote shows the tickets taken']);
   const h = shared('handoff-resume.md');
   order(h, '+ a feature\'s name or folder', '| no note (or `status: done`) + a description |', 'a feature name is tried before it is read as a description');
   assert.match(skill('start-session'), /a feature's planned tickets/);

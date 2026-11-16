@@ -64,9 +64,9 @@ function remoteLine(root, d, t) {
 // The feature's tickets, an elsewhere one as its file in its repository says.
 const featureTickets = (root, d) => (d.fm.home ? plans.tickets(d) : require('./plans-repos.js').withElsewhere(root, d, plans.tickets(d)));
 
-// arg: a feature, <feature>/T<n>, or nothing (every ready or in-progress feature with tickets; one whose
-// tickets are all closed shows its `plan:` line, also when the last one was closed in another session or
-// repository). `--fetch`: the remote first, so git's warning sees the merged branches.
+// arg: a feature (with its branch and folder), <feature>/T<n> (with its file), or nothing (every ready or
+// in-progress feature with tickets; one whose tickets are all closed shows its `plan:` line, also when
+// the last one was closed in another session or repository). `--fetch`: the remote first, so git's warning sees the merged branches.
 function ticketsCommand(root, arg, { fetch = false } = {}) {
   const notes = fetch ? require('./plans-git.js').fetched(root).notes : [];
   const all = plans.listDrafts(root).map((d) => ({ d, list: featureTickets(root, d) }));
@@ -88,6 +88,7 @@ function ticketsCommand(root, arg, { fetch = false } = {}) {
     const done = list.filter((t) => t.fm.status === 'done').length;
     out.push(`${d.feature} (${d.fm.status}; ${done} of ${list.length} done)`);
     if (name) { const b = plans.branchesOf(root, d); out.push(`  branch: ${b.branch} -> ${b.merge_into || '-'}`); }
+    if (name && !one) out.push(`  folder: ${plans.where(root, d)}`);
     for (const t of lines) {
       out.push(ticketLine(t, own));
       if (!one) continue;
