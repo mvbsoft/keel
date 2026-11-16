@@ -249,7 +249,8 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
 3. **Another repository** (its front matter `repo: <name>`, not this project): ask once where it runs:
    here / a subagent in that repository / a separate session there. Its folder: `plans.js repos`.
    Here or a subagent: its git steps, checks and verification run on that folder in place of
-   `<project>`, its own rules (CLAUDE.md, AGENTS.md, `.keel/config.json`) first; without keel there git
+   `<project>` (`--other-repo` as the last argument of each `git-flow.js`, `changes.js`,
+   `fingerprint.js` and `votes.js` call there), its own rules (CLAUDE.md, AGENTS.md, `.keel/config.json`) first; without keel there git
    is manual and its checks are proposed from its `package.json` / `composer.json` (the user
    confirms); a subagent (`--execution delegate`) stops on a decision and returns it as a question.
    A separate session: step 5 with `--branch <b>-T<n>`, then print exactly
@@ -261,7 +262,7 @@ A planned ticket is `<feature>/T<n>`; its state is its file's `status`. Each cal
    `git-flow.js switch --name <b>`; missing → `start --name <b> --from <current>`. A ticket branch
    (rare: the user asks for one) → `<b>-T<n>`, always from `<b>`, after the status below. A feature
    on this machine: the branch as step 6 for any task; another repository: in that repository,
-   `<b>-T<n>` from its main branch (`git-flow.js "<its folder>" status`).
+   `<b>-T<n>` from its main branch (`git-flow.js "<its folder>" status --other-repo`).
 5. **Take it**: `plans.js status <feature> T<n> in-progress --branch <the branch it works on>`. A
    feature in the repository (`file:` not under `.keel/local/`): this project on `<b>` (step 4, also
    for another repository), then `plans.js commit <feature> --tickets T<n>` (only the ticket file and

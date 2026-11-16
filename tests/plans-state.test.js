@@ -198,12 +198,13 @@ gitTest('task new --ticket: the task <feature>-T<n> with ticket:, on this machin
   // Its verification looks at that repository, which has no keel: its diff, its record, and task delete
   // here (and keel's hook) reads that record.
   write(web, 'index.js', 'x\ny\n');
-  assert.match(script('changes.js', web)[0], /^changes: 1 files, \+1 -0/);
+  assert.match(script('changes.js', web)[0], /^changes: unavailable \(keel is not configured here/, 'without --other-repo a folder without keel is not configured');
+  assert.match(script('changes.js', web, '--other-repo')[0], /^changes: 1 files, \+1 -0/);
   assert.ok(fs.readFileSync(path.join(web, '.keel', 'local', 'tmp', 'changes.diff'), 'utf8').includes('+y'));
   const del = `node "${SCRIPTS}/notes.js" "${work.split(path.sep).join('/')}" task delete csv-export-T2`;
   assert.equal(hookDecision(work, del), 'deny');
-  assert.match(notes('task', 'delete', 'csv-export-T2')[0], /^notes: task delete refused \(no verification is recorded for this change/);
-  assert.match(script('fingerprint.js', web, 'save', '--tier', 'basic')[0], /^saved: verification at /);
+  assert.match(notes('task', 'delete', 'csv-export-T2')[0], /^notes: task delete refused \(no verification is recorded for this change: .* save --tier none --other-repo; then run task delete again\)$/);
+  assert.match(script('fingerprint.js', web, 'save', '--tier', 'basic', '--other-repo')[0], /^saved: verification at /);
   assert.ok(!exists(work, '.keel/local/last-verify.json'), 'nothing is recorded here');
   assert.equal(hookDecision(work, del), 'ask');
   assert.equal(notes('task', 'delete', 'csv-export-T2')[0], 'deleted: .keel/local/tasks/csv-export-T2/ (moved to keel\'s trash)');

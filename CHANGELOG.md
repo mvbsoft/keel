@@ -19,6 +19,11 @@ All notable changes to keel are listed here. The format follows
 - Comments are checked for keel 2.0.0's `planning.ticket_prefix` again (`// TODO(CAN-123)` with
   `planning.ticket_prefix: "CAN"`), and `/keel:configure` moves that prefix into
   `comments.ticket_prefixes` instead of dropping it.
+- A checkout of a keel project without `.keel/config.json` is refused again by `git-flow.js`,
+  `changes.js`, `fingerprint.js` and `votes.js` (`keel is not configured here ...; run
+  /keel:configure`), as in 2.0.0, instead of running with defaults (no gates, manual git, the main
+  branch from `origin/HEAD`, so commits on the real main branch were no longer refused). The defaults
+  apply only with `--other-repo`, which keel passes in the folder of another repository's ticket.
 
 ## [2.1.0] - 2026-11-16
 

@@ -8,6 +8,8 @@
 //          → .keel/local/tmp/verify-result.json (what the judge reads); reads the session's re-runs of
 //            QA's reproduce commands from .keel/local/tmp/reproduce.json ({ "<id>": "reproduced" |
 //            "not reproduced" }): a proven finding that did not reproduce becomes unclear.
+// --other-repo (last): the folder of a planned ticket of another repository, which may have no keel
+// (lib/project.js loadProjectOrDefaults); without it a folder with no .keel/config.json is refused.
 // Rules: QA findings with a reproduce command are proven; minor findings are not
 // verified; a critical finding gets its own verifier, three (one per lens) on Maximum, kept only
 // with at least 2 of 3; important findings go 2-3 per verifier from the same file or folder; the
@@ -255,7 +257,7 @@ function main(argv) {
   const { opts, pos } = parseArgs(argv);
   const root = require('./lib/project-dir.js').scriptProject(pos[0]);
   const cmd = pos[1];
-  const { config } = loadProject(root);
+  const { config } = loadProject(root, opts['other-repo'] !== undefined);
   const replies = readReplies(root);
   if (cmd === 'plan') {
     const tier = levelOf(opts.tier);

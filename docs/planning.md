@@ -232,6 +232,9 @@ there.
   `package.json` or `composer.json` and you confirm, and its task has its own `started`, `branch` and
   `base`. keel's own files there (`.keel/local/`: the verification record, the finish record of its
   task, scratch files) get a `.gitignore` of their own, so they never show in `git status` or a commit.
+  These defaults hold only for a ticket's repository (keel's scripts get `--other-repo` there): in a
+  checkout of your own project, a missing `.keel/config.json` stops keel's git and verification steps
+  (`keel is not configured here (config missing: no .keel/config.json); run /keel:configure`).
 - **Doing it.** `/keel:start-task <feature>/T<n>` for a ticket of another repository asks once where
   it runs: here, in a helper working in that repository (it asks nothing itself: it stops on a
   decision and the conversation asks you), or a separate session. keel prints the separate session's

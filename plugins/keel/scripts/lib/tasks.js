@@ -248,10 +248,10 @@ function workRoot(root, t) {
 function verifiedGuard(root, t) {
   const work = workRoot(root, t);
   if (work.why) return work.why;
-  const why = require('../fingerprint.js').unverified(work.folder);
+  const why = require('../fingerprint.js').unverified(work.folder, work.folder !== root);
   if (!why) return null;
   const fp = path.join(__dirname, '..', 'fingerprint.js');
-  return `${why}: finish the verification first (it ends with fingerprint.js save --tier <level>); when the user chose no verification, run node "${fp}" "${work.folder}" save --tier none; then run task delete again`;
+  return `${why}: finish the verification first (it ends with fingerprint.js save --tier <level>); when the user chose no verification, run node "${fp}" "${work.folder}" save --tier none${work.folder !== root ? ' --other-repo' : ''}; then run task delete again`;
 }
 
 function taskDelete(root, id, sid) {

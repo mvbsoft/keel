@@ -385,21 +385,43 @@ gitTest('sync on the main branch pulls it only forward: local commits there stop
   assert.equal(git(work, 'rev-parse', 'HEAD'), before);
 });
 
-gitTest('a repository without keel: manual git, the main branch from origin/HEAD; a broken config still stops', () => {
+gitTest('another repository\'s folder without keel (--other-repo): manual git, the main branch from origin/HEAD; a broken config still stops', () => {
   const { tmp, server } = setup();
   const other = path.join(tmp, 'other');
   execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', server, other]);
   fs.rmSync(path.join(other, '.keel'), { recursive: true, force: true });
-  let out = flow(other, 'status');
+  let out = flow(other, 'status', '--other-repo');
   assert.equal(out[0], 'git-flow: ok', out.join('\n'));
   assert.ok(out.includes('main branch: main') && out.includes('mode: manual'), out.join('\n'));
   assert.ok(!out.some((l) => l.startsWith('autonomous on this machine')), out.join('\n'));
-  assert.equal(flow(other, 'trust')[1], 'reason: the git mode is not autonomous; nothing to confirm');
+  assert.equal(flow(other, 'trust', '--other-repo')[1], 'reason: the git mode is not autonomous; nothing to confirm');
   git(other, 'remote', 'set-head', 'origin', '--delete');
-  out = flow(other, 'status');
+  out = flow(other, 'status', '--other-repo');
   assert.deepEqual(out, ['git-flow: unavailable', 'reason: keel is not configured here and origin/HEAD names no main branch (git remote set-head origin --auto sets it)']);
   write(other, '.keel/config.json', '{');
-  assert.match(flow(other, 'status')[1], /^reason: keel is not configured here \(config broken/);
+  assert.match(flow(other, 'status', '--other-repo')[1], /^reason: keel is not configured here \(config broken/);
+});
+
+gitTest('a checkout without .keel/config.json is not configured: git steps and verification refuse without --other-repo', () => {
+  const { work } = setup();
+  // The project's main branch was prod; the remote's default branch is main.
+  fs.rmSync(path.join(work, '.keel', 'config.json'));
+  git(work, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main');
+  git(work, 'switch', '-q', '-c', 'prod');
+  write(work, 'src/app.js', 'changed\n');
+  write(work, '.keel/local/tmp/commit-message.txt', 'feat: x\n');
+  const missing = 'reason: keel is not configured here (config missing: no .keel/config.json); run /keel:configure';
+  for (const args of [['status'], ['commit', '--message-file', '.keel/local/tmp/commit-message.txt']]) {
+    assert.deepEqual(flow(work, ...args), ['git-flow: unavailable', missing], args[0]);
+  }
+  const script = (name, ...args) => spawnSync(process.execPath, [path.join(SCRIPTS, name), work, ...args], { encoding: 'utf8' });
+  assert.equal(script('changes.js').stdout.trim(), 'changes: unavailable (keel is not configured here (config missing: no .keel/config.json); run /keel:configure)');
+  for (const [name, ...args] of [['fingerprint.js', 'save', '--tier', 'basic'], ['votes.js', 'plan', '--tier', 'basic']]) {
+    const r = script(name, ...args);
+    assert.match(r.stdout + r.stderr, /keel is not configured here \(config missing/, name);
+  }
+  assert.ok(!fs.existsSync(path.join(work, '.keel', 'local', 'last-verify.json')), 'no verification recorded');
+  assert.equal(git(work, 'log', '-1', '--format=%s'), 'init', 'nothing was committed');
 });
 
 gitTest('commit --tickets lets exactly those tickets and their plan.md in (references without case); --finish carries none', () => {
@@ -704,11 +726,11 @@ gitTest('a repository without keel: keel\'s own files under .keel/local are no c
   git(plain, 'commit', '-q', '-m', 'no keel here');
   // A scratch file written before any keel script runs there, as a commit message is.
   write(plain, '.keel/local/tmp/commit-message.txt', 'Message\n');
-  const fingerprint = (...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'fingerprint.js'), plain, ...args], { encoding: 'utf8' }).stdout.trim();
+  const fingerprint = (...args) => spawnSync(process.execPath, [path.join(SCRIPTS, 'fingerprint.js'), plain, ...args, '--other-repo'], { encoding: 'utf8' }).stdout.trim();
   assert.match(fingerprint('snapshot', 'x'), /^snapshot x: 0 changed files recorded$/);
   assert.equal(fingerprint('compare', 'x'), 'same');
   assert.equal(git(plain, 'status', '--porcelain', '--untracked-files=all'), '');
-  const out = flow(plain, 'start', '--name', 'feature');
+  const out = flow(plain, 'start', '--name', 'feature', '--other-repo');
   assert.equal(out[0], 'git-flow: ok', out.join('\n'));
   assert.ok(!out.some((l) => l.startsWith('carried:')), out.join('\n'));
 });

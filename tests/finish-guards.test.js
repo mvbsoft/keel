@@ -423,7 +423,8 @@ function otherRepoTask(mode) {
   plans('ticket', 'csv-export', '--title', 'Badge', '--repo', 'web');
   assert.match(notes(work, 'task', 'new', 'csv-export-T1', '--title', 'Badge', '--source', 'file', '--ticket', 'csv-export/T1', '--session', 's1')[0], /^created: \.keel\/local\/tasks\//);
   write(web, 'index.js', 'x\ny\n');
-  save(web);
+  // Verified in its own folder, as for any ticket of another repository.
+  run('fingerprint.js', web, 'save', '--tier', 'none', '--other-repo');
   return { work, web, input: { session_id: 's1', stop_hook_active: false, last_assistant_message: 'Done.', cwd: work } };
 }
 

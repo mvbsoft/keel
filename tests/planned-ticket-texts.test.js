@@ -46,6 +46,15 @@ test('start-task: a ticket of another repository asks once where it runs; a sepa
   assert.match(read('scripts', 'plans.js'), /^\/\/   status <feature> <T<n>> .*\[--project <path>\]/m, 'plans.js status takes --project');
 });
 
+test('a ticket of another repository: every git and verification script there runs with --other-repo, which each takes', () => {
+  const scripts = ['`git-flow.js`', '`changes.js`', '`fingerprint.js`', '`votes.js`'];
+  says(planned(), ['Here or a subagent', 'on that folder in place of', '`--other-repo` as the last argument', ...scripts]);
+  says(planned(), ['`git-flow.js "<its folder>" status --other-repo`']);
+  says(skill('end-task'), ["its `repo:` → another repository", 'in place of `<project>`', '`--other-repo` as the last argument', ...scripts]);
+  says(shared('git.md'), ['**A ticket of another repository**', 'every `git-flow.js` step', 'in place of `<project>`', 'with `--other-repo` last']);
+  for (const name of ['git-flow.js', 'changes.js', 'fingerprint.js', 'votes.js']) assert.match(read('scripts', name), /opts\['other-repo'\]/, `${name} reads --other-repo`);
+});
+
 test('start-task: a ticket works on its feature branch by default; a ticket branch <b>-T<n> only on request; its status is committed and pushed', () => {
   const intake = shared('intake.md');
   says(intake, ['A planned', 'ticket: the id is `<feature>-T<n>` exactly', 'no slug', 'the title is its title']);

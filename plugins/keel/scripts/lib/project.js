@@ -27,13 +27,15 @@ function defaultsOf(node) {
   return Object.keys(out).length ? out : undefined;
 }
 
-// loadProject for git steps and verification (git-flow.js, changes.js, fingerprint.js, votes.js). A
-// repository without keel (a planned ticket of another repository) gets the config schema's defaults,
-// no gates, manual git and the main branch origin/HEAD names (null when it names none); a config keel
-// cannot use, or a folder outside git, still throws.
-function loadProjectOrDefaults(root) {
+// loadProject for git steps and verification (git-flow.js, changes.js, fingerprint.js, votes.js).
+// `otherRepo` (their --other-repo: the folder of a planned ticket of another repository): a repository
+// without keel there gets the config schema's defaults, no gates, manual git and the main branch
+// origin/HEAD names (null when it names none). Without it a missing config throws as in loadProject: a
+// keel project's checkout without its config must not run on guessed settings. A config keel cannot
+// use, or a folder outside git, always throws.
+function loadProjectOrDefaults(root, otherRepo = false) {
   const { git } = require('./repo-read.js');
-  if (checkConfig(root).state !== 'missing' || git(root, ['rev-parse', '--git-dir']) === null) return loadProject(root);
+  if (!otherRepo || checkConfig(root).state !== 'missing' || git(root, ['rev-parse', '--git-dir']) === null) return loadProject(root);
   const head = git(root, ['symbolic-ref', '--short', '-q', 'refs/remotes/origin/HEAD']);
   const main = head && head.includes('/') ? head.slice(head.indexOf('/') + 1) : null;
   const defaults = defaultsOf(loadSchema());
