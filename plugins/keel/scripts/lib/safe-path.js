@@ -70,10 +70,10 @@ function safeLocalWrite(root, parts, text, { append = false } = {}) {
 
 // Without keel's config no .keel/.gitignore keeps .keel/local out of git: a .gitignore there that
 // ignores everything, itself too, keeps keel's files out of git status and of every commit.
+// Best effort: a link there (safeLocalPath refuses it) or a file already there leaves it as it is.
 function ignoreLocal(root) {
   if (fs.existsSync(path.join(root, '.keel', 'config.json'))) return;
-  const file = path.join(root, '.keel', 'local', '.gitignore');
-  if (!fs.existsSync(file)) fs.writeFileSync(file, '*\n');
+  try { fs.writeFileSync(safeLocalPath(root, '.gitignore'), '*\n', { flag: 'wx' }); } catch { /* there, or a link */ }
 }
 
 // Replaces .keel/local/<name> with text by writing a temporary file and renaming it over the file, so a

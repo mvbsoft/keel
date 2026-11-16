@@ -193,3 +193,14 @@ test('migrate apply: a move never takes files out of a link: a link in the old f
   assert.ok(fs.lstatSync(path.join(dir, '.orbit', 'ext')).isSymbolicLink() && fs.lstatSync(path.join(dir, '.claude-memory')).isSymbolicLink(), 'the links stay');
   assert.ok(!exists(dir, '.keel/sessions') && !exists(dir, '.keel/memory'));
 });
+
+test('a repository without keel: the .gitignore keel writes in .keel/local never follows a link out', (t) => {
+  const dir = tmp('keel-links-');
+  const outside = path.join(tmp('keel-outside-'), 'planted.txt');
+  fs.mkdirSync(path.join(dir, '.keel', 'local'), { recursive: true });
+  if (!fileLink(outside, path.join(dir, '.keel', 'local', '.gitignore'))) { t.skip('file links need Developer Mode or admin rights here'); return; }
+  const { safeLocalWrite } = require(path.join(SCRIPTS, 'lib', 'safe-path.js'));
+  safeLocalWrite(dir, ['tmp', 'x.txt'], 'x\n');
+  assert.ok(!fs.existsSync(outside), 'nothing written through the dangling link');
+  assert.ok(exists(dir, '.keel/local/tmp/x.txt'), 'the write itself goes on');
+});
