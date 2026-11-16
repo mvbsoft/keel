@@ -432,9 +432,10 @@ only on its yes, in both git modes: 1) onto the feature branch (a ticket branch 
 2) keep the files (default) or remove them: the folder goes to keel's trash, and one in the repository
 leaves in its own commit on the feature branch, before the merge; 3) "Merge `<branch>` into
 `<merge_into>`?"; 4) after the merge, "Delete the branch `<branch>`?". A plan marked done outside a
-task's finish (from `/keel:tasks` or `/keel:start-task`) is committed and pushed on its branch first, so
-the merge carries it. A feature on this machine has only step 2: its tasks had branches of their own.
-`/keel:tasks` offers this end while the feature's branch can still merge: `plans.js list` marks a done
-feature `branch <b> merged into <m>` or `branch <b> not found`, and then it offers nothing; its folder
-stays, and `plans.js drop <feature>` on a branch of its own, then `plans.js commit <feature>` there,
-removes it.
+task's finish (from `/keel:tasks` or `/keel:start-task`) is committed and pushed on the feature branch
+(or its ticket branch) first, so the merge carries it. A feature on this machine has only step 2, asked
+when the plan is marked done: its tasks had branches of their own. `/keel:tasks` offers this end while
+the feature's branch can still merge: `plans.js list` marks a done feature `kept on this machine`,
+`branch <b> merged into <m>` (here or on the remote, so a pull request merged on the server counts) or
+`branch <b> not found`, and then it offers nothing; its folder stays, and `plans.js drop <feature>`
+removes it (one in the repository on a branch of its own, then `plans.js commit <feature>` there).

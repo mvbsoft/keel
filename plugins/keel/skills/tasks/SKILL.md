@@ -43,9 +43,10 @@ Current state of this project:
    done?"; yes → run that `plans.js state <f> done`, then its end as below, which first commits and
    pushes the plan. Then `node "<keel>/scripts/plans.js" "<project>" list`: a
    `- <f>: done` line (every ticket done or abandoned, its folder still here) → offer its end as
-   `<keel>/skills/_shared/git-end-of-feature.md` says; not when the line ends with `merged into <m>` or
-   `not found` (its branch is merged or gone: say nothing; when the user asks to remove its tickets:
-   `plans.js drop <f>` on a branch of its own, then `plans.js commit <f>` there).
+   `<keel>/skills/_shared/git-end-of-feature.md` says; not when the line ends with `merged into <m>`,
+   `not found` or `kept on this machine` (its branch is merged or gone, or keep was asked when the plan
+   was marked done: say nothing; when the user asks to remove its tickets: `plans.js drop <f>`, for a
+   feature in the repository on a branch of its own, then `plans.js commit <f>` there).
 4. `<task id>`: show its block, then read its `task.md` (and `plan.md`): in this working tree from the
    path in Files; on another branch: `git show <branch>:./<path>/task.md`. Tell its goal, state,
    open questions and next action in 3-6 lines. An id that is not listed → say so and show the list.

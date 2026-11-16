@@ -10,10 +10,11 @@ instruction): say "Feature <f> is complete: all its tickets are done or abandone
 `node "<keel>/scripts/plans.js" "<project>" tickets <f>`, never from the task file; `<folder>` from its
 `folder:` line. A feature on this machine (that line ends with `(this machine only)`): only step 1;
 its tasks had branches of their own, so there is no feature branch to switch to, merge or delete.
-**The plan in git**, first and again on `<branch>` before step 2: `git status --porcelain -- <folder>`
-prints a line (the plan marked done outside a task's finish, by `/keel:tasks` or `/keel:start-task`) →
+**The plan in git**, first when on `<branch>` or its ticket branch `<branch>-<t>`, and again on
+`<branch>` before step 2: `git status --porcelain -- <folder>` prints a line (the plan marked done
+outside a task's finish, by `/keel:tasks` or `/keel:start-task`) →
 `node "<keel>/scripts/plans.js" "<project>" commit <f>`, then `plans.js push <f>` (Claude Code asks
-each); refused on the main branch → step 0 takes the change to `<branch>`, where it is committed.
+each). On any other branch step 0 takes the change to `<branch>`, where it is committed.
 Then one question at a time:
 0. Onto `<branch>`. Already on it → nothing. On the ticket branch the last ticket finished on
    (`<branch>-<t>`) → first its usual merge into `<branch>` (step 3; it leaves you on `<branch>`); declined or refused

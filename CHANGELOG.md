@@ -12,8 +12,8 @@ All notable changes to keel are listed here. The format follows
   (`could not switch to <merge_into>`). It runs for a feature on this machine as only its keep or
   delete step, since such a feature has no branch of its own.
 - `/keel:tasks` offers End of feature only while the feature's branch can still merge: `plans.js list`
-  ends a done feature's line with `branch <b> merged into <m>` or `branch <b> not found`, and then
-  nothing is offered. `plans.js drop` on the branch a feature merged into says to drop it on a branch
+  ends a done feature's line with `kept on this machine`, `branch <b> merged into <m>` (also a merge
+  on the remote not pulled yet) or `branch <b> not found`, and then nothing is offered. `plans.js drop` on the branch a feature merged into says to drop it on a branch
   of its own.
 - A separate session for another repository's ticket names this project's feature branch and ends with
   the two commands that commit and push the ticket's status in this project; before, nothing committed

@@ -271,7 +271,7 @@ test('a plan whose last ticket was closed elsewhere: /keel:tasks and start-task 
 
 test('End of feature: a plan marked done outside a finish is committed and pushed before the merge; a feature on this machine has only step 1', () => {
   const end = shared('git-end-of-feature.md');
-  says(end, ['**The plan in git**', 'first and again on `<branch>` before step 2', '`git status --porcelain -- <folder>`', 'prints a line', 'outside a task\'s finish', '`node "<keel>/scripts/plans.js" "<project>" commit <f>`', '`plans.js push <f>`', 'refused on the main branch', 'step 0 takes the change to `<branch>`']);
+  says(end, ['**The plan in git**', 'first when on `<branch>` or its ticket branch `<branch>-<t>`', 'again on', '`<branch>` before step 2', '`git status --porcelain -- <folder>`', 'prints a line', 'outside a task\'s finish', '`node "<keel>/scripts/plans.js" "<project>" commit <f>`', '`plans.js push <f>`', 'On any other branch step 0 takes the change to `<branch>`']);
   order(end, '**The plan in git**', '0. Onto `<branch>`.', 'the plan is committed before any branch change');
   says(end, ['`<folder>` from its', '`folder:` line']);
   says(end, ['A feature on this machine', '`(this machine only)`', 'only step 1', 'no feature branch to switch to, merge or delete']);
@@ -279,9 +279,10 @@ test('End of feature: a plan marked done outside a finish is committed and pushe
   says(planned(), ['"End of feature" in git.md', 'it first commits and', 'pushes the plan']);
 });
 
-test('/keel:tasks: End of feature is offered only while the feature branch can still merge', () => {
+test('/keel:tasks: End of feature is offered only while the feature branch can still merge, never again for a feature on this machine', () => {
   const t = skill('tasks');
-  says(t, ['a', '`- <f>: done` line', 'offer its end', 'not when the line ends with `merged into <m>` or', '`not found`', 'say nothing', '`plans.js drop <f>` on a branch of its own', '`plans.js commit <f>` there']);
+  says(t, ['a', '`- <f>: done` line', 'offer its end', 'not when the line ends with `merged into <m>`,', '`not found` or `kept on this machine`', 'keep was asked when the plan', 'say nothing', '`plans.js drop <f>`', 'on a branch of its own', '`plans.js commit <f>` there']);
+  assert.match(read('scripts', 'lib', 'plans-git.js'), /return ' · kept on this machine';/, 'plans.js list prints kept on this machine');
   const lib = read('scripts', 'lib', 'plans-git.js');
   assert.match(lib, /` · branch \$\{clean\(b\.branch, 80\)\} merged into \$\{clean\(b\.merge_into, 80\)\}`/, 'plans.js list prints merged into <m>');
   assert.match(lib, /` · branch \$\{clean\(b\.branch, 80\)\} not found`/, 'plans.js list prints not found');
