@@ -6,6 +6,15 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-17
+
+### Fixed
+- Usage page, Sessions: the total row sums the share of the weekly limit of every session it counts,
+  as it does the cost; a group row (by project, day or machine) shows its cost under Cost and its
+  share under Share of the week, instead of the cost spread over both columns.
+- Plans without a 5-hour window: the usage page, the session report and `usage.js calibrate` no
+  longer show an empty 5-hour column, a "no calibration yet" line or a count of 0 5-hour points.
+
 ## [2.2.0] - 2026-11-17
 
 ### Added
@@ -852,7 +861,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/mvbsoft/keel/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/mvbsoft/keel/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/mvbsoft/keel/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/mvbsoft/keel/compare/v2.0.0...v2.1.0

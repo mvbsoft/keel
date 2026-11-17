@@ -131,7 +131,7 @@ column:
 ![Overview tab with sample data](images/usage-overview.png)
 
 *Sample data.* The plan limit of the week: the percent used, when it resets, the forecast at reset
-(information only), the 5-hour window, what those percents would cost at API prices, and what 1 %
+(information only), the 5-hour window (left out, here and on Plan limit, when the plan has none), what those percents would cost at API prices, and what 1 %
 costs in dollars. Then what was spent in the
 period (sessions, hours of work, your messages), daily columns split by model, where the money went
 (by project, model, who (main conversation or agents), machine or user), the most expensive sessions and

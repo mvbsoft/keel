@@ -55,7 +55,8 @@ test('sessions: ten rows first, "show more" adds the rest; a stored group, check
   assert.doesNotMatch(page.view(), /id="ssMore"/);
 
   const grouped = await openPage({ db: stubDb({ days: [dbDoc(1, list, `${d(1)}T23:00:00Z`)] }), hash: '#sessions', stored: { 'keel-usage.ss': { group: 'project' } } });
-  assert.match(grouped.view(), /<tr class="ss-grp"><td colspan="3">shop · Sessions: 12<\/td><td class="r" colspan="2">\$78\.00<\/td><\/tr>/);
+  // The cost stays in the cost column; with no calibration the group has no share of the week.
+  assert.match(grouped.view(), /<tr class="ss-grp"><td colspan="3">shop · Sessions: 12<\/td><td class="r">\$78\.00<\/td><td class="r ss-week"><\/td><\/tr>/);
   assert.equal((grouped.view().match(/<tr class="pick"/g) || []).length, 10, 'the first ten rows, under their group');
   grouped.press('click', 'button[data-group]', { group: 'pc' });
   assert.equal(grouped.saved['keel-usage.ss'].group, 'pc');

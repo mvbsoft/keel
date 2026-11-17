@@ -364,6 +364,20 @@ test('report: no snapshots means no calibration and no invented number', () => {
   assert.doesNotMatch(text, /about [\d.]+ %/);
 });
 
+test('report and calibrate: a plan without a 5-hour window (no five_hour in the snapshots) says nothing about it', () => {
+  const w = reportWorld();
+  const { now, start, snap } = w;
+  w.snaps([snap(now - 4 * HOUR, null, 10), snap(start + 5 * MIN, null, 10.5), snap(start + 8 * MIN, null, 10.8), snap(now - HOUR, null, 12)]);
+  const text = w.report();
+  assert.match(text, /week: about 2\.0 % of the weekly limit/);
+  assert.doesNotMatch(text, /5-hour/);
+  assert.doesNotMatch(w.run(['calibrate']), /5-hour/);
+  // 0 % is a reading, not a missing window: the 5-hour lines stay
+  w.snaps([snap(now - 4 * HOUR, 0, 10), snap(now - HOUR, 0, 12)]);
+  assert.match(w.report(), /5-hour: no calibration yet/);
+  assert.match(w.run(['calibrate']), /5-hour: no rate yet/);
+});
+
 test('report: an api or credit wallet has no percentages; an unknown wallet neither', () => {
   for (const [wallet, pattern] of [['api', /wallet api: real money/], ['credit', /wallet credit: paid from prepaid credit/]]) {
     const w = reportWorld({ wallet });

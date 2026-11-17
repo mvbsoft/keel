@@ -12,6 +12,8 @@ window.KeelViews.limit = (app) => {
   const waiting = new Set([].concat(v.waiting, (c && c.waiting) || []));
   const wRate = c && c.weekly && fin(c.weekly.rate) ? c.weekly.rate : v.medians.weekly;
   const fRate = c && c.five_hour && fin(c.five_hour.rate) ? c.five_hour.rate : v.medians.five_hour;
+  // Plans without a 5-hour window send no five_hour reading: then the page says nothing about that window.
+  const hasFive = !!(fRate || pts.some((p) => p.kind === 'five_hour') || app.limitInfo().f);
   const kept = (kind) => v.rows.filter((r) => r.kind === kind && r.status === 'kept').length;
   const dropped = v.rows.filter((r) => r.status === 'dropped').length;
   const showAll = !!(app.store.get('limit') || {}).all;
@@ -30,7 +32,7 @@ window.KeelViews.limit = (app) => {
       ${apiOnly ? `<div class="sub small">${esc(t('wallet.no_percent'))}</div>` : ''}
       <div class="facts">
         ${per(t('cal.per_pct_weekly'), wRate, wRate ? t('cal.median_n', { n: wN }) : t('cal.none'))}
-        ${per(t('cal.per_pct_five'), fRate, fRate ? t('cal.median_n', { n: fN }) : t('cal.none'))}
+        ${hasFive ? per(t('cal.per_pct_five'), fRate, fRate ? t('cal.median_n', { n: fN }) : t('cal.none')) : ''}
         ${per(t('cal.whole_week'), wRate ? wRate * 100 : null, wRate ? t('cal.whole_note') : t('cal.none'))}
       </div></section>`;
   }
@@ -86,7 +88,7 @@ window.KeelViews.limit = (app) => {
     const body = shown.map((r) => `<tr><td>${esc(win(r))}</td><td>${esc(t(`cal.kind_${r.kind}`))}</td>
       <td class="r">${esc(fPct(Number(r.gain) || 0, 1))}</td><td class="r">${esc(fUsd(r.usd))}</td><td class="r">${esc(r.rate > 0 ? fUsd(r.rate) : '—')}</td>
       <td><div class="row"><span class="pill ${STATUS[r.status]} st">${esc(t(`cal.${r.status}`))}</span>${r.reason && r.status !== 'kept' ? `<span class="small muted">${esc(t(`cal.reason.${r.reason}`))}</span>` : ''}</div></td></tr>`).join('');
-    const hint = [t('cal.hint', { shown: shown.length, total: v.rows.length, weekly: kept('weekly'), five: kept('five_hour') })].concat(dropped ? [t('cal.hint_dropped', { n: dropped })] : []).join(' · ');
+    const hint = [t(hasFive ? 'cal.hint' : 'cal.hint_weekly', { shown: shown.length, total: v.rows.length, weekly: kept('weekly'), five: kept('five_hour') })].concat(dropped ? [t('cal.hint_dropped', { n: dropped })] : []).join(' · ');
     const toggle = v.rows.length > FIRST
       ? `<button type="button" class="btn" id="limAll" data-all="1">${esc(showAll ? t('cal.show_less') : t('cal.show_all', { n: v.rows.length }))}</button>`
       : '';

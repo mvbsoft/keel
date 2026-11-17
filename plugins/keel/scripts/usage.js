@@ -471,7 +471,9 @@ function renderReport({ t, summary, wallet, cal, snapshots, cc }) {
   if (wallet === 'subscription') {
     out.push(t('report.subscription'));
     const c = cal.result;
-    const kinds = [['weekly', 'week', 'seven_day'], ['five_hour', 'five_hour', 'five_hour']];
+    // A plan without a 5-hour window sends no five_hour reading: then the report says nothing about it.
+    const hasFive = snapshots.some((s) => typeof s.five_hour === 'number');
+    const kinds = [['weekly', 'week', 'seven_day']].concat(hasFive ? [['five_hour', 'five_hour', 'five_hour']] : []);
     if (c.weekly.rate === null && c.five_hour.rate === null) out.push(t('report.no_calibration'));
     else {
       for (const [key, name] of kinds) {
@@ -536,9 +538,11 @@ function lastTurnText(t, summary, wallet, cal) {
 function calibrateText(opts) {
   const machine = loadMachineConfig();
   const t = textsFor(opts);
-  const { result } = calibration(inFolder(opts), machine, Date.now());
+  const { result, snapshots } = calibration(inFolder(opts), machine, Date.now());
   const out = [t('calibration.head')];
-  for (const key of ['weekly', 'five_hour']) {
+  // As in the report: no five_hour reading (a plan without a 5-hour window), no 5-hour lines.
+  const hasFive = snapshots.some((s) => typeof s.five_hour === 'number');
+  for (const key of hasFive ? ['weekly', 'five_hour'] : ['weekly']) {
     const r = result[key];
     out.push(`${t(`calibration.${key}`)}: ${r.rate === null ? t('calibration.no_rate') : t('calibration.rate', { rate: r.rate.toFixed(2), n: r.n })}`);
     if (!r.points.length) out.push(`  ${t('calibration.no_points')}`);
