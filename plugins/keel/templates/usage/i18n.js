@@ -350,6 +350,7 @@
     'cal.sync_note': 'A PC sends its data at the end of the work: {task}, {session}. Until a PC has sent its data, a measurement waits for it. Stop sending from this PC: {off}.',
     'cal.points': 'Measurements',
     'cal.hint': '{shown} of {total} · kept {weekly} weekly and {five} 5-hour',
+    'cal.hint_weekly': '{shown} of {total} · kept {weekly} weekly',
     'cal.hint_dropped': 'dropped {n}',
     'cal.col_window': 'When',
     'cal.kind': 'Limit',

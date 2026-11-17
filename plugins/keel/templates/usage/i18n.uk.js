@@ -347,6 +347,7 @@
     'cal.sync_note': 'ПК надсилає дані наприкінці роботи: {task}, {session}. Доки якийсь ПК не надіслав свої, замір чекає на нього. Вимкнути надсилання з цього ПК: {off}.',
     'cal.points': 'Заміри',
     'cal.hint': '{shown} із {total} · враховано {weekly} тижневих і {five} п’ятигодинних',
+    'cal.hint_weekly': '{shown} із {total} · враховано {weekly} тижневих',
     'cal.hint_dropped': 'відкинуто {n}',
     'cal.col_window': 'Коли',
     'cal.kind': 'Ліміт',

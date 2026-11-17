@@ -31,7 +31,8 @@ window.KeelViews.overview = (app) => {
     const apiUsd = live && rate ? pct * rate : null;
     let apiNote = rate ? t('tile.no_limits') : t('tile.no_calibration');
     if (apiUsd != null) apiNote = t('overview.api_usd_note', { pct: fPctAuto(pct) });
-    const fiveNote = !L.f ? t('tile.no_limits') : L.fStale ? t('tile.stale') : t('overview.resets_at', { when: fHM(L.fReset) });
+    // No reading of the 5-hour window at all (some plans have none): the column is left out.
+    const fiveNote = !L.f ? '' : L.fStale ? t('tile.stale') : t('overview.resets_at', { when: fHM(L.fReset) });
     return `<section class="card c7">
       <header><h2>${esc(t('overview.limit_title'))}</h2></header>
       <div class="row" style="align-items:baseline;gap:6px 16px"><div class="big">${esc(live ? fPctAuto(pct) : '—')}</div>${live ? `<div class="muted">${esc(t('overview.used_left', { left: fPctAuto(Math.max(0, 100 - pct)) }))}</div>` : ''}</div>
@@ -39,7 +40,7 @@ window.KeelViews.overview = (app) => {
       <div class="row spread small"><span>${reset}</span><span class="muted">${esc(t('overview.all_devices'))}</span></div>
       ${L.forecast != null ? `<div class="small muted">${esc(t('tile.forecast'))}: ≈ ${esc(fPctAuto(L.forecast))} · ${esc(t('tile.forecast_note'))}</div>` : ''}
       <div class="facts">
-        <div class="col"><span class="lbl">${esc(t('overview.five_hour'))}</span><span class="mid">${esc(fiveLive ? fPctAuto(L.f.five_hour) : '—')}</span>${fiveLive ? meter(L.f.five_hour, t('overview.meter_five', { pct: fPctAuto(L.f.five_hour) }), true) : ''}<span class="small muted">${esc(fiveNote)}</span></div>
+        ${L.f ? `<div class="col"><span class="lbl">${esc(t('overview.five_hour'))}</span><span class="mid">${esc(fiveLive ? fPctAuto(L.f.five_hour) : '—')}</span>${fiveLive ? meter(L.f.five_hour, t('overview.meter_five', { pct: fPctAuto(L.f.five_hour) }), true) : ''}<span class="small muted">${esc(fiveNote)}</span></div>` : ''}
         <div class="col"><span class="lbl">${esc(t('overview.api_usd'))}</span><span class="mid">${esc(apiUsd != null ? `≈ ${fUsd(apiUsd)}` : '—')}</span><span class="small muted">${esc(apiNote)}</span>${live ? `<span class="small muted">${esc(t('overview.via_keel', { usd: fUsd(L.weekUsd) }))}</span>` : ''}</div>
         <div class="col"><span class="lbl">${esc(t('overview.per_pct'))}</span><span class="mid">${esc(rate ? `≈ ${fUsd(rate)}` : '—')}</span>${rate ? `<span class="small muted">${esc(t('tile.rate_n', { n: app.state.calib.weekly.n || 0 }))}</span>` : ''}<a class="small" href="#limit">${esc(t('overview.how_counted'))}</a></div>
       </div></section>`;

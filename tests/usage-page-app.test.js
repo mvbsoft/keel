@@ -277,6 +277,27 @@ test('limit: the price of 1 %, the three steps, this week as a line, the PCs and
   assert.match(uk.view(), new RegExp(`5 із ${points.length} · враховано ${keptWeekly} тижневих і ${keptFive} п’ятигодинних · відкинуто ${dropped}`));
 });
 
+test('a plan without a 5-hour window (snapshots with seven_day only): no 5-hour column, calibration line or count; 0 % still shows it', async () => {
+  const { d, sess, dbDoc } = pageFixture();
+  const reset = new Date(Date.now() + 3 * 864e5).toISOString();
+  const t = (h) => new Date(Date.now() - h * 3600000).toISOString();
+  const point = { from: t(5), to: t(1), gain: 2, usd: 24.2, rate: 12.1, kept: true };
+  const calib = [['office', { computed_at: new Date().toISOString(), weekly: { rate: 12.1, n: 1, points: [point] }, five_hour: { rate: null, n: 0, points: [] }, waiting: [] }]];
+  const open = async (snapshots, hash) => (await openPage({ db: stubDb({ days: [dbDoc(1, [sess('a', 1, d(1))], `${d(1)}T23:00:00Z`, { snapshots })], calib }), hash })).view();
+  const weekOnly = [{ t: t(5), seven_day: 10, seven_day_resets_at: reset, session_id: 'a' }, { t: t(1), seven_day: 12, seven_day_resets_at: reset, five_hour: null, five_hour_resets_at: null, session_id: 'a' }];
+  const overview = await open(weekOnly, '#overview');
+  assert.match(overview, /<div class="big">12 %<\/div>/, 'the weekly limit is there');
+  assert.doesNotMatch(overview, /5-hour/);
+  const limit = await open(weekOnly, '#limit');
+  assert.match(limit, /1 % of the weekly limit/);
+  assert.doesNotMatch(limit, /5-hour/);
+  assert.match(limit, /<span class="hint">1 of 1 · kept 1 weekly<\/span>/);
+
+  const zero = weekOnly.map((s) => ({ ...s, five_hour: 0, five_hour_resets_at: new Date(Date.now() + 3600000).toISOString() }));
+  assert.match(await open(zero, '#overview'), /5-hour window<\/span><span class="mid">0 %<\/span>/, '0 % is a reading, not a missing window');
+  assert.match(await open(zero, '#limit'), /1 % of the 5-hour window/);
+});
+
 test('limit: no calibration, a week that has reset and an API-only wallet each say so', async () => {
   const { d, sess, dbDoc } = pageFixture();
   const bare = await openPage({ db: stubDb({ days: [dbDoc(1, [sess('a', 1, d(1))], `${d(1)}T23:00:00Z`)] }), hash: '#limit' });
