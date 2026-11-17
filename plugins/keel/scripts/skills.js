@@ -285,6 +285,7 @@ async function runEvidence(root, opts) {
   const ctx = {
     owners: new Set(ownersData.owners.map((o) => o.owner.toLowerCase())),
     markets, covered, choices: readChoices(root),
+    needWords: Object.fromEntries(needsData.needs.map((n) => [n.id, n.search])),
     today: typeof opts.today === 'string' ? Date.parse(opts.today) : Date.now(),
   };
   const f = makeFetcher(typeof opts.responses === 'string' ? readJsonFile(opts.responses) : null);

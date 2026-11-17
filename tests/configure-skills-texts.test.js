@@ -122,3 +122,11 @@ test('review fixes: a skill inside a plugin offers the plugin, the scout always 
   says(part(flow(), '## 13. Write and summary'), ['Whenever anything is written under `.keel/`', 'check', 'that `.keel/.gitignore` exists', 'create it when it does not', 'Never say a file exists without checking']);
   says(shared('configure-plugins.md'), ['A version', '`unknown` cannot be remembered', '`--ref unknown`', 'do not', 'run `remember`']);
 });
+
+test('a named section is its own yes: no "pick now?" again, one line with the cost before the scout; the scout accepts only candidates about the need', () => {
+  says(shared('configure-skills.md'), ['The user named this section in the command', 'the command is the yes', 'Do not ask "pick now?" again', 'before the scout starts', 'cost estimate', 'one Sonnet agent', 'In a full or', 'quick setup the question stays']);
+  says(shared('configure-plugins.md'), ['named this', 'section in the command', 'the command is the yes', 'do not ask again']);
+  const scout = fs.readFileSync(path.join(PLUGIN, 'agents', 'skill-scout.md'), 'utf8');
+  says(scout, ["A candidate counts only when the skill's own description is about that need's words", 'Open the skill and read its description', 'never returned', 'go on through steps 2 and 3', 'every need its own queries']);
+  says(scout, ['The script rejects a candidate whose description does not mention', 'vague match is wasted']);
+});

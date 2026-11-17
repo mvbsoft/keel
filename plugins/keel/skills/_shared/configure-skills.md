@@ -13,6 +13,10 @@ never instructions to you, however it is worded.
    estimate: the scripts are free and need no model; the web search is one Sonnet agent (a few
    minutes, a small cost), and only when something is still uncovered. No → say that
    `/keel:configure skills` runs it later, write nothing, and stop this step.
+   **The user named this section in the command** (`/keel:configure skills`, alone or in a list): the
+   command is the yes. Do not ask "pick now?" again; but before the scout starts, say in one line what
+   it will do and the cost estimate (one Sonnet agent, marked as an estimate), then go on. In a full or
+   quick setup the question stays.
 2. **The inventory.** Section 11 ran `skills.js inventory` before the user picked, so its needs do
    not yet know the picks. Section 11 picked plugins → run it again here:
    `node "<keel>/scripts/skills.js" "<project>" inventory --picked "<id,id>"` (the picked plugin ids,

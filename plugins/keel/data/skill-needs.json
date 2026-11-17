@@ -11,7 +11,7 @@
     { "id": "express", "kind": "framework", "search": "Express Node.js", "priority": 10, "when": { "packages": ["express"] }, "covered_by": null, "known": [] },
     { "id": "nestjs", "kind": "framework", "search": "NestJS", "priority": 10, "when": { "packages": ["@nestjs/core"] }, "covered_by": null, "known": [] },
     { "id": "react", "kind": "framework", "search": "React", "priority": 10, "when": { "packages": ["react"] }, "covered_by": null, "known": [] },
-    { "id": "vue", "kind": "framework", "search": "Vue.js", "priority": 10, "when": { "packages": ["vue"] }, "covered_by": null, "known": [] },
+    { "id": "vue", "kind": "framework", "search": "Vue", "priority": 10, "when": { "packages": ["vue"] }, "covered_by": null, "known": [] },
     { "id": "nextjs", "kind": "framework", "search": "Next.js", "priority": 10, "when": { "packages": ["next"] }, "covered_by": null, "known": [] },
     { "id": "angular", "kind": "framework", "search": "Angular", "priority": 10, "when": { "packages": ["@angular/core"] }, "covered_by": null, "known": [] },
     { "id": "rails", "kind": "framework", "search": "Ruby on Rails", "priority": 10, "when": { "packages": ["rails"] }, "covered_by": null, "known": [] },

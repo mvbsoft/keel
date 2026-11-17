@@ -17,7 +17,7 @@ class Responses {
   set(url, status, body) { this.map[url] = { status, body }; return this; }
 
   // A repository with a skill folder: files is { rel: text }, plus links (symlinks) and tree overrides.
-  candidate(owner, repo, folder, { sha = SHA('a'), files = { 'SKILL.md': skillMd('Helps with tests.') }, repoInfo = {}, changed = '2026-10-01T00:00:00Z', links = [], extraTree = [], rootLicense = MIT, treeTruncated = false } = {}) {
+  candidate(owner, repo, folder, { sha = SHA('a'), files = { 'SKILL.md': skillMd('Helps with tests for React, Jest, Docker, MySQL, Redis and Vue.') }, repoInfo = {}, changed = '2026-10-01T00:00:00Z', links = [], extraTree = [], rootLicense = MIT, treeTruncated = false } = {}) {
     const info = { full_name: `${owner}/${repo}`, archived: false, pushed_at: '2026-11-01T00:00:00Z', stargazers_count: 42, license: { spdx_id: 'MIT' }, ...repoInfo };
     this.set(`${API}/repos/${owner}/${repo}`, 200, info);
     this.set(`${API}/repos/${owner}/${repo}/commits?per_page=1${folder ? `&path=${encodeURIComponent(folder)}` : ''}`, 200, [{ sha, commit: { committer: { date: changed } } }]);

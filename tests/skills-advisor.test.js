@@ -361,7 +361,7 @@ const gh = (repo) => `https://github.com/${repo}`;
 
 const OWN_APACHE = '                                 Apache License\n                           Version 2.0, January 2004\n';
 function candidatesAll(res) {
-  res.candidate('anthropics', 'skills', 'skills/tester', { files: { 'SKILL.md': skillMd('Helps with tests.'), 'scripts/run.py': 'print(1)\n' } })
+  res.candidate('anthropics', 'skills', 'skills/tester', { files: { 'SKILL.md': skillMd('Helps with React tests.'), 'scripts/run.py': 'print(1)\n' } })
     .set('https://api.github.com/repos/nobody-zz/ghost', 404, { message: 'Not Found' })
     .candidate('trailofbits', 'skills', 'skills/readme-only', { files: { 'README.md': 'no skill here\n' } })
     .candidate('trailofbits', 'old-skills', 'x', { repoInfo: { archived: true } })
@@ -369,16 +369,18 @@ function candidatesAll(res) {
     .candidate('community-dev', 'listed', '')
     .candidate('example-dev', 'unknown', 'u')
     .candidate('trailofbits', 'linked', 'z', { links: ['evil'] })
-    .candidate('anthropics', 'stale', 'old', { files: { 'SKILL.md': skillMd('Old helper.'), 'tool.sh': 'echo\n' }, changed: '2024-01-01T00:00:00Z' })
+    .candidate('anthropics', 'stale', 'old', { files: { 'SKILL.md': skillMd('Old Docker helper.'), 'tool.sh': 'echo\n' }, changed: '2024-01-01T00:00:00Z' })
     .candidate('anthropics', 'gpl', 'g', { repoInfo: { license: { spdx_id: 'GPL-3.0' } } })
     .candidate('trailofbits', 'plug', 'plugins/p/skills/s', { repoInfo: { archived: true, license: null }, rootLicense: null, extraTree: [{ path: 'plugins/p/.claude-plugin/plugin.json', mode: '100644', type: 'blob', size: 2 }, { path: '.claude-plugin/marketplace.json', mode: '100644', type: 'blob', size: 2 }] })
     .set(`https://raw.githubusercontent.com/trailofbits/plug/${SHA('a')}/plugins/p/.claude-plugin/plugin.json`, 200, { name: 'p-tools' })
     .set(`https://raw.githubusercontent.com/trailofbits/plug/${SHA('a')}/.claude-plugin/marketplace.json`, 200, { name: 'tob-market', plugins: [{ name: 'other' }, { name: 'p-tools', source: './plugins/p' }] })
     .candidate('anthropics', 'rootplug', 'skills/r', { extraTree: [{ path: '.claude-plugin/plugin.json', mode: '100644', type: 'blob', size: 2 }] })
     .set(`https://raw.githubusercontent.com/anthropics/rootplug/${SHA('a')}/.claude-plugin/plugin.json`, 200, { name: 'root-tools' })
-    .candidate('anthropics', 'custom', 'c', { files: { 'SKILL.md': skillMd('Custom terms.'), 'LICENSE': 'You may use this on Tuesdays only.\n' } })
-    .candidate('anthropics', 'own', 'o', { files: { 'SKILL.md': skillMd('Own licence.'), 'LICENSE.txt': OWN_APACHE } })
-    .candidate('trailofbits', 'flaky', 'f');
+    .candidate('anthropics', 'custom', 'c', { files: { 'SKILL.md': skillMd('Custom terms for Redis.'), 'LICENSE': 'You may use this on Tuesdays only.\n' } })
+    .candidate('anthropics', 'own', 'o', { files: { 'SKILL.md': skillMd('Own licence, MySQL.'), 'LICENSE.txt': OWN_APACHE } })
+    .candidate('trailofbits', 'flaky', 'f')
+    .candidate('anthropics', 'audit', 'a', { files: { 'SKILL.md': skillMd('Security audit of web code.') } })
+    .candidate('anthropics', 'mongo', 'm', { files: { 'SKILL.md': '---\nname: mongodb-helper\ndescription: Query helper.\n---\nbody\n' } });
   delete res.map['https://api.github.com/repos/trailofbits/flaky'];
 }
 const ALL = [
@@ -398,6 +400,8 @@ const ALL = [
   { need: 'redis', repo: gh('anthropics/rootplug'), path: 'skills/r' },
   { need: 'redis', repo: gh('anthropics/custom'), path: 'c' },
   { need: 'vue', repo: gh('Anthropics/Skills'), path: 'skills/tester/' },
+  { need: 'yii2', repo: gh('anthropics/audit'), path: 'a' },
+  { need: 'mongodb', repo: gh('anthropics/mongo'), path: 'm' },
 ];
 
 test('evidence: facts from GitHub at a pinned commit, made-up candidates dropped, the action by fixed rules', async () => {
@@ -408,7 +412,7 @@ test('evidence: facts from GitHub at a pinned commit, made-up candidates dropped
   assert.deepEqual(block(text, 1), [
     `candidate 1: anthropics/skills/skills/tester @ ${'a'.repeat(7)}`,
     'need: react',
-    'what: Helps with tests.',
+    'what: Helps with React tests.',
     'facts: marketplace Anthropic official; owner on keel\'s list yes; pushed 2026-11-01; changed 2026-10-01; archived no; licence MIT; stars 42 (shown only)',
     `link: https://github.com/anthropics/skills/tree/${SHA('a')}/skills/tester`,
     'risks: code (1 file)',
@@ -424,6 +428,8 @@ test('evidence: facts from GitHub at a pinned commit, made-up candidates dropped
   assert.equal(action('trailofbits/linked/z'), 'action: not recommended: links (1): keel does not copy such a folder');
   assert.equal(action('anthropics/stale/old'), 'action: not recommended: has code and no change since 2024-01-01 (12 months)');
   assert.equal(action('anthropics/gpl/g'), 'action: install');
+  assert.equal(action('anthropics/audit/a'), 'action: not recommended: its description does not mention Yii2', 'a candidate must name its need');
+  assert.equal(action('anthropics/mongo/m'), 'action: install', 'the front-matter name counts too');
   assert.match(text, /licence GPL-3\.0 \(not on keel's list: ask first\)/);
   assert.equal(action('trailofbits/plug/plugins/p/skills/s'), 'action: not recommended: part of the plugin at plugins/p: a plugin is installed whole, not one skill of it; the repository is archived; licence unknown', 'every reason that applies');
   assert.equal(action('anthropics/rootplug/skills/r'), 'action: not recommended: part of the plugin at the repository root: a plugin is installed whole, not one skill of it');
@@ -559,7 +565,7 @@ test('install: copies the folder at the pinned commit with LICENSE and source.js
   const { root, s } = await installSetup();
   const out = await run(root, 'install', '1', '--responses', s.responses);
   assert.deepEqual(lines(out.trim()), [`installed: ${target(root)}`, 'written: SKILL.md', 'written: scripts/run.py', 'written: LICENSE', 'written: source.json', 'has code: scripts/run.py']);
-  assert.equal(fs.readFileSync(path.join(target(root), 'SKILL.md'), 'utf8'), skillMd('Helps with tests.'), 'SKILL.md is not changed');
+  assert.equal(fs.readFileSync(path.join(target(root), 'SKILL.md'), 'utf8'), skillMd('Helps with React tests.'), 'SKILL.md is not changed');
   assert.match(fs.readFileSync(path.join(target(root), 'LICENSE'), 'utf8'), /Permission is hereby granted/);
   const src = json(path.join(target(root), 'source.json'));
   assert.deepEqual({ ...src, installed_at: typeof src.installed_at }, { repo: 'https://github.com/anthropics/skills', path: 'skills/tester', commit: SHA('a'), license: 'MIT', installed_at: 'string', need: 'react' });
@@ -643,6 +649,16 @@ test('skills.js: one error line and exit code 1; --lsp says whether a language s
   assert.match(bad.stdout, /^skills: error: unknown command "bogus"/);
   const lsp = spawnSync(process.execPath, [SCRIPT, os.tmpdir(), '--lsp', 'no-such-server-xyz'], { encoding: 'utf8' });
   assert.equal(lsp.stdout, 'no-such-server-xyz: not on PATH\n');
+});
+
+test('relevance: a need is named by any significant search word, whole and in any case', () => {
+  const { mentions } = require(path.join(SCRIPTS, 'lib', 'skills-evidence.js'));
+  assert.equal(mentions('Express Node.js', 'Runs on node.js servers'), true);
+  assert.equal(mentions('Express Node.js', 'Nodexjs tools'), false, 'a dot is literal');
+  assert.equal(mentions('Ruby on Rails', 'For a Rails app'), true);
+  assert.equal(mentions('Ruby on Rails', 'Turn it on'), false, 'a filler or short word does not count');
+  assert.equal(mentions('Yii2', 'yii2-based projects'), true);
+  assert.equal(mentions('React', 'Reactive streams'), false, 'whole words only');
 });
 
 test('front matter: folded and quoted values, broken shapes named', () => {

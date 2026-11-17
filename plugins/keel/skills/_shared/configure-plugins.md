@@ -8,7 +8,9 @@ The calling command gives you `<keel>` and `<project>`. The ground rules of
    now?" yes (runs this step) / no (skips it). In plain words: keel looks at what the project uses
    and at the plugins already installed, and shows what fits; nothing is installed, disabled or
    removed without the user's yes; the scripts cost nothing and need no network. No → say that
-   `/keel:configure plugins` runs it later, write nothing, and stop this step.
+   `/keel:configure plugins` runs it later, write nothing, and stop this step. The user named this
+   section in the command (`/keel:configure plugins`, alone or in a list): the command is the yes, so
+   do not ask again; say in one line what the step will do, then go on.
 2. Run `node "<keel>/scripts/skills.js" "<project>" inventory`. It reads the project and what is
    installed, matches it against keel's checked list and the marketplaces the user has added (never
    the Anthropic Directory: most of its 3,000+ entries are not about code, and it exists only with a

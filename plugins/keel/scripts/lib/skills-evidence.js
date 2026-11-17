@@ -119,6 +119,7 @@ async function readCandidate(f, cand, ctx) {
   const text = skill.status === 200 ? skill.text : null;
   const fm = frontMatter(text || '');
   e.description = text !== null && typeof fm.fields.description === 'string' ? fm.fields.description : null;
+  e.fm_name = typeof fm.fields.name === 'string' ? fm.fields.name : '';
   e.front_matter = text === null ? NOT_CHECKED : fm.ok ? 'ok' : `broken (${fm.problem})`;
   e.name = typeof fm.fields.name === 'string' && NAME.test(fm.fields.name) ? fm.fields.name : (p.path ? p.path.split('/').pop() : p.repo);
   const r = riskFlags(folder.files.map((x) => x.rel), text || '');
@@ -144,6 +145,15 @@ async function readCandidate(f, cand, ctx) {
   return e;
 }
 
+// Whether text names a need by its search words (data/skill-needs.json), case-insensitive and as a whole
+// word. A phrase counts when any of its significant words appears: words of 3 or more characters that
+// are not a filler word ("Ruby on Rails" → Ruby or Rails; "database migrations" → either word).
+const FILLER = new Set(['and', 'the', 'for', 'with']);
+function mentions(phrase, text) {
+  const words = String(phrase).split(/\s+/).filter((w) => w.length >= 3 && !FILLER.has(w.toLowerCase()));
+  return words.some((w) => new RegExp(`(^|[^A-Za-z0-9])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^A-Za-z0-9]|$)`, 'i').test(text));
+}
+
 const hasCodeOrMcp = (e) => e.risks.code.length > 0 || e.risks.flags.some((x) => x.startsWith('MCP'));
 
 // Whether a remembered ref names this commit: the full sha or a prefix of at least 7 characters.
@@ -161,6 +171,9 @@ function decide(e, ctx) {
   if (e.problem) return no(e.problem);
   if (e.description === null) return no(`its description could not be read (${e.front_matter})`);
   const why = [];
+  // A need keel does not list has no words to check; such a candidate is judged by the other rules.
+  const words = ctx.needWords && ctx.needWords[e.need];
+  if (words && !mentions(words, `${e.description} ${e.fm_name || ''}`)) why.push(`its description does not mention ${words}`);
   if (e.front_matter !== 'ok') why.push(`front matter ${e.front_matter}`);
   if (e.part_of_plugin !== null && e.part_of_plugin !== undefined) why.push(`part of the plugin at ${e.part_of_plugin || 'the repository root'}: a plugin is installed whole, not one skill of it`);
   const bad = e.risks.flags.find((x) => /^(links|submodules|unsafe paths)/.test(x));
@@ -321,4 +334,4 @@ async function install(f, e, base, { licenseOk = false, need = '', today = Date.
   return { target, written: contents.map(([rel]) => rel), code: e.risks.code || [] };
 }
 
-module.exports = { evidence, evidenceReport, install, decide, readCandidate, checkInstalled, folderOf, unsafePath, marketplaceOf, SAFE_LICENSES, MAX_FILES, MAX_BYTES, NOT_CHECKED };
+module.exports = { evidence, evidenceReport, install, decide, mentions, readCandidate, checkInstalled, folderOf, unsafePath, marketplaceOf, SAFE_LICENSES, MAX_FILES, MAX_BYTES, NOT_CHECKED };
