@@ -60,6 +60,22 @@ function marketplaceOf(id, owner, markets) {
   return 'none';
 }
 
+// The plugin a candidate skill belongs to, as the user installs it: its plugin.json name, listed in the
+// repository's own .claude-plugin/marketplace.json at the same commit. Null when either file is missing
+// or the plugin is not listed there.
+async function pluginOf(f, p, sha, tree, folder) {
+  const PLAIN = /^[A-Za-z0-9._-]{1,100}$/;
+  const at = (rel) => (folder ? `${folder}/${rel}` : rel);
+  if (!(tree.tree || []).some((t) => t.path === '.claude-plugin/marketplace.json')) return null;
+  const plugin = json(await f.get(urls.raw(p.owner, p.repo, sha, at('.claude-plugin/plugin.json')), MAX_BYTES));
+  const market = json(await f.get(urls.raw(p.owner, p.repo, sha, '.claude-plugin/marketplace.json'), MAX_BYTES));
+  const name = plugin && typeof plugin.name === 'string' ? printable(plugin.name, 100) : '';
+  const mname = market && typeof market.name === 'string' ? printable(market.name, 100) : '';
+  if (!PLAIN.test(name) || !PLAIN.test(mname) || !Array.isArray(market.plugins) || !market.plugins.some((x) => x && x.name === name)) return null;
+  const id = `${name}@${mname}`;
+  return { name, marketplace: mname, add: `claude plugin marketplace add ${p.owner}/${p.repo}`, install: `claude plugin install ${id} --scope project` };
+}
+
 // Reads one candidate: facts, risks, description, licence. Returns { dropped } for one that does not
 // exist, else the evidence entry (its action decided later).
 async function readCandidate(f, cand, ctx) {
@@ -98,6 +114,7 @@ async function readCandidate(f, cand, ctx) {
   const ups = p.path ? p.path.split('/').map((_, i, a) => a.slice(0, i + 1).join('/')) : [];
   const plugin = ['', ...ups].find((a) => (tree.tree || []).some((t) => t.path === `${a ? `${a}/` : ''}.claude-plugin/plugin.json`));
   e.part_of_plugin = plugin === undefined ? null : plugin;
+  e.plugin = plugin === undefined ? null : await pluginOf(f, p, e.commit, tree, plugin);
   const skill = await f.get(urls.raw(p.owner, p.repo, e.commit, p.path ? `${p.path}/SKILL.md` : 'SKILL.md'), MAX_BYTES);
   const text = skill.status === 200 ? skill.text : null;
   const fm = frontMatter(text || '');
@@ -237,6 +254,10 @@ function evidenceReport(r) {
     out.push(`link: ${e.url}`);
     out.push(`risks: ${e.risks.flags.join(', ') || 'none'}`);
     out.push(`action: ${e.action === 'install' ? 'install' : `not recommended: ${printable(e.reason, 1000)}`}`);
+    // A skill inside a plugin: the plugin to offer instead (not judged here).
+    if (e.part_of_plugin !== null && e.part_of_plugin !== undefined) {
+      out.push(e.plugin ? `plugin: ${e.plugin.name}@${e.plugin.marketplace} | add: ${e.plugin.add} | install: ${e.plugin.install}` : 'plugin: not found in a marketplace of this repository');
+    }
   }
   if (!r.candidates.length) out.push('candidates: none');
   for (const d of r.dropped) out.push(`dropped: ${printable(d, 400)}`);

@@ -347,7 +347,8 @@ function disable(root, id, opts = {}) {
 
 function remember(root, id, opts) {
   if (typeof id !== 'string' || !id || id.length > 300 || /[\0-\x1f]/.test(id)) throw new Error('remember needs an id');
-  if (typeof opts.ref !== 'string' || !opts.ref) throw new Error('remember needs --ref <commit|version>');
+  // An unknown version would hide the item for good: it is offered again instead.
+  if (typeof opts.ref !== 'string' || !opts.ref.trim() || opts.ref.trim().toLowerCase() === 'unknown') throw new Error('no version to remember: it will be offered again next time');
   if (!['installed', 'declined'].includes(opts.decision)) throw new Error('--decision is installed or declined');
   const file = localDir(root, 'skills-choices.json');
   const cur = readJson(file);

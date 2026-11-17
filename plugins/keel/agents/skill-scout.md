@@ -30,7 +30,9 @@ Your task gives:
   know nothing else about the project, and that is as it should be.
 - At most 12 queries and fetches together. Stop earlier when every need has its candidates or you are
   out of leads.
-- Source order, per need; stop at the first step that gives a candidate that fits:
+- Source order, per need. A need that already has candidates may stop there. A need with no candidate
+  after steps 1 and 2 always goes on to step 3, the open search, within the cap of 12 queries; never
+  give up on a need before step 3 has run:
   1. Anthropic's repositories and marketplaces: `site:github.com/anthropics "SKILL.md" <words>`;
   2. the owners on the list: `site:github.com/<owner> "SKILL.md" <words>`, one owner at a time, the
      most likely ones first;

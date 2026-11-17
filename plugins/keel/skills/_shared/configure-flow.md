@@ -523,8 +523,10 @@ already cover; project decisions go to `skills` in `.keel/config.json` in sectio
    `<owner>/<repo>/<path>`, value `{"ref": "<commit>", "decision": "installed" | "declined"}`, the
    full commit: the 40 characters after `/tree/` in the candidate's `link:` line).
    Show both and ask for a yes.
-2. Write them. Create `.keel/.gitignore` with the content of `<keel>/templates/keel/gitignore` (open
-   it with the Read tool); if section 4 chose "state not in git", add `next-session.md`, `memory/` and
+2. Write them. Whenever anything is written under `.keel/` (also in a run of chosen sections), check
+   that `.keel/.gitignore` exists, and create it when it does not, with the content of
+   `<keel>/templates/keel/gitignore` (open it with the Read tool): without it `.keel/local/` (the
+   personal choices, tmp) shows as untracked. Never say a file exists without checking. If section 4 chose "state not in git", add `next-session.md`, `memory/` and
    `sessions/` to it.
 3. Run `node "<keel>/scripts/config-check.js" "<project>" save` (it records what the sections that ran
    were based on, for `/keel:configure check`, then checks the files). When not every section ran, add

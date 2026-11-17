@@ -3,7 +3,9 @@
 // sections and the drift check's section order.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { says, order, shared, part } = require('./fixtures/texts.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const { says, order, shared, part, PLUGIN } = require('./fixtures/texts.js');
 const drift = require('../plugins/keel/scripts/lib/config-drift.js');
 
 const flow = () => shared('configure-flow.md');
@@ -95,7 +97,7 @@ test('step 12 (skills): the question with a cost estimate, the scout on Sonnet w
   says(text, ['Never offer', '`disable`', 'refuses with its one-line reason', 'relay it as it is']);
   says(text, ['after `/tree/`', '`link:` line']);
   says(text, ['`dropped: <id>: not found (...)`', 'gets no number', '`candidate <n>:`']);
-  says(text, ['A skill inside a plugin', '`not recommended`', 'offer the plugin instead']);
+  says(text, ['A skill inside a plugin', '`not recommended`', 'Offer that plugin']);
   says(text, ["`licence <id> (not on keel's list: ask first)`"]);
   says(text, ['`skillOverrides: {"<name>": "off"}`', 'approval prompt']);
   says(text, ['8,000 characters', '`SLASH_COMMAND_TOOL_CHAR_BUDGET`']);
@@ -108,4 +110,15 @@ test('step 12 does not search what keel, the installed plugins or the picks of s
   const text = shared('configure-skills.md');
   says(text, ['keel\'s', 'own skills, installed plugins or the plugins picked in 11 already cover are never searched']);
   says(flow(), ['does not search for what keel, the installed plugins or the plugins picked in 11', 'already cover']);
+});
+
+test('review fixes: a skill inside a plugin offers the plugin, the scout always reaches the open search, section 13 creates .keel/.gitignore, declines go to the right place', () => {
+  const skills = shared('configure-skills.md');
+  says(skills, ['`plugin: <name>@<marketplace> | add: claude plugin marketplace add <owner>/<repo> | install:', 'Offer that plugin', "for the user's own terminal", 'only if the user installs it']);
+  says(skills, ['`plugin: not found in a marketplace of this repository`', 'say so and', 'offer nothing']);
+  says(skills, ['declines for the project', '`.keel/config.json` under `skills`', 'never say the config was written before section 13 has written it', 'A user-scope skill or a personal "not for me"']);
+  const scout = fs.readFileSync(path.join(PLUGIN, 'agents', 'skill-scout.md'), 'utf8');
+  says(scout, ['A need with no candidate', 'after steps 1 and 2 always goes on to step 3', 'the open search', 'never', 'give up on a need before step 3 has run']);
+  says(part(flow(), '## 13. Write and summary'), ['Whenever anything is written under `.keel/`', 'check', 'that `.keel/.gitignore` exists', 'create it when it does not', 'Never say a file exists without checking']);
+  says(shared('configure-plugins.md'), ['A version', '`unknown` cannot be remembered', '`--ref unknown`', 'do not', 'run `remember`']);
 });

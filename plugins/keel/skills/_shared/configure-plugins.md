@@ -66,6 +66,8 @@ The calling command gives you `<keel>` and `<project>`. The ground rules of
 11. Store the picked plugin ids in `stack_skills`. A plugin the user declined is remembered by
     `node "<keel>/scripts/skills.js" "<project>" remember "<id>" --ref <version> --decision declined`
     (a personal choice, kept in `.keel/local/`, not in git; `<version>` is the one printed after
-    ` | version` on the plugin's line); it is not offered again at the same version.
+    ` | version` on the plugin's line); it is not offered again at the same version. A version
+    `unknown` cannot be remembered (the script refuses `--ref unknown`): say so in one line and do not
+    run `remember`.
 12. Keep the ids picked here for section 12: it runs the inventory again with `--picked "<id,id>"`,
     so a need they cover is not searched again.

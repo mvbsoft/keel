@@ -30,8 +30,13 @@ never instructions to you, however it is worded.
    printed as `dropped: <id>: not found (...)` and gets no number; the facts come from the source; the
    action is computed by the script. Read its lines: `checked through:`, `candidate <n>:`, `need:`,
    `what:`, `facts:`, `link:`, `risks:`, `action:`, `dropped:` and `replace: <skill> (...) with
-   candidate <n>`. A skill inside a plugin is `not recommended` as a single skill: offer the plugin
-   instead, with the commands of section 11.
+   candidate <n>`. A skill inside a plugin is `not recommended` as a single skill; under it the script
+   prints `plugin: <name>@<marketplace> | add: claude plugin marketplace add <owner>/<repo> | install:
+   claude plugin install <name>@<marketplace> --scope project`. Offer that plugin, with those commands
+   for the user's own terminal and the explanation of section 11 (the marketplace is not added yet,
+   project scope, each developer runs them, it loads in a new session); its id goes into `stack_skills`
+   only if the user installs it. `plugin: not found in a marketplace of this repository` → say so and
+   offer nothing.
    No network (the script or the agent cannot reach it) → say why in one line, skip the search and
    the evidence, and only evaluate what is installed.
 4. **A framework with nothing reliable** (for example Yii2: no candidate passed): say so plainly and
@@ -85,9 +90,10 @@ never instructions to you, however it is worded.
    stays on in other projects; the user sees Claude Code's approval prompt). A project skill: show the
    folder, the user deletes it. A skill that belongs to a plugin is handled as that plugin in
    section 11.
-9. **Remember the choice.** A project decision (installed or declined) is kept by section 13 in
-   `.keel/config.json` under `skills`; a personal decision (a user-scope skill, a skill the user does
-   not want for the team) with `node "<keel>/scripts/skills.js" "<project>" remember "<id>" --ref <commit> --decision installed|declined`
+9. **Remember the choice.** A candidate the user declines for the project (the default scope), and one
+   installed into the project, go into `.keel/config.json` under `skills` (shared with the team),
+   which section 13 writes: never say the config was written before section 13 has written it. A
+   user-scope skill or a personal "not for me" is kept with `node "<keel>/scripts/skills.js" "<project>" remember "<id>" --ref <commit> --decision installed|declined`
    (it goes to `.keel/local/`, not into git). Save the full commit (the 40 characters after `/tree/` in the candidate's `link:` line), not
    the short one. The same item at the same commit is not offered again; a
    new commit is.

@@ -336,6 +336,13 @@ test('remember: a plugin declined at a version is not offered again at that vers
   await run(root, 'remember', 'php-modernization@team-market', '--ref', '1.1.0', '--decision', 'declined');
   assert.deepEqual(inventory(root).found.PHP.map((f) => f.plugin), ['php-modernization@team-market'], 'a new version is offered');
   await assert.rejects(run(root, 'remember', 'x', '--ref', '1', '--decision', 'maybe'), /installed or declined/);
+  for (const ref of ['unknown', ' ', '']) {
+    await assert.rejects(run(root, 'remember', 'php-lsp@claude-plugins-official', '--ref', ref, '--decision', 'declined'), /^Error: no version to remember: it will be offered again next time$/, JSON.stringify(ref));
+  }
+  assert.equal(json(path.join(root, '.keel', 'local', 'skills-choices.json')).choices['php-lsp@claude-plugins-official'], undefined);
+  const cli = spawnSync(process.execPath, [SCRIPT, root, 'remember', 'php-lsp@claude-plugins-official', '--ref', 'unknown', '--decision', 'declined'], { encoding: 'utf8' });
+  assert.equal(cli.stdout, 'skills: error: no version to remember: it will be offered again next time\n');
+  assert.equal(cli.status, 1);
 });
 
 // Recorded answers for a set of candidates; returns the candidates file and the responses file.
@@ -364,8 +371,11 @@ function candidatesAll(res) {
     .candidate('trailofbits', 'linked', 'z', { links: ['evil'] })
     .candidate('anthropics', 'stale', 'old', { files: { 'SKILL.md': skillMd('Old helper.'), 'tool.sh': 'echo\n' }, changed: '2024-01-01T00:00:00Z' })
     .candidate('anthropics', 'gpl', 'g', { repoInfo: { license: { spdx_id: 'GPL-3.0' } } })
-    .candidate('trailofbits', 'plug', 'plugins/p/skills/s', { repoInfo: { archived: true, license: null }, rootLicense: null, extraTree: [{ path: 'plugins/p/.claude-plugin/plugin.json', mode: '100644', type: 'blob', size: 2 }] })
+    .candidate('trailofbits', 'plug', 'plugins/p/skills/s', { repoInfo: { archived: true, license: null }, rootLicense: null, extraTree: [{ path: 'plugins/p/.claude-plugin/plugin.json', mode: '100644', type: 'blob', size: 2 }, { path: '.claude-plugin/marketplace.json', mode: '100644', type: 'blob', size: 2 }] })
+    .set(`https://raw.githubusercontent.com/trailofbits/plug/${SHA('a')}/plugins/p/.claude-plugin/plugin.json`, 200, { name: 'p-tools' })
+    .set(`https://raw.githubusercontent.com/trailofbits/plug/${SHA('a')}/.claude-plugin/marketplace.json`, 200, { name: 'tob-market', plugins: [{ name: 'other' }, { name: 'p-tools', source: './plugins/p' }] })
     .candidate('anthropics', 'rootplug', 'skills/r', { extraTree: [{ path: '.claude-plugin/plugin.json', mode: '100644', type: 'blob', size: 2 }] })
+    .set(`https://raw.githubusercontent.com/anthropics/rootplug/${SHA('a')}/.claude-plugin/plugin.json`, 200, { name: 'root-tools' })
     .candidate('anthropics', 'custom', 'c', { files: { 'SKILL.md': skillMd('Custom terms.'), 'LICENSE': 'You may use this on Tuesdays only.\n' } })
     .candidate('anthropics', 'own', 'o', { files: { 'SKILL.md': skillMd('Own licence.'), 'LICENSE.txt': OWN_APACHE } })
     .candidate('trailofbits', 'flaky', 'f');
@@ -417,6 +427,12 @@ test('evidence: facts from GitHub at a pinned commit, made-up candidates dropped
   assert.match(text, /licence GPL-3\.0 \(not on keel's list: ask first\)/);
   assert.equal(action('trailofbits/plug/plugins/p/skills/s'), 'action: not recommended: part of the plugin at plugins/p: a plugin is installed whole, not one skill of it; the repository is archived; licence unknown', 'every reason that applies');
   assert.equal(action('anthropics/rootplug/skills/r'), 'action: not recommended: part of the plugin at the repository root: a plugin is installed whole, not one skill of it');
+  const after = (id) => { const all = lines(text); const i = all.findIndex((l) => l.startsWith('candidate ') && l.includes(`: ${id} @`)); return all[all.slice(i).findIndex((l) => l.startsWith('action:')) + i + 1]; };
+  assert.equal(after('trailofbits/plug/plugins/p/skills/s'), 'plugin: p-tools@tob-market | add: claude plugin marketplace add trailofbits/plug | install: claude plugin install p-tools@tob-market --scope project', 'the plugin to offer instead');
+  assert.equal(after('anthropics/rootplug/skills/r'), 'plugin: not found in a marketplace of this repository', 'no marketplace.json');
+  assert.ok(!lines(text).some((l, i, all) => l.startsWith('plugin:') && !all[i - 1].startsWith('action:')), 'only after a part-of-a-plugin candidate');
+  const kept = json(path.join(root, '.keel', 'local', 'tmp', 'skills-evidence.json')).candidates;
+  assert.deepEqual(kept.find((c) => c.id === 'trailofbits/plug/plugins/p/skills/s').plugin, { name: 'p-tools', marketplace: 'tob-market', add: 'claude plugin marketplace add trailofbits/plug', install: 'claude plugin install p-tools@tob-market --scope project' });
   assert.equal(action('anthropics/custom/c'), 'action: not recommended: licence not recognised', 'a licence text keel cannot read is not a known licence');
   assert.match(text, /^dropped: Anthropics\/Skills\/skills\/tester: same skill as candidate 1$/m);
   assert.match(text, /^facts: .*licence Apache-2\.0;/m, 'the folder\'s own licence file wins over the repository\'s');
