@@ -7,7 +7,7 @@
 //          the check lines, then the config-check block. No record on this machine → it is rebuilt once
 //          from the commit of keel's settings files (a temporary git worktree, removed again)
 //        node config-check.js <projectDir> save [--sections "<s1,s2,...>"]
-//          configure step 12: record the basis of the sections that ran (names or numbers; default
+//          configure step 13: record the basis of the sections that ran (names or numbers; default
 //          all), keeping the earlier record of the others, then the check lines
 // Always exits 0; a failure prints one line starting with `config-check: error:`.
 const path = require('node:path');

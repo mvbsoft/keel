@@ -1,0 +1,16 @@
+{
+  "about": "GitHub owners whose skills keel's skills step may offer to install without an Anthropic marketplace listing. Each owner was checked by hand on the date given: who they are and why their published skills can be trusted. A skill from any other owner is offered only when it is in Anthropic's official marketplace. Add an owner only after the same check.",
+  "checked": "2026-11-17",
+  "owners": [
+    {
+      "owner": "anthropics",
+      "why": "Anthropic, the maker of Claude Code: its skills and plugin repositories.",
+      "checked": "2026-11-17"
+    },
+    {
+      "owner": "trailofbits",
+      "why": "Trail of Bits, a security firm; keel already lists its marketplace (trailofbits/skills) in data/stack-skills.json.",
+      "checked": "2026-11-17"
+    }
+  ]
+}

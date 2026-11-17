@@ -1,5 +1,5 @@
 'use strict';
-// configure section 12 (usage and costs): this machine's usage settings and the price table.
+// configure section 10 (usage and costs): this machine's usage settings and the price table.
 // Usage: node usage-setup.js <projectDir> show
 //        node usage-setup.js <projectDir> apply <changes.json>      writes usage.json in usageDir() (only KEYS below)
 //        node usage-setup.js <projectDir> prices-diff <prices.json> old → new diff and multiplier warnings, writes nothing

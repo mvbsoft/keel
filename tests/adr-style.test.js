@@ -78,14 +78,14 @@ test('configure: asks the ADR style whenever there are or will be ADRs, says wha
   says(q, ['`comments.adr_refs`', '`living`', 'propose `forbidden`']);
   says(q, ['one-time clean-up', "user's yes", 'renumber once', 'never again', 'old commit or note keeps the old numbers']);
   says(q, ['/.keel/local/adr-cleanup.md`', 'first task']);
-  const quick = part(flow, '| 8 Documentation |', '\n');
+  const quick = part(flow, '| 7 Documentation |', '\n');
   says(quick, ['ADR style', 'one question']);
-  says(part(flow, '## 12. Write and summary'), ['/keel:start-task .keel/local/adr-cleanup.md']);
+  says(part(flow, '## 13. Write and summary'), ['/keel:start-task .keel/local/adr-cleanup.md']);
 });
 
 test('migration: an old system\'s ADRs that go on get the same style question', () => {
   const m = part(shared('migrate.md'), '## 11. Advice for what stays', '## 12.');
-  says(m, ['ADR', '`docs.adr_style`', 'not set', 'same question', 'configure section 8']);
+  says(m, ['ADR', '`docs.adr_style`', 'not set', 'same question', 'configure section 7']);
 });
 
 test('docs reviewer: checks a change against the chosen ADR style', () => {

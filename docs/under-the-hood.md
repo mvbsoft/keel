@@ -72,6 +72,7 @@ keel has 17 agents. Read-only agents cannot write; the ones that run code are ch
 | ticket-reviewer | in planning: reviews up to 4 tickets each against a checklist and checks in the code what they rely on | Sonnet |
 | plan-reviewer | in planning: reviews the whole plan once at its final end (coverage, with each acceptance criterion in exactly one ticket, contradictions, order) | Sonnet |
 | researcher | in planning, on your yes: reads documentation, package registries and the web (how others do it, which package fits) and returns a report with dated data | Sonnet |
+| skill-scout | in configure's skills step, on your yes: searches the web (and nothing else: no file tools) for skill folders on GitHub for the needs keel and your plugins do not cover, and returns only their places as JSON; a script checks and judges them | Sonnet |
 
 With `allow_opus` off every Opus agent above runs on Sonnet. keel never switches your conversation's model;
 which main model to use: [cost optimization](cost-optimization.md#1-choose-the-main-model).
@@ -243,7 +244,7 @@ above remind it:
 `architecture`, `adr-required`, `documentation-philosophy`, `git`, `migration-safety`,
 `performance-review`, `postgres-best-practices`, `production-readiness`, `python-conventions`,
 `root-cause-analysis`, `when-tests-are-owed`. `/keel:configure` also suggests checked plugins for your
-stack (you run the install commands yourself). The `tracker` skill is loaded when you ask to link
+stack (you run the install commands yourself) and, in its last step, single skills ([settings](settings.md)). The `tracker` skill is loaded when you ask to link
 planned work to your issue tracker, in any conversation ([the tracker](planning.md#the-tracker)).
 
 ## Languages

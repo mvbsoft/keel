@@ -100,11 +100,11 @@ Questions shared by the start of a task and of a session:
 - Scans the project (languages, parts of a monorepo, test, linter and type commands, CI, security
   scanners), runs the commands it found once as a trial and proposes settings. It writes them only
   after your "yes".
-- Quick setup (11–18 questions, the rest comes from recommendations) or detailed setup (every
+- Quick setup (13–20 questions, the rest comes from recommendations) or detailed setup (every
   section).
 - `machine` sets up only this computer for all projects. `check` only says what is worth
   reconfiguring and why. A section name runs only that section: `languages`, `scan`, `gates`, `git`,
-  `verification`, `code`, `planning`, `plugins`, `docs`, `migration`, `settings`, `usage`, `prices`.
+  `verification`, `code`, `planning`, `docs`, `migration`, `settings`, `usage`, `prices`, `plugins`, `skills`.
 - There are three languages: the conversation language (any), the language of files in the
   repository (commits, notes) and the language of tickets. keel's own texts (the cost report,
   warnings, pages) come in English and Ukrainian.
@@ -113,7 +113,9 @@ Questions shared by the start of a task and of a session:
 - Sets up cost tracking: what you pay with on this computer, the usage page, prices, the status
   line. Claude Code gives out plan limit percentages only through the status line; you can keep your
   own line, keel wraps it and changes nothing in it.
-- Recommends proven plugins for your stack and can move notes from another note system.
+- In its last two steps recommends plugins for your stack (and says which installed ones to keep,
+  disable here or remove) and single skills for the project's needs (with evidence, risks and
+  licence; nothing is installed without your yes), and can move notes from another note system.
 - Repairs outdated or broken settings: asks only about fields a newer config format requires, or
   about each problem separately; a whole new settings section is set with
   `/keel:configure <section>`.
@@ -150,7 +152,10 @@ Questions shared by the start of a task and of a session:
 | file size (detailed) | Warning at 700 lines, limit 1000 | accept / change |
 | comments (detailed) | Comment level: only hard places / also a line on each public function / detailed | recommended for your code / the other two |
 | references in code (detailed) | Which ticket prefixes to look for in comments; whether ADRs may be referenced | allowed / forbidden |
-| plugins (detailed) | Which plugins for your stack (nothing is pre-selected) | several from a list |
+| plugins (quick and detailed) | Pick plugins now? | yes / no (then the summary names the command for later) |
+| plugins, if yes | What to do with plugins: install, keep, disable here, remove (nothing is pre-selected) | several from a list |
+| skills (quick and detailed) | Pick skills now? Cost estimate: the scripts are free, the web search is one Sonnet agent | yes / no (then the summary names the command for later) |
+| skills, if yes | What to do with skills; where to install (the project by default); a separate question for a licence outside the list and for a skill with code | several from a list; project / only you; yes / no |
 | you chose a language server plugin and its program is not installed | Did you install it? | check again / skip for now |
 | documentation (detailed) | Profile: 1 only keep documents true / 2 also ADRs / 3 also a description of each feature / 4 full documentation; for 3–4 also a template (Diataxis, arc42) | proposed / others |
 | "living" style and old records have history | Prepare a one-time ADR cleanup as the first task? | prepare / not now |

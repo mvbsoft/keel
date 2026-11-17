@@ -39,6 +39,7 @@ const EXAMPLES = {
     delegation: { min_plan_steps: 8, min_plan_files: 15 },
     cleanup: { trash_max_age_days: 30 },
     stack_skills: ['php-laravel'],
+    skills: { 'acme/skills/php/yii2': { ref: 'abc123', decision: 'installed' }, 'acme/skills/sql': { ref: 'v1.2.0', decision: 'declined' } },
   },
   'profile.schema.json': {
     schema_version: 1,
@@ -188,6 +189,16 @@ test('config.schema.json rejects broken configs', () => {
   assert.deepEqual(validate({ ...ok, verification: { ...ok.verification, tier_rules: { ...ok.verification.tier_rules, core_fan_in: 5 } } }, s), [], 'the core-code setting is optional and valid');
   expectInvalid(s, ok, (d) => { d.repo_language = 'English'; }, /repo_language: does not match/);
   expectInvalid(s, ok, (d) => { d.api_key = 'x'; }, /api_key: unexpected property/);
+  // `skills`: a decision per skill id, with the commit it was made at.
+  expectInvalid(s, ok, (d) => { d.skills.x = { ref: '', decision: 'installed' }; }, /ref: shorter than 1/);
+  expectInvalid(s, ok, (d) => { d.skills.x = { ref: 'a', decision: 'maybe' }; }, /decision: must be one of/);
+  expectInvalid(s, ok, (d) => { d.skills.x = { ref: 'a' }; }, /missing "decision"/);
+  expectInvalid(s, ok, (d) => { d.skills.x = { decision: 'installed' }; }, /missing "ref"/);
+  expectInvalid(s, ok, (d) => { d.skills.x = { ref: 'a', decision: 'declined', note: 1 }; }, /note: unexpected property/);
+  const { skills, ...without } = ok;
+  assert.ok(skills);
+  assert.deepEqual(validate(without, s), [], 'skills is optional');
+  assert.deepEqual(s.properties.stack_skills.items, { type: 'string', minLength: 1 }, 'stack_skills keeps its shape');
 });
 
 test('profile.schema.json rejects machine-specific and unsafe paths', () => {

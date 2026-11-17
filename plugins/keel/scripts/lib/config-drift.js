@@ -1,6 +1,6 @@
 'use strict';
 // What changed in a project since configure last wrote its settings, and which configure sections that
-// calls for. Configure step 12 records, per section it ran, what that section was based on
+// calls for. Configure step 13 records, per section it ran, what that section was based on
 // (.keel/local/configure-snapshot.json); `/keel:configure check` compares the project with it.
 // - A section that has no record yet compares with nothing: it was never set up on this machine.
 // - Something counts as new only when neither the record nor the committed profile has it: the profile
@@ -17,12 +17,12 @@ const { ticketPrefixes, legacyFields } = require('./config.js');
 
 const SNAPSHOT = 'configure-snapshot.json';
 // The configure sections by number (configure-flow.md); a reason names one of them.
-const SECTIONS = ['languages', 'scan', 'gates', 'git', 'verification', 'code', 'plugins', 'docs', 'migration', 'settings', 'usage', 'prices'];
+const SECTIONS = ['languages', 'scan', 'gates', 'git', 'verification', 'code', 'docs', 'migration', 'settings', 'usage', 'plugins', 'skills', 'prices'];
 // The sections whose basis is recorded; the others are checked live (git) or not at all.
-const RECORDED = ['scan', 'gates', 'code', 'plugins', 'docs', 'migration', 'settings', 'usage'];
+const RECORDED = ['scan', 'gates', 'code', 'docs', 'migration', 'settings', 'usage', 'plugins', 'skills'];
 // Fewer files than this (a build script, one config) do not make a new language of the project.
 const MIN_LANGUAGE_FILES = 5;
-// The growth guard of configure section 8: a file Claude Code loads into every session.
+// The growth guard of configure section 7: a file Claude Code loads into every session.
 const ALWAYS_LOADED_MAX = 200;
 const TMP_PREFIX = 'keel-configure-';
 
@@ -47,7 +47,7 @@ function recommendedThen(record) {
 
 // What the scan-based sections rest on, from a scan result. Only reads manifests.
 function scanBasis(root, { profile, findings }) {
-  const stackSkills = require('../stack-skills.js');
+  const stackSkills = require('./skills-stack.js');
   const data = require('../../data/stack-skills.json');
   const stack = stackSkills.stackOf(root, profile);
   return {
@@ -63,6 +63,7 @@ function scanBasis(root, { profile, findings }) {
       frameworks: sorted(data.frameworks.filter((f) => f.packages.some((p) => stack.packages.has(p) || stack.packages.has(p.toLowerCase()))).map((f) => f.name)),
       plugins: sorted(data.plugins.filter((p) => p.when && !p.when.always && stackSkills.matchesWhen(p.when, stack)).map((p) => p.plugin)),
     },
+    skills: { frameworks: sorted(data.frameworks.filter((f) => f.packages.some((p) => stack.packages.has(p) || stack.packages.has(p.toLowerCase()))).map((f) => f.name)) },
     docs: {
       always_loaded: findings.docs.always_loaded.map((f) => ({ path: f.path, lines: f.lines })),
       doc_dirs: sorted([...findings.docs.adr_dirs, ...findings.docs.spec_dirs]),
@@ -97,7 +98,7 @@ function sectionList(arg) {
   return sorted(String(arg).split(/[\s,]+/).filter(Boolean).map((x) => (/^\d+$/.test(x) ? SECTIONS[Number(x) - 1] : x)).filter((x) => RECORDED.includes(x)));
 }
 
-// Configure step 12: record the basis of the sections that ran, on top of the earlier record (or the
+// Configure step 13: record the basis of the sections that ran, on top of the earlier record (or the
 // one rebuilt from the last configure commit), so a section that did not run keeps its old basis.
 function saveSnapshot(root, { scanResult, sections = RECORDED }) {
   const prev = ensureSnapshot(root);
@@ -286,7 +287,7 @@ function liveReasons(root, now, ctx) {
       add('git', 'needed', `main branch "${main}" is not in the repository${head ? `; the remote's default branch is "${head}"` : ''}`, 'keel starts each task from it and merges the work back into it');
     }
   }
-  // 8 docs: a project that keeps ADRs, or will (profile 2+), without a chosen way of keeping them
+  // 7 docs: a project that keeps ADRs, or will (profile 2+), without a chosen way of keeping them
   const docs = config.docs || {};
   const known = require('../../data/catalog.json').docs.adr_dirs;
   const adrDirs = now.docs.doc_dirs.filter((d) => known.includes(d));
@@ -303,14 +304,17 @@ function liveReasons(root, now, ctx) {
   const tickets = now.code.ticket_prefixes.filter((t) => !have.has(t.prefix) && !seen.has(t.prefix));
   if (tickets.length) add('code', 'worth', `ticket ids in the git history: ${tickets.map((t) => `${t.prefix} (${t.ids} ids)`).join(', ')}`, 'keel can point out comments that refer to tickets, which may be renamed or deleted');
 
-  // 7 plugins
+  // 11 plugins and 12 skills: the same stack change calls for both
   const pb = rec.plugins || { frameworks: [], plugins: [] };
   const chosen = new Set(config.stack_skills || []);
   const plugins = added(pb.plugins, now.plugins.plugins).filter((p) => !chosen.has(p));
   const frameworks = added(pb.frameworks, now.plugins.frameworks);
+  // Skills rest on the same frameworks; a record from before the skills step compares with the plugins' one.
+  const newFrameworks = added((rec.skills || pb).frameworks, now.skills.frameworks);
+  if (newFrameworks.length || plugins.length) add('skills', 'worth', `${newFrameworks.length ? `new in the project: ${newFrameworks.join(', ')}` : 'the stack of the project changed'}`, 'the skills Claude sees were chosen without it, and single skills for it may exist');
   if (plugins.length) add('plugins', 'worth', `${frameworks.length ? `new in the project: ${frameworks.join(', ')}; ` : ''}keel's checked list has plugins for what the project uses now: ${plugins.join(', ')}`, 'they give Claude the stack\'s own rules and checks');
 
-  // 8 docs
+  // 7 docs
   const db = rec.docs || { always_loaded: [], doc_dirs: [] };
   for (const f of now.docs.always_loaded) {
     if (f.lines <= ALWAYS_LOADED_MAX) continue;
@@ -321,11 +325,11 @@ function liveReasons(root, now, ctx) {
   const dirs = added(db.doc_dirs, now.docs.doc_dirs);
   if (dirs.length && ((config.docs && config.docs.profile) || 1) < 2) add('docs', 'worth', `new decision or spec folder: ${dirs.join(', ')}`, 'the documentation profile was chosen before it existed');
 
-  // 9 migration
+  // 8 migration
   const systems = added((rec.migration || { other_systems: [] }).other_systems, now.migration.other_systems);
   if (systems.length) add('migration', 'worth', `another notes or memory system: ${systems.join(', ')}`, 'configure can move it into keel, so notes live in one place');
 
-  // 10 settings: never reviewed on this machine, or keys or values a newer keel recommends
+  // 9 settings: never reviewed on this machine, or keys or values a newer keel recommends
   if (!rec.settings) {
     if (snapshot.rebuilt) ctx.skipped.push('Claude Code settings');
     else add('settings', 'worth', 'the Claude Code settings keel recommends were not reviewed on this machine', 'configure explains each one and changes nothing without your yes');
@@ -337,7 +341,7 @@ function liveReasons(root, now, ctx) {
     if (renewed.length) add('settings', 'worth', `keel ${keelVersion()} recommends new values: ${renewed.map(([k, v]) => `${k} ${JSON.stringify(v)} (was ${JSON.stringify(then[k])})`).join(', ')}`, 'configure explains each one and changes nothing without your yes');
   }
 
-  // 11 usage (this machine): never asked here, or gone since; a declined setup stays declined
+  // 10 usage (this machine): never asked here, or gone since; a declined setup stays declined
   if (!now.usage.configured && (!rec.usage || rec.usage.configured)) add('usage', 'worth', rec.usage ? 'this machine\'s usage settings are gone' : 'this machine has no usage settings', 'the cost report at the end of a task and the usage page are off here');
   return out;
 }

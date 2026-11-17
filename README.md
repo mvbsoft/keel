@@ -200,10 +200,12 @@ projects you set up with `/keel:configure`. Terminal install, scopes, updates an
 
 ## Quick start
 
-1. **Set up the project:** `/keel:configure`, quick (11 to 18 questions, depending on the project) or detailed. keel scans the
+1. **Set up the project:** `/keel:configure`, quick (13 to 20 questions, depending on the project) or detailed. keel scans the
    project, proposes the test and lint commands, git mode and code rules; it can also set up
    machine-wide Claude Code settings, a status line and a private usage page, each only after your
-   yes. Commit the setup on main with the commands keel gives, or let the first task take it into its
+   yes. Its last two steps (each opens with one question, "pick now?") judge the plugins you have
+   installed and suggest plugins and single skills for your stack, with evidence and risks; nothing is
+   installed, disabled or removed without your yes. Commit the setup on main with the commands keel gives, or let the first task take it into its
    branch.
 2. **Start a task** in a fresh conversation (`/clear`): `/keel:start-task reset() falls over on an
    unknown token` (your own words, a key such as `CAN-123`, or a link). keel retells it, asks what is

@@ -1,6 +1,6 @@
 # keel migration (moving from another notes system)
 
-Moves another tool's notes, memory and session logs into `.keel/`. Called from configure section 9,
+Moves another tool's notes, memory and session logs into `.keel/`. Called from configure section 8,
 or on its own with `/keel:configure migration` (the user may name a folder or a plugin). The caller
 gives you `<keel>`, `<project>` and the language to talk in; files that go into the repository are
 written in `repo_language`.
@@ -39,7 +39,7 @@ Fold the answers into the plan and say which came from the agent.
 Turn each meaningful setting into a proposal: "old: `language: uk` → keel: repository language uk".
 Inside configure these are compared with the answers already given. On its own: the plan (step 4)
 shows the exact change to `.keel/config.json` (and to machine settings, through
-`claude-settings.js` as in configure section 10); its yes is the yes to write them, no second
+`claude-settings.js` as in configure section 9); its yes is the yes to write them, no second
 question. Anything unclear is a question in the plan, not a guess.
 
 ## 3. References
@@ -103,7 +103,7 @@ stand for apply's output; then go on with step 8, so step 10 is never skipped.
 Make the confirmed edits with the Edit tool, exactly as shown in the plan. On its own (not inside
 configure): write the config change from step 4 into `.keel/config.json` (Edit), then run
 `node "<keel>/scripts/check-config.js" "<project>"` and fix it until it says `keel-config: ok`;
-machine settings go through `claude-settings.js` as in configure section 10. Do not copy keel's own
+machine settings go through `claude-settings.js` as in configure section 9. Do not copy keel's own
 instructions into CLAUDE.md or AGENTS.md: keel loads its standards itself.
 
 ## 9. This machine
@@ -115,7 +115,7 @@ itself; keel is already enabled.
 - `possible secrets in moved text` → show each place and kind (never the value) and ask: remove the
   line (recommended) or keep it. When `gitleaks` is among `gates.security_scanners`, run it on
   `.keel/` as in verification.
-- Git: inside configure, nothing now (section 12 covers the setup and the move together). On its own:
+- Git: inside configure, nothing now (section 13 covers the setup and the move together). On its own:
   manual mode → the changed files and a ready commit message; autonomous mode → follow
   `<keel>/skills/_shared/git.md` **handoff** with the branch `keel-migration`.
 
@@ -123,7 +123,7 @@ itself; keel is already enabled.
 One line per `stays:` entry from step 1, e.g. "`adr/` is documentation: worth moving into `docs/` as a
 separate task"; "`cloud-keys.env` is a secret: keep it out of the repository". Nothing is moved.
 An ADR folder among them whose records go on being written, while `docs.adr_style` is not set (inside
-configure: section 8 did not ask it): ask the same question as configure section 8 asks ("ADR
+configure: section 7 did not ask it): ask the same question as configure section 7 asks ("ADR
 style", saying how these records are kept now) and write the answer with the config change.
 
 ## 12. Old files
@@ -140,5 +140,5 @@ after the answer. The report always has, in a few lines each:
 - the trash batch and the restore command;
 - the old plugin's disable command (step 9), when there is one;
 - git: on its own in manual mode the changed files and a ready commit message in `repo_language`;
-  inside configure "the commit comes with the setup (section 12)";
+  inside configure "the commit comes with the setup (section 13)";
 - the offer: "`/keel:cleanup` can go through what the old system left (scripts, its config)".

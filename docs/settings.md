@@ -29,10 +29,10 @@ itself. Sessions in that project compact at 500,000; every other project still c
 | When | What it sets |
 |---|---|
 | Installing keel | the two plugin options below, as **machine** values |
-| `/keel:configure` in a project | asks first: this project, or only this machine. Project mode sets the project's settings and, for "machine or project" settings, shows both values and lets you keep the machine value or set one for the project. A first setup also asks: **quick** (recommended, 11 to 18 questions, depending on the project and the machine; every other value is keel's recommendation) or **detailed** (every section; both explain each question group first) |
+| `/keel:configure` in a project | asks first: this project, or only this machine. Project mode sets the project's settings and, for "machine or project" settings, shows both values and lets you keep the machine value or set one for the project. A first setup also asks: **quick** (recommended, 13 to 20 questions, depending on the project and the machine; every other value is keel's recommendation) or **detailed** (every section; both explain each question group first) |
 | `/keel:configure machine` | only the machine values, for every project |
 | `/keel:configure check` | which sections to run again since the last configure, and why; changes no setting |
-| `/keel:configure <section>[,<section>...]` | those sections again, written once at the end (`gates,git`); sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `plugins`, `docs`, `migration`, `settings`, `usage` or `prices`; `planning` asks only the [planning settings](#planning-settings) |
+| `/keel:configure <section>[,<section>...]` | those sections again, written once at the end (`gates,git`); sections: `languages`, `scan`, `gates`, `git`, `verification`, `code`, `docs`, `migration`, `settings`, `usage`, `prices`, `plugins` or `skills`; `planning` asks only the [planning settings](#planning-settings) |
 
 Nothing is written without your yes. The Claude Code settings files and the price table are backed up
 before keel changes them (project files in `.keel/local/backups/`, the machine file next to itself).
@@ -146,6 +146,7 @@ In `.keel/config.json`, committed and shared with the team. ★ marks a setting 
 | `planning.tickets_dir` | the repository folder that holds the feature folders (`<tickets_dir>/<feature>/`) | a folder; never a hidden one, `handoff/`, `handoffs/`, `docs/plans` or a place outside the project | `tickets` |
 | `planning.language` | the language of `plan.md` and the tickets. Detailed setup asks it; quick setup takes `repo_language` | a language code | `repo_language` |
 | `stack_skills` | the stack plugins you chose (for information) | names | none |
+| `skills` | your project decisions about single skills (not plugins), from `/keel:configure skills`: the key is the skill's id (`<owner>/<repo>/<path>`), the value holds the `ref` (the commit it was decided at) and the `decision` (`installed` or `declined`). A skill is not offered again at the same commit, a newer commit is. Personal decisions stay out of git, in `.keel/local/` | an object | none |
 | `usage.artifact_url` | no longer used: each machine syncs to its owner's own page ([one page per account](usage-dashboard.md#one-page-per-account)). The key stays valid and is ignored; keel says so once per machine | a claude.ai link | none |
 
 `.keel/profile.json`, also committed, holds what the project scan found and you confirmed: the parts of

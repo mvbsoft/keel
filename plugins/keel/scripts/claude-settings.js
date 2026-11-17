@@ -1,5 +1,5 @@
 'use strict';
-// configure sections 1 and 10: the settings keel recommends, for the machine and for one project.
+// configure sections 1 and 9: the settings keel recommends, for the machine and for one project.
 // Every key has a home: the machine only (statusLine), the project only (plansDirectory,
 // permissions.allow), or both, where a project value wins over the machine value. `show` reads the
 // machine's user settings and the project's local settings (personal, outside git) and says, per key,
