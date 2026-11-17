@@ -261,7 +261,7 @@
   function linkDecisions(root) {
     if (!decisions.length) return;
     const known = new Set(decisions.map((d) => d.id));
-    for (let node of textNodes(root, 'pre, a, button, .dec, .tip, .key')) {
+    for (let node of textNodes(root, 'pre, a, button, .dec, .tip, .bubble, .key')) {
       let m;
       while (node && (m = /\bD\d+\b/.exec(node.data))) {
         const hit = node.splitText(m.index);
@@ -283,18 +283,8 @@
       for (let node of textNodes(box, 'code, pre, a, button, .tip, h1, h2, h3, h4')) {
         let m;
         while (node && (m = re.exec(node.data))) {
-          const key = m[1].toLowerCase();
-          const hit = node.splitText(m.index);
-          const rest = hit.splitText(m[1].length);
-          if (!used.has(key)) {
-            used.add(key);
-            const tip = el('span', 'tip', hit.data);
-            tip.tabIndex = 0;
-            const bubble = el('span', 'bubble pop', `${m[1]}: ${byLower.get(key)}`);
-            bubble.setAttribute('role', 'tooltip');
-            tip.append(bubble);
-            hit.replaceWith(tip);
-          }
+          const key = m[1].toLowerCase(), hit = node.splitText(m.index), rest = hit.splitText(m[1].length);
+          if (!used.has(key)) { used.add(key); hit.replaceWith(termTip(hit.data, `${m[1]}: ${byLower.get(key)}`)); }
           node = rest;
         }
       }
@@ -375,6 +365,22 @@
     return bubbleButton('pill off', [el('span', '', text)], title);
   }
   const UNKNOWN_STATE = 'state unknown';
+  // A term in a text is a button that looks like a word: its meaning opens under it like ⓘ, on a click, a tap or the focus.
+  function termTip(word, text) {
+    const wrap = bubbleButton('tip', [document.createTextNode(word)], text), b = wrap.firstElementChild;
+    b.addEventListener('click', () => placeTip(wrap));
+    b.addEventListener('focus', () => { if (b.matches(':focus-visible') && !wrap.classList.contains('open')) b.click(); });
+    b.addEventListener('focusout', (e) => { if (e.relatedTarget && !wrap.contains(e.relatedTarget)) closeFloats(); });
+    return wrap;
+  }
+  // Fixed to the window, so no scrolling box clips it: under the word, above it with no room below, inside the width.
+  function placeTip(wrap) {
+    if (!wrap || !wrap.classList.contains('open')) return;
+    const bubble = wrap.querySelector('.bubble'), word = wrap.getClientRects()[0], w = bubble.offsetWidth, h = bubble.offsetHeight;
+    bubble.style.left = `${Math.max(16, Math.min(word.left, innerWidth - 16 - w))}px`;
+    bubble.style.top = `${word.bottom + 6 + h > innerHeight - 8 && word.top - 6 - h >= 8 ? word.top - 6 - h : word.bottom + 6}px`;
+  }
+  for (const ev of ['resize', 'scroll']) addEventListener(ev, () => placeTip(document.querySelector('.infowrap.open:has(> .tip)')), true);
   function closeFloats() {
     document.querySelectorAll('.infowrap.open, .popwrap.open').forEach((w) => {
       w.classList.remove('open');

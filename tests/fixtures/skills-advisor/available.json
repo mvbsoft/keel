@@ -1,0 +1,14 @@
+{
+  "installed": [
+    { "id": "context7@claude-plugins-official", "scope": "user", "enabled": true }
+  ],
+  "available": [
+    { "pluginId": "php-lsp@claude-plugins-official", "name": "php-lsp", "marketplaceName": "claude-plugins-official", "description": "PHP language server", "source": "./plugins/php-lsp", "version": "1.0.0" },
+    { "pluginId": "laravel-boost@claude-plugins-official", "name": "laravel-boost", "marketplaceName": "claude-plugins-official", "description": "Laravel toolkit", "source": { "source": "git-subdir", "url": "https://github.com/laravel/boost.git", "path": "plugins/boost", "sha": "1111111111111111111111111111111111111111" } },
+    { "pluginId": "context7@claude-plugins-official", "name": "context7", "marketplaceName": "claude-plugins-official", "description": "docs", "source": "./external_plugins/context7" },
+    { "pluginId": "php-modernization@team-market", "name": "php-modernization", "marketplaceName": "team-market", "description": "PHP 8 patterns", "installCount": 10, "version": "1.2.0" },
+    { "pluginId": "hosting@claude-plugins-official", "name": "hosting", "marketplaceName": "claude-plugins-official", "description": "Deploy PHP and React apps", "source": { "source": "github", "repo": "example-host/hosting-plugin" } },
+    { "pluginId": "php-magic@anthropic-plugin-directory", "name": "php-magic", "marketplaceName": "anthropic-plugin-directory", "description": "PHP" },
+    { "pluginId": "listed-skill@claude-community", "name": "listed-skill", "marketplaceName": "claude-community", "description": "a community plugin", "source": { "source": "github", "repo": "community-dev/listed" } }
+  ]
+}

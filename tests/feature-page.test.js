@@ -571,3 +571,30 @@ test('the page has no export-era states: a draft plan shows its tickets\' draft 
     assert.doesNotMatch(cat['page.draft_note'], /export|перенес/i, code);
   }
 });
+
+test('a term in a text opens its meaning right under the word, on a click or focus, and has a quiet thin underline', () => {
+  const script = fs.readFileSync(path.join(TEMPLATE_DIR, 'page.js'), 'utf8');
+  const css = fs.readFileSync(path.join(TEMPLATE_DIR, 'style.css'), 'utf8');
+  const rule = (sel) => { const i = css.indexOf(`\n${sel} {`); return i < 0 ? '' : css.slice(i, css.indexOf('}', i)); };
+  // A term is ⓘ's button: the same open/close (aria-expanded, aria-describedby, one at a time, a click elsewhere, Escape).
+  assert.match(script, /bubbleButton\('tip', \[document\.createTextNode\(word\)\], text\)/);
+  assert.match(script, /hit\.replaceWith\(termTip\(/);
+  assert.match(script, /addEventListener\('focus', \(\) => \{ if \(b\.matches\(':focus-visible'\)[^\n]*b\.click\(\)/, 'the keyboard focus opens it');
+  assert.match(script, /addEventListener\('focusout', \(e\) => \{ if \(e\.relatedTarget && !wrap\.contains\(e\.relatedTarget\)\) closeFloats\(\)/, 'Tab moving on closes it');
+  assert.match(script, /textNodes\(root, '[^']*\.bubble[^']*'\)/, 'a decision id in the meaning of a term stays text');
+  assert.match(script, /if \(e\.key === 'Escape'\) \{ closeFloats\(\)/);
+  // The bubble sits next to the word: fixed, placed by the script (below, above near the bottom, inside the window).
+  assert.match(rule('.infowrap:has(> .tip) .bubble'), /position: fixed/);
+  assert.doesNotMatch(css, /\.tip[^{]*\{[^}]*bottom: 16px/, 'no longer pinned to the bottom of the screen');
+  assert.match(script, /bubble\.style\.left = [^\n]*\s+bubble\.style\.top = /);
+  assert.match(script, /word\.top - 6 - h >= 8 \? word\.top - 6 - h : word\.bottom \+ 6/, 'above the word when there is no room below');
+  assert.match(script, /Math\.max\(16, Math\.min\(word\.left, innerWidth - 16 - w\)\)/, 'inside the window');
+  assert.match(script, /\['resize', 'scroll'\]/, 'it follows the word');
+  assert.match(css, /\.infowrap:has\(> \.tip\):not\(\.open\) \.bubble \{ visibility: hidden/, 'a hover does not show an unplaced bubble');
+  // The word: a thin solid underline in a light tone of the accent, the full accent on hover or open.
+  const tip = rule('.tip');
+  assert.match(tip, /text-decoration-thickness: 1px/);
+  assert.match(tip, /text-decoration-color: color-mix\(in srgb, var\(--accent\) \d+%, transparent\)/);
+  assert.doesNotMatch(tip, /dotted|border-bottom|cursor: help/);
+  assert.match(css, /\.tip:hover, \.infowrap\.open > \.tip \{ text-decoration-color: var\(--accent\)/);
+});

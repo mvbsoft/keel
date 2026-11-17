@@ -1,6 +1,6 @@
 # keel usage: find, create or update this account's usage page
 
-Used by `/keel:configure` (step 11) and `/keel:usage on`. The page "keel usage" is private, in the
+Used by `/keel:configure` (section 10) and `/keel:usage on`. The page "keel usage" is private, in the
 user's claude.ai account; every machine of that account syncs to the same page (a second machine
 joins the page the first one made). Nothing here runs in a session without claude.ai (an API key):
 there the page cannot be reached, so say so and stop (see "Without claude.ai" below).

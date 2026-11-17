@@ -1,4 +1,4 @@
-# keel configure: instruction check (section 12, step 8; read from configure-flow.md)
+# keel configure: instruction check (section 13, step 8; read from configure-flow.md)
 
 The scan's `other instructions:` line ended with `audit: advise`. It is the last part of the summary,
 after the commit step: a heading such as "Recommended: check your instructions" and these four points

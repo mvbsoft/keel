@@ -1,9 +1,8 @@
 'use strict';
-// configure sections 7 (stack plugins), 8 (documentation shape) and 10 (Claude Code settings).
+// configure sections 11 (plugins), 7 (documentation shape) and 9 (Claude Code settings).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { tempDir } = require('./fixtures/tmp.js');
@@ -11,7 +10,6 @@ const { says } = require('./fixtures/texts.js');
 
 const PLUGIN = path.join(__dirname, '..', 'plugins', 'keel');
 const SCRIPTS = path.join(PLUGIN, 'scripts');
-const stackSkills = require(path.join(SCRIPTS, 'stack-skills.js'));
 const settings = require(path.join(SCRIPTS, 'claude-settings.js'));
 const { scan } = require(path.join(SCRIPTS, 'scan.js'));
 
@@ -23,70 +21,6 @@ function project(files) {
   }
   return dir;
 }
-
-const AVAILABLE = {
-  installed: [{ id: 'context7@claude-plugins-official', scope: 'user' }],
-  available: [
-    { pluginId: 'php-lsp@claude-plugins-official', name: 'php-lsp', marketplaceName: 'claude-plugins-official', description: 'PHP language server' },
-    { pluginId: 'laravel-boost@claude-plugins-official', name: 'laravel-boost', marketplaceName: 'claude-plugins-official', description: 'Laravel toolkit' },
-    { pluginId: 'context7@claude-plugins-official', name: 'context7', marketplaceName: 'claude-plugins-official', description: 'docs' },
-    { pluginId: 'php-modernization@team-market', name: 'php-modernization', marketplaceName: 'team-market', description: 'PHP 8 patterns', installCount: 10 },
-    { pluginId: 'hosting@claude-plugins-official', name: 'hosting', marketplaceName: 'claude-plugins-official', description: 'Deploy PHP and React apps' },
-    { pluginId: 'php-magic@anthropic-plugin-directory', name: 'php-magic', marketplaceName: 'anthropic-plugin-directory', description: 'PHP' },
-  ],
-};
-
-function stackProject() {
-  const dir = project({
-    'composer.json': JSON.stringify({ require: { php: '>=8.2', 'laravel/framework': '^11', 'yiisoft/yii2': '~2.0' } }),
-    'app/a.php': '<?php echo 1;\n',
-    'app/b.php': '<?php echo 2;\n',
-  });
-  const file = path.join(dir, 'available.json');
-  fs.writeFileSync(file, JSON.stringify(AVAILABLE));
-  return { dir, file };
-}
-
-test('stack-skills: checked entries by language and package, marketplace search by name, nothing reliable said plainly', () => {
-  const { dir, file } = stackProject();
-  const r = stackSkills.run(dir, { available: file });
-  assert.deepEqual(r.stack.frameworks, ['Laravel', 'Yii2']);
-  assert.deepEqual(r.checked.map((c) => c.plugin), ['php-lsp@claude-plugins-official', 'laravel-boost@claude-plugins-official', 'context7@claude-plugins-official']);
-  assert.equal(r.checked.find((c) => c.plugin.startsWith('context7')).installed, true);
-  assert.equal(typeof r.checked[0].needs_on_path, 'boolean', 'the language server program is looked up on PATH');
-  assert.deepEqual(r.found.PHP.map((f) => f.plugin), ['php-modernization@team-market'], 'name match only; the Directory is never searched');
-  assert.deepEqual(r.nothing_reliable, ['Yii2'], 'Laravel is covered by a checked plugin');
-  assert.deepEqual(r.marketplaces_to_add.map((m) => m.name), ['trailofbits']);
-  const text = stackSkills.report(r);
-  assert.match(text, /install: claude plugin install php-lsp@claude-plugins-official --scope project/);
-  assert.match(text, /needs intelephense: (on PATH|not installed \(npm install -g intelephense\))/);
-  assert.match(text, /add: claude plugin marketplace add trailofbits\/skills/);
-  assert.match(text, /nothing reliable found for: Yii2/);
-});
-
-test('stack-skills: without a marketplace listing it still gives keel\'s checked list and says why', () => {
-  const { dir } = stackProject();
-  const r = stackSkills.run(dir, { available: path.join(dir, 'missing.json') });
-  assert.match(r.marketplaces_error, /could not list the marketplaces/);
-  assert.ok(r.checked.length >= 3);
-  assert.match(stackSkills.report(r), /only keel's checked list below/);
-});
-
-test('stack-skills: package names from npm, Composer and Python manifests, never versions', () => {
-  const dir = project({
-    'package.json': JSON.stringify({ dependencies: { react: '18' }, devDependencies: { '@playwright/test': '1' } }),
-    'requirements.txt': '# web\nDjango==5.0\nrequests>=2\n',
-    'pyproject.toml': '[project]\ndependencies = ["fastapi>=0.110", "pydantic[email]>=2"]\n',
-  });
-  const names = stackSkills.packagesOf(dir, ['.']);
-  for (const n of ['react', '@playwright/test', 'django', 'requests', 'fastapi', 'pydantic']) assert.ok(names.has(n), n);
-  assert.ok(![...names].some((n) => /\d/.test(n) && n.includes('.')), 'no versions');
-});
-
-test('stack-skills --lsp: says whether a language server is on PATH', () => {
-  const r = spawnSync(process.execPath, [path.join(SCRIPTS, 'stack-skills.js'), os.tmpdir(), '--lsp', 'no-such-server-xyz'], { encoding: 'utf8' });
-  assert.equal(r.stdout, 'no-such-server-xyz: not on PATH\n');
-});
 
 test('scan: documentation shape, files loaded every session with line counts, suggested profile and pattern', () => {
   const dir = project({
@@ -197,9 +131,9 @@ test('configure flow section 3: <main> is substituted from section 4, Docker is 
   says(three, ['the user decides']);
 });
 
-test('configure flow section 12: the manual setup is proposed for the README, written only after a yes', () => {
+test('configure flow section 13: the manual setup is proposed for the README, written only after a yes', () => {
   const text = flow();
-  const twelve = text.slice(text.indexOf('## 12. Write and summary'));
+  const twelve = text.slice(text.indexOf('## 13. Write and summary'));
   assert.ok(twelve.indexOf('Write the manual setup down') > twelve.indexOf('config-check.js'), 'after the files are written and checked');
   assert.match(twelve, /README \(or\s+its existing setup or getting-started doc/);
   says(twelve, ['"Working with Claude Code"']);
@@ -320,21 +254,23 @@ test('configure flow section 6: the planning settings, quick setup too, alone wi
   says(text, ['`planning` runs only', 'the "Planning tickets" block of section 6']);
 });
 
-test('configure flow section 7: stack plugins are never preselected, also on "accept all"', () => {
+test('configure flow section 11: plugins are never preselected, also on "accept all"', () => {
   const seven = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'configure-plugins.md'), 'utf8');
   says(seven, ['Also on "accept all" or "your recommendation"', 'list the plugins by name', 'none marked recommended or preselected']);
 });
 
 test('configure-flow.md hands each rare part to its own file, naming the case; the common parts stay', () => {
   const text = flow();
-  const sevenPointer = text.slice(text.indexOf('## 7. Stack plugins'), text.indexOf('## 8.'));
-  says(sevenPointer, ['**Stack plugins**', 'the user picks plugins', '`<keel>/skills/_shared/configure-plugins.md`', 'read', 'follow it']);
-  says(text.slice(text.indexOf('## 9.'), text.indexOf('## 10.')), ['No other system → skip this section without a question', '`<keel>/skills/_shared/configure-migration.md`', 'read', 'follow it']);
+  const pluginsPointer = text.slice(text.indexOf('## 11. Plugins'), text.indexOf('## 12.'));
+  says(pluginsPointer, ['**Plugins**', 'both quick and detailed setup ask the question', '"pick plugins now?"', '`<keel>/skills/_shared/configure-plugins.md`', 'read', 'follow it']);
+  const skillsPointer = text.slice(text.indexOf('## 12. Skills'), text.indexOf('## 13.'));
+  says(skillsPointer, ['**Skills**', 'both quick and detailed setup ask "pick skills now?"', 'with the cost', 'estimate', '`<keel>/skills/_shared/configure-skills.md`', 'read', 'follow it']);
+  says(text.slice(text.indexOf('## 8.'), text.indexOf('## 9.')), ['No other system → skip this section without a question', '`<keel>/skills/_shared/configure-migration.md`', 'read', 'follow it']);
   says(text.slice(text.indexOf('6. **Price update**'), text.indexOf('7. **Write**')), ['**Price update**', '`<keel>/skills/_shared/configure-prices.md`', 'read', 'follow it']);
   says(text.slice(text.indexOf('**Instruction check, only when it is worth it**')), ['Advise', '`<keel>/skills/_shared/configure-instruction-check.md`', 'read', 'follow it']);
   assert.ok(text.includes('**ADR style** (`docs.adr_style`)'), 'the ADR style question stays');
   assert.ok(text.includes('4. **Write the manual setup down for the next developer.**'), 'the README step stays');
-  for (const f of ['configure-plugins.md', 'configure-migration.md', 'configure-prices.md', 'configure-instruction-check.md']) assert.ok(fs.existsSync(path.join(PLUGIN, 'skills', '_shared', f)), f);
+  for (const f of ['configure-plugins.md', 'configure-skills.md', 'configure-migration.md', 'configure-prices.md', 'configure-instruction-check.md']) assert.ok(fs.existsSync(path.join(PLUGIN, 'skills', '_shared', f)), f);
 });
 
 test('configure-flow.md: the scripts every setup needs run once, in one message, and the sections use their output', () => {
@@ -347,28 +283,28 @@ test('configure-flow.md: the scripts every setup needs run once, in one message,
   says(batch, ['`migrate.js find` is always in the batch', 'the scan does not see what it sees']);
   says(batch, ['Each section below uses the output already in the conversation']);
   says(text.slice(text.indexOf('## 3. Gates'), text.indexOf('## 4.')), ['several commands: all in one message as separate tool calls', 'it writes nothing']);
-  says(text.slice(text.indexOf('## 10.'), text.indexOf('## 11.')), ['output of `node "<keel>/scripts/claude-settings.js" "<project>" show` from section 0\'s batch']);
-  says(text.slice(text.indexOf('## 11.'), text.indexOf('## 12.')), ['output of `node "<keel>/scripts/usage-setup.js" "<project>" show` from section 0\'s batch']);
-  says(text.slice(text.indexOf('## 9.'), text.indexOf('## 10.')), ['output of `node "<keel>/scripts/migrate.js" "<project>" find` from the batch of section 0']);
+  says(text.slice(text.indexOf('## 9.'), text.indexOf('## 10.')), ['output of `node "<keel>/scripts/claude-settings.js" "<project>" show` from section 0\'s batch']);
+  says(text.slice(text.indexOf('## 10.'), text.indexOf('## 11.')), ['output of `node "<keel>/scripts/usage-setup.js" "<project>" show` from section 0\'s batch']);
+  says(text.slice(text.indexOf('## 8.'), text.indexOf('## 9.')), ['output of `node "<keel>/scripts/migrate.js" "<project>" find` from the batch of section 0']);
   says(text.slice(text.indexOf('## 6.'), text.indexOf('## 7.')), ['use the output of `node "<keel>/scripts/comments.js" "<project>" --project` from section 0\'s batch']);
   says(text.slice(text.indexOf('## 2.'), text.indexOf('## 3.')), ['ran in section 0\'s batch', 'use its output']);
   // Without AskUserQuestion the scripts still run first.
   says(text, ['first run the scripts of every section', 'the batch of section 0', 'then ask all questions in one message']);
 });
 
-test('configure flow section 11: keel\'s status line on macOS or Linux checks for jq', () => {
-  const eleven = flow().slice(flow().indexOf('## 11. Usage and costs'), flow().indexOf('## 12.'));
+test('configure flow section 10: keel\'s status line on macOS or Linux checks for jq', () => {
+  const eleven = flow().slice(flow().indexOf('## 10. Usage and costs'), flow().indexOf('## 11.'));
   says(eleven, ['`install` on macOS or Linux', 'run `command -v jq`', "say that keel's line then shows less", 'give the install hint']);
 });
 
-test('configure flow section 10: the personal settings file is offered to .gitignore when git does not ignore it', () => {
-  const ten = flow().slice(flow().indexOf('## 10. Claude Code settings'), flow().indexOf('## 11.'));
+test('configure flow section 9: the personal settings file is offered to .gitignore when git does not ignore it', () => {
+  const ten = flow().slice(flow().indexOf('## 9. Claude Code settings'), flow().indexOf('## 10.'));
   says(ten, ['`git check-ignore .claude/settings.local.json`', 'offer to add the line `.claude/settings.local.json`', "project's `.gitignore`"]);
-  says(flow().slice(flow().indexOf('## 12.')), ['README, CLAUDE.md, `.gitignore` or `.claude/settings.json`', 'when this setup changed them']);
+  says(flow().slice(flow().indexOf('## 13.')), ['README, CLAUDE.md, `.gitignore`', '`.claude/settings.json`', 'the skill folders section 12 wrote', 'when this setup changed them']);
 });
 
 test('configure flow: the quick setup states its real number of questions', () => {
   const zero = flow().slice(flow().indexOf('**Quick or detailed**'), flow().indexOf('| Section | Quick |'));
-  says(zero, ['quick (recommended: 11 to 18 questions', 'depending on the project']);
+  says(zero, ['quick (recommended: 13 to 20 questions', 'depending on the project']);
   assert.doesNotMatch(zero, /about six/);
 });

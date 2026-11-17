@@ -1,7 +1,7 @@
-# keel configure: price update (section 11, step 6; read from configure-flow.md)
+# keel configure: price update (section 10, step 6; read from configure-flow.md)
 
 The calling command gives you `<keel>` and `<project>`. The user asked for `prices`, or said yes to the
-offer in section 11 of `<keel>/skills/_shared/configure-flow.md`.
+offer in section 10 of `<keel>/skills/_shared/configure-flow.md`.
 
 **Price update** (offer; about $0.1–0.3): start a `general-purpose` agent with `model: "sonnet"`:
 "Find the current Claude API pricing page in the official docs (it was

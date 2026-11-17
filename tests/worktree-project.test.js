@@ -283,7 +283,7 @@ gitTest('agent replies, a handback and the finish check of a worktree session st
 // Each keel script takes its project through scriptProject and each hook through hookProject, so
 // none works on the main checkout while the session is in a worktree of it.
 test('every script and hook that reads a project resolves it through lib/project-dir.js', () => {
-  const scripts = ['changes.js', 'check-config.js', 'claude-settings.js', 'cleanup.js', 'comments.js', 'config-check.js', 'feature-page.js', 'fingerprint.js', 'git-flow.js', 'ledger-report.js', 'migrate.js', 'notes.js', 'plan-steps.js', 'plans.js', 'safe-command.js', 'scan.js', 'stack-skills.js', 'usage.js', 'usage-clear.js', 'usage-setup.js', 'votes.js'];
+  const scripts = ['changes.js', 'check-config.js', 'claude-settings.js', 'cleanup.js', 'comments.js', 'config-check.js', 'feature-page.js', 'fingerprint.js', 'git-flow.js', 'ledger-report.js', 'migrate.js', 'notes.js', 'plan-steps.js', 'plans.js', 'safe-command.js', 'scan.js', 'skills.js', 'usage.js', 'usage-clear.js', 'usage-setup.js', 'votes.js'];
   for (const s of scripts) assert.match(fs.readFileSync(path.join(SCRIPTS, s), 'utf8'), /require\('\.\/lib\/project-dir\.js'\)(\.scriptProject\(|;|\))/, s);
   for (const s of scripts) assert.match(fs.readFileSync(path.join(SCRIPTS, s), 'utf8'), /scriptProject\(/, s);
   const hooks = ['agent-model.js', 'context-warning.js', 'finish-check.js', 'handback.js', 'lane-gate.js', 'ledger.js', 'no-ai-attribution.js', 'own-files.js', 'planning-guard.js', 'session-start.js', 'skill-gate.js', 'skill-hints.js', 'subagent-start.js'];

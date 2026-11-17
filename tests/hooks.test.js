@@ -289,8 +289,11 @@ test('own-files: only keel\'s own scripts, as one plain node command', () => {
     `node "${scripts}/ledger-report.js" "/p"`,
     `node "${scripts}/ledger-report.js" "/p" --since 2026-10-10T10:00:00.000Z --agent implementer`,
     `node "${scripts}/comments.js" "/p" --base main`,
-    `node "${scripts}/stack-skills.js" "/p"`,
-    `node "${scripts}/stack-skills.js" "/p" --lsp intelephense`,
+    `node "${scripts}/skills.js" "/p" inventory`,
+    `node "${scripts}/skills.js" "/p" inventory --picked "php-lsp@claude-plugins-official,context7@claude-plugins-official"`,
+    `node "${scripts}/skills.js" "/p" evidence --candidates "/p/.keel/local/tmp/skills-candidates.json"`,
+    `node "${scripts}/skills.js" "/p" remember anthropics/skills/skills/pdf --ref abc1234 --decision declined`,
+    `node "${scripts}/skills.js" "/p" --lsp intelephense`,
     `node "${scripts}/claude-settings.js" "/p" show`,
     `node "${scripts}/plan-steps.js" "/p" "/p/.keel/local/plans/plan.md" --remaining`,
   ]) {
@@ -341,6 +344,10 @@ test('own-files: migrate.js and cleanup.js read and use the trash silently; appl
     `node "${scripts}/cleanup.js" "/p" reminder`,
   ]) assert.equal(bash(cmd).out.hookSpecificOutput.permissionDecision, 'allow', cmd);
   assert.equal(bash(`node "${scripts}/migrate.js" "/p" apply "/p/.keel/local/tmp/migrate-plan.json"`).raw, '', 'apply is left to the normal permission prompt');
+  // skills.js writes a skill folder or the project's settings.local.json: Claude Code's own prompt.
+  assert.equal(bash(`node "${scripts}/skills.js" "/p" install 1`).raw, '', 'install is left to the normal permission prompt');
+  assert.equal(bash(`node "${scripts}/skills.js" "/p" install 1 --scope user --license-ok`).raw, '', 'install to the user folder too');
+  assert.equal(bash(`node "${scripts}/skills.js" "/p" disable "php-lsp@claude-plugins-official"`).raw, '', 'disable is left to the normal permission prompt');
   // Deleting the trash for good: Claude Code itself confirms, with what goes, also over allow rules.
   for (const [cmd, what] of [['empty-trash', /the batches 30 or more days old/], ['empty-trash --older-than 0', /the batches 0 or more days old/], ['empty-trash --all', /all batches/], ['empty-trash --batch 20261011-101500', /batch 20261011-101500/]]) {
     const out = bash(`node "${scripts}/cleanup.js" "/p" ${cmd}`).out.hookSpecificOutput;

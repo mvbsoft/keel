@@ -331,6 +331,31 @@
       },
       "uniqueItems": true
     },
+    "skills": {
+      "description": "Project decisions about single skills (not plugins), from configure's skills step. The key is the skill's id, <owner>/<repo>/<path>; a skill is not offered again at the ref it was decided at, a newer ref is offered.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "ref",
+          "decision"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "ref": {
+            "description": "The commit (or version) the decision was made at.",
+            "type": "string",
+            "minLength": 1
+          },
+          "decision": {
+            "enum": [
+              "installed",
+              "declined"
+            ]
+          }
+        }
+      }
+    },
     "usage": {
       "type": "object",
       "description": "No longer used: every machine syncs to its owner's own \"keel usage\" page. An older keel's team page URL stays valid here, so existing configs do not turn invalid; keel says once that it is ignored.",

@@ -1,5 +1,5 @@
 'use strict';
-// What the scan makes of a project's stack: ecosystem names read by stack-skills, Flutter, uv
+// What the scan makes of a project's stack: ecosystem names read by skills.js, Flutter, uv
 // workspaces and workspace members named by a single folder.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -8,7 +8,8 @@ const path = require('node:path');
 const { tempDir } = require('./fixtures/tmp.js');
 
 const { scan } = require('../plugins/keel/scripts/scan.js');
-const stackSkills = require('../plugins/keel/scripts/stack-skills.js');
+const skills = require('../plugins/keel/scripts/skills.js');
+const { stackOf, packagesOf } = require('../plugins/keel/scripts/lib/skills-stack.js');
 
 function project(files) {
   const dir = tempDir('keel-scan-stack-');
@@ -24,7 +25,7 @@ const parts = (r) => r.profile.parts.map((p) => p.path);
 function suggested(dir) {
   const available = path.join(dir, 'available.json');
   fs.writeFileSync(available, JSON.stringify({ available: [], installed: [] }));
-  const r = stackSkills.run(dir, { available });
+  const r = skills.inventory(dir, { available, installed: available, home: dir });
   return r.marketplaces_to_add.flatMap((m) => m.suggest.map((s) => s.plugin));
 }
 
@@ -42,7 +43,7 @@ test('stack skills: a project with a lock file still gets the plugins asked for 
 
 test('stackOf: ecosystem ids without the package manager, the same for every reader', () => {
   const dir = project({ 'package.json': '{"name":"x"}', 'pnpm-lock.yaml': '', 'go.mod': 'module x\n', 'go.sum': '' });
-  const stack = stackSkills.stackOf(dir, scan(dir).profile);
+  const stack = stackOf(dir, scan(dir).profile);
   assert.deepEqual([...stack.ecosystems].sort(), ['go', 'npm']);
 });
 
@@ -92,7 +93,7 @@ test('packagesOf: a package.json or composer.json saved with a byte order mark k
     'package.json': bom + JSON.stringify({ name: 'r', dependencies: { react: '18.0.0', next: '14.0.0' } }),
     'composer.json': bom + JSON.stringify({ name: 'x/y', require: { 'laravel/framework': '^11.0' } }),
   });
-  const names = stackSkills.packagesOf(dir, ['.']);
+  const names = packagesOf(dir, ['.']);
   assert.ok(names.has('react'), 'the npm dependency is found');
   assert.ok(names.has('laravel/framework'), 'the composer requirement is found');
 });

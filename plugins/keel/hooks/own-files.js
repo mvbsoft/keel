@@ -32,6 +32,9 @@
 //   moves the user's plan files, so both are left to Claude Code's own permission prompt;
 // - migrate.js: `find`, `refs`, `state` (they only read; `find` writes its result to .keel/local/tmp/).
 //   `apply` moves the user's files, so Claude Code asks;
+// - skills.js: everything but `install` and `disable`, which write a skill folder or the project's
+//   .claude/settings.local.json and are left to Claude Code's own permission prompt; `evidence` reads
+//   public GitHub pages and writes only under .keel/local/tmp/, `remember` only .keel/local/;
 // - cleanup.js: everything but `empty-trash` (moving to keel's trash and back can be undone; deleting
 //   the trash cannot).
 // - plans.js: everything but `commit` and `push`; its other steps write only the planning files (the
@@ -48,10 +51,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const SCRIPTS = new Set(['scan.js', 'check-config.js', 'safe-command.js', 'changes.js', 'fingerprint.js', 'votes.js', 'ledger-report.js', 'notes.js', 'plan-steps.js', 'git-flow.js', 'comments.js', 'stack-skills.js', 'claude-settings.js', 'migrate.js', 'cleanup.js', 'usage.js', 'usage-setup.js', 'config-check.js', 'plans.js']);
+const SCRIPTS = new Set(['scan.js', 'check-config.js', 'safe-command.js', 'changes.js', 'fingerprint.js', 'votes.js', 'ledger-report.js', 'notes.js', 'plan-steps.js', 'git-flow.js', 'comments.js', 'skills.js', 'claude-settings.js', 'migrate.js', 'cleanup.js', 'usage.js', 'usage-setup.js', 'config-check.js', 'plans.js']);
 // Script steps that change the user's files for good or move them outside keel's own folders: left
 // to Claude Code's permission prompt.
-const ASK = { 'claude-settings.js': ['apply'], 'migrate.js': ['apply'], 'usage-setup.js': ['apply', 'prices-apply', 'install-statusline', 'sync'] };
+const ASK = { 'claude-settings.js': ['apply'], 'migrate.js': ['apply'], 'skills.js': ['install', 'disable'], 'usage-setup.js': ['apply', 'prices-apply', 'install-statusline', 'sync'] };
 const GIT_STEPS = new Set(['start', 'switch', 'commit', 'sync', 'push', 'save']);
 // plans.js steps Claude Code confirms each time, even when an allow rule would let node run.
 const PLANS_ASK = new Set(['commit', 'push']);

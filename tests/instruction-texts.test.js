@@ -406,9 +406,9 @@ test('configure: the first question is always project or machine; optional secti
   assert.ok(flow.indexOf('**The first question, always**') < flow.indexOf('## Ground rules'), 'the first line of the flow');
   says(flow, ['**Quick** setup (section 0)', 'asks only the questions that need the user']);
   const quick = flow.slice(flow.indexOf('**Quick or detailed**'), flow.indexOf('Read the check output'));
-  for (const asked of ['1 Languages | asked', '3 Gates | asked', '4 Git | asked', '10 Claude Code settings | asked', '11 Usage and costs | asked']) assert.ok(quick.includes(asked), asked);
+  for (const asked of ['1 Languages | asked', '3 Gates | asked', '4 Git | asked', '9 Claude Code settings | asked', '10 Usage and costs | asked', '11 Plugins | asked', '12 Skills | asked']) assert.ok(quick.includes(asked), asked);
   says(flow, ['After a quick setup', 'every value that was not asked', 'the section that changes it']);
-  const steps = flow.slice(flow.indexOf('## 12. Write and summary')).match(/^\d+\./gm);
+  const steps = flow.slice(flow.indexOf('## 13. Write and summary')).match(/^\d+\./gm);
   assert.deepEqual(steps, ['1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.'], 'no duplicate step numbers');
   says(flow, ['**Commit the setup** (project mode)', "keel's git steps never commit on the main branch", 'the user runs them']);
   says(flow, ['first `/keel:start-task` offers to take them', "that task's branch"]);
@@ -583,7 +583,7 @@ test('configure: a chosen docs pattern the docs do not follow yet is offered as 
 test('every text about costs says what an API-key-only session gets: exact dollars, no usage page', () => {
   const flow = shared('configure-flow.md');
   const texts = {
-    'configure-flow.md 11': flow.slice(flow.indexOf('## 11. Usage and costs'), flow.indexOf('## 12.')),
+    'configure-flow.md 10': flow.slice(flow.indexOf('## 10. Usage and costs'), flow.indexOf('## 11.')),
     'usage-page.md': shared('usage-page.md'),
     'final-report.md': shared('final-report.md'),
     usage: skill('usage'),
@@ -595,7 +595,7 @@ test('every text about costs says what an API-key-only session gets: exact dolla
     assert.match(text, /no usage page|no page|cannot reach (it|the page)|has no access to the page/, name);
   }
   // Where the account types are listed, all three are there.
-  for (const name of ['configure-flow.md 11', 'final-report.md']) {
+  for (const name of ['configure-flow.md 10', 'final-report.md']) {
     assert.match(texts[name], /API key only/, name);
     assert.match(texts[name], /subscription/, name);
     assert.match(texts[name], /both/, name);

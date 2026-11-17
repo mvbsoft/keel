@@ -316,7 +316,7 @@ function scan(root) {
   return { profile, findings };
 }
 
-// What the project's documentation looks like (configure section 8): doc files, ADR and spec folders,
+// What the project's documentation looks like (configure section 7): doc files, ADR and spec folders,
 // a Diátaxis-like docs/ (at least three of its four kinds), arc42 and C4 files, the files Claude Code
 // loads into every session with their line counts, how the existing ADRs are kept, and the profile
 // and pattern that fit what exists.

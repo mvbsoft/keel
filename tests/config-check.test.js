@@ -176,7 +176,7 @@ test('the main branch is gone: git needed, naming the remote\'s default branch',
 
 test('worth a look: ticket ids, a checked plugin, a grown CLAUDE.md, another notes system, a new setting, no usage settings', () => {
   const p = project({ usage: false });
-  p.save('--sections', 'scan,gates,code,plugins,docs,migration,settings');
+  p.save('--sections', 'scan,gates,code,docs,migration,settings,plugins,skills');
   const file = path.join(p.dir, '.keel', 'local', 'configure-snapshot.json');
   const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
   snap.sections.settings.keys = snap.sections.settings.keys.filter((k) => k !== 'plansDirectory');
@@ -188,16 +188,17 @@ test('worth a look: ticket ids, a checked plugin, a grown CLAUDE.md, another not
   write(path.join(p.dir, 'a.js'), 'module.exports = 2;\n');
   p.commit('SHOP-2 totals');
   const lines = block(p.check());
-  assert.equal(lines[1], 'result: needed none; worth a look code, plugins, docs, migration, settings, usage');
+  assert.equal(lines[1], 'result: needed none; worth a look code, docs, migration, settings, usage, plugins, skills');
   assert.deepEqual(lines.slice(2, -1).map((l) => l.split(' | ')[0]), [
     '- code [worth]: ticket ids in the git history: SHOP (2 ids)',
-    "- plugins [worth]: keel's checked list has plugins for what the project uses now: prisma@claude-plugins-official",
     '- docs [worth]: CLAUDE.md has 250 lines (1 at the last configure)',
     '- migration [worth]: another notes or memory system: .ai',
     `- settings [worth]: keel ${require('../plugins/keel/.claude-plugin/plugin.json').version} recommends settings your last configure did not have: plansDirectory`,
     '- usage [worth]: this machine has no usage settings',
+    "- plugins [worth]: keel's checked list has plugins for what the project uses now: prisma@claude-plugins-official",
+    '- skills [worth]: the stack of the project changed',
   ]);
-  assert.equal(lines.at(-1), 'run: /keel:configure code,plugins,docs,migration,settings,usage');
+  assert.equal(lines.at(-1), 'run: /keel:configure code,docs,migration,settings,usage,plugins,skills');
 });
 
 test('docs worth a look: no ADR style chosen while the project keeps ADRs; nothing once it is chosen', () => {
@@ -275,12 +276,15 @@ test('a run of some sections records only those: the reason of a section that di
   assert.ok(!lines.some((l) => l.includes('test:e2e')), 'the command gates saw is no longer new');
 });
 
-test('quick setup skips plugins: a plugin for what was already there is still worth a look', () => {
+test('a setup that skipped plugins and skills: a plugin for what was already there is still worth a look, and so are skills', () => {
   const p = project();
   pkg(p.dir, (x) => { x.dependencies = { '@prisma/client': '5.0.0' }; });
   p.commit('prisma');
-  p.save('--sections', '1,2,3,4,5,6,8,9,10,11');
-  assert.ok(block(p.check()).some((l) => l.startsWith("- plugins [worth]: keel's checked list has plugins for what the project uses now: prisma@claude-plugins-official")));
+  p.save('--sections', '1,2,3,4,5,6,7,8,9,10');
+  const lines = block(p.check());
+  assert.ok(lines.some((l) => l.startsWith("- plugins [worth]: keel's checked list has plugins for what the project uses now: prisma@claude-plugins-official")));
+  assert.ok(lines.some((l) => l.startsWith('- skills [worth]: ')), 'the same stack change advises skills');
+  assert.match(lines.at(-1), /^(also|run): \/keel:configure .*plugins,skills$/);
 });
 
 test('a teammate\'s later configure: what the committed profile already lists is not new here', () => {
@@ -316,17 +320,17 @@ test('a damaged record never breaks the setup check of other commands', () => {
   assert.equal(p.check()[0], 'keel-config: ok');
 });
 
-test('configure: check answers from the injected block without the flow; sections by comma; step 12 saves the record', () => {
+test('configure: check answers from the injected block without the flow; sections by comma; step 13 saves the record', () => {
   const skill = fs.readFileSync(path.join(PLUGIN, 'skills', 'configure', 'SKILL.md'), 'utf8');
   assert.match(skill, /^argument-hint: "\[check \| section\[,section\.\.\.\] \| machine\]"$/m);
   assert.match(skill, /\*\*The first word of the arguments is `check`\*\* → only answer from the output above; do not read the\s+configure flow, run nothing, write nothing/);
   assert.ok(skill.indexOf('is `check`') < skill.indexOf('configure-flow.md'), 'check is decided before the flow is read');
   const flow = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'configure-flow.md'), 'utf8');
   assert.match(flow, /separated by commas or spaces, such as `gates,git` or `3,4`\) runs only those, in section order/);
-  assert.match(flow, /then section 12 once for what they changed/);
+  assert.match(flow, /then section 13 once for what they changed/);
   assert.match(flow, /3\. Run `node "<keel>\/scripts\/config-check\.js" "<project>" save`/);
-  assert.match(flow, /add\s+`--sections "<those that did>"`, comma-separated in quotes: a run of chosen sections → those; quick\s+setup → `"1,2,3,4,5,6,8,9,10,11"`/);
-  assert.doesNotMatch(flow, /check-config\.js/, 'step 12 checks through config-check.js');
+  assert.match(flow, /add\s+`--sections "<those that did>"`, comma-separated in quotes: a run of chosen sections → those; quick\s+setup → `"1,2,3,4,5,6,7,8,9,10"` plus `11` and `12`/);
+  assert.doesNotMatch(flow, /check-config\.js/, 'step 13 checks through config-check.js');
   const preflight = fs.readFileSync(path.join(PLUGIN, 'skills', '_shared', 'preflight.md'), 'utf8');
   assert.match(preflight, /`stale`, say in one line that\s+the project changed since the last configure and that `\/keel:configure check` says/);
 });

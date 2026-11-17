@@ -30,7 +30,7 @@ Open your project in Claude Code and run:
 ```
 
 It first asks whether you set up this project or only this machine and, for a new project, whether you
-want the **quick** setup (recommended, 11 to 18 questions depending on the project) or the **detailed** one. keel needs a git
+want the **quick** setup (recommended, 13 to 20 questions depending on the project) or the **detailed** one. keel needs a git
 repository: in a folder without one it offers `git init` and a first commit of the current state, and
 stops if you say no. Then it works in these steps.
 
@@ -53,8 +53,9 @@ the setting in full. Quick setup explains too; it only asks fewer questions.
   keel's recommendation; the summary lists each one with the command that changes it, for example
   `/keel:configure verification`.
 - **Detailed setup** goes through every section: languages, gates, security scanners, git,
-  verification thresholds, code size and comments, planning tickets, stack plugins, documentation, moving from another
-  notes system, Claude Code settings, and costs. Some sections can be skipped; the repository
+  verification thresholds, code size and comments, planning tickets, documentation, moving from another
+  notes system, Claude Code settings, and costs. Quick and detailed setup both end with the same two
+  optional steps, each opened by one question, "pick now?": plugins and skills. Some sections can be skipped; the repository
   language, gates, git, thresholds, file sizes and comment level, and the documentation profile cannot
   be skipped, but you can accept the proposal with one answer.
 

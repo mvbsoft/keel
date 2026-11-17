@@ -1,5 +1,5 @@
 {
-  "about": "keel's checked list of stack plugins for configure section 7. Every entry was checked by hand on the date below: author, what it does, what it runs or needs. 'when' matches the project profile (languages by Linguist name, ecosystems by catalog id) or package names in the manifests. 'frameworks' are detected by package name and searched for in the user's marketplaces; with no match keel says so and offers a project skill. Entries are advice only; the user installs what they choose.",
+  "about": "keel's checked list of stack plugins for configure section 11. Every entry was checked by hand on the date below: author, what it does, what it runs or needs. 'when' matches the project profile (languages by Linguist name, ecosystems by catalog id) or package names in the manifests. 'frameworks' are detected by package name and searched for in the user's marketplaces; with no match keel says so and offers a project skill. Entries are advice only; the user installs what they choose.",
   "checked": "2026-10-11",
   "excluded_marketplaces": [
     "anthropic-plugin-directory"

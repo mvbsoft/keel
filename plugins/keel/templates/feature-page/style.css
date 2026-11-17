@@ -115,11 +115,13 @@ pre.raw { white-space: pre-wrap; }
   padding: 12px 44px 12px 14px; display: flex; flex-direction: column; gap: 6px; }
 .float .r { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
 .float .fx { position: absolute; top: 2px; right: 2px; width: 36px; height: 36px; }
-/* a term in a text: its meaning as a bubble at the bottom of the screen */
-.tip { border-bottom: 2px dotted var(--accent); cursor: help; }
-.tip .bubble { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 30; max-width: 560px; margin: 0 auto; font-size: 15px; line-height: 1.5; visibility: hidden; opacity: 0; }
-.tip:hover .bubble, .tip:focus .bubble { visibility: visible; opacity: 1; }
-@media (prefers-reduced-motion: no-preference) { .tip .bubble { transition: opacity .12s; } }
+/* a term in a text: a button that looks like a word, with a quiet thin underline; its bubble sits right under it (page.js placeTip sets left and top) */
+.infowrap:has(> .tip) { display: inline; }
+.tip { display: inline; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: inherit; cursor: pointer; border-radius: 0;
+  text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.tip:hover, .infowrap.open > .tip { text-decoration-color: var(--accent); }
+.infowrap:has(> .tip):not(.open) .bubble { visibility: hidden; opacity: 0; } /* a term opens by a click or the focus only: hover would show it unplaced */
+.infowrap:has(> .tip) .bubble { position: fixed; right: auto; z-index: 30; width: max-content; max-width: min(340px, calc(100vw - 32px)); font-size: 15px; }
 
 /* a phone or a narrow window: the list, and a ticket opened over it with a way back */
 @media (max-width: 1099px) {

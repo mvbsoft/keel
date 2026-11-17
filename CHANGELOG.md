@@ -6,6 +6,44 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-17
+
+### Added
+- `/keel:configure` ends, in quick and in detailed setup, with two optional steps, each opened by one
+  question, "pick now?": **plugins** and **skills**. No skips the step, and the summary names
+  `/keel:configure plugins` or `/keel:configure skills` to run it later; the quick setup asks 2
+  questions more (13 to 20).
+- Plugins: besides keel's checked list and your marketplaces, keel now judges the plugins you have
+  installed: keep, disable here (`enabledPlugins: false` in this project's `.claude/settings.local.json`,
+  after your yes), remove (the uninstall command for your terminal) or replace. Each row shows what it
+  is, why it fits this project, the evidence and the risks; plugins from Anthropic's marketplaces, keel's
+  own, managed and built-in ones are never touched.
+- Skills: a new step for single skills (folders with a `SKILL.md` in `.claude/skills/` and
+  `~/.claude/skills/`). keel shows how many skills and characters of descriptions Claude loads now and
+  after your picks, judges the installed ones, and for needs nothing else covers lets a new
+  web-only agent, `keel:skill-scout` (Sonnet, no file access), find skill folders on GitHub. A script
+  then reads each candidate at a pinned commit (licence, owner on keel's list, last push, archived,
+  code, hooks and MCP flags) and computes the action; the model decides nothing. Installing copies the
+  folder after your yes, by default into the project, with its licence and a `source.json`, never
+  changes the skill and runs nothing from it; a licence outside MIT, Apache-2.0, BSD and ISC and a
+  skill with code each get their own question. Search queries hold only words from keel's own list,
+  never a line of your project. Nothing reliable for a framework (for example Yii2) offers a project
+  skill as a separate task.
+- `skills` in `.keel/config.json`: your project decisions about single skills; a skill is not offered
+  again at the commit it was decided at.
+
+### Changed
+- The configure sections are renumbered: documentation 7, moving from another system 8, Claude Code
+  settings 9, usage and costs 10, plugins 11, skills 12, write and summary 13. Sections are run by name,
+  so commands do not change; `config-check` advises `plugins` and `skills` when the project's stack
+  changed.
+
+### Fixed
+- Feature page: a term's meaning opens right under the word, on a click, a tap or keyboard focus,
+  instead of at the bottom of the screen, so the eyes stay on the text; it turns above the word near
+  the bottom edge. A term is marked by a thin light underline instead of a thick dotted one, so a
+  paragraph with many terms stays easy to read.
+
 ## [2.1.1] - 2026-11-16
 
 ### Fixed
@@ -814,7 +852,8 @@ First public release.
 - keel's agents run only on Haiku, Sonnet or Opus, whatever model your conversation runs on; with
   "Allow Opus for agents" off, Sonnet takes Opus's place.
 
-[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/mvbsoft/keel/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/mvbsoft/keel/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/mvbsoft/keel/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/mvbsoft/keel/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/mvbsoft/keel/compare/v1.4.0...v2.0.0
