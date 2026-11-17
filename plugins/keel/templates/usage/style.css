@@ -75,9 +75,10 @@ td.hit { font-weight: 600; }
   .ss-list table, .ss-list tbody, .ss-list tfoot { display: block; }
   .ss-list tbody tr:not(.ss-grp) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
   .ss-list tbody td, .ss-list tfoot td { padding: 0; border: 0; }
-  .ss-list tbody tr.ss-grp, .ss-list tfoot tr { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; }
+  .ss-list tbody tr.ss-grp, .ss-list tfoot tr { display: flex; gap: 12px; padding: 8px 0; }
+  .ss-list tbody tr.ss-grp td:first-child, .ss-list tfoot td:first-child { flex: 1; }
   .ss-list tfoot tr { border-top: 1px solid var(--line); }
-  .ss-list tfoot td:empty { display: none; }
+  .ss-list tbody tr.ss-grp td:empty, .ss-list tfoot td:empty { display: none; }
   .ss-title { grid-column: 1; grid-row: 1; }
   .ss-cost { grid-column: 2; grid-row: 1; }
   .ss-models { grid-column: 1; grid-row: 2; }

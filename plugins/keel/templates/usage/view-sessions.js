@@ -40,6 +40,12 @@ window.KeelViews.sessions = (app) => {
     if (r.wallet !== 'subscription') return walletChip(r.wallet);
     return '—';
   }
+  // A total or group row's share: the sum over all its sessions with a share (API sessions have none),
+  // not only the rows shown so far; empty when no session has one.
+  function weekTotal(rows) {
+    const shares = rows.filter((r) => r.week_pct != null);
+    return shares.length ? esc(app.fWeekShare(shares.reduce((sum, r) => sum + r.week_pct, 0))) : '';
+  }
   function rowHtml(r) {
     const meta = [r.task ? r.project : t('common.no_keel'), r.pc, r.start ? fDT(r.start) : fDay(r.date), fDur(r.active_min)].filter(Boolean).join(' · ');
     const names = r.models.map(modelName).join(', ');
@@ -124,7 +130,7 @@ window.KeelViews.sessions = (app) => {
       const rows = take(g.rows);
       if (!rows.length) continue;
       const gl = ss.group === 'day' ? fDay(g.key) : g.key === 'unknown' ? t('common.unknown') : g.key;
-      body += `<tr class="ss-grp"><td colspan="3">${esc(gl)} · ${esc(t('sessions.count', { n: g.subtotal.count }))}</td><td class="r" colspan="2">${esc(fUsd(g.subtotal.usd))}</td></tr>${rows.map(rowHtml).join('')}`;
+      body += `<tr class="ss-grp"><td colspan="3">${esc(gl)} · ${esc(t('sessions.count', { n: g.subtotal.count }))}</td><td class="r">${esc(fUsd(g.subtotal.usd))}</td><td class="r ss-week">${weekTotal(g.rows)}</td></tr>${rows.map(rowHtml).join('')}`;
     }
   } else body = take(res.rows).map(rowHtml).join('');
   const shownN = Math.min(shown, res.rows.length);
@@ -133,7 +139,7 @@ window.KeelViews.sessions = (app) => {
   const table = res.rows.length
     ? `<section class="card ss-list"><header><h2>${esc(t('sessions.count', { n: res.total.count }))} · ${esc(fUsd(res.total.usd))}</h2>${sortBox}</header>
       <div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>
-      <tfoot><tr><td colspan="3">${esc(t('common.total'))} · ${esc(t('sessions.count', { n: res.total.count }))}</td><td class="r">${esc(fUsd(res.total.usd))}</td><td></td></tr></tfoot></table></div>
+      <tfoot><tr><td colspan="3">${esc(t('common.total'))} · ${esc(t('sessions.count', { n: res.total.count }))}</td><td class="r">${esc(fUsd(res.total.usd))}</td><td class="r ss-week">${weekTotal(res.rows)}</td></tr></tfoot></table></div>
       <div class="row spread small"><span class="muted">${esc(t('sessions.shown', { n: shownN, total: res.rows.length }))} ${esc(t('sessions.keel_only'))}</span>${left > 0 ? `<button type="button" class="btn" id="ssMore">${esc(t('sessions.more', { n: Math.min(MORE, left) }))}</button>` : ''}</div></section>`
     : `<div class="empty">${esc(t('empty.filtered'))}</div>`;
   return { html: toolbar + table, bind };

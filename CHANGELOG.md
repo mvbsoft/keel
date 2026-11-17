@@ -6,6 +6,11 @@ All notable changes to keel are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Usage page, Sessions: the total row sums the share of the weekly limit of every session it counts,
+  as it does the cost; a group row (by project, day or machine) shows its cost under Cost and its
+  share under Share of the week, instead of the cost spread over both columns.
+
 ## [2.2.0] - 2026-11-17
 
 ### Added

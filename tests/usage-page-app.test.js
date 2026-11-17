@@ -148,6 +148,16 @@ test('share of the week: the same digits on Overview, in the Sessions list and o
   assert.match(await open(`#s.${/href="#s\.([^"]+)"/.exec(overview)[1]}`), /≈ 2\.50 % of the weekly limit/);
 });
 
+test('share of the week: the Sessions total row sums the shares of the sessions it counts', async () => {
+  const { d, sess, dbDoc } = pageFixture();
+  const calib = [['office', { computed_at: new Date().toISOString(), weekly: { rate: 12.1, n: 4, points: [] }, five_hour: { rate: null, n: 0, points: [] } }]];
+  const db = stubDb({ days: [dbDoc(1, [sess('a', 30.25, d(1)), sess('b', 12.1, d(1))], `${d(1)}T23:00:00Z`)], calib });
+  const v = (await openPage({ db, hash: '#sessions' })).view();
+  assert.match(v, /<tfoot><tr><td colspan="3">[^<]*<\/td><td class="r">\$42\.35<\/td><td class="r ss-week">3\.50 %<\/td><\/tr><\/tfoot>/, '2.50 % + 1.00 %');
+  const grouped = (await openPage({ db, hash: '#sessions', stored: { 'keel-usage.ss': { group: 'project' } } })).view();
+  assert.match(grouped, /<tr class="ss-grp"><td colspan="3">[^<]*<\/td><td class="r">\$42\.35<\/td><td class="r ss-week">3\.50 %<\/td><\/tr>/, 'a group row: its cost under Cost, its share under Share of the week');
+});
+
 const withKinds = (s, kinds) => {
   const by = s.participants[0].by_model;
   by[Object.keys(by)[0]].usd_kind = { in: 0, cw5: 0, cw1h: 0, cr: 0, out: 0, ...kinds };
